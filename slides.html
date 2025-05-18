@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ぬるま湯データラボ｜ツールポータル</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="EC運営・開発の効率アップを助けるミニ Web ツール集">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ff7e5f;
+      --secondary: #feb47b;
+      --accent: #7ee8fa;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+    }
+    body {
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+    }
+    .nuruma-gradient {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header-bg {
+      background: linear-gradient(135deg, #ffffff 0%, #f2f2f2 100%);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .tool-card {
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all var(--transition-speed) ease;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(0,0,0,0.05);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
+    .tool-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 20px rgba(0,0,0,0.15);
+    }
+    .card-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      padding: 1.25rem;
+      color: white;
+      font-weight: 600;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      transition: all var(--transition-speed) ease;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 500;
+      display: inline-block;
+      text-decoration: none;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(255, 126, 95, 0.2);
+    }
+    .mini-slide-widget button {
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      font-size: 1.1em;
+      min-width: 32px;
+      min-height: 32px;
+      cursor: pointer;
+      transition: box-shadow 0.2s;
+    }
+    .mini-slide-widget button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .mini-slide-widget {
+      width: 100%;
+      min-height: 125px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0;
+      background: #fff;
+      border-radius: 12px;
+    }
+    .mini-slide-content {
+      min-height: 40px;
+      font-weight: bold;
+      font-size: 1.1em;
+      margin-bottom: 4px;
+      padding: 0 0 4px 0;
+      text-align: center;
+    }
+    .mini-indicator {
+      font-size: 0.95em;
+      color: #aaa;
+      margin: 0 4px;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body class="antialiased">
+  <!-- Navigation Bar（省略：同じ内容） -->
+  <nav id="navbar" class="navbar fixed top-0 left-0 right-0 z-50 py-3 px-4 md:px-6">
+    <div class="container mx-auto flex items-center justify-between">
+      <div class="flex items-center">
+        <button id="menuToggle" class="md:hidden mr-4 text-gray-600 hover:text-gray-800 focus:outline-none">
+          <i class="fas fa-bars text-xl"></i>
+        </button>
+        <a href="/" class="flex items-center">
+          <span class="text-2xl font-bold nuruma-gradient">NURUMAYU Data Lab</span>
+        </a>
+      </div>
+      <div class="hidden md:flex space-x-6 mx-4">
+        <a href="#" class="text-gray-600 hover:text-gray-800 font-medium">ホーム</a>
+        <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium">ツール一覧</a>
+        <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium">ラボについて</a>
+      </div>
+      <div class="flex items-center space-x-4"></div>
+    </div>
+  </nav>
+  <div id="mobileMenu" class="mobile-menu fixed top-0 left-0 bottom-0 z-40 w-64 bg-white shadow-lg pt-16 px-4 md:hidden">
+    <div class="flex flex-col space-y-4">
+      <a href="#" class="text-gray-600 hover:text-gray-800 font-medium py-2">ホーム</a>
+      <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium py-2">ツール一覧</a>
+      <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium py-2">ラボについて</a>
+    </div>
+  </div>
+  <header class="header-bg pt-24 pb-12 px-4">
+    <div class="container mx-auto">
+      <div class="flex flex-col items-center text-center">
+        <h1 class="text-4xl md:text-5xl font-extrabold mb-4">
+          <span class="nuruma-gradient">ぬるま湯データラボ</span>
+        </h1>
+        <p class="text-lg md:text-xl text-gray-600 max-w-2xl mb-8">
+          EC運営・開発の効率アップを助けるミニ Web ツール集<br>
+          ぬるっと、あなたのデータ分析をお手伝いします。
+        </p>
+        <div class="flex flex-wrap justify-center gap-4 mb-8">
+          <a href="#tools" class="btn-primary">
+            <i class="fas fa-tools mr-2"></i>ツールを見る
+          </a>
+          <a href="#about" class="bg-white text-gray-700 hover:bg-gray-100 transition px-4 py-2 rounded-md font-medium">
+            <i class="fas fa-flask mr-2"></i>ぬるま湯データラボについて
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="wave-divider">
+      <div class="wave"></div>
+    </div>
+  </header>
+  <main class="py-8 md:py-12">
+    <section id="tools" class="container mx-auto px-4 mb-16">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+          <h2 class="text-2xl md:text-3xl font-bold mb-2">ミニ Web ツール集</h2>
+          <p class="text-gray-600">現在提供中のツールを確認できます。</p>
+        </div>
+      </div>
+      <!-- ▼▼▼ ミニスライドウィジェット ここから ▼▼▼ -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="tool-card p-0">
+          <div class="mini-slide-widget" data-slides='["データクレンジング<br>自動化！","ノイズ除去も一発","誰でもかんたん操作"]'></div>
+        </div>
+        <div class="tool-card p-0">
+          <div class="mini-slide-widget" data-slides='["SEOタイトル自動生成","見出し改善もサクサク","分析機能も搭載"]'></div>
+        </div>
+        <div class="tool-card p-0">
+          <div class="mini-slide-widget" data-slides='["大量画像の一括リサイズ","AI判定で最適化","Web用変換も一瞬"]'></div>
+        </div>
+        <div class="tool-card p-0">
+          <div class="mini-slide-widget" data-slides='["CSV連携で一括処理","レポート出力機能搭載","ぬるっと運用効率UP"]'></div>
+        </div>
+      </div>
+      <!-- ▲▲▲ ミニスライドウィジェット ここまで ▲▲▲ -->
+
+      <!-- Loading Indicator -->
+      <div id="loadingIndicator" class="loading">
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+      </div>
+      <!-- Tool Cards Container -->
+      <div id="toolGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 opacity-0 transition-opacity duration-500"></div>
+      <!-- No Results Message -->
+      <div id="noResults" class="hidden py-16 text-center">
+        <i class="fas fa-search text-4xl text-gray-400 mb-4"></i>
+        <h3 class="text-xl font-bold mb-2">検索結果がありません</h3>
+        <p class="text-gray-600">別のキーワードで検索してみてください。</p>
+      </div>
+    </section>
+    <section id="about" class="container mx-auto px-4">
+      <div class="bg-white rounded-xl shadow-md p-6 md:p-8 max-w-4xl mx-auto">
+        <h2 class="text-2xl md:text-3xl font-bold mb-4">"ぬるま湯データラボ" とは</h2>
+        <div class="text-gray-600 space-y-4">
+          <p>
+            「ぬるっとデータ分析をする」をコンセプトに、
+            日常に役立つ様々なツールを提供する開発者グループです。
+            日常の面倒な作業を"サクッ"と効率化することで、皆様のビジネスをサポートします。
+          </p>
+          <p>
+            当ラボでは、日々の作業を少しでも楽にするツールを随時追加していきます。
+            新しいツールのアイデアやご要望がありましたら、お気軽にお知らせください。
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="bg-gray-100 py-8 mt-16">
+    <div class="container mx-auto px-4">
+      <div class="flex flex-col md:flex-row items-center justify-between">
+        <div class="mb-4 md:mb-0">
+          <span class="text-xl font-bold nuruma-gradient">ぬるま湯で、ぬるっとデータ分析のラボ</span>
+        </div>
+      </div>
+      <div class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 text-sm">
+        © 2025 ぬるま湯データラボ
+      </div>
+    </div>
+  </footer>
+  <!-- ▼▼▼ ミニスライドJS追加 ここから ▼▼▼ -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // .mini-slide-widgetごとに独立したスライダーを構築
+      document.querySelectorAll('.mini-slide-widget').forEach(function(widget, i) {
+        // スライドデータをdata属性から取得
+        let slides = [];
+        try {
+          slides = JSON.parse(widget.getAttribute('data-slides'));
+        } catch(e) {
+          slides = ["スライド1","スライド2"];
+        }
+        let idx = 0;
+        // HTML構造を作成
+        widget.innerHTML = `
+          <div style="padding:16px 16px 8px 16px; min-height:105px; text-align:center; display:flex; flex-direction:column; justify-content:center;">
+            <div style="font-weight:bold; font-size:1.12em; min-height:40px; margin-bottom:4px;" class="mini-slide-content"></div>
+            <div style="display:flex; justify-content:center; align-items:center; gap:8px;">
+              <button class="mini-prev" aria-label="Back">&lt;</button>
+              <span class="mini-indicator text-xs text-gray-500"></span>
+              <button class="mini-next" aria-label="Next">&gt;</button>
+            </div>
+          </div>
+        `;
+        const content = widget.querySelector('.mini-slide-content');
+        const indicator = widget.querySelector('.mini-indicator');
+        const btnPrev = widget.querySelector('.mini-prev');
+        const btnNext = widget.querySelector('.mini-next');
+        function show(n) {
+          idx = n;
+          content.innerHTML = slides[idx];
+          indicator.textContent = `${idx + 1} / ${slides.length}`;
+          btnPrev.disabled = idx === 0;
+          btnNext.disabled = idx === slides.length - 1;
+        }
+        btnPrev.onclick = () => show(idx - 1);
+        btnNext.onclick = () => show(idx + 1);
+        show(0);
+      });
+    });
+  </script>
+  <!-- ▲▲▲ ミニスライドJS追加 ここまで ▲▲▲ -->
+</body>
+</html>
