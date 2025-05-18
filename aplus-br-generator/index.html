@@ -1,0 +1,74 @@
+<!-- index.html – Amazon A+ コンテンツ <br> ジェネレーター -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>A+ コンテンツ改行ジェネレーター</title>
+<style>
+  body     { font-family: system-ui, sans-serif; margin: 2rem; line-height:1.55; }
+  textarea { width: 100%; height: 10rem; padding:.6rem; font-size:1rem; resize:vertical; }
+  button   { margin-top: 1rem; padding:.5rem 1.2rem; font-size:1rem; }
+  #result  { margin-top:2rem; background:#f7f7f7; padding:1rem; white-space:pre-wrap; word-break:break-all;}
+  small    { color:#666; }
+</style>
+</head>
+<body>
+<h1>A+ コンテンツ <br> 自動挿入ツール</h1>
+
+<p>❶ 説明文をそのまま貼り付け → ❷ <strong>変換</strong> ボタンを押すだけ。<br>
+行は <strong>40 〜 50 文字目</strong> で自動改行し、段落は <code>&lt;br&gt;&lt;br&gt;</code> になるので Amazon にコピペして完了です。</p>
+
+<textarea id="input" placeholder="ここに段落テキストを入力"></textarea><br>
+<button id="convert">変換</button>
+
+<section id="result" hidden></section>
+
+<script>
+/*=== 設定値 ===*/
+const MAX_LEN = 50;   // 1 行の最大文字数（UTF-16 コード単位）
+const MIN_LEN = 40;   // 「出来れば」この長さを下回らない様に折り返す
+
+/*=== メインロジック ===*/
+function convertToBr(txt){
+  // Win 改行 → Unix
+  txt = txt.replace(/\r\n/g, '\n').trim();
+
+  // 空行 2 連続をパラグラフ境界と見なす
+  return txt.split(/\n{2,}/).map(paragraph=>{
+    const words = paragraph.replace(/\n/g,' ').split(/\s+/);  // 中の改行/多重スペースは 1 つに
+    let line   = '', lines = [];
+
+    words.forEach(w=>{
+      const test = line ? line + ' ' + w : w;
+      if(test.length <= MAX_LEN){                // まだはみ出さない
+        line = test;
+      }else{
+        // 現行行が短すぎる場合は仕方なくオーバーを許容
+        if(line.length < MIN_LEN) {
+          lines.push(test); line='';             // 長い単語で越えたケース
+        } else {
+          lines.push(line); line = w;            // 通常改行
+        }
+      }
+    });
+    if(line) lines.push(line);
+
+    return lines.join('<br>');
+  }).join('<br><br>');
+}
+
+/*=== UI バインド ===*/
+document.getElementById('convert').addEventListener('click', ()=>{
+  const src = document.getElementById('input').value;
+  if(!src.trim()) { alert('テキストを入力してください'); return; }
+
+  const html = convertToBr(src);
+  const out  = document.getElementById('result');
+  out.innerText = html;      // ←そのままコピーしやすい様に HTML エスケープせず表示
+  out.hidden    = false;
+});
+</script>
+
+<footer><small>© 2025 ぬるま湯データラボ</small></footer>
+</body>
+</html>
