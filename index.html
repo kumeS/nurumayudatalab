@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ぬるま湯データラボ｜ツールポータル</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+ :root{--card-w:260px;--gap:1.2rem;}
+ body{font-family:system-ui,sans-serif;margin:2rem;}
+ h1{margin-bottom:.5rem;}
+ #toolGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-w),1fr));gap:var(--gap);}
+ .card{border:1px solid #ddd;border-radius:8px;padding:1rem;display:flex;flex-direction:column;transition:transform .15s;}
+ .card:hover{transform:translateY(-4px);}
+ .card h2{margin:0 0 .3rem;font-size:1.1rem;}
+ .card p{flex:1;margin:.2rem 0 .8rem;color:#555;font-size:.9rem;}
+ .card a{align-self:flex-start;padding:.4rem .8rem;background:#0070f3;color:#fff;text-decoration:none;border-radius:4px;font-size:.85rem;}
+ .card a:hover{opacity:.9;}
+ footer{margin-top:2.5rem;font-size:.8rem;color:#666;text-align:center;}
+</style>
+</head>
+<body>
+<h1>内部ツール一覧</h1>
+<p>Amazon 運営・開発の効率アップを助けるミニ Web ツール集です。<br>
+新ツールを追加したい場合は <code>tools.json</code> にエントリを追記するだけ！</p>
+
+<div id="toolGrid"><!-- JS でカードを挿入 --></div>
+
+<footer>© 2025 ぬるま湯データラボ</footer>
+
+<script>
+//--------------------------------------------------------------
+// ❶ フォールバック用：index.html だけで完結したい場合はここを書き換える
+//--------------------------------------------------------------
+const fallbackTools = [
+  {
+    "title": "キーワード整形ツール",
+    "desc" : "重複キーワード除去 / 250・500バイト分割 / スペース改行変換",
+    "url"  : "./keyword-tool/index.html"
+  },
+  {
+    "title": "A+ コンテンツ <br> ジェネレーター",
+    "desc" : "40〜50文字で<br>自動改行 &amp; 段落を<br><br>に変換",
+    "url"  : "./aplus-br-generator/index.html"
+  }
+];
+
+//--------------------------------------------------------------
+// ❷ tools.json があれば読み込み、なければフォールバックを使用
+//--------------------------------------------------------------
+fetch('./tools.json')
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(renderTools)
+  .catch(()=> renderTools(fallbackTools));
+
+//--------------------------------------------------------------
+// ❸ 画面描画
+//--------------------------------------------------------------
+function renderTools(arr){
+  const wrap = document.getElementById('toolGrid');
+  arr.forEach(t=>{
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <h2>${t.title}</h2>
+      <p>${t.desc}</p>
+      <a href="${t.url}" target="_blank">開く</a>
+    `;
+    wrap.appendChild(card);
+  });
+}
+</script>
+</body>
+</html>
