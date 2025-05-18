@@ -1,0 +1,96 @@
+<!--  ファイル名: index.html  -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>キーワード整形ツール</title>
+  <style>
+    body   { font-family: system-ui, sans-serif; margin: 2rem; }
+    textarea { width: 100%; height: 8rem; }
+    button   { margin-top: 1rem; padding: .4rem 1rem; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>キーワード整形ツール</h1>
+
+  <p>半角スペース区切りでキーワードを入力し、<strong>実行</strong>をクリックしてください。</p>
+  <textarea id="kwInput" placeholder="例: パンプス レディース ローヒール パンプス 幅広 ..."></textarea><br>
+  <button id="execBtn">実行</button>
+
+  <script>
+  // ▼ クリック 1：重複除去して別ウインドへ
+  document.getElementById('execBtn').addEventListener('click', () => {
+    const raw = document.getElementById('kwInput').value.trim();
+    if (!raw) { alert('キーワードを入力してください'); return; }
+
+    // 重複除去（元の並び順を保持）
+    const uniq = [];
+    const seen = new Set();
+    raw.split(/\s+/).forEach(w => {
+      if (!seen.has(w)) { seen.add(w); uniq.push(w); }
+    });
+    const result = uniq.join(' ');
+    openResultWindow(result);
+  });
+
+  // ▼ 別ウインド生成
+  function openResultWindow(resultStr) {
+    const w = window.open('', '_blank');
+    // HTML を丸ごと書き込む
+    w.document.write(`
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<title>整形結果</title>
+<style>
+ body{font-family:system-ui,sans-serif;margin:2rem;}
+ textarea{width:100%;height:8rem;}
+ button{margin:.7rem .4rem .4rem 0;padding:.4rem 1rem;font-size:1rem;}
+ pre{background:#f5f5f5;padding:.8rem;white-space:pre-wrap;}
+</style>
+</head><body>
+<h2>重複削除後のキーワード</h2>
+<textarea readonly>${resultStr}</textarea><br>
+
+<h3>▼ クリック 2：所定バイト数ごとに改行</h3>
+<button onclick="splitAndShow(250)">250 バイト単位に分割</button>
+<button onclick="splitAndShow(500)">500 バイト単位に分割</button>
+
+<!-- ▼★ 新機能：スペースで改行 --------------------------- -->
+<button onclick="spaceToNewline()">スペース区切りを改行に変換</button>
+<!-- ------------------------------------------------------ -->
+
+<pre id="outArea"></pre>
+
+<script>
+function byteLen(s){ return new TextEncoder().encode(s).length; }
+
+function splitAndShow(maxBytes){
+  const words = \`${resultStr}\`.split(' ');
+  const lines = [];
+  let current = '';
+
+  words.forEach(w=>{
+    const test = current ? current + ' ' + w : w;
+    if(byteLen(test) <= maxBytes){
+      current = test;
+    }else{
+      if(current) lines.push(current);
+      current = w;
+    }
+  });
+  if(current) lines.push(current);
+  document.getElementById('outArea').textContent = lines.join('\\n');
+}
+
+/* ▼★ 追加：半角スペース → 改行 --------------------------- */
+function spaceToNewline(){
+  const converted = \`${resultStr}\`.split(' ').join('\\n');
+  document.getElementById('outArea').textContent = converted;
+}
+/* --------------------------------------------------------- */
+<\/script>
+</body></html>`);
+    w.document.close();
+  }
+  </script>
+</body>
+</html>
