@@ -250,19 +250,7 @@
         <div>
           <h2 class="text-2xl md:text-3xl font-bold mb-2">ミニ Web ツール集</h2>
           <p class="text-gray-600">現在提供中のツールを確認できます。</p>
-        </div>
-        
-        <div class="mt-4 md:mt-0">
-          <div class="flex items-center space-x-2">
-            <span class="text-gray-600">表示:</span>
-            <button id="gridView" class="bg-gray-200 p-2 rounded text-gray-700 hover:bg-gray-300 focus:outline-none active">
-              <i class="fas fa-th"></i>
-            </button>
-            <button id="listView" class="bg-gray-200 p-2 rounded text-gray-700 hover:bg-gray-300 focus:outline-none">
-              <i class="fas fa-list"></i>
-            </button>
-          </div>
-        </div>
+        </div>      
       </div>
       
       <!-- Loading Indicator -->
@@ -448,25 +436,6 @@
         } else {
           noResults.classList.remove('hidden');
         }
-      });
-      
-      // Grid/List view toggle
-      const gridView = document.getElementById('gridView');
-      const listView = document.getElementById('listView');
-      const toolGrid = document.getElementById('toolGrid');
-      
-      gridView.addEventListener('click', () => {
-        toolGrid.classList.remove('grid-cols-1');
-        toolGrid.classList.add('grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3', 'xl:grid-cols-4');
-        gridView.classList.add('active');
-        listView.classList.remove('active');
-      });
-      
-      listView.addEventListener('click', () => {
-        toolGrid.classList.remove('sm:grid-cols-2', 'lg:grid-cols-3', 'xl:grid-cols-4');
-        toolGrid.classList.add('grid-cols-1');
-        listView.classList.add('active');
-        gridView.classList.remove('active');
       });
     }
   </script>
