@@ -1,73 +1,557 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>ぬるま湯データラボ｜ツールポータル</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
- :root{--card-w:260px;--gap:1.2rem;}
- body{font-family:system-ui,sans-serif;margin:2rem;}
- h1{margin-bottom:.5rem;}
- #toolGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-w),1fr));gap:var(--gap);}
- .card{border:1px solid #ddd;border-radius:8px;padding:1rem;display:flex;flex-direction:column;transition:transform .15s;}
- .card:hover{transform:translateY(-4px);}
- .card h2{margin:0 0 .3rem;font-size:1.1rem;}
- .card p{flex:1;margin:.2rem 0 .8rem;color:#555;font-size:.9rem;}
- .card a{align-self:flex-start;padding:.4rem .8rem;background:#0070f3;color:#fff;text-decoration:none;border-radius:4px;font-size:.85rem;}
- .card a:hover{opacity:.9;}
- footer{margin-top:2.5rem;font-size:.8rem;color:#666;text-align:center;}
-</style>
+  <meta charset="UTF-8">
+  <title>ぬるま湯データラボ｜ツールポータル</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="EC運営・開発の効率アップを助けるミニ Web ツール集">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ff7e5f;
+      --secondary: #feb47b;
+      --accent: #7ee8fa;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+    }
+    
+    body {
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+    }
+    
+    .nuruma-gradient {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .header-bg {
+      background: linear-gradient(135deg, #ffffff 0%, #f2f2f2 100%);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .tool-card {
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all var(--transition-speed) ease;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(0,0,0,0.05);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .tool-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 20px rgba(0,0,0,0.15);
+    }
+    
+    .card-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      padding: 1.25rem;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      transition: all var(--transition-speed) ease;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 500;
+      display: inline-block;
+      text-decoration: none;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(255, 126, 95, 0.2);
+    }
+    
+    .loading {
+      display: flex;
+      justify-content: center;
+      padding: 3rem 0;
+    }
+    
+    .loading-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      margin: 0 6px;
+      animation: loading 1.4s infinite ease-in-out both;
+    }
+    
+    .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+    
+    @keyframes loading {
+      0%, 80%, 100% { 
+        transform: scale(0);
+        opacity: 0.5;
+      } 40% { 
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    
+    .wave-divider {
+      position: relative;
+      height: 60px;
+      width: 100%;
+    }
+    
+    .wave {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z' fill='%23ffffff' opacity='.25'%3E%3C/path%3E%3Cpath d='M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z' fill='%23ffffff' opacity='.5'%3E%3C/path%3E%3Cpath d='M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z' fill='%23ffffff'%3E%3C/path%3E%3C/svg%3E") center bottom no-repeat;
+      background-size: cover;
+      z-index: 10;
+    }
+    
+    /* Navbar styles */
+    .navbar {
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      background-color: rgba(255, 255, 255, 0.95);
+      transition: all var(--transition-speed) ease;
+    }
+    
+    .navbar.scrolled {
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* Mobile menu */
+    .mobile-menu {
+      transition: transform var(--transition-speed) ease;
+      transform: translateX(-100%);
+    }
+    
+    .mobile-menu.active {
+      transform: translateX(0);
+    }
+    
+    /* Dark mode switch */
+    .dark-mode-switch {
+      width: 50px;
+      height: 24px;
+      border-radius: 12px;
+      background-color: #e2e8f0;
+      position: relative;
+      cursor: pointer;
+      transition: all var(--transition-speed) ease;
+    }
+    
+    .dark-mode-switch::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background-color: white;
+      top: 2px;
+      left: 2px;
+      transition: all var(--transition-speed) ease;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    .dark-mode-active .dark-mode-switch {
+      background-color: var(--primary);
+    }
+    
+    .dark-mode-active .dark-mode-switch::after {
+      left: 28px;
+    }
+    
+    /* Dark mode styles */
+    .dark-mode-active {
+      background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+      color: #f7fafc;
+    }
+    
+    .dark-mode-active .header-bg {
+      background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .dark-mode-active .tool-card {
+      background: #2d3748;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .dark-mode-active .navbar {
+      background-color: rgba(26, 32, 44, 0.95);
+    }
+    
+    .dark-mode-active .text-gray-600 {
+      color: #cbd5e0;
+    }
+    
+    .dark-mode-active .text-gray-800 {
+      color: #f7fafc;
+    }
+    
+    .dark-mode-active .bg-white {
+      background-color: #2d3748;
+    }
+    
+    /* Search styles */
+    .search-container {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.5rem;
+      border-radius: 9999px;
+      border: 1px solid #e2e8f0;
+      transition: all var(--transition-speed) ease;
+      background-color: white;
+    }
+    
+    .dark-mode-active .search-input {
+      background-color: #4a5568;
+      border-color: #4a5568;
+      color: white;
+    }
+    
+    .search-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(255, 126, 95, 0.2);
+      border-color: var(--primary);
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #a0aec0;
+    }
+    
+    /* Hide scrollbar but allow scrolling */
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
 </head>
-<body>
-<h1>内部ツール一覧</h1>
-<p>Amazon 運営・開発の効率アップを助けるミニ Web ツール集です。<br>
-新ツールを追加したい場合は <code>tools.json</code> にエントリを追記するだけ！</p>
+<body class="antialiased">
+  <!-- Navigation Bar -->
+  <nav id="navbar" class="navbar fixed top-0 left-0 right-0 z-50 py-3 px-4 md:px-6">
+    <div class="container mx-auto flex items-center justify-between">
+      <div class="flex items-center">
+        <button id="menuToggle" class="md:hidden mr-4 text-gray-600 hover:text-gray-800 focus:outline-none">
+          <i class="fas fa-bars text-xl"></i>
+        </button>
+        <a href="/" class="flex items-center">
+          <span class="text-2xl font-bold nuruma-gradient">ぬるま湯データラボ</span>
+        </a>
+      </div>
+      
+      <div class="hidden md:flex space-x-6 mx-4">
+        <a href="#" class="text-gray-600 hover:text-gray-800 font-medium">ホーム</a>
+        <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium">ツール一覧</a>
+        <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium">ラボについて</a>
+      </div>
+      
+      <div class="flex items-center space-x-4">
+        <div id="darkModeToggle" class="dark-mode-switch"></div>
+      </div>
+    </div>
+  </nav>
+  
+  <!-- Mobile Menu (Hidden by default) -->
+  <div id="mobileMenu" class="mobile-menu fixed top-0 left-0 bottom-0 z-40 w-64 bg-white shadow-lg pt-16 px-4 md:hidden">
+    <div class="flex flex-col space-y-4">
+      <a href="#" class="text-gray-600 hover:text-gray-800 font-medium py-2">ホーム</a>
+      <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium py-2">ツール一覧</a>
+      <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium py-2">ラボについて</a>
+    </div>
+  </div>
+  
+  <!-- Hero Section -->
+  <header class="header-bg pt-24 pb-12 px-4">
+    <div class="container mx-auto">
+      <div class="flex flex-col items-center text-center">
+        <h1 class="text-4xl md:text-5xl font-extrabold mb-4">
+          <span class="nuruma-gradient">ぬるま湯データラボ</span>
+        </h1>
+        <p class="text-lg md:text-xl text-gray-600 max-w-2xl mb-8">
+          EC運営・開発の効率アップを助けるミニ Web ツール集<br>
+          ぬるっと、あなたのデータ分析をお手伝いします。
+        </p>
+                
+        <div class="flex flex-wrap justify-center gap-4 mb-8">
+          <a href="#tools" class="btn-primary">
+            <i class="fas fa-tools mr-2"></i>ツールを見る
+          </a>
+          <a href="#about" class="bg-white text-gray-700 hover:bg-gray-100 transition px-4 py-2 rounded-md font-medium">
+            <i class="fas fa-flask mr-2"></i>ぬるま湯データラボについて
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="wave-divider">
+      <div class="wave"></div>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <main class="py-8 md:py-12">
+    <section id="tools" class="container mx-auto px-4 mb-16">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+          <h2 class="text-2xl md:text-3xl font-bold mb-2">ミニ Web ツール集</h2>
+          <p class="text-gray-600">現在提供中のツールを確認できます。</p>
+        </div>
+        
+        <div class="mt-4 md:mt-0">
+          <div class="flex items-center space-x-2">
+            <span class="text-gray-600">表示:</span>
+            <button id="gridView" class="bg-gray-200 p-2 rounded text-gray-700 hover:bg-gray-300 focus:outline-none active">
+              <i class="fas fa-th"></i>
+            </button>
+            <button id="listView" class="bg-gray-200 p-2 rounded text-gray-700 hover:bg-gray-300 focus:outline-none">
+              <i class="fas fa-list"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Loading Indicator -->
+      <div id="loadingIndicator" class="loading">
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+      </div>
+      
+      <!-- Tool Cards Container -->
+      <div id="toolGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 opacity-0 transition-opacity duration-500"></div>
+      
+      <!-- No Results Message -->
+      <div id="noResults" class="hidden py-16 text-center">
+        <i class="fas fa-search text-4xl text-gray-400 mb-4"></i>
+        <h3 class="text-xl font-bold mb-2">検索結果がありません</h3>
+        <p class="text-gray-600">別のキーワードで検索してみてください。</p>
+      </div>
+    </section>
+    
+    <section id="about" class="container mx-auto px-4">
+      <div class="bg-white rounded-xl shadow-md p-6 md:p-8 max-w-4xl mx-auto">
+        <h2 class="text-2xl md:text-3xl font-bold mb-4">"ぬるま湯データラボ" とは</h2>
+        <div class="text-gray-600 space-y-4">
+          <p>
+            「ぬるっとデータ分析をする」をコンセプトに、
+            日常に役立つ様々なツールを提供する開発者グループです。
+            日常の面倒な作業を"サクッ"と効率化することで、皆様のビジネスをサポートします。
+          </p>
+          <p>
+            当ラボでは、日々の作業を少しでも楽にするツールを随時追加していきます。
+            新しいツールのアイデアやご要望がありましたら、お気軽にお知らせください。
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+  
+  <!-- Footer -->
+  <footer class="bg-gray-100 py-8 mt-16">
+    <div class="container mx-auto px-4">
+      <div class="flex flex-col md:flex-row items-center justify-between">
+        <div class="mb-4 md:mb-0">
+          <span class="text-xl font-bold nuruma-gradient">ぬるま湯で、ぬるっとデータ分析のラボ</span>
+        </div>
+      </div>
+      <div class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 text-sm">
+        © 2025 ぬるま湯データラボ
+      </div>
+    </div>
+  </footer>
 
-<div id="toolGrid"><!-- JS でカードを挿入 --></div>
+  <script>
+    //--------------------------------------------------------------
+    // ❶ フォールバック用：index.html だけで完結したい場合はここを書き換える
+    //--------------------------------------------------------------
+    const fallbackTools = [
+      {
+        "title": "キーワード整形ツール",
+        "desc": "重複キーワード除去 / 250・500バイト分割 / スペース改行変換",
+        "url": "./keyword-tool/index.html",
+        "icon": "fa-keyboard"
+      },
+      {
+        "title": "A+ コンテンツジェネレーター",
+        "desc": "40〜50文字で自動改行 & 段落を<br>に変換",
+        "url": "./aplus-br-generator/index.html",
+        "icon": "fa-edit"
+      }
+    ];
 
-<footer>© 2025 ぬるま湯データラボ</footer>
+    //--------------------------------------------------------------
+    // ❷ tools.json があれば読み込み、なければフォールバックを使用
+    //--------------------------------------------------------------
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        fetch('./tools.json')
+          .then(r => r.ok ? r.json() : Promise.reject())
+          .then(renderTools)
+          .catch(() => renderTools(fallbackTools));
+      }, 500); // 読み込み中の表示のため少し遅延
+      
+      setupEventListeners();
+    });
 
-<script>
-//--------------------------------------------------------------
-// ❶ フォールバック用：index.html だけで完結したい場合はここを書き換える
-//--------------------------------------------------------------
-const fallbackTools = [
-  {
-    "title": "キーワード整形ツール",
-    "desc" : "重複キーワード除去 / 250・500バイト分割 / スペース改行変換",
-    "url"  : "./keyword-tool/index.html"
-  },
-  {
-    "title": "A+ コンテンツ <br> ジェネレーター",
-    "desc" : "40〜50文字で<br>自動改行 &amp; 段落を<br><br>に変換",
-    "url"  : "./aplus-br-generator/index.html"
-  }
-];
+    //--------------------------------------------------------------
+    // ❸ 画面描画
+    //--------------------------------------------------------------
+    function renderTools(arr) {
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      const toolGrid = document.getElementById('toolGrid');
+      
+      // Default icons if not provided
+      const defaultIcons = [
+        'fa-tools', 'fa-chart-bar', 'fa-calculator', 'fa-cogs', 
+        'fa-database', 'fa-edit', 'fa-keyboard', 'fa-search'
+      ];
+      
+      toolGrid.innerHTML = '';
+      
+      arr.forEach((t, index) => {
+        // Use provided icon or select from default icons
+        const icon = t.icon || defaultIcons[index % defaultIcons.length];
+        
+        const card = document.createElement('div');
+        card.className = 'tool-card';
+        card.innerHTML = `
+          <div class="card-header">
+            <i class="fas ${icon} mr-2"></i>
+            <span>${t.title}</span>
+          </div>
+          <div class="p-5 flex-1 bg-white">
+            <p class="text-gray-600 mb-4">${t.desc}</p>
+            <a href="${t.url}" target="_blank" class="btn-primary">
+              <i class="fas fa-external-link-alt mr-1"></i> 開く
+            </a>
+          </div>
+        `;
+        card.dataset.title = t.title.toLowerCase();
+        card.dataset.description = t.desc.toLowerCase();
+        toolGrid.appendChild(card);
+      });
+      
+      // Hide loading indicator and show content
+      loadingIndicator.style.display = 'none';
+      toolGrid.classList.remove('opacity-0');
+    }
 
-//--------------------------------------------------------------
-// ❷ tools.json があれば読み込み、なければフォールバックを使用
-//--------------------------------------------------------------
-fetch('./tools.json')
-  .then(r => r.ok ? r.json() : Promise.reject())
-  .then(renderTools)
-  .catch(()=> renderTools(fallbackTools));
-
-//--------------------------------------------------------------
-// ❸ 画面描画
-//--------------------------------------------------------------
-function renderTools(arr){
-  const wrap = document.getElementById('toolGrid');
-  arr.forEach(t=>{
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <h2>${t.title}</h2>
-      <p>${t.desc}</p>
-      <a href="${t.url}" target="_blank">開く</a>
-    `;
-    wrap.appendChild(card);
-  });
-}
-</script>
+    //--------------------------------------------------------------
+    // ❹ イベントリスナーのセットアップ
+    //--------------------------------------------------------------
+    function setupEventListeners() {
+      // Navbar scroll effect
+      const navbar = document.getElementById('navbar');
+      window.addEventListener('scroll', () => {
+        if (window.scrollY > 10) {
+          navbar.classList.add('scrolled');
+        } else {
+          navbar.classList.remove('scrolled');
+        }
+      });
+      
+      // Mobile menu toggle
+      const menuToggle = document.getElementById('menuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      
+      menuToggle.addEventListener('click', () => {
+        mobileMenu.classList.toggle('active');
+      });
+      
+      // Close mobile menu when clicking outside
+      document.addEventListener('click', (e) => {
+        if (mobileMenu.classList.contains('active') && 
+            !mobileMenu.contains(e.target) && 
+            e.target !== menuToggle) {
+          mobileMenu.classList.remove('active');
+        }
+      });
+      
+      // Dark mode toggle
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      const body = document.body;
+      
+      // Check for saved theme preference
+      if (localStorage.getItem('darkMode') === 'true') {
+        body.classList.add('dark-mode-active');
+      }
+      
+      darkModeToggle.addEventListener('click', () => {
+        body.classList.toggle('dark-mode-active');
+        localStorage.setItem('darkMode', body.classList.contains('dark-mode-active'));
+      });
+      
+      // Search functionality
+      const toolSearch = document.getElementById('toolSearch');
+      const noResults = document.getElementById('noResults');
+      
+      toolSearch.addEventListener('input', () => {
+        const searchTerm = toolSearch.value.toLowerCase().trim();
+        const tools = document.querySelectorAll('#toolGrid .tool-card');
+        let matchFound = false;
+        
+        tools.forEach(tool => {
+          const title = tool.dataset.title;
+          const description = tool.dataset.description;
+          
+          if (title.includes(searchTerm) || description.includes(searchTerm) || searchTerm === '') {
+            tool.style.display = 'flex';
+            matchFound = true;
+          } else {
+            tool.style.display = 'none';
+          }
+        });
+        
+        if (matchFound) {
+          noResults.classList.add('hidden');
+        } else {
+          noResults.classList.remove('hidden');
+        }
+      });
+      
+      // Grid/List view toggle
+      const gridView = document.getElementById('gridView');
+      const listView = document.getElementById('listView');
+      const toolGrid = document.getElementById('toolGrid');
+      
+      gridView.addEventListener('click', () => {
+        toolGrid.classList.remove('grid-cols-1');
+        toolGrid.classList.add('grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3', 'xl:grid-cols-4');
+        gridView.classList.add('active');
+        listView.classList.remove('active');
+      });
+      
+      listView.addEventListener('click', () => {
+        toolGrid.classList.remove('sm:grid-cols-2', 'lg:grid-cols-3', 'xl:grid-cols-4');
+        toolGrid.classList.add('grid-cols-1');
+        listView.classList.add('active');
+        gridView.classList.remove('active');
+      });
+    }
+  </script>
 </body>
 </html>
