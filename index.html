@@ -11,9 +11,9 @@
 
     gtag('config', 'G-F54LKE733T');
   </script>
-  <title>ぬるま湯データラボ｜ツールポータル</title>
+  <title>ぬるま湯データラボ｜EC・マーケティング効率化ツール集</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="EC運営・開発の効率アップを助けるミニ Web ツール集">
+  <meta name="description" content="EC運営・マーケティング業務の効率アップを助けるWebツール集。キーワード整形、A+コンテンツ生成などを簡単操作で実現">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <style>
@@ -194,6 +194,35 @@
     .scrollbar-hide::-webkit-scrollbar {
       display: none;
     }
+    
+    /* Enhanced title styling */
+    .title-wrapper {
+      position: relative;
+      display: inline-block;
+      padding: 0 1rem;
+    }
+    
+    .title-highlight {
+      position: absolute;
+      height: 12px;
+      width: 100%;
+      bottom: 8px;
+      left: 0;
+      background-color: rgba(254, 180, 123, 0.3);
+      z-index: -1;
+      border-radius: 6px;
+    }
+    
+    .title-emoji {
+      display: inline-block;
+      margin-right: 0.5rem;
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
   </style>
 </head>
 <body class="antialiased">
@@ -233,12 +262,16 @@
   <header class="header-bg pt-24 pb-12 px-4">
     <div class="container mx-auto">
       <div class="flex flex-col items-center text-center">
-        <h1 class="text-4xl md:text-5xl font-extrabold mb-4">
-          <span class="nuruma-gradient">ぬるま湯データラボ</span>
+        <h1 class="text-4xl md:text-6xl font-extrabold mb-6 relative">
+          <div class="title-wrapper">
+            <span class="title-emoji">🌊</span>
+            <span class="nuruma-gradient">ぬるま湯データラボ</span>
+            <div class="title-highlight"></div>
+          </div>
         </h1>
         <p class="text-lg md:text-xl text-gray-600 max-w-2xl mb-8">
-          EC運営・開発の効率アップを助けるミニ Web ツール集<br>
-          ぬるっと、あなたのデータ分析をお手伝いします。
+          EC運営・マーケティング業務の効率アップを助けるWebツール集<br>
+          ぬるっと、あなたのデータ処理をお手伝いします。
         </p>
                 
         <div class="flex flex-wrap justify-center gap-4 mb-8">
@@ -322,8 +355,8 @@
     //--------------------------------------------------------------
     const fallbackTools = [
       {
-        "title": "キーワード整形ツール",
-        "desc": "重複キーワード除去 / 250・500バイト分割 / スペース改行変換",
+        "title": "キーワードマネージャー",
+        "desc": "広告・SEO向け重複排除/バイト分割ツール。キーワードを整理してコピーも簡単",
         "url": "./keyword-tool/index.html",
         "icon": "fa-keyboard"
       },
