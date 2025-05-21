@@ -2,6 +2,15 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-F54LKE733T"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-F54LKE733T');
+  </script>
   <title>ぬるま湯データラボ｜ツールポータル</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="EC運営・開発の効率アップを助けるミニ Web ツール集">
@@ -37,7 +46,7 @@
     }
     
     .tool-card {
-      border-radius: 12px;
+      border-radius: 16px;
       overflow: hidden;
       transition: all var(--transition-speed) ease;
       box-shadow: var(--card-shadow);
@@ -45,29 +54,33 @@
       height: 100%;
       display: flex;
       flex-direction: column;
+      font-size: 1.1em;
     }
     
     .tool-card:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 12px 20px rgba(0,0,0,0.15);
+      transform: translateY(-10px);
+      box-shadow: 0 15px 25px rgba(0,0,0,0.15);
+      border-color: rgba(255, 126, 95, 0.2);
     }
     
     .card-header {
       background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-      padding: 1.25rem;
+      padding: 1.5rem;
       color: white;
-      font-weight: 600;
+      font-weight: 700;
+      font-size: 1.2em;
     }
     
     .btn-primary {
       background: linear-gradient(135deg, var(--primary), var(--secondary));
       color: white;
       transition: all var(--transition-speed) ease;
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      font-weight: 500;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 600;
       display: inline-block;
       text-decoration: none;
+      box-shadow: 0 2px 4px rgba(255, 126, 95, 0.3);
     }
     
     .btn-primary:hover {
@@ -261,7 +274,7 @@
       </div>
       
       <!-- Tool Cards Container -->
-      <div id="toolGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 opacity-0 transition-opacity duration-500"></div>
+      <div id="toolGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 opacity-0 transition-opacity duration-500"></div>
       
       <!-- No Results Message -->
       <div id="noResults" class="hidden py-16 text-center">
@@ -319,6 +332,18 @@
         "desc": "40〜50文字で自動改行 & 段落を<br>に変換",
         "url": "./aplus-br-generator/index.html",
         "icon": "fa-edit"
+      },
+      {
+        "title": "開発中1",
+        "desc": "開発中。。。",
+        "url": "./index.html",
+        "icon": "fa-edit"
+      },
+      {
+        "title": "開発中2",
+        "desc": "開発中。。。",
+        "url": "./index.html",
+        "icon": "fa-edit"
       }
     ];
 
@@ -362,10 +387,10 @@
             <i class="fas ${icon} mr-2"></i>
             <span>${t.title}</span>
           </div>
-          <div class="p-5 flex-1 bg-white">
-            <p class="text-gray-600 mb-4">${t.desc}</p>
-            <a href="${t.url}" target="_blank" class="btn-primary">
-              <i class="fas fa-external-link-alt mr-1"></i> 開く
+          <div class="p-6 flex-1 bg-white">
+            <p class="text-gray-600 mb-6 text-lg">${t.desc}</p>
+            <a href="${t.url}" target="_blank" class="btn-primary text-lg px-5 py-2">
+              <i class="fas fa-external-link-alt mr-2"></i> 開く
             </a>
           </div>
         `;
