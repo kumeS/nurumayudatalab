@@ -380,6 +380,12 @@
     //--------------------------------------------------------------
     const analysisTools = [
       {
+        "title": "NEKO bot",
+        "desc": "「吾輩は猫である」が詳しい猫ボットです。データ分析についてもお気軽にご質問ください。",
+        "url": "Analysis_Chat/index.html",
+        "icon": "fa-cat"
+      },
+      {
         "title": "Time Series Analyzer",
         "desc": "Analyze temporal data patterns with forecasting and anomaly detection capabilities",
         "url": "#",
@@ -390,12 +396,6 @@
         "desc": "Under development",
         "url": "#",
         "icon": "fa-project-diagram"
-      },
-      {
-        "title": "Under development",
-        "desc": "Under development",
-        "url": "#",
-        "icon": "fa-calculator"
       }
     ];
 
@@ -431,7 +431,7 @@
           <div class="p-6 flex-1 bg-white">
             <p class="text-gray-600 mb-6 text-lg">${t.desc}</p>
             <a href="${t.url}" class="btn-primary text-lg px-5 py-2">
-              <i class="fas fa-external-link-alt mr-2"></i> Coming Soon
+              <i class="fas ${t.url === '#' ? 'fa-external-link-alt' : 'fa-arrow-right'} mr-2"></i> ${t.url === '#' ? 'Coming Soon' : '使ってみる'}
             </a>
           </div>
         `;
