@@ -351,7 +351,10 @@
 
     <textarea id="kwInput" placeholder="例: パンプス レディース ローヒール パンプス 幅広 ..."></textarea><br>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
-      <button id="execBtn"><i class="fas fa-play"></i> 実行</button>
+      <div>
+        <button id="execBtn"><i class="fas fa-play"></i> 実行</button>
+        <button id="clearBtn"><i class="fas fa-trash"></i> クリア</button>
+      </div>
       <a href="../index.html" class="back-link">ぬるま湯データラボに戻る</a>
     </div>
   </div>
@@ -410,6 +413,11 @@
     if (document.getElementById('copyBtn2')) {
       document.getElementById('copyBtn2').classList.remove('copy-success');
     }
+  });
+
+  // ▼ 入力エリアをクリア
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    document.getElementById('kwInput').value = '';
   });
 
   // ▼ モーダルを閉じる
