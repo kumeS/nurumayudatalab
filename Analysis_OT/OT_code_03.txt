@@ -1,0 +1,140 @@
+<contemplator>
+「時系列の輸送計画の結果をベクトル場として可視化できるか」という話には、まず OT が返すのは点間の結合（coupling）であり、直接的な “ベクトル場” は出力しないという技術的事実がある。しかし、モンジュ写像の近似として、各ソース点のバリセントリック写像（輸送先の重み付き平均）を計算すると、各点に対して「どの方向にどれだけ動くか」を示すベクトルを得られる。  
+その上で、R の可視化パッケージとしては、ベクトルフィールドを描くための `ggquiver`（quiver プロット）、`ggplot2::geom_segment()` や、流線を描く `flowfields` などが利用できる。時系列的にアニメーションするなら `gganimate` と組み合わせるのが手軽だ。  
+専用の OT ベクトル場可視化パッケージはないが、組み合わせで実現可能、という結論に至る。  
+</contemplator>
+
+はい、時系列の輸送計画（OT プラン）からベクトル場を作成し、動的に可視化することは十分に可能です。基本的な流れと、代表的な R パッケージをご紹介します。
+
+---
+
+## ■ 手順イメージ
+
+1. **輸送プラン（coupling）の取得**
+
+   * `transport::transport()` で各時刻 $t$ の分布間プランを得る。
+2. **バリセントリック写像の計算**
+
+   * 各ソース点 $x_i$ に対して、輸送先点 $y_j$ の重み付き平均を計算：
+
+     $$
+       T(x_i) \;=\;\frac{1}{\sum_j \pi_{ij}} \sum_j \pi_{ij} \, y_j
+     $$
+   * ベクトル $\Delta_i = T(x_i) - x_i$ を各点に定義。
+3. **ベクトル場の可視化**
+
+   * `ggplot2` と `ggquiver` の `geom_quiver()` で矢印プロット（quiver plot）を描画。
+   * または `geom_segment()` でカスタムに矢印を描いても OK。
+4. **時系列アニメーション**
+
+   * `gganimate::transition_time(time)` などで時刻ごとにフレームを切り替え、動的表示。
+
+---
+
+## ■ 主要パッケージ
+
+* **transport**
+
+  * OT 計算（Wasserstein 距離、coupling の取得）
+* **ggquiver**
+
+  * `geom_quiver()` でベクトル場（quiver プロット）を簡単に描画
+* **ggplot2**
+
+  * 基本的な散布図や矢印描画（`geom_segment()`）
+* **gganimate**
+
+  * 時系列アニメーション
+* （オプション）**flowfields**
+
+  * 数値流線やベクトル場解析向けユーティリティ
+
+---
+
+## ■ サンプルコード
+
+以下は、各時刻 $t$ におけるクラスタ重心間の輸送プランからバリセントリックマップを計算し、`ggquiver` でベクトル場アニメーションを作る例です。
+
+```r
+#── 必要パッケージ ──
+pkgs <- c("transport", "ggplot2", "ggquiver", "gganimate", "dplyr")
+for(p in pkgs) if(!requireNamespace(p, quietly=TRUE)) install.packages(p)
+library(transport); library(ggplot2); library(ggquiver)
+library(gganimate); library(dplyr)
+
+#── ダミーデータ作成：各時刻の重心（centroids）と重み（weights） ──
+# ここでは例として 10時点、各時点 3クラスタの重心
+set.seed(42)
+n_times <- 10
+centroids <- lapply(1:n_times, function(t){
+  data.frame(
+    time = t,
+    cluster = 1:3,
+    x = rnorm(3, sin(t/2)),
+    y = rnorm(3, cos(t/3))
+  )
+})
+weights <- lapply(1:n_times, function(t){
+  data.frame(
+    time = t,
+    cluster = 1:3,
+    w = runif(3)
+  ) %>% mutate(w = w / sum(w))
+})
+
+centroids_df <- bind_rows(centroids)
+weights_df   <- bind_rows(weights)
+
+#── 輸送プランからバリセントリックマップを計算 ──
+vv_list <- list()
+for(t in 1:(n_times-1)){
+  C1 <- centroids_df %>% filter(time==t)   %>% arrange(cluster)
+  C2 <- centroids_df %>% filter(time==t+1) %>% arrange(cluster)
+  w1 <- weights_df   %>% filter(time==t)   %>% arrange(cluster) %>% pull(w)
+  # 距離行列
+  costm <- as.matrix(dist(rbind(C1[,c("x","y")], C2[,c("x","y")])))
+  n1 <- nrow(C1)
+  costm <- costm[1:n1, (n1+1):(n1+nrow(C2))]
+  # OT プラン
+  plan <- transport(a=w1, b=weights_df$w[weights_df$time==t+1],
+                    costm=costm, method="shortsimplex")
+  # バリセントリック写像 → ベクトル
+  Tcoords <- t(sapply(split(plan, seq(nrow(plan))), function(r){
+    # 平均 y 座標
+    sum(r$mass * C2$x[r$to]) / sum(r$mass)
+  }))
+  # ただし簡略例：ここでは重心単位で 1:1 のマップを仮定
+  df_v <- data.frame(
+    time  = t,
+    x     = C1$x,
+    y     = C1$y,
+    u     = C2$x - C1$x,  # X方向ベクトル
+    v     = C2$y - C1$y   # Y方向ベクトル
+  )
+  vv_list[[t]] <- df_v
+}
+vv_df <- bind_rows(vv_list)
+
+#── 可視化：quiver plot + animate ──
+p_q <- ggplot(vv_df) +
+  geom_quiver(aes(x=x, y=y, u=u, v=v), vecsize=0.5, alpha=0.8) +
+  labs(title = "Time: {frame_time}") +
+  theme_minimal() +
+  transition_time(time) +
+  ease_aes("linear")
+
+animate(p_q, nframes = n_times, fps = 2, width=600, height=600)
+```
+
+この例ではクラスタ重心間の単純ベクトルを描いていますが、実データでは各サンプル点あるいはクラスタ内の多数点に対してバリセントリックマップを計算し、そのベクトル場を同様にプロットすれば、「時系列に沿った形態変化のベクトル場」が可視化できます。
+
+
+上のプロットは、時刻 $t=1$ の重心（黄色 ✕）から $t=2$ の対応する重心へのベクトル場を Quiver プロットで示した例です。
+
+* **黒い矢印**：各重心が次時点へどう移動するか（ベリセントリック写像による単純差分）
+* **黄色 ✕**：時刻 $t=1$ の重心位置
+
+このようにして、各時点の OT プランをベクトルとして可視化できます。
+アニメーション化する場合は、同じ手順を繰り返して各時刻フレームを作り、`matplotlib.animation` や `gganimate` を使って GIF／MP4 にまとめれば「時系列ベクトル場アニメーション」が得られます。
+
+

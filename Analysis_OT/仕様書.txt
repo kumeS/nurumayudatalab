@@ -1,0 +1,129 @@
+## 仕様書：WebR × Optimal Transport 可視化システム
+
+### 1. 目的
+
+* HTML5 + JavaScript 上で、R を WebAssembly (WebR) 経由で実行し、最適輸送（Optimal Transport; OT）の計算結果をブラウザ上に可視化する。
+
+### 2. 全体概要
+
+| コンポーネント               | 役割                                  |
+| --------------------- | ----------------------------------- |
+| HTML5 + Canvas        | 描画領域の提供                             |
+| JavaScript (webr.mjs) | WebR の初期化／制御、パラメータ受け渡し              |
+| WebR (R in WASM)      | R スクリプト実行、transport パッケージ読み込み、グラフ描画 |
+| Canvas 描画コントローラ       | WebR の出力イメージを `<canvas>` に描画        |
+
+### 3. 機能要件
+
+1. WebR の初期化
+
+   * JavaScript から `new WebR()` → `init()` を呼び出す。
+2. R パッケージ管理
+
+   * `install.packages("transport")` → `library(transport)` で Wasm 対応 transport を動的読み込み。
+3. 描画デバイス設定
+
+   * `webr::canvas()` を呼び出し、描画先を HTML 側 `<canvas>` にバインド。
+4. OT 計算＋プロット
+
+   * R スクリプト内でサンプル分布の生成（あるいは外部からのデータ受け取り）。
+   * `transport::transport()` による最適輸送プラン取得。
+   * `plot()`／`points()`／`arrows()` で散布図と輸送矢印を描画。
+   * `dev.off()` でデバイスを終了。
+5. ビットマップ取得 & Canvas 描画
+
+   * WebR から返却されるメッセージを `webR.flush()` で受け取る。
+   * `msg.type==='canvas' && msg.data.event==='canvasImage'` を検知し、`drawImage()` で `<canvas>` に描画。
+
+### 4. 非機能要件
+
+* ブラウザ互換性：最新 Chrome/Firefox/Safari
+* レスポンシブ：`<canvas>` のサイズを動的変更可能
+* パフォーマンス：100～500点のサンプルをリアルタイムで描画可能
+* セキュリティ：CSP 設定を遵守、外部スクリプトは HTTPS 取得
+
+### 5. データフロー
+
+```mermaid
+sequenceDiagram
+    participant JS as JavaScript
+    participant WR as WebR(R)
+    participant Canvas as <canvas>
+    JS->>WR: init()
+    JS->>WR: evalR("install.packages...; library(transport)")
+    JS->>WR: evalR("webr::canvas()")
+    JS->>WR: evalR(`OT 計算 + plot コード`)
+    WR-->>JS: canvasImage メッセージ
+    JS->>Canvas: drawImage(image)
+```
+
+### 6. HTML5 テンプレート構成
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WebR OT 可視化</title>
+</head>
+<body>
+  <h1>Optimal Transport Visualization</h1>
+  <canvas id="plot-canvas"></canvas>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
+```
+
+### 7. JavaScript モジュール (main.js)
+
+```js
+import { WebR } from "https://webr.r-wasm.org/latest/webr.mjs";
+const webR = new WebR();
+await webR.init();
+// パラメータ受け取り
+const params = { n: 100, shift: 1.0 };
+// R 実行コードを動的生成
+const rScript = `
+  install.packages("transport")
+  library(transport)
+  webr::canvas()
+  # データ生成
+  X <- matrix(rnorm(${params.n}*2), ncol=2)
+  Y <- X + ${params.shift}
+  # OT
+  w <- rep(1/${params.n}, ${params.n})
+  C <- as.matrix(dist(rbind(X,Y)))[1:${params.n}, ${params.n}+1:${2*params.n}]
+  plan <- transport(a=w,b=w,costm=C,method="shortsimplex")
+  plot(X, col="blue", pch=19)
+  points(Y, col="red", pch=19)
+  arrows(X[plan$from,1],X[plan$from,2],Y[plan$to,1],Y[plan$to,2], length=0.05)
+  dev.off()
+`;
+await webR.evalRVoid(rScript);
+// Canvas 描画
+const msgs = await webR.flush();
+for (const msg of msgs) {
+  if (msg.type === "canvas" && msg.data.event === "canvasImage") {
+    const canvas = document.getElementById("plot-canvas");
+    canvas.width = msg.data.image.width;
+    canvas.height = msg.data.image.height;
+    canvas.getContext("2d").drawImage(msg.data.image, 0, 0);
+  }
+}
+```
+
+### 8. パラメータ受け渡し
+
+* JS 側で生成／取得したオブジェクトを文字列埋め込み (`evalR`) または仮想ファイル（`writeFile`）経由で WebR 側に渡す。
+
+### 9. 拡張性／今後の検討事項
+
+* 入力データを UI からアップロード（CSV/JSON）し動的に解析
+* `ggplot2` + `webr::svg()` で SVG 出力・インタラクティブ化
+* Sinkhorn 法（エントロピック OT）への対応
+* Web Workers を利用した計算オフロード
+* レスポンシブデザイン強化
+
+---
+
+以上の仕様に基づき、WebR 上でブラウザ内完結の OT 可視化機能を開発します。

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <!-- Google tag (gtag.js) -->
@@ -11,16 +11,17 @@
 
     gtag('config', 'G-F54LKE733T');
   </script>
-  <title>ぬるま湯データラボ｜EC・マーケティング効率化ツール集</title>
+  <title>Data Analysis Tools | NURUMAYU Data Lab</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="EC運営・マーケティング業務の効率アップを助けるWebツール集。キーワード整形、A+コンテンツ生成などを簡単操作で実現">
+  <meta name="description" content="Powerful data analysis tools for marketing, business, and research. Simplify your data workflows with NURUMAYU Data Lab.">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <style>
     :root {
-      --primary: #ff7e5f;
-      --secondary: #feb47b;
-      --accent: #7ee8fa;
+      --primary: #0a4d68;
+      --secondary: #088395;
+      --accent: #05bfdb;
+      --light-accent: #00ffca;
       --text-primary: #333;
       --text-secondary: #666;
       --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -28,12 +29,12 @@
     }
     
     body {
-      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
+      font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
       background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
       min-height: 100vh;
     }
     
-    .nuruma-gradient {
+    .data-gradient {
       background: linear-gradient(135deg, var(--primary), var(--secondary));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -41,8 +42,9 @@
     }
     
     .header-bg {
-      background: linear-gradient(135deg, #ffffff 0%, #f2f2f2 100%);
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+      position: relative;
+      overflow: hidden;
     }
     
     .tool-card {
@@ -60,7 +62,7 @@
     .tool-card:hover {
       transform: translateY(-10px);
       box-shadow: 0 15px 25px rgba(0,0,0,0.15);
-      border-color: rgba(255, 126, 95, 0.2);
+      border-color: rgba(5, 191, 219, 0.4);
     }
     
     .card-header {
@@ -72,7 +74,7 @@
     }
     
     .btn-primary {
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      background: linear-gradient(135deg, var(--secondary), var(--accent));
       color: white;
       transition: all var(--transition-speed) ease;
       padding: 0.6rem 1.2rem;
@@ -80,12 +82,12 @@
       font-weight: 600;
       display: inline-block;
       text-decoration: none;
-      box-shadow: 0 2px 4px rgba(255, 126, 95, 0.3);
+      box-shadow: 0 2px 4px rgba(5, 191, 219, 0.3);
     }
     
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(255, 126, 95, 0.2);
+      box-shadow: 0 4px 8px rgba(5, 191, 219, 0.4);
     }
     
     .loading {
@@ -98,7 +100,7 @@
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background-color: var(--primary);
+      background-color: var(--accent);
       margin: 0 6px;
       animation: loading 1.4s infinite ease-in-out both;
     }
@@ -153,8 +155,6 @@
       transform: translateX(0);
     }
     
-    
-    
     /* Search styles */
     .search-container {
       position: relative;
@@ -173,8 +173,8 @@
         
     .search-input:focus {
       outline: none;
-      box-shadow: 0 0 0 3px rgba(255, 126, 95, 0.2);
-      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(5, 191, 219, 0.2);
+      border-color: var(--accent);
     }
     
     .search-icon {
@@ -208,7 +208,7 @@
       width: 100%;
       bottom: 8px;
       left: 0;
-      background-color: rgba(254, 180, 123, 0.3);
+      background-color: rgba(5, 191, 219, 0.3);
       z-index: -1;
       border-radius: 6px;
     }
@@ -223,6 +223,31 @@
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-10px); }
     }
+    
+    /* Stars Animation */
+    .stars {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    .stars .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle var(--duration) infinite;
+      animation-delay: var(--delay);
+    }
+    
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 1; }
+    }
   </style>
 </head>
 <body class="antialiased">
@@ -234,53 +259,45 @@
           <i class="fas fa-bars text-xl"></i>
         </button>
         <a href="/" class="flex items-center">
-          <span class="text-2xl font-bold nuruma-gradient">NURUMAYU Data Lab</span>
+          <span class="text-2xl font-bold data-gradient">NURUMAYU Data Lab</span>
         </a>
       </div>
       
       <div class="hidden md:flex space-x-6 mx-4">
-        <a href="#" class="text-gray-600 hover:text-gray-800 font-medium">ホーム</a>
-        <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium">ツール一覧</a>
-        <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium">ラボについて</a>
-        <a href="Analysis.html" class="text-gray-600 hover:text-gray-800 font-medium">Analysis</a>
-      </div>
-      
-      <div class="flex items-center space-x-4">
+        <a href="index.html" class="text-gray-600 hover:text-gray-800 font-medium">Home</a>
+        <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium">Analysis Tools</a>
+        <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium">About</a>
       </div>
     </div>
   </nav>
   
   <!-- Mobile Menu (Hidden by default) -->
-      <div id="mobileMenu" class="mobile-menu fixed top-0 left-0 bottom-0 z-40 w-64 bg-white shadow-lg pt-16 px-4 md:hidden">
-      <div class="flex flex-col space-y-4">
-        <a href="#" class="text-gray-600 hover:text-gray-800 font-medium py-2">ホーム</a>
-        <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium py-2">ツール一覧</a>
-        <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium py-2">ラボについて</a>
-        <a href="Analysis.html" class="text-gray-600 hover:text-gray-800 font-medium py-2">Analysis</a>
-      </div>
+  <div id="mobileMenu" class="mobile-menu fixed top-0 left-0 bottom-0 z-40 w-64 bg-white shadow-lg pt-16 px-4 md:hidden">
+    <div class="flex flex-col space-y-4">
+      <a href="index.html" class="text-gray-600 hover:text-gray-800 font-medium py-2">Home</a>
+      <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium py-2">Analysis Tools</a>
+      <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium py-2">About</a>
     </div>
+  </div>
   
   <!-- Hero Section -->
-  <header class="header-bg pt-24 pb-12 px-4">
+  <header class="header-bg pt-24 pb-12 px-4 text-white">
+    <div class="stars" id="stars"></div>
     <div class="container mx-auto">
       <div class="flex flex-col items-center text-center">
         <h1 class="text-4xl md:text-6xl font-extrabold mb-6 relative">
           <div class="title-wrapper">
-            <span class="nuruma-gradient">ぬるま湯データラボ</span>
-            <div class="title-highlight"></div>
+            <span class="text-white">Data Analysis Tools</span>
           </div>
         </h1>
-        <p class="text-lg md:text-xl text-gray-600 max-w-2xl mb-8">
-          EC運営・マーケティング業務の効率アップを助けるWebツール集<br>
-          ぬるっと、あなたのデータ処理をお手伝いします。
+        <p class="text-lg md:text-xl text-gray-300 max-w-2xl mb-8">
+          Powerful analytics solutions to transform your data into actionable insights.
+          Discover patterns, visualize trends, and make data-driven decisions.
         </p>
                 
         <div class="flex flex-wrap justify-center gap-4 mb-8">
           <a href="#tools" class="btn-primary">
-            <i class="fas fa-tools mr-2"></i>ツールを見る
-          </a>
-          <a href="#about" class="bg-white text-gray-700 hover:bg-gray-100 transition px-4 py-2 rounded-md font-medium">
-            <i class="fas fa-flask mr-2"></i>ぬるま湯データラボについて
+            <i class="fas fa-chart-line mr-2"></i>Explore Tools
           </a>
         </div>
       </div>
@@ -295,9 +312,13 @@
     <section id="tools" class="container mx-auto px-4 mb-16">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
-          <h2 class="text-2xl md:text-3xl font-bold mb-2">ミニ Web ツール集</h2>
-          <p class="text-gray-600">現在提供中のツールを確認できます。</p>
-        </div>      
+          <h2 class="text-2xl md:text-3xl font-bold mb-2">Our Analysis Toolkit</h2>
+          <p class="text-gray-600">Powerful tools to transform your data workflow.</p>
+        </div>
+        <div class="search-container mt-4 md:mt-0">
+          <i class="fas fa-search search-icon"></i>
+          <input id="toolSearch" type="text" placeholder="Search tools..." class="search-input">
+        </div>
       </div>
       
       <!-- Loading Indicator -->
@@ -313,23 +334,26 @@
       <!-- No Results Message -->
       <div id="noResults" class="hidden py-16 text-center">
         <i class="fas fa-search text-4xl text-gray-400 mb-4"></i>
-        <h3 class="text-xl font-bold mb-2">検索結果がありません</h3>
-        <p class="text-gray-600">別のキーワードで検索してみてください。</p>
+        <h3 class="text-xl font-bold mb-2">No matching tools found</h3>
+        <p class="text-gray-600">Try searching with different keywords.</p>
       </div>
     </section>
     
     <section id="about" class="container mx-auto px-4">
       <div class="bg-white rounded-xl shadow-md p-6 md:p-8 max-w-4xl mx-auto">
-        <h2 class="text-2xl md:text-3xl font-bold mb-4">"ぬるま湯データラボ" とは</h2>
+        <h2 class="text-2xl md:text-3xl font-bold mb-4">About Our Data Analysis Platform</h2>
         <div class="text-gray-600 space-y-4">
           <p>
-            「ぬるっとデータ分析をする」をコンセプトに、
-            日常に役立つ様々なツールを提供する開発者グループです。
-            日常の面倒な作業を"サクッ"と効率化することで、皆様のビジネスをサポートします。
+            Welcome to the NURUMAYU Data Lab Analysis platform. We provide powerful and intuitive tools for data analysis, 
+            visualization, and interpretation to help businesses and researchers make sense of complex data.
           </p>
           <p>
-            当ラボでは、日々の作業を少しでも楽にするツールを随時追加していきます。
-            新しいツールのアイデアやご要望がありましたら、お気軽にお知らせください。
+            Our suite of analytical tools is designed with simplicity and effectiveness in mind, allowing users of all 
+            skill levels to extract meaningful insights without complicated setup or technical expertise.
+          </p>
+          <p>
+            We're continuously expanding our collection with new analytical capabilities. If you have suggestions for 
+            tools or features you'd like to see, please let us know.
           </p>
         </div>
       </div>
@@ -341,90 +365,73 @@
     <div class="container mx-auto px-4">
       <div class="flex flex-col md:flex-row items-center justify-between">
         <div class="mb-4 md:mb-0">
-          <span class="text-xl font-bold nuruma-gradient">ぬるま湯で、ぬるっとデータ分析のラボ</span>
+          <span class="text-xl font-bold data-gradient">NURUMAYU Data Lab</span>
         </div>
       </div>
       <div class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 text-sm">
-        © 2025 ぬるま湯データラボ
+        © 2025 NURUMAYU Data Lab
       </div>
     </div>
   </footer>
 
   <script>
     //--------------------------------------------------------------
-    // ❶ フォールバック用：index.html だけで完結したい場合はここを書き換える
+    // Tools data
     //--------------------------------------------------------------
-    const fallbackTools = [
+    const analysisTools = [
       {
-        "title": "キーワードマネージャー",
-        "desc": "広告・SEO向け重複排除/バイト分割ツール。キーワードを整理してコピーも簡単",
-        "url": "./webtool_keyword-tool/index.html",
-        "icon": "fa-keyboard"
+        "title": "Time Series Analyzer",
+        "desc": "Analyze temporal data patterns with forecasting and anomaly detection capabilities",
+        "url": "#",
+        "icon": "fa-chart-line"
       },
       {
-        "title": "A+ コンテンツジェネレーター",
-        "desc": "40〜50文字で自動改行 & 段落を<br>に変換",
-        "url": "./webtool_aplus-br-generator/index.html",
-        "icon": "fa-edit"
+        "title": "Under development",
+        "desc": "Under development",
+        "url": "#",
+        "icon": "fa-project-diagram"
       },
       {
-        "title": "開発中1",
-        "desc": "開発中。。。",
-        "url": "./index.html",
-        "icon": "fa-edit"
-      },
-      {
-        "title": "開発中2",
-        "desc": "開発中。。。",
-        "url": "./index.html",
-        "icon": "fa-edit"
+        "title": "Under development",
+        "desc": "Under development",
+        "url": "#",
+        "icon": "fa-calculator"
       }
     ];
 
     //--------------------------------------------------------------
-    // ❷ tools.json があれば読み込み、なければフォールバックを使用
+    // Page initialization
     //--------------------------------------------------------------
     document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
-        fetch('./tools.json')
-          .then(r => r.ok ? r.json() : Promise.reject())
-          .then(renderTools)
-          .catch(() => renderTools(fallbackTools));
-      }, 500); // 読み込み中の表示のため少し遅延
+        renderTools(analysisTools);
+      }, 500); // Small delay for loading animation
       
       setupEventListeners();
+      createStars();
     });
 
     //--------------------------------------------------------------
-    // ❸ 画面描画
+    // Render tool cards
     //--------------------------------------------------------------
     function renderTools(arr) {
       const loadingIndicator = document.getElementById('loadingIndicator');
       const toolGrid = document.getElementById('toolGrid');
       
-      // Default icons if not provided
-      const defaultIcons = [
-        'fa-tools', 'fa-chart-bar', 'fa-calculator', 'fa-cogs', 
-        'fa-database', 'fa-edit', 'fa-keyboard', 'fa-search'
-      ];
-      
       toolGrid.innerHTML = '';
       
-      arr.forEach((t, index) => {
-        // Use provided icon or select from default icons
-        const icon = t.icon || defaultIcons[index % defaultIcons.length];
-        
+      arr.forEach((t) => {
         const card = document.createElement('div');
         card.className = 'tool-card';
         card.innerHTML = `
           <div class="card-header">
-            <i class="fas ${icon} mr-2"></i>
+            <i class="fas ${t.icon} mr-2"></i>
             <span>${t.title}</span>
           </div>
           <div class="p-6 flex-1 bg-white">
             <p class="text-gray-600 mb-6 text-lg">${t.desc}</p>
-            <a href="${t.url}" target="_blank" class="btn-primary text-lg px-5 py-2">
-              <i class="fas fa-external-link-alt mr-2"></i> 開く
+            <a href="${t.url}" class="btn-primary text-lg px-5 py-2">
+              <i class="fas fa-external-link-alt mr-2"></i> Coming Soon
             </a>
           </div>
         `;
@@ -439,7 +446,7 @@
     }
 
     //--------------------------------------------------------------
-    // ❹ イベントリスナーのセットアップ
+    // Setup event listeners
     //--------------------------------------------------------------
     function setupEventListeners() {
       // Navbar scroll effect
@@ -496,6 +503,37 @@
           noResults.classList.remove('hidden');
         }
       });
+    }
+
+    //--------------------------------------------------------------
+    // Create stars in header background
+    //--------------------------------------------------------------
+    function createStars() {
+      const stars = document.getElementById('stars');
+      const starsCount = 100;
+      
+      for (let i = 0; i < starsCount; i++) {
+        const star = document.createElement('div');
+        star.classList.add('star');
+        
+        // Random position
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.top = `${Math.random() * 100}%`;
+        
+        // Random size
+        const size = Math.random() * 3 + 1;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        
+        // Random animation
+        const duration = 3 + Math.random() * 3;
+        const delay = Math.random() * 3;
+        
+        star.style.setProperty('--duration', `${duration}s`);
+        star.style.setProperty('--delay', `${delay}s`);
+        
+        stars.appendChild(star);
+      }
     }
   </script>
 </body>
