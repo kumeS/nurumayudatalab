@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebR × Optimal Transport 可視化システム | NURUMAYU Data Lab</title>
+  
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-F54LKE733T"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-F54LKE733T');
+  </script>
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Import visualization module as a module script -->
+  <script type="module">
+    import { generateClusteringScript, generateSetupCode } from './scripts/clustering.js';
+    import OTVisualizer from './scripts/visualization.js';
+    
+    // Expose the functions globally for debugging if needed
+    window.generateClusteringScript = generateClusteringScript;
+    window.generateSetupCode = generateSetupCode;
+  </script>
+</head>
+<body>
+  <div class="container mx-auto px-4 py-8">
+    <header class="mb-8 text-center">
+      <h1 class="data-gradient header-title">WebR × Optimal Transport 可視化システム</h1>
+      <p class="text-gray-600">
+        ブラウザ上で最適輸送問題を解き、<span class="text-indigo-600 font-semibold">時系列データの変化</span>を可視化します
+      </p>
+      <div class="mt-4 flex justify-center gap-4">
+        <a href="../Analysis.html" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+          <i class="fas fa-arrow-left mr-1"></i>分析ページへ
+        </a>
+        <a href="https://github.com/nurumayu/nurumayudatalab" target="_blank" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+          <i class="fab fa-github mr-1"></i>GitHub
+        </a>
+      </div>
+    </header>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2">
+        <div class="data-explanation mb-4">
+          <div class="flex justify-between items-center">
+            <h3 class="font-bold text-lg">表示データの説明</h3>
+            <div>
+              <button id="tab-points" class="tab-button active">クラスタ点群</button>
+              <button id="tab-density" class="tab-button">密度マップ</button>
+              <button id="tab-code" class="tab-button">Rコード</button>
+              <button id="tab-vector" class="tab-button" style="display: none;">ベクトル場</button>
+            </div>
+          </div>
+          
+          <div id="content-points" class="tab-content active">
+            <p class="mt-2">
+              各時点で生成された2次元点群データを<strong>k-means法</strong>でクラスタリングし、連続する時点間の<strong>最適輸送計画</strong>を表示しています。
+              OTは常に<strong>2つの分布間の関係性</strong>を捉えるもので、時間発展する点群間の最適な対応関係を可視化します。
+            </p>
+            <div class="implementation-status status-implemented">実装済み ✓</div>
+            <div class="legend mt-2">
+              <div class="legend-item">
+                <div class="legend-color" style="background-color: rgba(255,0,0,0.7);"></div>
+                <span>時点t クラスタ点</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color" style="background-color: rgba(0,0,255,0.4);"></div>
+                <span>時点t+1 クラスタ点</span>
+              </div>
+              <div class="legend-item">
+                <div style="width: 20px; height: 2px; background-color: black; margin-right: 4px;"></div>
+                <span>輸送計画</span>
+              </div>
+            </div>
+          </div>
+          
+          <div id="content-density" class="tab-content">
+            <p class="mt-2">
+              点群の2次元密度分布をカーネル密度推定（KDE）によって計算し、等高線（コンター）として可視化しています。
+              連続する時点の密度分布を同時に表示することで、<strong>分布形状の変化</strong>と<strong>最適輸送の流れ</strong>の関係が明確になります。
+            </p>
+            <div class="implementation-status status-implemented">実装済み ✓</div>
+            <div class="legend mt-2">
+              <div class="legend-item">
+                <div class="legend-color" style="background-color: rgba(255,0,0,0.7);"></div>
+                <span>時点t 分布</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color" style="background-color: rgba(0,0,255,0.4);"></div>
+                <span>時点t+1 分布</span>
+              </div>
+              <div class="legend-item">
+                <div style="width: 20px; height: 2px; background-color: black; margin-right: 4px;"></div>
+                <span>輸送計画</span>
+              </div>
+            </div>
+          </div>
+          
+          <div id="content-code" class="tab-content">
+            <p class="mt-2">
+              WebRで実行されているRコードです。最適輸送問題を解くための主要な処理ステップを確認できます。
+            </p>
+            <div class="implementation-status status-implemented">実装済み ✓</div>
+            <div class="mb-2">
+              <button id="code-points-btn" class="px-2 py-1 bg-blue-100 rounded text-sm mr-2">クラスタ点群コード</button>
+              <button id="code-density-btn" class="px-2 py-1 bg-blue-100 rounded text-sm">密度マップコード</button>
+            </div>
+            <pre id="code-display" class="bg-gray-100 p-3 rounded overflow-auto text-xs mt-2" style="max-height: 300px;">
+# クラスタ点群・密度マップの可視化コードは実行ボタンを押した後に表示されます
+            </pre>
+          </div>
+          
+          <div id="content-vector" class="tab-content">
+            <p class="mt-2">
+              各時点間の最適輸送計画からバリセントリック写像を計算し、<strong>ベクトル場</strong>として可視化しています。
+              矢印は時点t から時点t+1 への<strong>質量輸送の流れ</strong>を表し、OTの本質である「時間経過に伴う分布の最適変形」を捉えます。
+            </p>
+            <div class="implementation-status status-implemented">実装済み ✓</div>
+            <div class="legend mt-2">
+              <div class="legend-item">
+                <div class="legend-color" style="background-color: darkred;"></div>
+                <span>時点t データ</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color" style="background-color: darkblue;"></div>
+                <span>時点t+1 データ</span>
+              </div>
+              <div class="legend-item">
+                <div style="width: 20px; height: 6px; background-color: black; clip-path: polygon(0 0, 100% 50%, 0 100%); margin-right: 4px;"></div>
+                <span>輸送ベクトル</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="canvas-container">
+          <canvas id="plot-canvas" height="500"></canvas>
+        </div>
+        
+        <div class="data-explanation">
+          <h3 class="font-bold">実装状況</h3>
+          <div class="mt-2">
+            <div class="flex items-center mb-2">
+              <div class="implementation-status status-implemented mr-2">実装済み ✓</div>
+              <span>基本的なOT可視化（クラスタ点群、密度マップ）、アニメーション機能</span>
+            </div>
+            <div class="flex items-center mb-2">
+              <div class="implementation-status status-implemented mr-2">実装済み ✓</div>
+              <span>時系列データの累積可視化モード（全時点同時表示）</span>
+            </div>
+            <div class="flex items-center mb-2">
+              <div class="implementation-status status-partial mr-2">一部実装 ◑</div>
+              <span>インタラクティブなパラメータ調整、最適輸送量表示</span>
+            </div>
+            <div class="flex items-center">
+              <div class="implementation-status status-planned mr-2">開発予定 ○</div>
+              <span>実データの読み込み、ベクトル場表示、バリセントリック写像</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="lg:col-span-1">
+        <div class="control-panel">
+          <h3 class="font-bold text-lg mb-4">コントロールパネル</h3>
+          
+          <div class="mb-4">
+            <label class="param-label" for="n-points">
+              点の数 <span class="tooltip"><i class="fas fa-info-circle"></i><span class="tooltip-text">各時点のデータ点の数を設定します</span></span>
+            </label>
+            <div class="flex items-center">
+              <input type="range" id="n-points" min="50" max="500" step="50" value="200">
+              <span id="n-points-value" class="range-value">200</span>
+            </div>
+          </div>
+          
+          <div class="mb-4">
+            <label class="param-label" for="n-times">
+              時点数 <span class="tooltip"><i class="fas fa-info-circle"></i><span class="tooltip-text">分析する時点（タイムステップ）の数を設定します</span></span>
+            </label>
+            <div class="flex items-center">
+              <input type="range" id="n-times" min="2" max="10" step="1" value="3">
+              <span id="n-times-value" class="range-value">3</span>
+            </div>
+          </div>
+          
+          <div class="mb-4">
+            <label class="param-label" for="max-k">
+              最大クラスタ数 <span class="tooltip"><i class="fas fa-info-circle"></i><span class="tooltip-text">k-means法のクラスタ候補数の上限を設定します。実際のクラスタ数はシルエット分析により自動決定されます</span></span>
+            </label>
+            <div class="flex items-center">
+              <input type="range" id="max-k" min="2" max="10" step="1" value="5">
+              <span id="max-k-value" class="range-value">5</span>
+            </div>
+          </div>
+          
+          <div class="mb-4">
+            <label class="param-label" for="time-display-mode">
+              時系列表示モード <span class="tooltip"><i class="fas fa-info-circle"></i><span class="tooltip-text">連続する時点を順に表示するか、全時点を累積的に表示するかを選択します</span></span>
+            </label>
+            <select id="time-display-mode" class="w-full">
+              <option value="consecutive">連続する時点（2時点ずつ）</option>
+              <option value="cumulative">累積表示（全時点）</option>
+            </select>
+          </div>
+          
+          <div class="flex flex-col space-y-2 mt-6">
+            <button id="run-visualization" class="btn" disabled>
+              <i class="fas fa-play mr-2"></i>可視化を実行
+            </button>
+            <button id="stop-visualization" class="btn" disabled>
+              <i class="fas fa-stop mr-2"></i>停止
+            </button>
+            <button id="animate-visualization" class="btn" disabled>
+              <i class="fas fa-film mr-2"></i>アニメーション
+            </button>
+          </div>
+          
+          <div class="loading-indicator" id="loading-indicator" style="display: none;">
+            <div class="spinner"></div>
+            <span>処理中...</span>
+          </div>
+          
+          <div class="console" id="r-console">
+            > WebR × Optimal Transport 可視化システム
+            > 初期化中...
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <footer class="mt-10 text-center text-gray-500 text-sm">
+      <p>© 2023 NURUMAYU Data Lab</p>
+      <p class="mt-1">
+        <a href="https://www.r-project.org/" target="_blank" class="text-blue-600 hover:text-blue-800 mx-2">R</a> |
+        <a href="https://webr.r-wasm.org/" target="_blank" class="text-blue-600 hover:text-blue-800 mx-2">WebR</a> |
+        <a href="https://en.wikipedia.org/wiki/Optimal_transport" target="_blank" class="text-blue-600 hover:text-blue-800 mx-2">Optimal Transport</a>
+      </p>
+    </footer>
+  </div>
+</body>
+</html> 
