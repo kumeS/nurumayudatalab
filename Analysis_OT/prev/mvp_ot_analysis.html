@@ -478,36 +478,6 @@
 <p style="font-size: 1.3em; line-height: 1.6; text-align: center; margin: 20px 0;">実際には時系列ではないデータ（異なる状態の独立したサンプル）に対して、<span class="highlight-text">連続性を仮定</span>することで、状態間の滑らかな遷移経路を数学的に復元できます。これにより、観測されていない「中間プロセス」を理論的に推定し、変化のメカニズムを解明できるのが最適輸送解析の革新的な価値です。</p>
             </div>
         </div>
-
-<div class="wasserstein-box" style="margin-top: 30px;">
-<h4 style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; margin: 0; padding: 15px; background: linear-gradient(135deg, var(--warning), var(--accent)); color: white; border-radius: 8px; transition: all 0.3s ease;" onclick="toggleLimitationsSection()">
-⚠️ 仮定と限界
-<span id="limitations-toggle-icon" style="font-size: 1.2em; transition: transform 0.3s ease;">▼</span>
-</h4>
-
-<div id="limitations-content" style="display: none; margin-top: 15px; transition: all 0.3s ease;">
-<div style="background: white; border-radius: 10px; padding: 20px; margin: 15px 0; border-left: 5px solid var(--warning);">
-<h5>🔄 連続性の仮定</h5>
-<p style="line-height: 1.6; margin: 10px 0;">サンプルが本質的に非時系列であっても、数学モデルは時間連続性を前提とします。</p>
-</div>
-
-<div style="background: white; border-radius: 10px; padding: 20px; margin: 15px 0; border-left: 5px solid var(--info);">
-<h5>🎯 モデル的解釈の限界</h5>
-<p style="line-height: 1.6; margin: 10px 0;">得られる中間経路は「コスト最小の輸送計画」であり、実際の物理・生物的プロセスや因果機構そのものではありません。</p>
-</div>
-
-<div style="background: white; border-radius: 10px; padding: 20px; margin: 15px 0; border-left: 5px solid var(--success);">
-<h5>🚀 拡張の必要性</h5>
-<p style="line-height: 1.6; margin: 10px 0;">実応用（細胞分化、画像生成、データ補間など）では、枝分かれ構造やノイズ項を含む拡張モデル（分岐を扱う OT、エントロピー正則化 OT など）が必要になることがあります。</p>
-</div>
-</div>
-</div>
-
-<div style="text-align: center; margin-top: 30px; padding: 20px; background: linear-gradient(135deg, var(--neutral-light), var(--primary-light)); border-radius: 10px;">
-<a href="../Analysis.html" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; text-decoration: none; border-radius: 25px; font-weight: 500; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-🏠 メインページに戻る
-</a>
-</div>
         
 </div>
 
@@ -711,7 +681,6 @@ ggsave("transport_ab.png", plot = p2, width = 10, height = 8, dpi = 150, bg = "w
 cat("✅ Generated: transport_ab.png with ggplot2 (all arrows displayed)\n")</code></pre>
 </div>
 </div>
-</div>
 
 <div id='transport-bc' class='tab-content'>
 <h2>🌿 B→C輸送可視化</h2>
@@ -723,8 +692,8 @@ cat("✅ Generated: transport_ab.png with ggplot2 (all arrows displayed)\n")</co
 </div>
 <p style="margin-top: 15px; color: var(--text-secondary); font-style: italic; text-align: center;">
 State BからState Cへの分岐輸送パターンと色分けされた矢印による移動経路の可視化
-</p>
-</div>
+            </p>
+        </div>
 
 <div style="background: linear-gradient(135deg, var(--success-light), var(--secondary-light)); border-radius: 15px; padding: 25px; margin: 20px 0;">
 <h3>💻 B→C輸送の実行コード (R)</h3>
@@ -791,9 +760,9 @@ p3 <- ggplot(BC_data, aes(x = PC1, y = PC2)) +
 ggsave("transport_bc.png", plot = p3, width = 10, height = 8, dpi = 150, bg = "white")
 cat("✅ Generated: transport_bc.png with ggplot2 (branching transport displayed)\n")</code></pre>
 </div>
-</div>
-</div>
-
+        </div>
+    </div>
+    
 <div id='data' class='tab-content'>
         <h2>📋 データ詳細</h2>
 <h3>基本統計</h3>
@@ -911,13 +880,6 @@ cat("✅ Generated: transport_bc.png with ggplot2 (branching transport displayed
     </div>
 </div>
 
-<div style="text-align: center; margin-top: 30px; padding: 20px; background: linear-gradient(135deg, var(--neutral-light), var(--primary-light)); border-radius: 10px;">
-<a href="../Analysis.html" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; text-decoration: none; border-radius: 25px; font-weight: 500; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-🏠 メインページに戻る
-</a>
-</div>
-</div>
-
 </div>
 
 </div>
@@ -968,19 +930,6 @@ function toggleMathSection() {
     icon.style.transform = 'rotate(180deg)';
   } else {
     mathContent.style.display = 'none';
-    icon.style.transform = 'rotate(0deg)';
-  }
-}
-
-function toggleLimitationsSection() {
-  const limitationsContent = document.getElementById('limitations-content');
-  const icon = document.getElementById('limitations-toggle-icon');
-  
-  if (limitationsContent.style.display === 'none') {
-    limitationsContent.style.display = 'block';
-    icon.style.transform = 'rotate(180deg)';
-  } else {
-    limitationsContent.style.display = 'none';
     icon.style.transform = 'rotate(0deg)';
   }
 }
