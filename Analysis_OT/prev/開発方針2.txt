@@ -1,0 +1,21 @@
+# ステップ2
+
+GIF動画の作成
+
+GIF動画を、mvp_ot_analysis.htmlで取り込むようにする。
+
+htmlのデザインを改良
+
+## 対象のファイル
+
+create_gif_animation.R
+mvp_ot_analysis.html
+
+チェック事項: 
+どこまで実装できているか？
+
+修正事項: 
+
+
+
+
