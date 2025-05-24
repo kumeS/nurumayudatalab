@@ -158,6 +158,15 @@
       background: linear-gradient(135deg, #4CAF50, #8BC34A) !important;
     }
     
+    .speak-active {
+      background: linear-gradient(135deg, #2196F3, #03A9F4) !important;
+    }
+    
+    .speak-disabled {
+      background: linear-gradient(135deg, #9E9E9E, #BDBDBD) !important;
+      cursor: not-allowed;
+    }
+    
     .output-container {
       margin-bottom: 2rem;
     }
@@ -548,6 +557,7 @@
         <textarea id="final" class="output-area" readonly></textarea>
         <div class="button-group">
           <button id="copyBtn" class="button"><i class="fas fa-copy"></i> コピー</button>
+          <button id="speakBtn" class="button"><i class="fas fa-volume-up"></i> 読み上げ</button>
           <button id="toInputBtn" class="button"><i class="fas fa-arrow-up"></i> 入力欄に戻す</button>
         </div>
       </div>

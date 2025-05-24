@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const runBtn = document.getElementById('runBtn');
   const resetBtn = document.getElementById('resetBtn');
   const copyBtn = document.getElementById('copyBtn');
+  const speakBtn = document.getElementById('speakBtn');
   const toInputBtn = document.getElementById('toInputBtn');
   const loadingIndicator = document.getElementById('loadingIndicator');
   
@@ -109,6 +110,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // 初期表示時にタブの表示を更新
   updateTabDisplay();
   
+  // ページ離脱時に読み上げを停止
+  window.addEventListener('beforeunload', () => {
+    if (currentSpeech) {
+      speechSynthesis.cancel();
+    }
+  });
+  
   // コピー禁止制御（校閲結果）
   reviewOutput.addEventListener('copy', e => {
     e.preventDefault();
@@ -129,6 +137,82 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('コピーできませんでした。');
     });
   });
+  
+  // 読み上げ機能
+  let currentSpeech = null;
+  
+  speakBtn.addEventListener('click', () => {
+    const text = finalOutput.value.trim();
+    
+    if (!text) {
+      alert('読み上げるテキストがありません。');
+      return;
+    }
+    
+    // Web Speech API対応チェック
+    if (!('speechSynthesis' in window)) {
+      alert('お使いのブラウザは音声読み上げ機能に対応していません。');
+      return;
+    }
+    
+    // 現在の読み上げを停止
+    if (currentSpeech) {
+      speechSynthesis.cancel();
+      currentSpeech = null;
+      speakBtn.classList.remove('speak-active');
+      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
+      return;
+    }
+    
+    // 新しい読み上げを開始
+    currentSpeech = new SpeechSynthesisUtterance(text);
+    
+    // 言語を自動判定
+    const language = detectLanguageForSpeech(text);
+    currentSpeech.lang = language;
+    
+    // 読み上げ設定
+    currentSpeech.rate = 0.9; // 読み上げ速度
+    currentSpeech.pitch = 1.0; // 音の高さ
+    currentSpeech.volume = 1.0; // 音量
+    
+    // イベントリスナー
+    currentSpeech.onstart = () => {
+      speakBtn.classList.add('speak-active');
+      speakBtn.innerHTML = '<i class="fas fa-stop"></i> 停止';
+    };
+    
+    currentSpeech.onend = () => {
+      currentSpeech = null;
+      speakBtn.classList.remove('speak-active');
+      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
+    };
+    
+    currentSpeech.onerror = (event) => {
+      console.error('読み上げエラー:', event.error);
+      currentSpeech = null;
+      speakBtn.classList.remove('speak-active');
+      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
+      alert('読み上げ中にエラーが発生しました。');
+    };
+    
+    // 読み上げ開始
+    speechSynthesis.speak(currentSpeech);
+  });
+  
+  // 言語自動判定関数（読み上げ用）
+  function detectLanguageForSpeech(text) {
+    // 日本語文字が含まれている場合は日本語
+    if (containsJapaneseChars(text)) {
+      return 'ja-JP';
+    }
+    // 英語文字のみの場合は英語
+    else if (containsLatinChars(text)) {
+      return 'en-US';
+    }
+    // デフォルトは日本語
+    return 'ja-JP';
+  }
   
   // リセットボタン
   resetBtn.addEventListener('click', resetUI);
