@@ -1,0 +1,206 @@
+# マルチLLMシステム: 1つのプロンプトで、マルチのLLMモデルを動作させるWebサービス開発方針
+
+## 概要
+
+1つのプロンプトをインプットして、複数のLLMの出力結果を確認できるサービス
+
+## 仕様
+
+1つのプロンプトを入力します。
+
+それぞれのLLMの実行は非同期処理で行う。
+
+それぞれの応答はストリーミングでリアルタイムな応答が確認できるようにする。
+
+4つのモデルを一度に実行できるようにする。
+
+APIは、ionetのAPIを使用します。
+
+io.net API経由で使用できるLLMモデル
+meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8
+deepseek-ai/DeepSeek-R1-Distill-Llama-70B
+Qwen/Qwen3-235B-A22B-FP8
+deepseek-ai/DeepSeek-R1
+Qwen/QwQ-32B
+deepseek-ai/DeepSeek-R1-Distill-Qwen-32B
+meta-llama/Llama-3.3-70B-Instruct
+databricks/dbrx-instruct
+neuralmagic/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic
+microsoft/phi-4
+nvidia/AceMath-7B-Instruct
+google/gemma-3-27b-it
+mistralai/Mistral-Large-Instruct-2411
+watt-ai/watt-tool-70B
+SentientAGI/Dobby-Mini-Unhinged-Llama-3.1-8B
+tiiuae/Falcon3-10B-Instruct
+bespokelabs/Bespoke-Stratos-32B
+netease-youdao/Confucius-o1-14B
+CohereForAI/aya-expanse-32b
+Qwen/Qwen2.5-Coder-32B-Instruct
+NovaSky-AI/Sky-T1-32B-Preview
+THUDM/glm-4-9b-chat
+mistralai/Ministral-8B-Instruct-2410
+jinaai/ReaderLM-v2
+openbmb/MiniCPM3-4B
+Qwen/Qwen2.5-1.5B-Instruct
+ibm-granite/granite-3.1-8b-instruct
+ozone-ai/0x-lite
+microsoft/Phi-3.5-mini-instruct
+meta-llama/Llama-3.2-90B-Vision-Instruct
+Qwen/Qwen2-VL-7B-Instruct
+
+
+## 実装
+
+同じディレクトリにある、index.html、app.jsをベースに、それを改変して作成する。
+
+io.net API経由で使用できるLLMモデルを全て利用可能にする。
+
+一度に4つ選べるようにする。
+
+また、同じモデルを重複して選べないようにする。
+
+ランダムでモデルを選択する、モデル選択おまかせの機能を作成する。
+
+マウスオーバーデーで、それぞれのモデルの特徴を表示する。
+
+## LLMモデルの特徴
+
+Meta の Llama 系列
+Llama-4-Maverick-17B-128E-Instruct-FP8
+
+17Bパラメータ、128エキスパートMoE構成、FP8量子化を導入した最新世代モデル。高い推論性能と大規模コンテキスト対応（最大430Kトークン）を実現 。
+
+Llama-3.3-70B-Instruct
+
+70Bパラメータのインストラクション向けLlama3系モデル。大規模コンテキスト（128K）対応で、社内・オフライン用途にも最適 。
+
+Llama-3.2-90B-Vision-Instruct
+
+90Bパラメータでビジョン入力も扱えるマルチモーダルインストラクションモデル。詳細はHugging Faceモデルカード参照。
+
+DeepSeek-AI 系列
+DeepSeek-R1
+
+推論ライセンス付きの高性能汎用推論モデル。128Kトークン対応、汎用QAや対話に強い。
+
+DeepSeek-R1-Distill-Llama-70B
+
+R1を教師とした70B蒸留モデル。Llama基盤ながら強力な推論能力を維持。
+
+DeepSeek-R1-Distill-Qwen-32B
+
+Qwen2.5-32Bを元にR1蒸留データでファインチューニング。高効率かつ軽量化を両立。
+
+Qwen（清華大学） 系列
+Qwen3-235B-A22B-FP8
+
+235BパラメータのMoEモデル（A22Bエキスパート構成）、FP8量子化と32Kコンテキスト対応。
+
+QwQ-32B
+
+Qwen3系のベースモデルから軽量化した32B版。
+
+Qwen2.5-Coder-32B-Instruct
+
+5.5兆トークン超のコードデータで継続学習。オープンソースコードLLMとして最先端性能を発揮 。
+
+Qwen2.5-1.5B-Instruct
+
+軽量版1.5Bでインストラクション特化。
+
+Qwen2-VL-7B-Instruct
+
+ビジョン+言語対応の7Bモデル。
+
+専用/分野特化モデル
+watt-ai/watt-tool-70B
+
+Llama-3.3-70Bベースのツール呼び出し最適化モデル。BFCL（機能呼び出しベンチマーク）トップ性能 。
+
+nvidia/AceMath-7B-Instruct
+
+数学計算特化モデル。高度な演算タスクに最適 。
+
+google/gemma-3-27b-it
+
+27B、int4量子化で14.1GBに圧縮、最小GPUでの動作を実現。マルチモーダル＋安全分類器搭載 。
+
+neuralmagic/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic
+
+Nemotron圧縮＋FP8動的量子化搭載70Bインストモデル。
+
+microsoft/phi-4
+
+16Kコンテキスト対応の汎用高性能モデル。微調整済みチャット版含む 。
+
+microsoft/Phi-3.5-mini-instruct
+
+3.8B相当のミニチュアPhi-3.5。エッジデバイス向け。
+
+openbmb/MiniCPM3-4B
+
+4Bパラメータのエッジ向け高速モデル。32K長コンテキスト＋MapReduce推論対応 
+Hugging Face
+GitHub
+。
+
+ozone-ai/0x-lite
+
+超軽量モデル。IoTや組み込み用途に最適化。
+
+ibm-granite/granite-3.1-8b-instruct
+
+8Bインストモデル。信頼性とセキュリティチューニングを強化。
+
+Mistral AI 系列
+mistralai/Mistral-Large-Instruct-2411
+
+123Bパラメータ密モデル。長文コンテキスト（128K）、エージェント機能、関数呼び出し強化 。
+
+その他注目モデル
+SentientAGI/Dobby-Mini-Unhinged-Llama-3.1-8B
+
+“失礼で率直”なキャラクター特化8Bチャットモデル 。
+
+tiiuae/Falcon3-10B-Instruct
+
+10Bパラメータ、32Kコンテキスト対応。4言語サポートで高性能評価済み 。
+
+bespokelabs/Bespoke-Stratos-32B
+
+DeepSeek-R1蒸留による推論向け32Bモデル。17Kデータで高効率学習・高性能 。
+
+netease-youdao/Confucius-o1-14B
+
+「孔子」を冠した14B推論モデル。チェインオブソート技術でステップバイステップ解法生成 。
+
+NovaSky-AI/Sky-T1-32B-Preview
+
+17Kデータ・$450学習のコスト効率推論モデル。o1-previewと同等性能 。
+
+THUDM/glm-4-9b-chat
+
+9Bマルチ言語・長文（128K）チャットモデル。ウェブ閲覧・コード実行・ツール呼び出し機能備え 。
+
+jinaai/ReaderLM-v2
+
+1.5BモデルでHTML→Markdown/JSON変換に特化。最大512Kトークン対応の長文処理性能 。
+
+## 対象のファイル
+
+
+
+## 注意事項: バグ修正時に下記を確認する。
+
+どこまで実装が進んでいますか？
+
+python3 -m http.server 8000利用せずに、htmlファイルをチェックする。
+
+ブラウザのMCPを使って、それぞれの機能をについて、ブラウザ上で動作確認をして。
+
+修正事項: 開発方針.txtをよく理解し、修正項目の内容を十分に熟考して、該当するコードを修正してください。
+
+変更点: なし
+
+
