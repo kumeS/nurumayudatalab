@@ -1,0 +1,123 @@
+以下のように実装すると、ブラウザ上でユーザーがCSVファイルをアップロードし、その内容をWebRの仮想ファイルシステムに渡して `read.csv()` で読み込みつつ、さらに `<textarea>` や外部ファイルからユーザーが自由に編集したRコードを `webR.evalR()` で動的に実行できます。
+
+---
+
+## 概要
+
+1. **CSVファイルの受け渡し**
+
+   * HTMLの `<input type="file" accept=".csv">` でファイルを入力
+   * JavaScriptの FileReader でテキストを読み取り
+   * `webR.FS.writeFile()` でWebRの仮想FSに保存し、`read.csv("data.csv")` で読み込み
+
+2. **動的コード実行**
+
+   * `<textarea>` にユーザーがコードを入力 → ボタン押下で `webR.evalR()` を呼び出し実行
+   * 外部Rスクリプトを `fetch()` → `evalR()` でロードするパターンも可
+
+3. **動作感**
+
+   * 初回WASMロード：200～500ms程度
+   * 関数呼び出し：数百ms程度（データ量によって変動）
+
+---
+
+## 1. CSVファイルの受け渡し
+
+### 1.1 HTMLでファイル選択
+
+```html
+<input id="csvFileInput" type="file" accept=".csv" />
+```
+
+* `accept=".csv"` 属性によりCSVファイルの選択を促します。
+
+### 1.2 JavaScriptでCSV文字列を取得
+
+```js
+const input = document.getElementById("csvFileInput");
+input.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  const text = await new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = () => res(reader.result);
+    reader.onerror = rej;
+    reader.readAsText(file);
+  });
+  // CSV文字列が text に入る
+});
+```
+
+* `FileReader` の `readAsText()` でファイル内容を文字列化。
+
+### 1.3 WebR仮想FSへの書き込み
+
+```js
+// WebR初期化済みを前提
+await webR.FS.mkdir('/home/web_user');
+await webR.FS.writeFile(
+  '/home/web_user/data.csv',
+  new TextEncoder().encode(text)
+);
+```
+
+* `/home/web_user` がデフォルトの作業ディレクトリです。
+* `webR.FS.writeFile()` でバイナリデータとして保存します。
+
+### 1.4 R側での読み込み
+
+```js
+await webR.evalR(`
+  df <- read.csv("data.csv")
+  head(df)
+`);
+```
+
+* 標準の `read.csv()` で仮想FS上の `data.csv` を読み込みます。
+
+---
+
+## 2. 動的コード実行
+
+### 2.1 テキストエリアとボタン
+
+```html
+<textarea id="rCode" rows="6">
+pca <- prcomp(df, scale.=TRUE)
+res <- loadings(pca)
+print(res)
+</textarea>
+<button id="runBtn">実行</button>
+```
+
+```js
+document.getElementById("runBtn").onclick = async () => {
+  const code = document.getElementById("rCode").value;
+  // CSV読み込みコードがあらかじめ実行済みの場合
+  const result = await webR.evalR(code);
+  console.log(await result.toString());
+};
+```
+
+* `webR.evalR(code)` で任意のRコードを評価し、戻り値を受け取れます。
+
+### 2.2 外部ファイルからのロード
+
+```js
+const res = await fetch("script.R");
+const scriptText = await res.text();
+await webR.evalR(scriptText);
+```
+
+* JavaScriptの `fetch()` で `.R` ファイルを読み込み、文字列として渡します。
+
+---
+
+## 3. 実際の動作感
+
+* **初回WASMモジュールロード**：約200～500 ms（バージョンやネットワークで変動）
+* **パッケージロード／ファイル書き込み**：数十～数百ms
+* **R関数実行（例：`loadings()`）**：数百ms～1 s程度（データサイズ次第）
+
+ブラウザのみで完結し、軽量な分析UIとして十分実用的な応答性が得られます。
+この構成をベースに、CodeMirrorやMonaco Editor を組み合わせてリッチな編集体験を提供することも可能です。

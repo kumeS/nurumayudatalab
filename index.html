@@ -27,6 +27,10 @@
       --transition-speed: 0.3s;
     }
     
+    html {
+      scroll-behavior: smooth;
+    }
+    
     body {
       font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
       background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
@@ -242,6 +246,7 @@
         <a href="#" class="text-gray-600 hover:text-gray-800 font-medium">ホーム</a>
         <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium">ツール一覧</a>
         <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium">ラボについて</a>
+        <a href="#contact" class="text-gray-600 hover:text-gray-800 font-medium">お問い合わせ</a>
         <a href="Analysis.html" class="text-gray-600 hover:text-gray-800 font-medium">Analysis</a>
       </div>
       
@@ -256,6 +261,7 @@
         <a href="#" class="text-gray-600 hover:text-gray-800 font-medium py-2">ホーム</a>
         <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium py-2">ツール一覧</a>
         <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium py-2">ラボについて</a>
+        <a href="#contact" class="text-gray-600 hover:text-gray-800 font-medium py-2">お問い合わせ</a>
         <a href="Analysis.html" class="text-gray-600 hover:text-gray-800 font-medium py-2">Analysis</a>
       </div>
     </div>
@@ -281,6 +287,9 @@
           </a>
           <a href="#about" class="bg-white text-gray-700 hover:bg-gray-100 transition px-4 py-2 rounded-md font-medium">
             <i class="fas fa-flask mr-2"></i>ゆるま湯データラボについて
+          </a>
+          <a href="#contact" class="bg-blue-500 text-white hover:bg-blue-600 transition px-4 py-2 rounded-md font-medium">
+            <i class="fas fa-envelope mr-2"></i>お問い合わせ
           </a>
         </div>
       </div>
@@ -318,7 +327,7 @@
       </div>
     </section>
     
-    <section id="about" class="container mx-auto px-4">
+    <section id="about" class="container mx-auto px-4 mb-16">
       <div class="bg-white rounded-xl shadow-md p-6 md:p-8 max-w-4xl mx-auto">
         <h2 class="text-2xl md:text-3xl font-bold mb-4">"ゆるま湯データラボ" とは</h2>
         <div class="text-gray-600 space-y-4">
@@ -331,6 +340,55 @@
             当ラボでは、日々の作業を少しでも楽にするツールを随時追加していきます。
             新しいツールのアイデアやご要望がありましたら、お気軽にお知らせください。
           </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Overview Section -->
+    <section id="overview" class="container mx-auto px-4 mb-16">
+      <div class="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl shadow-md p-6 md:p-8 max-w-4xl mx-auto border border-orange-100">
+        <h2 class="text-2xl md:text-3xl font-bold mb-6 text-orange-800">
+          <i class="fas fa-info-circle mr-3"></i>サービス概要
+        </h2>
+        <div class="text-gray-700 space-y-4 text-lg">
+          <p>
+            多くの方々にウェブツールの有用性、および利便性を知ってもらうため、ゆるま湯データラボではウェブツールを無料で公開しています。ご利用には、いっさいのご費用がかかりません。
+          </p>
+          <div class="bg-yellow-100 border-l-4 border-yellow-400 p-4 rounded">
+            <p class="font-medium text-yellow-800">
+              <i class="fas fa-exclamation-triangle mr-2"></i>免責事項
+            </p>
+            <p class="text-yellow-700 mt-2">
+              無料公開のため、これらツール利用による一切のユーザー側の不利益について、ゆるま湯データラボはいっさいの責任を負わないこととします。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="container mx-auto px-4 mb-16">
+      <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-md p-6 md:p-8 max-w-4xl mx-auto border border-blue-100">
+        <h2 class="text-2xl md:text-3xl font-bold mb-6 text-blue-800">
+          <i class="fas fa-envelope mr-3"></i>開発案件のお問い合わせ
+        </h2>
+        <div class="text-gray-700 space-y-4 text-lg">
+          <p>
+            ウェブアプリやデータ分析などの開発案件のご依頼は、下記のメールを送るボタンをクリックしてお問い合わせください。
+            <span class="font-medium text-blue-600">5営業日以内にお返事します。</span>
+          </p>
+          <div class="text-center mt-6">
+            <button onclick="sendInquiryEmail()" class="btn-primary text-lg px-8 py-4 inline-flex items-center">
+              <i class="fas fa-paper-plane mr-3"></i>
+              お問い合わせメールを送る
+            </button>
+          </div>
+          <div class="bg-blue-100 border-l-4 border-blue-400 p-4 rounded mt-6">
+            <p class="text-blue-800 text-sm">
+              <i class="fas fa-info-circle mr-2"></i>
+              お問い合わせフォームが自動で開き、必要事項をご入力いただけます。
+            </p>
+          </div>
         </div>
       </div>
     </section>
@@ -405,6 +463,7 @@
       }, 500); // 読み込み中の表示のため少し遅延
       
       setupEventListeners();
+      setupSmoothScroll();
     });
 
     //--------------------------------------------------------------
@@ -508,6 +567,77 @@
           noResults.classList.remove('hidden');
         }
       });
+    }
+
+    //--------------------------------------------------------------
+    // ❺ スムーズスクロール機能（ナビゲーションバー分のオフセット）
+    //--------------------------------------------------------------
+    function setupSmoothScroll() {
+      // すべてのアンカーリンクを取得
+      const anchorLinks = document.querySelectorAll('a[href^="#"]');
+      
+      anchorLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          const href = this.getAttribute('href');
+          
+          // 空のハッシュ（#）の場合はトップに戻る
+          if (href === '#') {
+            e.preventDefault();
+            window.scrollTo({
+              top: 0,
+              behavior: 'smooth'
+            });
+            return;
+          }
+          
+          const targetElement = document.querySelector(href);
+          if (targetElement) {
+            e.preventDefault();
+            
+            // ナビゲーションバーの高さを取得
+            const navbar = document.getElementById('navbar');
+            const navbarHeight = navbar.offsetHeight;
+            
+            // ターゲット要素の位置を取得してナビゲーションバー分のオフセットを適用
+            const targetPosition = targetElement.offsetTop - navbarHeight - 20; // 20pxの余裕を追加
+            
+            window.scrollTo({
+              top: targetPosition,
+              behavior: 'smooth'
+            });
+            
+            // モバイルメニューが開いている場合は閉じる
+            const mobileMenu = document.getElementById('mobileMenu');
+            if (mobileMenu.classList.contains('active')) {
+              mobileMenu.classList.remove('active');
+            }
+          }
+        });
+      });
+    }
+
+    //--------------------------------------------------------------
+    // ❻ メール送信機能
+    //--------------------------------------------------------------
+    function sendInquiryEmail() {
+      const email = 'otoiawase20250416@aiknowledgeworks.net';
+      const subject = '[ぬるま湯データラボへの問い合わせ]';
+      const body = `御氏名: 
+
+御会社名: 
+
+御職名: 
+
+御用件名: 
+
+御問い合わせ内容: 
+
+
+`;
+
+      // メールクライアントを開く
+      const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailtoUrl;
     }
   </script>
 </body>

@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>マルチLLMシステム｜複数LLMを同時実行</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ff7e5f;
+      --secondary: #feb47b;
+      --accent: #7ee8fa;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+    }
+    
+    body { 
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    h1 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+    }
+    
+    .description {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    
+    .tabs {
+      display: flex;
+      background-color: #fff;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 1rem;
+      text-align: center;
+      background-color: #f8f9fa;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+    }
+    
+    .tab:hover {
+      background-color: #fff;
+      color: var(--primary);
+    }
+    
+    .tab.active {
+      background-color: #fff;
+      color: var(--primary);
+      font-weight: bold;
+      border-bottom: 3px solid var(--primary);
+      box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .input-section {
+      background-color: #fff;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .input-area {
+      width: 100%;
+      min-height: 120px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      resize: vertical;
+      font-size: 1rem;
+      font-family: inherit;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .control-buttons {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .button {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.8rem 1.5rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .button i {
+      margin-right: 0.5rem;
+    }
+    
+    .button.secondary {
+      background: linear-gradient(135deg, #6c757d 0%, #868e96 100%);
+    }
+    
+    .button.success {
+      background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
+    }
+    
+    .loading {
+      display: none;
+      align-items: center;
+      color: var(--primary);
+      font-weight: bold;
+    }
+    
+    .loading.active {
+      display: flex;
+    }
+    
+    .loading-spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 0.5rem;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .llm-panels {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .llm-panel {
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .panel-header {
+      padding: 1rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .model-selector {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .model-select {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 5px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    
+    .model-select option {
+      background-color: white;
+      color: var(--text-primary);
+    }
+    
+    .model-info {
+      position: relative;
+      cursor: help;
+    }
+    
+    .model-tooltip {
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 0.8rem;
+      border-radius: 5px;
+      font-size: 0.8rem;
+      width: 250px;
+      z-index: 1000;
+      display: none;
+      margin-top: 0.5rem;
+    }
+    
+    .model-info:hover .model-tooltip {
+      display: block;
+    }
+    
+    .panel-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    
+    .remove-panel {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 0.3rem 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    
+    .remove-panel:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    .panel-content {
+      flex: 1;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .panel-status {
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+    
+    .status-waiting {
+      background-color: #e9ecef;
+      color: #495057;
+    }
+    
+    .status-running {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+    
+    .status-completed {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    
+    .status-error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    
+    .panel-output {
+      flex: 1;
+      background-color: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 5px;
+      padding: 1rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      overflow-y: auto;
+      min-height: 200px;
+      max-height: 400px;
+    }
+    
+    .add-panel-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+    
+    .add-panel-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 200px;
+      height: 100px;
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      background: transparent;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 1rem;
+    }
+    
+    .add-panel-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: rgba(255, 126, 95, 0.1);
+    }
+    
+    .add-panel-btn i {
+      margin-right: 0.5rem;
+      font-size: 1.2rem;
+    }
+    
+    .usage-guide {
+      background-color: #fff;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .toggle-guide {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 1rem;
+      color: var(--primary);
+    }
+    
+    .toggle-guide i {
+      margin-right: 0.5rem;
+    }
+    
+    .guide-content {
+      display: none;
+    }
+    
+    .guide-step {
+      display: flex;
+      margin-bottom: 1rem;
+    }
+    
+    .step-number {
+      background-color: var(--primary);
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      .llm-panels {
+        grid-template-columns: 1fr;
+      }
+      
+      .control-buttons {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .button {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>マルチLLMシステム</h1>
+      <p class="description">1つのプロンプトで複数のLLMモデルを同時実行</p>
+    </div>
+    
+    <div class="tabs">
+      <div class="tab active" id="tab-execution">実行ページ</div>
+      <div class="tab" id="tab-models">モデル説明</div>
+    </div>
+    
+    <!-- 実行ページ -->
+    <div id="execution-page">
+      <div class="usage-guide">
+        <div class="toggle-guide">
+          <i class="fas fa-info-circle"></i>
+          <h3>使い方を表示</h3>
+        </div>
+        <div class="guide-content">
+          <div class="guide-step">
+            <div class="step-number">1</div>
+            <div>
+              <strong>プロンプト入力:</strong> 下のテキストエリアに質問や指示を入力
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="step-number">2</div>
+            <div>
+              <strong>モデル選択:</strong> 各パネルでLLMモデルを選択（重複選択不可）
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="step-number">3</div>
+            <div>
+              <strong>パネル追加:</strong> 「+」ボタンで最大6つまでパネルを追加可能
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="step-number">4</div>
+            <div>
+              <strong>実行:</strong> 「すべて実行」ボタンで全モデルを非同期実行
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="step-number">5</div>
+            <div>
+              <strong>結果確認:</strong> 各パネルでストリーミング結果をリアルタイム表示
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-section">
+        <textarea id="promptInput" class="input-area" placeholder="ここにプロンプト（質問や指示）を入力してください..."></textarea>
+        <div class="control-buttons">
+          <button id="runAllBtn" class="button">
+            <i class="fas fa-play"></i> すべて実行
+          </button>
+          <button id="stopAllBtn" class="button secondary" disabled>
+            <i class="fas fa-stop"></i> すべて停止
+          </button>
+          <button id="clearAllBtn" class="button secondary">
+            <i class="fas fa-eraser"></i> すべてクリア
+          </button>
+          <button id="randomSelectBtn" class="button success">
+            <i class="fas fa-random"></i> モデル選択おまかせ
+          </button>
+          <div id="loadingIndicator" class="loading">
+            <div class="loading-spinner"></div>
+            <span>実行中...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="llm-panels" id="llmPanels">
+        <!-- デフォルトの3つのパネル -->
+        <div class="llm-panel" data-panel-id="1">
+          <div class="panel-header">
+            <div class="model-selector">
+              <select class="model-select" data-panel="1">
+                <option value="">モデルを選択</option>
+              </select>
+              <div class="model-info">
+                <i class="fas fa-info-circle"></i>
+                <div class="model-tooltip">モデルを選択してください</div>
+              </div>
+            </div>
+            <div class="panel-controls">
+              <button class="remove-panel" data-panel="1" style="display: none;">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+          <div class="panel-content">
+            <div class="panel-status status-waiting">待機中</div>
+            <div class="panel-output">モデルを選択してプロンプトを実行してください。</div>
+          </div>
+        </div>
+
+        <div class="llm-panel" data-panel-id="2">
+          <div class="panel-header">
+            <div class="model-selector">
+              <select class="model-select" data-panel="2">
+                <option value="">モデルを選択</option>
+              </select>
+              <div class="model-info">
+                <i class="fas fa-info-circle"></i>
+                <div class="model-tooltip">モデルを選択してください</div>
+              </div>
+            </div>
+            <div class="panel-controls">
+              <button class="remove-panel" data-panel="2" style="display: none;">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+          <div class="panel-content">
+            <div class="panel-status status-waiting">待機中</div>
+            <div class="panel-output">モデルを選択してプロンプトを実行してください。</div>
+          </div>
+        </div>
+
+        <div class="llm-panel" data-panel-id="3">
+          <div class="panel-header">
+            <div class="model-selector">
+              <select class="model-select" data-panel="3">
+                <option value="">モデルを選択</option>
+              </select>
+              <div class="model-info">
+                <i class="fas fa-info-circle"></i>
+                <div class="model-tooltip">モデルを選択してください</div>
+              </div>
+            </div>
+            <div class="panel-controls">
+              <button class="remove-panel" data-panel="3" style="display: none;">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+          <div class="panel-content">
+            <div class="panel-status status-waiting">待機中</div>
+            <div class="panel-output">モデルを選択してプロンプトを実行してください。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="add-panel-container">
+        <button class="add-panel-btn" id="addPanelBtn">
+          <i class="fas fa-plus"></i>
+          パネル追加
+        </button>
+      </div>
+    </div>
+
+    <!-- モデル説明ページ -->
+    <div id="models-page" style="display: none;">
+      <div class="usage-guide">
+        <h3>利用可能なLLMモデル</h3>
+        <div id="modelDescriptions">
+          <!-- モデル説明はJavaScriptで動的に生成 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html> 
