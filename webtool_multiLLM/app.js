@@ -7,7 +7,8 @@
 const AVAILABLE_MODELS = {
   'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8': {
     name: 'Llama-4-Maverick-17B',
-    description: '17Bパラメータ、128エキスパートMoE構成、FP8量子化。高い推論性能と大規模コンテキスト対応（最大430Kトークン）を実現。'
+    description: '17Bパラメータ、128エキスパートMoE構成、FP8量子化。高い推論性能と大規模コンテキスト対応（最大430Kトークン）を実現。',
+    maxTokens: 12000
   },
   'deepseek-ai/DeepSeek-R1-Distill-Llama-70B': {
     name: 'DeepSeek-R1-Distill-Llama-70B',
@@ -45,10 +46,7 @@ const AVAILABLE_MODELS = {
     name: 'Phi-4',
     description: '16Kコンテキスト対応の汎用高性能モデル。微調整済みチャット版含む。'
   },
-  'nvidia/AceMath-7B-Instruct': {
-    name: 'AceMath-7B-Instruct',
-    description: '数学計算特化モデル。高度な演算タスクに最適。'
-  },
+
   'google/gemma-3-27b-it': {
     name: 'Gemma-3-27B-IT',
     description: '27B、int4量子化で14.1GBに圧縮、最小GPUでの動作を実現。マルチモーダル＋安全分類器搭載。'
@@ -174,6 +172,7 @@ function initializeApp() {
     randomSelectBtn: document.getElementById('randomSelectBtn'),
     randomPromptBtn: document.getElementById('randomPromptBtn'),
     addPanelBtn: document.getElementById('addPanelBtn'),
+    homeBtn: document.getElementById('homeBtn'),
     loadingIndicator: document.getElementById('loadingIndicator'),
     executionPage: document.getElementById('execution-page'),
     modelsPage: document.getElementById('models-page'),
@@ -235,6 +234,11 @@ function setupEventListeners(elements) {
   
   // パネル追加ボタン
   elements.addPanelBtn.addEventListener('click', () => addNewPanel());
+  
+  // ホームボタン
+  elements.homeBtn.addEventListener('click', () => {
+    window.location.href = '../index.html';
+  });
   
   // ガイド表示切り替え
   elements.toggleGuide.addEventListener('click', () => {
@@ -341,7 +345,6 @@ function initializeModelDescriptions() {
       'google/gemma-3-27b-it'
     ],
          '専門特化モデル': [
-       'nvidia/AceMath-7B-Instruct',
        'jinaai/ReaderLM-v2',
        'watt-ai/watt-tool-70B'
      ],
@@ -363,28 +366,44 @@ function initializeModelDescriptions() {
   
   // 各グループを順番に表示
   Object.entries(modelGroups).forEach(([groupName, modelIds]) => {
-    // グループタイトルを作成
+    // グループコンテナを作成
+    const groupContainer = document.createElement('div');
+    groupContainer.className = 'model-group';
+    groupContainer.style.marginBottom = '1.5rem';
+    
+    // グループタイトルを作成（クリック可能）
     const groupHeader = document.createElement('div');
-    groupHeader.className = 'usage-guide';
-    groupHeader.style.marginBottom = '1rem';
+    groupHeader.className = 'usage-guide group-header';
+    groupHeader.style.marginBottom = '0';
     groupHeader.style.background = 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)';
     groupHeader.style.color = 'white';
+    groupHeader.style.cursor = 'pointer';
+    groupHeader.style.transition = 'all 0.3s ease';
     
     groupHeader.innerHTML = `
-      <h3 style="margin: 0; padding: 1rem; color: white;">${groupName}</h3>
+      <h3 style="margin: 0; padding: 1rem; color: white; display: flex; align-items: center; justify-content: space-between;">
+        ${groupName}
+        <i class="fas fa-chevron-down" style="transition: transform 0.3s ease;"></i>
+      </h3>
     `;
     
-    container.appendChild(groupHeader);
+    // グループコンテンツを作成（初期は非表示）
+    const groupContent = document.createElement('div');
+    groupContent.className = 'group-content';
+    groupContent.style.display = 'none';
+    groupContent.style.overflow = 'hidden';
+    groupContent.style.transition = 'all 0.3s ease';
     
     // グループ内のモデルを表示
     modelIds.forEach(modelId => {
       if (AVAILABLE_MODELS[modelId]) {
         const model = AVAILABLE_MODELS[modelId];
         const modelCard = document.createElement('div');
-        modelCard.className = 'usage-guide';
+        modelCard.className = 'usage-guide model-card';
         modelCard.style.marginBottom = '1rem';
         modelCard.style.marginLeft = '1rem';
         modelCard.style.borderLeft = '4px solid var(--primary)';
+        modelCard.style.animation = 'slideIn 0.3s ease';
         
         modelCard.innerHTML = `
           <h4 style="color: var(--primary); margin-top: 0;">${model.name}</h4>
@@ -392,14 +411,43 @@ function initializeModelDescriptions() {
           <p style="margin: 0; color: #555;">${model.description}</p>
         `;
         
-        container.appendChild(modelCard);
+        groupContent.appendChild(modelCard);
       }
     });
     
-    // グループ間のスペース
-    const spacer = document.createElement('div');
-    spacer.style.height = '1.5rem';
-    container.appendChild(spacer);
+    // クリックイベントを追加
+    groupHeader.addEventListener('click', () => {
+      const isVisible = groupContent.style.display !== 'none';
+      const chevron = groupHeader.querySelector('i');
+      
+      if (isVisible) {
+        // 非表示にする
+        groupContent.style.display = 'none';
+        chevron.style.transform = 'rotate(0deg)';
+        groupHeader.style.borderRadius = '8px';
+      } else {
+        // 表示する
+        groupContent.style.display = 'block';
+        chevron.style.transform = 'rotate(180deg)';
+        groupHeader.style.borderRadius = '8px 8px 0 0';
+      }
+    });
+    
+    // ホバー効果を追加
+    groupHeader.addEventListener('mouseenter', () => {
+      groupHeader.style.transform = 'translateY(-2px)';
+      groupHeader.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
+    });
+    
+    groupHeader.addEventListener('mouseleave', () => {
+      groupHeader.style.transform = 'translateY(0)';
+      groupHeader.style.boxShadow = 'var(--card-shadow)';
+    });
+    
+    // グループをコンテナに追加
+    groupContainer.appendChild(groupHeader);
+    groupContainer.appendChild(groupContent);
+    container.appendChild(groupContainer);
   });
   
   // API情報を追加
@@ -417,7 +465,7 @@ function initializeModelDescriptions() {
         io.net API
       </p>
       <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">
-        本システムは<strong>io.net API</strong>を活用して、31種類の最新LLMモデルを提供しています。
+        本システムは<strong>io.net API</strong>を活用して、30種類の最新LLMモデルを提供しています。
         io.netは分散型AIネットワークで、高性能なGPUクラスターを通じて
         世界最先端のAIモデルへのアクセスを実現しています。
       </p>
@@ -846,7 +894,7 @@ function cleanContent(content, modelId = '') {
 }
 
 // Markdownをサポートしたタイピング効果関数
-async function typeTextWithMarkdown(element, text, delay = 5) {
+async function typeTextWithMarkdown(element, text, delay = 15) {
   element.innerHTML = '';
   let currentHtml = '';
   const textLength = text.length;
@@ -854,17 +902,17 @@ async function typeTextWithMarkdown(element, text, delay = 5) {
   // 長いテキストの場合は遅延を動的に調整
   let adjustedDelay = delay;
   if (textLength > 5000) {
-    adjustedDelay = 1; // 非常に長い場合は高速表示
+    adjustedDelay = 5; // 非常に長い場合でもゆっくり表示
   } else if (textLength > 2000) {
-    adjustedDelay = 2; // 長い場合は高速表示
+    adjustedDelay = 8; // 長い場合は中程度の速度
   } else if (textLength > 1000) {
-    adjustedDelay = 3; // 中程度の場合
+    adjustedDelay = 12; // 中程度の場合はゆっくり
   }
   
   console.log(`⌨️ タイピング効果開始: ${textLength}文字, 遅延${adjustedDelay}ms`);
   
   // 非常に長いテキストの場合は段階的に表示
-  const chunkSize = textLength > 3000 ? 50 : 10;
+  const chunkSize = textLength > 3000 ? 20 : 5;
   
   for (let i = 0; i < textLength; i++) {
     currentHtml += text[i];
@@ -923,7 +971,7 @@ function convertMarkdownToHtml(markdown) {
 }
 
 // 従来のtypeText関数（後方互換性のため保持）
-async function typeText(element, text, delay = 20) {
+async function typeText(element, text, delay = 30) {
   element.textContent = '';
   
   for (let i = 0; i < text.length; i++) {
@@ -971,24 +1019,21 @@ function clearAllOutputs() {
     localStorage.removeItem(STORAGE_KEYS.NEXT_PANEL_ID);
   }
   
+  // パネルの出力をクリア
   panels.forEach(panel => {
     const statusElement = panel.querySelector('.panel-status');
     const outputElement = panel.querySelector('.panel-output');
-    const selector = panel.querySelector('.model-select');
     
     statusElement.className = 'panel-status status-waiting';
     statusElement.textContent = '待機中';
     
     // 出力内容を完全にクリア（HTMLも含む）
     outputElement.innerHTML = '';
-    
-    // モデルが選択されているかどうかで表示を変える
-    if (selector && selector.value) {
-      outputElement.textContent = 'プロンプトを実行してください。';
-    } else {
-      outputElement.textContent = 'モデルを選択してプロンプトを実行してください。';
-    }
+    outputElement.textContent = 'プロンプトを実行してください。';
   });
+  
+  // デフォルトモデルに戻す
+  resetToDefaultModels();
 }
 
 function restoreSavedPrompt() {
@@ -1161,6 +1206,21 @@ function setInitialModelSelection() {
   if (selectors.length > 0) {
     updateModelSelection(selectors[0]);
   }
+}
+
+// デフォルトモデルに戻す関数
+function resetToDefaultModels() {
+  // すべてのパネルのモデル選択をクリア
+  const selectors = document.querySelectorAll('.model-select');
+  selectors.forEach(selector => {
+    selector.value = '';
+  });
+  
+  // デフォルトモデルを設定
+  setInitialModelSelection();
+  
+  // 状態を保存
+  saveResults();
 }
 
 // 初期パネルの削除ボタンイベント設定

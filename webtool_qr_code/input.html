@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>参加者情報入力｜QR参加管理ツール</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #2196F3;
+      --secondary: #03A9F4;
+      --accent: #00BCD4;
+      --success: #4CAF50;
+      --warning: #FF9800;
+      --error: #f44336;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: var(--text-primary);
+      padding: 1rem;
+    }
+    
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      animation: slideUp 0.5s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      padding: 2rem 1.5rem 1.5rem;
+      text-align: center;
+      position: relative;
+    }
+    
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-top: 20px solid var(--secondary);
+    }
+    
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    
+    .header p {
+      opacity: 0.9;
+      font-size: 0.95rem;
+    }
+    
+    .form-container {
+      padding: 2rem 1.5rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    
+    .form-label.required::after {
+      content: ' *';
+      color: var(--error);
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all var(--transition-speed);
+      background: #fafafa;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+    
+    .form-input.error {
+      border-color: var(--error);
+      background: #ffeaea;
+    }
+    
+    .error-message {
+      color: var(--error);
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+      display: none;
+    }
+    
+    .error-message.show {
+      display: block;
+    }
+    
+    .submit-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--success), #66BB6A);
+      color: white;
+      border: none;
+      padding: 1rem;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3);
+    }
+    
+    .submit-btn:active {
+      transform: translateY(0);
+    }
+    
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .submit-btn .loading {
+      display: none;
+    }
+    
+    .submit-btn.loading .loading {
+      display: inline-block;
+      margin-right: 0.5rem;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .success-message {
+      display: none;
+      background: linear-gradient(135deg, #E8F5E8, #C8E6C9);
+      padding: 1.5rem;
+      border-radius: 12px;
+      text-align: center;
+      color: var(--success);
+      margin-top: 1rem;
+    }
+    
+    .success-message.show {
+      display: block;
+      animation: fadeIn 0.5s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .success-message h3 {
+      margin-bottom: 0.5rem;
+      font-size: 1.2rem;
+    }
+    
+    .success-message p {
+      color: var(--text-secondary);
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 1rem;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      border-top: 1px solid #f0f0f0;
+    }
+    
+    /* スマートフォン最適化 */
+    @media (max-width: 480px) {
+      body {
+        padding: 0.5rem;
+      }
+      
+      .container {
+        border-radius: 15px;
+      }
+      
+      .header {
+        padding: 1.5rem 1rem 1rem;
+      }
+      
+      .header h1 {
+        font-size: 1.3rem;
+      }
+      
+      .form-container {
+        padding: 1.5rem 1rem;
+      }
+      
+      .form-input {
+        font-size: 16px; /* iOSのズーム防止 */
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><i class="fas fa-user-plus"></i> 参加者情報入力</h1>
+      <p>以下の項目にご記入ください</p>
+    </div>
+    
+    <div class="form-container">
+      <form id="attendeeForm">
+        <div class="form-group">
+          <label class="form-label required" for="name">お名前</label>
+          <input type="text" id="name" name="name" class="form-input" required>
+          <div class="error-message" id="nameError">お名前を入力してください</div>
+        </div>
+        
+        <div class="form-group" id="gradeGroup" style="display: none;">
+          <label class="form-label" for="grade">学年・所属</label>
+          <input type="text" id="grade" name="grade" class="form-input">
+          <div class="error-message" id="gradeError"></div>
+        </div>
+        
+        <div class="form-group" id="contactGroup" style="display: none;">
+          <label class="form-label" for="contact">連絡先</label>
+          <input type="text" id="contact" name="contact" class="form-input">
+          <div class="error-message" id="contactError"></div>
+        </div>
+        
+        <div class="form-group" id="custom1Group" style="display: none;">
+          <label class="form-label" for="custom1" id="custom1Label">カスタムフィールド1</label>
+          <input type="text" id="custom1" name="custom1" class="form-input">
+          <div class="error-message" id="custom1Error"></div>
+        </div>
+        
+        <div class="form-group" id="custom2Group" style="display: none;">
+          <label class="form-label" for="custom2" id="custom2Label">カスタムフィールド2</label>
+          <input type="text" id="custom2" name="custom2" class="form-input">
+          <div class="error-message" id="custom2Error"></div>
+        </div>
+        
+        <div class="form-group" id="custom3Group" style="display: none;">
+          <label class="form-label" for="custom3" id="custom3Label">カスタムフィールド3</label>
+          <input type="text" id="custom3" name="custom3" class="form-input">
+          <div class="error-message" id="custom3Error"></div>
+        </div>
+        
+        <button type="submit" class="submit-btn" id="submitBtn">
+          <i class="fas fa-spinner loading"></i>
+          <span class="btn-text">送信する</span>
+        </button>
+      </form>
+      
+      <div class="success-message" id="successMessage">
+        <h3><i class="fas fa-check-circle"></i> 送信完了</h3>
+        <p>参加登録が完了しました。<br>ありがとうございました！</p>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p><i class="fas fa-shield-alt"></i> 入力された情報は一時的な受付管理のみに使用されます</p>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeForm();
+      setupFormValidation();
+    });
+    
+    function initializeForm() {
+      // URLパラメータから設定を取得（将来の拡張用）
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // ローカルストレージから設定を取得
+      const settings = JSON.parse(localStorage.getItem('qr_attendance_settings') || '{}');
+      
+      // フィールドの表示/非表示設定
+      if (settings.fields) {
+        if (settings.fields.grade) {
+          document.getElementById('gradeGroup').style.display = 'block';
+        }
+        if (settings.fields.contact) {
+          document.getElementById('contactGroup').style.display = 'block';
+        }
+        if (settings.fields.custom1 && settings.customFields?.field1) {
+          document.getElementById('custom1Group').style.display = 'block';
+          document.getElementById('custom1Label').textContent = settings.customFields.field1;
+        }
+        if (settings.fields.custom2 && settings.customFields?.field2) {
+          document.getElementById('custom2Group').style.display = 'block';
+          document.getElementById('custom2Label').textContent = settings.customFields.field2;
+        }
+        if (settings.fields.custom3 && settings.customFields?.field3) {
+          document.getElementById('custom3Group').style.display = 'block';
+          document.getElementById('custom3Label').textContent = settings.customFields.field3;
+        }
+      }
+    }
+    
+    function setupFormValidation() {
+      const form = document.getElementById('attendeeForm');
+      const inputs = form.querySelectorAll('.form-input');
+      
+      // リアルタイムバリデーション
+      inputs.forEach(input => {
+        input.addEventListener('blur', () => validateField(input));
+        input.addEventListener('input', () => clearError(input));
+      });
+      
+      // フォーム送信
+      form.addEventListener('submit', handleSubmit);
+    }
+    
+    function validateField(input) {
+      const value = input.value.trim();
+      const isRequired = input.hasAttribute('required');
+      const errorElement = document.getElementById(input.id + 'Error');
+      
+      if (isRequired && !value) {
+        showError(input, errorElement, 'この項目は必須です');
+        return false;
+      }
+      
+      // 名前の文字数チェック
+      if (input.id === 'name' && value && value.length > 50) {
+        showError(input, errorElement, '名前は50文字以内で入力してください');
+        return false;
+      }
+      
+      // 連絡先の形式チェック（簡易）
+      if (input.id === 'contact' && value) {
+        const phoneRegex = /^[0-9\-\+\(\)\s]+$/;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!phoneRegex.test(value) && !emailRegex.test(value)) {
+          showError(input, errorElement, '電話番号またはメールアドレスを入力してください');
+          return false;
+        }
+      }
+      
+      clearError(input);
+      return true;
+    }
+    
+    function showError(input, errorElement, message) {
+      input.classList.add('error');
+      errorElement.textContent = message;
+      errorElement.classList.add('show');
+    }
+    
+    function clearError(input) {
+      input.classList.remove('error');
+      const errorElement = document.getElementById(input.id + 'Error');
+      errorElement.classList.remove('show');
+    }
+    
+    async function handleSubmit(e) {
+      e.preventDefault();
+      
+      const form = e.target;
+      const submitBtn = document.getElementById('submitBtn');
+      const btnText = submitBtn.querySelector('.btn-text');
+      
+      // バリデーション
+      const inputs = form.querySelectorAll('.form-input');
+      let isValid = true;
+      
+      inputs.forEach(input => {
+        if (!validateField(input)) {
+          isValid = false;
+        }
+      });
+      
+      if (!isValid) {
+        return;
+      }
+      
+      // 送信開始
+      submitBtn.disabled = true;
+      submitBtn.classList.add('loading');
+      btnText.textContent = '送信中...';
+      
+      try {
+        // フォームデータ収集
+        const formData = new FormData(form);
+        const attendeeData = {
+          name: formData.get('name'),
+          grade: formData.get('grade') || '',
+          contact: formData.get('contact') || '',
+          custom1: formData.get('custom1') || '',
+          custom2: formData.get('custom2') || '',
+          custom3: formData.get('custom3') || '',
+          timestamp: new Date().toISOString(),
+          id: Date.now().toString()
+        };
+        
+        // ローカルストレージに保存
+        const existingData = JSON.parse(localStorage.getItem('qr_attendance_data') || '[]');
+        existingData.push(attendeeData);
+        localStorage.setItem('qr_attendance_data', JSON.stringify(existingData));
+        
+        // 送信完了の演出
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // 成功表示
+        form.style.display = 'none';
+        document.getElementById('successMessage').classList.add('show');
+        
+        // 3秒後にフォームリセット
+        setTimeout(() => {
+          form.reset();
+          form.style.display = 'block';
+          document.getElementById('successMessage').classList.remove('show');
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('loading');
+          btnText.textContent = '送信する';
+        }, 3000);
+        
+      } catch (error) {
+        console.error('送信エラー:', error);
+        alert('送信に失敗しました。もう一度お試しください。');
+        
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        btnText.textContent = '送信する';
+      }
+    }
+  </script>
+</body>
+</html> 

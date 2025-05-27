@@ -1,16 +1,44 @@
 /**
- * クイズ自動作成ツール JavaScript
- * LLMを活用した学習支援ツール
+ * NuruMayu StudyLab - AI OCR学習支援ツール JavaScript
+ * MVPバージョン
  */
 document.addEventListener('DOMContentLoaded', () => {
   // 要素の参照を取得
   const inputArea = document.getElementById('inputArea');
   const sampleBtn = document.getElementById('sampleBtn');
   const recordBtn = document.getElementById('recordBtn');
-  const generateQuizBtn = document.getElementById('generateQuizBtn');
-  const resetBtn = document.getElementById('resetBtn');
+  const clearBtn = document.getElementById('clearBtn');
   const copyBtn = document.getElementById('copyBtn');
   const loadingIndicator = document.getElementById('loadingIndicator');
+  
+  // タブ関連要素
+  const tabText = document.getElementById('tab-text');
+  const tabOcr = document.getElementById('tab-ocr');
+  const tabQuiz = document.getElementById('tab-quiz');
+  const contentText = document.getElementById('content-text');
+  const contentOcr = document.getElementById('content-ocr');
+  const contentQuiz = document.getElementById('content-quiz');
+  
+  // OCR関連要素
+  const imageUpload = document.getElementById('imageUpload');
+  const imageUploadZone = document.getElementById('imageUploadZone');
+  const imagePreview = document.getElementById('imagePreview');
+  const previewImage = document.getElementById('previewImage');
+  const imageFileName = document.getElementById('imageFileName');
+  const removeImageBtn = document.getElementById('removeImageBtn');
+  const startOcrBtn = document.getElementById('startOcrBtn');
+  const correctOcrBtn = document.getElementById('correctOcrBtn');
+  const ocrProgress = document.getElementById('ocrProgress');
+  const progressFill = document.getElementById('progressFill');
+  const progressPercent = document.getElementById('progressPercent');
+  const ocrResult = document.getElementById('ocrResult');
+  const ocrText = document.getElementById('ocrText');
+  const useOcrTextBtn = document.getElementById('useOcrTextBtn');
+  
+  // 学習コンテンツ生成関連要素
+  const generateContentBtn = document.getElementById('generateContentBtn');
+  const resetContentBtn = document.getElementById('resetContentBtn');
+  const targetText = document.getElementById('targetText');
   
   // クイズ関連要素
   const quizContainer = document.getElementById('quizContainer');
@@ -53,6 +81,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // クイズ生成履歴管理
   let quizGenerationHistory = [];
   let generationCount = 0;
+  
+  // OCR関連変数
+  let currentImageFile = null;
+  let ocrWorker = null;
+  let currentOcrText = '';
   
   // サンプルテキストデータ（各レベル6つずつ：AI基礎・機械学習・生成AI・活用事例・技術動向・AI歴史）
   const sampleTexts = {
@@ -191,6 +224,111 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('quizInputText', inputArea.value);
   });
   
+  // タブ切り替え機能
+  function switchTab(targetTab) {
+    // すべてのタブとコンテンツを非アクティブにする
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => {
+      content.style.display = 'none';
+      content.classList.remove('active');
+    });
+    
+    // 選択されたタブとコンテンツをアクティブにする
+    targetTab.classList.add('active');
+    const contentId = targetTab.id.replace('tab-', 'content-');
+    const targetContent = document.getElementById(contentId);
+    if (targetContent) {
+      targetContent.style.display = 'block';
+      targetContent.classList.add('active');
+    }
+    
+    // 学習コンテンツ生成タブが選択された場合、現在のテキストを表示
+    if (targetTab.id === 'tab-quiz') {
+      updateTargetText();
+    }
+  }
+  
+  // タブクリックイベント
+  tabText.addEventListener('click', () => switchTab(tabText));
+  tabOcr.addEventListener('click', () => switchTab(tabOcr));
+  tabQuiz.addEventListener('click', () => switchTab(tabQuiz));
+  
+  // 処理対象テキストの更新
+  function updateTargetText() {
+    const textFromInput = inputArea.value.trim();
+    const textFromOcr = currentOcrText.trim();
+    
+    if (textFromOcr) {
+      targetText.value = textFromOcr;
+    } else if (textFromInput) {
+      targetText.value = textFromInput;
+    } else {
+      targetText.value = '';
+    }
+  }
+
+  // OCRイベントリスナー
+  imageUploadZone.addEventListener('click', () => {
+    imageUpload.click();
+  });
+
+  imageUploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    imageUploadZone.classList.add('dragover');
+  });
+
+  imageUploadZone.addEventListener('dragleave', () => {
+    imageUploadZone.classList.remove('dragover');
+  });
+
+  imageUploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    imageUploadZone.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleImageUpload(files[0]);
+    }
+  });
+
+  imageUpload.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      handleImageUpload(e.target.files[0]);
+    }
+  });
+
+  removeImageBtn.addEventListener('click', () => {
+    clearImageUpload();
+  });
+
+  startOcrBtn.addEventListener('click', () => {
+    performOCR();
+  });
+
+  correctOcrBtn.addEventListener('click', () => {
+    correctOCRText();
+  });
+
+  useOcrTextBtn.addEventListener('click', () => {
+    currentOcrText = ocrText.value;
+    updateTargetText();
+    switchTab(tabQuiz);
+  });
+
+  // クリアボタンの処理
+  clearBtn.addEventListener('click', () => {
+    inputArea.value = '';
+    localStorage.removeItem('quizInputText');
+  });
+
+  // 学習コンテンツ生成ボタン
+  generateContentBtn.addEventListener('click', () => {
+    generateLearningContent();
+  });
+
+  resetContentBtn.addEventListener('click', () => {
+    resetContent();
+  });
+
     // 理解度レベル変更時の処理
   document.querySelectorAll('input[name="level"]').forEach(radio => {
     radio.addEventListener('change', () => {
@@ -205,6 +343,142 @@ document.addEventListener('DOMContentLoaded', () => {
   
 
   
+  // 画像アップロード処理
+  function handleImageUpload(file) {
+    if (!file.type.startsWith('image/')) {
+      alert('画像ファイルを選択してください。');
+      return;
+    }
+
+    currentImageFile = file;
+    
+    // 画像プレビューを表示
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previewImage.src = e.target.result;
+      imageFileName.textContent = file.name;
+      imagePreview.style.display = 'block';
+      startOcrBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // 画像アップロードのクリア
+  function clearImageUpload() {
+    currentImageFile = null;
+    imagePreview.style.display = 'none';
+    imageUpload.value = '';
+    startOcrBtn.disabled = true;
+    ocrResult.style.display = 'none';
+    ocrProgress.style.display = 'none';
+    correctOcrBtn.style.display = 'none';
+  }
+
+  // OCR実行
+  async function performOCR() {
+    if (!currentImageFile) {
+      alert('画像をアップロードしてください。');
+      return;
+    }
+
+    try {
+      // プログレス表示
+      ocrProgress.style.display = 'block';
+      progressFill.style.width = '0%';
+      progressPercent.textContent = '0%';
+      startOcrBtn.disabled = true;
+
+      // 言語設定を取得
+      const language = document.querySelector('input[name="ocrLanguage"]:checked').value;
+
+      // Tesseract.jsでOCR実行
+      if (!ocrWorker) {
+        ocrWorker = await Tesseract.createWorker(language);
+      }
+
+      const { data: { text } } = await ocrWorker.recognize(currentImageFile, {
+        logger: (progress) => {
+          const percent = Math.round(progress.progress * 100);
+          progressFill.style.width = percent + '%';
+          progressPercent.textContent = percent + '%';
+        }
+      });
+
+      // 結果表示
+      ocrText.value = text.trim();
+      ocrResult.style.display = 'block';
+      correctOcrBtn.style.display = 'inline-block';
+      
+      // プログレス非表示
+      ocrProgress.style.display = 'none';
+      startOcrBtn.disabled = false;
+
+    } catch (error) {
+      console.error('OCRエラー:', error);
+      alert('文字認識に失敗しました。画像を確認してもう一度お試しください。');
+      ocrProgress.style.display = 'none';
+      startOcrBtn.disabled = false;
+    }
+  }
+
+  // OCR結果のAI補正
+  async function correctOCRText() {
+    const originalText = ocrText.value.trim();
+    if (!originalText) {
+      alert('補正するテキストがありません。');
+      return;
+    }
+
+    try {
+      correctOcrBtn.disabled = true;
+      correctOcrBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI補正中...';
+
+      const messages = [
+        {
+          role: "system",
+          content: "あなたはOCR結果の誤字脱字を修正する専門家です。文脈を理解して、自然で読みやすい日本語に修正してください。内容の意味は変えずに、明らかな誤認識のみを修正してください。"
+        },
+        {
+          role: "user",
+          content: `以下のOCR結果を修正してください：\n\n${originalText}`
+        }
+      ];
+
+      const correctedText = await callLLMAPI(messages);
+      if (correctedText && correctedText.trim()) {
+        ocrText.value = correctedText.trim();
+      }
+
+    } catch (error) {
+      console.error('AI補正エラー:', error);
+      alert('AI補正に失敗しました。手動で修正してください。');
+    } finally {
+      correctOcrBtn.disabled = false;
+      correctOcrBtn.innerHTML = '<i class="fas fa-magic"></i> AI補正';
+    }
+  }
+
+  // 学習コンテンツ生成
+  function generateLearningContent() {
+    const text = targetText.value.trim();
+    if (!text) {
+      alert('処理するテキストがありません。テキスト入力タブまたはOCRタブで入力してください。');
+      return;
+    }
+    
+    // 既存のクイズ生成機能を流用
+    generateQuiz();
+  }
+
+  // コンテンツリセット
+  function resetContent() {
+    targetText.value = '';
+    currentOcrText = '';
+    // クイズ結果もリセット
+    quizContainer.style.display = 'none';
+    outputContainer.style.display = 'none';
+  }
+
   // 音声認識の初期化
   function initSpeechRecognition() {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -317,9 +591,9 @@ document.addEventListener('DOMContentLoaded', () => {
   generateQuizBtn.addEventListener('click', generateQuiz);
   
   function generateQuiz() {
-    const input = inputArea.value.trim();
+    const input = targetText.value.trim() || inputArea.value.trim();
     if (!input) {
-      alert('テキストを入力してください');
+      alert('学習内容を入力してください。テキスト入力タブまたはOCRタブで入力してください。');
       return;
     }
     

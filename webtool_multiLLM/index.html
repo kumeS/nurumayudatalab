@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>マルチLLMシステム｜複数LLMを同時実行</title>
+  <title>⚡マルチLLMシステム｜【30種類LLM同時実行】で効率アップ！</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <style>
     :root {
@@ -43,7 +43,15 @@
     
     .description {
       color: var(--text-secondary);
+      font-size: 1.1rem;
+      line-height: 1.6;
+    }
+    
+    .sub-description {
+      color: var(--text-secondary);
       font-size: 1rem;
+      line-height: 1.5;
+      margin-top: 0.5rem;
     }
     
     .tabs {
@@ -261,6 +269,45 @@
       }
     }
     
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .group-header:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .model-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .group-content {
+      background: #fafafa;
+      border-radius: 0 0 8px 8px;
+      border: 1px solid #e0e0e0;
+      border-top: none;
+    }
+    
+    .model-card {
+      background: white;
+      margin: 0.5rem;
+      border-radius: 5px;
+      transition: all 0.3s ease;
+    }
+    
+    .model-card:hover {
+      transform: translateX(5px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
     /* 右端に近い場合の位置調整 */
     .model-info:nth-last-child(-n+2) .model-tooltip {
       left: auto;
@@ -367,7 +414,9 @@
     
     .add-panel-container {
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
       margin-bottom: 2rem;
     }
     
@@ -395,6 +444,34 @@
     .add-panel-btn i {
       margin-right: 0.5rem;
       font-size: 1.2rem;
+    }
+    
+    .btn-home {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 200px;
+      height: 50px;
+      border: 2px solid var(--primary);
+      border-radius: 8px;
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    
+    .btn-home:hover {
+      background: var(--secondary);
+      border-color: var(--secondary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(255, 126, 95, 0.3);
+    }
+    
+    .btn-home i {
+      margin-right: 0.5rem;
+      font-size: 1.1rem;
     }
     
     .usage-guide {
@@ -465,13 +542,14 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>マルチLLMシステム</h1>
-      <p class="description">1つのプロンプトで複数のLLMモデルを同時実行</p>
+      <h1>⚡ マルチLLMシステム</h1>
+      <p class="description"><strong>1つのプロンプト</strong>で<span style="color: #ff7e5f; font-weight: bold;">複数LLMモデルを同時実行</span> 🚀</p>
+      <p class="sub-description"><span style="color: #28a745; font-weight: bold;">🎯 30種類の最新LLMモデル</span>から自由に選択・比較可能</p>
     </div>
     
     <div class="tabs">
-      <div class="tab active" id="tab-execution">実行ページ</div>
-      <div class="tab" id="tab-models">モデル説明</div>
+      <div class="tab active" id="tab-execution">🚀 実行ページ</div>
+      <div class="tab" id="tab-models">📚 モデル説明</div>
     </div>
     
     <!-- 実行ページ -->
@@ -616,6 +694,10 @@
         <button class="add-panel-btn" id="addPanelBtn">
           <i class="fas fa-plus"></i>
           パネル追加
+        </button>
+        <button class="btn-home" id="homeBtn">
+          <i class="fas fa-home"></i>
+          ホームに戻る
         </button>
       </div>
     </div>
