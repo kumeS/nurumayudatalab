@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>児童進捗管理ツール｜Kids Progress Manager</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --secondary: #7c3aed;
+      --accent: #06b6d4;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --bg-primary: #ffffff;
+      --bg-secondary: #f9fafb;
+      --border: #e5e7eb;
+      --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --transition: all 0.3s ease;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Hiragino Sans', 'Noto Sans CJK JP', sans-serif;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+    
+    /* ヘッダー */
+    .header {
+      background: var(--bg-primary);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+    }
+    
+    .header h1 {
+      color: var(--primary);
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    
+    .header .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+    
+    /* タブナビゲーション */
+    .tabs {
+      display: flex;
+      background: var(--bg-primary);
+      border-radius: 12px 12px 0 0;
+      overflow: hidden;
+      margin-bottom: 0;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 1rem 1.5rem;
+      text-align: center;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+      border: none;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .tab:hover {
+      background: var(--bg-primary);
+      color: var(--primary);
+    }
+    
+    .tab.active {
+      background: var(--primary);
+      color: white;
+      font-weight: 600;
+    }
+    
+    /* メインコンテンツエリア */
+    .main-content {
+      background: var(--bg-primary);
+      border-radius: 0 0 12px 12px;
+      box-shadow: var(--card-shadow);
+      min-height: 600px;
+      display: flex;
+    }
+    
+    /* サイドバー */
+    .sidebar {
+      width: 300px;
+      padding: 1.5rem;
+      border-right: 1px solid var(--border);
+      background: var(--bg-secondary);
+    }
+    
+    .sidebar-section {
+      margin-bottom: 2rem;
+    }
+    
+    .sidebar-title {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    /* メインエリア */
+    .content-area {
+      flex: 1;
+      padding: 1.5rem;
+    }
+    
+    /* ボタンスタイル */
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+    
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #3730a3;
+      transform: translateY(-1px);
+    }
+    
+    .btn-secondary {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--bg-primary);
+      border-color: var(--primary);
+    }
+    
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+    
+    .btn-warning {
+      background: var(--warning);
+      color: white;
+    }
+    
+    .btn-error {
+      background: var(--error);
+      color: white;
+    }
+    
+    /* フォーム要素 */
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: var(--transition);
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    .form-select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      background: white;
+      cursor: pointer;
+    }
+    
+    /* 検索ボックス */
+    .search-box {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+    
+    .search-box input {
+      padding-left: 2.5rem;
+    }
+    
+    .search-box i {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-secondary);
+    }
+    
+    /* データテーブル */
+    .data-table-container {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+    
+    .data-table th,
+    .data-table td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .data-table th {
+      background: var(--bg-secondary);
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    .data-table tr:hover {
+      background: #f8fafc;
+    }
+    
+    .data-table .editable-cell {
+      cursor: pointer;
+      position: relative;
+    }
+    
+    .data-table .editable-cell:hover {
+      background: #e0f2fe;
+    }
+    
+    /* カード */
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 1.5rem;
+    }
+    
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+    
+    /* モーダル */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+    
+    /* アラート */
+    .alert {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .alert-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    
+    .alert-warning {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+    
+    /* ローディング */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 2rem;
+    }
+    
+    .loading.show {
+      display: block;
+    }
+    
+    .spinner {
+      border: 4px solid var(--border);
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      width: 3rem;
+      height: 3rem;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+      .main-content {
+        flex-direction: column;
+      }
+      
+      .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      
+      .tabs {
+        flex-wrap: wrap;
+      }
+      
+      .tab {
+        flex: 1 1 50%;
+        min-width: 120px;
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+    }
+    
+    /* ユーティリティクラス */
+    .hidden { display: none !important; }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .mt-1 { margin-top: 0.25rem; }
+    .mt-2 { margin-top: 0.5rem; }
+    .mb-1 { margin-bottom: 0.25rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .gap-2 { gap: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- ヘッダー -->
+    <header class="header">
+      <h1><i class="fas fa-child"></i> 児童進捗管理ツール</h1>
+      <p class="subtitle">Kids Progress Manager - 教育現場での進捗管理とAI分析支援</p>
+    </header>
+
+    <!-- タブナビゲーション -->
+    <div class="tabs">
+      <button class="tab active" data-tab="overview">
+        <i class="fas fa-chart-line"></i> 進捗一覧
+      </button>
+      <button class="tab" data-tab="input">
+        <i class="fas fa-plus-circle"></i> データ入力
+      </button>
+      <button class="tab" data-tab="students">
+        <i class="fas fa-users"></i> 児童管理
+      </button>
+      <button class="tab" data-tab="analysis">
+        <i class="fas fa-brain"></i> AI分析
+      </button>
+      <button class="tab" data-tab="settings">
+        <i class="fas fa-cog"></i> 設定
+      </button>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="main-content">
+      <!-- サイドバー -->
+      <aside class="sidebar">
+        <!-- 検索機能 -->
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">
+            <i class="fas fa-search"></i> 検索・フィルター
+          </h3>
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="studentSearch" class="form-input" placeholder="児童名で検索...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">学年フィルター</label>
+            <select id="gradeFilter" class="form-select">
+              <option value="">すべて</option>
+              <option value="1">1年生</option>
+              <option value="2">2年生</option>
+              <option value="3">3年生</option>
+              <option value="4">4年生</option>
+              <option value="5">5年生</option>
+              <option value="6">6年生</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">クラスフィルター</label>
+            <select id="classFilter" class="form-select">
+              <option value="">すべて</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- クイックアクション -->
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">
+            <i class="fas fa-lightning-bolt"></i> クイックアクション
+          </h3>
+          <button class="btn btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="openAddStudentModal()">
+            <i class="fas fa-user-plus"></i> 児童追加
+          </button>
+          <button class="btn btn-secondary" style="width: 100%; margin-bottom: 0.5rem;" onclick="openBulkInputModal()">
+            <i class="fas fa-edit"></i> 一括入力
+          </button>
+          <button class="btn btn-success" style="width: 100%; margin-bottom: 0.5rem;" onclick="exportData()">
+            <i class="fas fa-download"></i> データ出力
+          </button>
+        </div>
+
+        <!-- データ統計 -->
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">
+            <i class="fas fa-chart-bar"></i> データ統計
+          </h3>
+          <div class="card" style="margin: 0;">
+            <div class="flex justify-between">
+              <span>登録児童数</span>
+              <strong id="totalStudents">0</strong>
+            </div>
+            <div class="flex justify-between">
+              <span>今日の入力</span>
+              <strong id="todayInputs">0</strong>
+            </div>
+            <div class="flex justify-between">
+              <span>未入力項目</span>
+              <strong id="missingInputs">0</strong>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- メインエリア -->
+      <main class="content-area">
+        <!-- 進捗一覧タブ -->
+        <div id="overview-tab" class="tab-content">
+          <div class="flex justify-between items-center mb-2">
+            <h2 class="card-title">児童進捗一覧</h2>
+            <div class="flex gap-2">
+              <button class="btn btn-secondary" onclick="refreshTable()">
+                <i class="fas fa-sync-alt"></i> 更新
+              </button>
+              <button class="btn btn-primary" onclick="runAIAnalysis()">
+                <i class="fas fa-magic"></i> AI分析実行
+              </button>
+            </div>
+          </div>
+          
+          <!-- データテーブル -->
+          <div class="data-table-container">
+            <table class="data-table" id="progressTable">
+              <thead>
+                <tr>
+                  <th>氏名</th>
+                  <th>在籍番号</th>
+                  <th>学年</th>
+                  <th>クラス</th>
+                  <th>学習状況</th>
+                  <th>学習意欲</th>
+                  <th>宿題提出</th>
+                  <th>最終更新</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="progressTableBody">
+                <!-- データは動的に生成 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- データ入力タブ -->
+        <div id="input-tab" class="tab-content hidden">
+          <h2 class="card-title">進捗データ入力</h2>
+          
+          <div class="card">
+            <form id="progressInputForm">
+              <div class="form-group">
+                <label class="form-label">児童選択</label>
+                <select id="studentSelect" class="form-select" required>
+                  <option value="">児童を選択してください</option>
+                </select>
+              </div>
+              
+              <div id="inputFields">
+                <!-- 動的に生成される入力フィールド -->
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">備考・メモ</label>
+                <textarea id="notesInput" class="form-input" rows="3" placeholder="気づいたことや特記事項を入力..."></textarea>
+              </div>
+              
+              <div class="flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save"></i> 保存
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="clearForm()">
+                  <i class="fas fa-eraser"></i> クリア
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- 児童管理タブ -->
+        <div id="students-tab" class="tab-content hidden">
+          <div class="flex justify-between items-center mb-2">
+            <h2 class="card-title">児童管理</h2>
+            <button class="btn btn-primary" onclick="openAddStudentModal()">
+              <i class="fas fa-user-plus"></i> 新規追加
+            </button>
+          </div>
+          
+          <div class="data-table-container">
+            <table class="data-table" id="studentsTable">
+              <thead>
+                <tr>
+                  <th>氏名</th>
+                  <th>在籍番号</th>
+                  <th>学年</th>
+                  <th>クラス</th>
+                  <th>登録日</th>
+                  <th>データ数</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="studentsTableBody">
+                <!-- データは動的に生成 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- AI分析タブ -->
+        <div id="analysis-tab" class="tab-content hidden">
+          <h2 class="card-title">AI分析結果</h2>
+          
+          <div id="analysisResults">
+            <div class="alert alert-warning">
+              <i class="fas fa-info-circle"></i>
+              AI分析を実行するには、「AI分析実行」ボタンをクリックしてください。
+            </div>
+          </div>
+        </div>
+
+        <!-- 設定タブ -->
+        <div id="settings-tab" class="tab-content hidden">
+          <h2 class="card-title">設定</h2>
+          
+          <!-- 項目設定 -->
+          <div class="card">
+            <h3 class="card-title">入力項目設定</h3>
+            <div id="fieldSettings">
+              <!-- 動的に生成 -->
+            </div>
+            <button class="btn btn-primary" onclick="openAddFieldModal()">
+              <i class="fas fa-plus"></i> 項目追加
+            </button>
+          </div>
+          
+          <!-- データ管理 -->
+          <div class="card">
+            <h3 class="card-title">データ管理</h3>
+            <div class="flex gap-2">
+              <button class="btn btn-success" onclick="exportData()">
+                <i class="fas fa-download"></i> データエクスポート
+              </button>
+              <button class="btn btn-warning" onclick="importData()">
+                <i class="fas fa-upload"></i> データインポート
+              </button>
+              <button class="btn btn-error" onclick="confirmClearAllData()">
+                <i class="fas fa-trash"></i> 全データ削除
+              </button>
+            </div>
+          </div>
+          
+          <!-- API設定 -->
+          <div class="card">
+            <h3 class="card-title">AI分析設定</h3>
+            <div class="form-group">
+              <label class="form-label">OpenAI API Key</label>
+              <input type="password" id="apiKeyInput" class="form-input" placeholder="sk-...">
+              <small class="text-secondary">API Keyはブラウザにのみ保存され、外部には送信されません</small>
+            </div>
+            <button class="btn btn-primary" onclick="saveApiKey()">
+              <i class="fas fa-save"></i> 保存
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 児童追加モーダル -->
+  <div id="addStudentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">児童情報追加</h3>
+        <button class="modal-close" onclick="closeModal('addStudentModal')">&times;</button>
+      </div>
+      <form id="addStudentForm">
+        <div class="form-group">
+          <label class="form-label">氏名 *</label>
+          <input type="text" id="studentName" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">在籍番号 *</label>
+          <input type="text" id="studentNumber" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">学年 *</label>
+          <select id="studentGrade" class="form-select" required>
+            <option value="">選択してください</option>
+            <option value="1">1年生</option>
+            <option value="2">2年生</option>
+            <option value="3">3年生</option>
+            <option value="4">4年生</option>
+            <option value="5">5年生</option>
+            <option value="6">6年生</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">クラス</label>
+          <input type="text" id="studentClass" class="form-input" placeholder="例: A組">
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-plus"></i> 追加
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('addStudentModal')">
+            キャンセル
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 項目追加モーダル -->
+  <div id="addFieldModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">入力項目追加</h3>
+        <button class="modal-close" onclick="closeModal('addFieldModal')">&times;</button>
+      </div>
+      <form id="addFieldForm">
+        <div class="form-group">
+          <label class="form-label">項目名 *</label>
+          <input type="text" id="fieldName" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">入力タイプ *</label>
+          <select id="fieldType" class="form-select" required>
+            <option value="">選択してください</option>
+            <option value="select">選択式（5段階評価）</option>
+            <option value="text">自由記述</option>
+            <option value="number">数値入力</option>
+            <option value="checkbox">チェックボックス</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">必須項目</label>
+          <input type="checkbox" id="fieldRequired"> 必須入力にする
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-plus"></i> 追加
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('addFieldModal')">
+            キャンセル
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ローディング表示 -->
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <p>処理中...</p>
+  </div>
+
+  <!-- アラート表示エリア -->
+  <div id="alertContainer" style="position: fixed; top: 1rem; right: 1rem; z-index: 1100; max-width: 400px;">
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html> 

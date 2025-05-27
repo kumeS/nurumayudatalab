@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR参加管理ツール｜参加者管理システム</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <style>
+    :root {
+      --primary: #2196F3;
+      --secondary: #03A9F4;
+      --accent: #00BCD4;
+      --success: #4CAF50;
+      --warning: #FF9800;
+      --error: #f44336;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+      color: var(--text-primary);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    h1 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+      font-weight: bold;
+    }
+    
+    .description {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .main-tabs {
+      display: flex;
+      background-color: #fff;
+      border-radius: 12px 12px 0 0;
+      overflow: hidden;
+      margin-bottom: 0;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .main-tab {
+      flex: 1;
+      padding: 1rem 1.5rem;
+      text-align: center;
+      background-color: #f8f9fa;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-weight: 500;
+      border: none;
+      font-size: 1rem;
+    }
+    
+    .main-tab:hover {
+      background-color: #e9ecef;
+      color: var(--primary);
+    }
+    
+    .main-tab.active {
+      background-color: #fff;
+      color: var(--primary);
+      font-weight: bold;
+      border-bottom: 3px solid var(--primary);
+    }
+    
+    .tab-content {
+      background-color: #fff;
+      border-radius: 0 0 12px 12px;
+      box-shadow: var(--card-shadow);
+      min-height: 500px;
+    }
+    
+    .tab-pane {
+      display: none;
+      padding: 2rem;
+    }
+    
+    .tab-pane.active {
+      display: block;
+    }
+    
+    /* 設定タブ */
+    .field-config {
+      margin-bottom: 2rem;
+    }
+    
+    .field-config h3 {
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+    
+    .field-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+    
+    .field-option {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      transition: all var(--transition-speed);
+      background: #f8f9fa;
+    }
+    
+    .field-option:hover {
+      border-color: var(--primary);
+      background: #fff;
+    }
+    
+    .field-option input[type="checkbox"] {
+      margin-right: 0.75rem;
+      transform: scale(1.2);
+      accent-color: var(--primary);
+    }
+    
+    .field-option label {
+      font-weight: 500;
+      cursor: pointer;
+      flex: 1;
+    }
+    
+    .custom-field-input {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+    
+    /* QR生成タブ */
+    .qr-section {
+      text-align: center;
+    }
+    
+    .qr-generator {
+      padding: 2rem;
+      border: 2px dashed #ddd;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+    }
+    
+    .generate-btn {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      margin-bottom: 2rem;
+    }
+    
+    .generate-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(33, 150, 243, 0.3);
+    }
+    
+    .qr-display {
+      display: none;
+      margin-top: 2rem;
+    }
+    
+    .qr-code-container {
+      display: inline-block;
+      padding: 2rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 1rem;
+    }
+    
+    .qr-actions {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    
+    .qr-btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all var(--transition-speed);
+    }
+    
+    .qr-btn.open {
+      background: var(--success);
+      color: white;
+    }
+    
+    .qr-btn.copy {
+      background: var(--warning);
+      color: white;
+    }
+    
+    /* 参加者一覧タブ */
+    .attendee-stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: linear-gradient(135deg, #e3f2fd, #f1f8e9);
+      border-radius: 8px;
+    }
+    
+    .stat-item {
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 2rem;
+      font-weight: bold;
+      color: var(--primary);
+    }
+    
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .attendee-search {
+      margin-bottom: 1rem;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    .attendee-list {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+    }
+    
+    .attendee-item {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background var(--transition-speed);
+    }
+    
+    .attendee-item:hover {
+      background: #f8f9fa;
+    }
+    
+    .attendee-item:last-child {
+      border-bottom: none;
+    }
+    
+    .attendee-info {
+      flex: 1;
+    }
+    
+    .attendee-name {
+      font-weight: bold;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+    
+    .attendee-details {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .attendee-time {
+      color: var(--primary);
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    
+    /* データ管理タブ */
+    .data-management {
+      text-align: center;
+      padding: 2rem;
+    }
+    
+    .danger-zone {
+      border: 2px solid var(--error);
+      border-radius: 12px;
+      padding: 2rem;
+      background: #fff5f5;
+    }
+    
+    .danger-zone h3 {
+      color: var(--error);
+      margin-bottom: 1rem;
+    }
+    
+    .clear-btn {
+      background: var(--error);
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+    }
+    
+    .clear-btn:hover {
+      background: #d32f2f;
+      transform: translateY(-2px);
+    }
+    
+    /* モーダル */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-content {
+      background-color: #fefefe;
+      margin: 15% auto;
+      padding: 2rem;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 500px;
+      text-align: center;
+    }
+    
+    .modal-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    
+    .modal-btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+    }
+    
+    .modal-btn.confirm {
+      background: var(--error);
+      color: white;
+    }
+    
+    .modal-btn.cancel {
+      background: #e0e0e0;
+      color: var(--text-primary);
+    }
+    
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      h1 {
+        font-size: 2rem;
+      }
+      
+      .field-options {
+        grid-template-columns: 1fr;
+      }
+      
+      .attendee-stats {
+        flex-direction: column;
+        gap: 1rem;
+      }
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1><i class="fas fa-qrcode"></i> QR参加管理ツール</h1>
+      <p class="description">QRコードを使った効率的な参加者管理システム</p>
+    </header>
+
+    <div class="main-tabs">
+      <button class="main-tab active" data-tab="settings">
+        <i class="fas fa-cog"></i> 設定
+      </button>
+      <button class="main-tab" data-tab="qr-generator">
+        <i class="fas fa-qrcode"></i> QR生成
+      </button>
+      <button class="main-tab" data-tab="attendees">
+        <i class="fas fa-users"></i> 参加者一覧
+      </button>
+      <button class="main-tab" data-tab="data-management">
+        <i class="fas fa-database"></i> データ管理
+      </button>
+    </div>
+
+    <div class="tab-content">
+      <!-- 設定タブ -->
+      <div class="tab-pane active" id="settings">
+        <div class="field-config">
+          <h3>収集する情報を設定してください</h3>
+          <div class="field-options">
+            <div class="field-option">
+              <input type="checkbox" id="field-name" checked disabled>
+              <label for="field-name">参加者名（必須）</label>
+            </div>
+            <div class="field-option">
+              <input type="checkbox" id="field-organization">
+              <label for="field-organization">所属・学年</label>
+            </div>
+            <div class="field-option">
+              <input type="checkbox" id="field-contact">
+              <label for="field-contact">連絡先</label>
+            </div>
+            <div class="field-option">
+              <input type="checkbox" id="field-custom1">
+              <label for="field-custom1">カスタム項目1</label>
+              <input type="text" class="custom-field-input" id="custom1-name" placeholder="項目名を入力">
+            </div>
+            <div class="field-option">
+              <input type="checkbox" id="field-custom2">
+              <label for="field-custom2">カスタム項目2</label>
+              <input type="text" class="custom-field-input" id="custom2-name" placeholder="項目名を入力">
+            </div>
+            <div class="field-option">
+              <input type="checkbox" id="field-custom3">
+              <label for="field-custom3">カスタム項目3</label>
+              <input type="text" class="custom-field-input" id="custom3-name" placeholder="項目名を入力">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QR生成タブ -->
+      <div class="tab-pane" id="qr-generator">
+        <div class="qr-section">
+          <div class="qr-generator">
+            <h3>QRコードを生成</h3>
+            <p>設定した項目に基づいてQRコードを生成します</p>
+            <button class="generate-btn" id="generateQR">
+              <i class="fas fa-magic"></i> QRコードを生成
+            </button>
+          </div>
+          <div class="qr-display" id="qrDisplay">
+            <div class="qr-code-container">
+              <canvas id="qrcode"></canvas>
+            </div>
+            <div class="qr-actions">
+              <button class="qr-btn open" id="openQR">
+                <i class="fas fa-external-link-alt"></i> 表示ページを開く
+              </button>
+              <button class="qr-btn copy" id="copyQRUrl">
+                <i class="fas fa-copy"></i> URLをコピー
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 参加者一覧タブ -->
+      <div class="tab-pane" id="attendees">
+        <div class="attendee-stats">
+          <div class="stat-item">
+            <div class="stat-number" id="totalAttendees">0</div>
+            <div class="stat-label">総参加者数</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" id="todayAttendees">0</div>
+            <div class="stat-label">本日の参加者</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" id="lastHourAttendees">0</div>
+            <div class="stat-label">直近1時間</div>
+          </div>
+        </div>
+        
+        <div class="attendee-search">
+          <input type="text" class="search-input" id="searchAttendees" 
+                 placeholder="参加者名で検索...">
+        </div>
+        
+        <div class="attendee-list" id="attendeeList">
+          <!-- 参加者一覧がここに動的に追加されます -->
+        </div>
+      </div>
+
+      <!-- データ管理タブ -->
+      <div class="tab-pane" id="data-management">
+        <div class="data-management">
+          <div class="danger-zone">
+            <h3><i class="fas fa-exclamation-triangle"></i> 危険な操作</h3>
+            <p>この操作により、すべての参加者データが完全に削除されます。<br>
+               一度削除されたデータは復元できません。</p>
+            <button class="clear-btn" id="clearAllData">
+              <i class="fas fa-trash-alt"></i> 全データを削除
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 確認モーダル -->
+  <div id="confirmModal" class="modal">
+    <div class="modal-content">
+      <h3><i class="fas fa-exclamation-triangle"></i> 確認</h3>
+      <p id="confirmMessage">本当にすべてのデータを削除しますか？</p>
+      <div class="modal-buttons">
+        <button class="modal-btn confirm" id="confirmDelete">はい、削除します</button>
+        <button class="modal-btn cancel" id="cancelDelete">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html> 

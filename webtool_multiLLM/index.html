@@ -63,6 +63,8 @@
       color: var(--text-secondary);
       cursor: pointer;
       transition: all var(--transition-speed);
+      font-size: 1.2rem;
+      font-weight: 500;
     }
     
     .tab:hover {
@@ -171,7 +173,7 @@
     
     .llm-panels {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+      grid-template-columns: repeat(3, 1fr);
       gap: 1.5rem;
       margin-bottom: 2rem;
     }
@@ -233,13 +235,37 @@
       border-radius: 5px;
       font-size: 0.8rem;
       width: 250px;
-      z-index: 1000;
+      z-index: 10000;
       display: none;
       margin-top: 0.5rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      white-space: normal;
+      word-wrap: break-word;
+      line-height: 1.4;
     }
     
     .model-info:hover .model-tooltip {
       display: block;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-5px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+    
+    /* 右端に近い場合の位置調整 */
+    .model-info:nth-last-child(-n+2) .model-tooltip {
+      left: auto;
+      right: 0;
+      transform: none;
     }
     
     .panel-controls {
@@ -287,6 +313,18 @@
       color: #856404;
     }
     
+    .status-generating {
+      background-color: #cce5ff;
+      color: #0066cc;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.7; }
+      100% { opacity: 1; }
+    }
+    
     .status-completed {
       background-color: #d4edda;
       color: #155724;
@@ -311,6 +349,21 @@
       min-height: 200px;
       max-height: 400px;
     }
+    
+    .panel-output h1, .panel-output h2, .panel-output h3, 
+    .panel-output h4, .panel-output h5, .panel-output h6 {
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
+      color: var(--primary);
+      margin: 1rem 0 0.5rem 0;
+      line-height: 1.3;
+    }
+    
+    .panel-output h1 { font-size: 1.4rem; }
+    .panel-output h2 { font-size: 1.3rem; }
+    .panel-output h3 { font-size: 1.2rem; }
+    .panel-output h4 { font-size: 1.1rem; }
+    .panel-output h5 { font-size: 1.0rem; }
+    .panel-output h6 { font-size: 0.95rem; }
     
     .add-panel-container {
       display: flex;
@@ -358,6 +411,8 @@
       cursor: pointer;
       margin-bottom: 1rem;
       color: var(--primary);
+      font-size: 1.1rem;
+      font-weight: 600;
     }
     
     .toggle-guide i {
@@ -474,6 +529,9 @@
           </button>
           <button id="randomSelectBtn" class="button success">
             <i class="fas fa-random"></i> モデル選択おまかせ
+          </button>
+          <button id="randomPromptBtn" class="button success">
+            <i class="fas fa-lightbulb"></i> サンプルプロンプト
           </button>
           <div id="loadingIndicator" class="loading">
             <div class="loading-spinner"></div>

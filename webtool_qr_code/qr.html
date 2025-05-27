@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QRコード表示｜QR参加管理ツール</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <style>
+    :root {
+      --primary: #2196F3;
+      --secondary: #03A9F4;
+      --accent: #00BCD4;
+      --success: #4CAF50;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-primary);
+      padding: 2rem;
+    }
+    
+    .qr-container {
+      background: white;
+      border-radius: 20px;
+      padding: 3rem;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+      max-width: 500px;
+      width: 100%;
+    }
+    
+    .qr-header {
+      margin-bottom: 2rem;
+    }
+    
+    .qr-title {
+      color: var(--primary);
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    
+    .qr-subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+    
+    .qr-code-area {
+      margin: 2rem 0;
+      padding: 2rem;
+      background: #f8f9fa;
+      border-radius: 15px;
+      border: 2px dashed #ddd;
+    }
+    
+    .qr-loading {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    
+    .qr-instructions {
+      background: linear-gradient(135deg, #e3f2fd, #f1f8e9);
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-top: 2rem;
+    }
+    
+    .qr-instructions h3 {
+      color: var(--primary);
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+    }
+    
+    .instruction-list {
+      text-align: left;
+      color: var(--text-secondary);
+    }
+    
+    .instruction-list li {
+      margin-bottom: 0.5rem;
+      list-style: none;
+      position: relative;
+      padding-left: 1.5rem;
+    }
+    
+    .instruction-list li:before {
+      content: "📱";
+      position: absolute;
+      left: 0;
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      color: var(--primary);
+      text-decoration: none;
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      border: 2px solid var(--primary);
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+    
+    .back-link:hover {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .back-link i {
+      margin-right: 0.5rem;
+    }
+    
+    @media (max-width: 768px) {
+      .qr-container {
+        margin: 1rem;
+        padding: 2rem;
+      }
+      
+      .qr-title {
+        font-size: 1.5rem;
+      }
+    }
+    
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      
+      .qr-container {
+        box-shadow: none;
+        border: 2px solid #ccc;
+        page-break-inside: avoid;
+      }
+      
+      .back-link {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="qr-container">
+    <div class="qr-header">
+      <h1 class="qr-title">
+        <i class="fas fa-qrcode"></i> QRコード
+      </h1>
+      <p class="qr-subtitle">参加者の受付にご利用ください</p>
+    </div>
+    
+    <div class="qr-code-area" id="qrCodeArea">
+      <div class="qr-loading">QRコードを生成中...</div>
+    </div>
+    
+    <div class="qr-instructions">
+      <h3><i class="fas fa-info-circle"></i> 使用方法</h3>
+      <ul class="instruction-list">
+        <li>参加者にこのQRコードをスマートフォンで読み取ってもらってください</li>
+        <li>読み取り後、自動で入力フォームが開きます</li>
+        <li>参加者情報を入力して送信すると、管理画面に表示されます</li>
+        <li>このページは印刷して受付に掲示することも可能です</li>
+      </ul>
+    </div>
+    
+    <a href="index.html" class="back-link">
+      <i class="fas fa-arrow-left"></i> 管理画面に戻る
+    </a>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      generateQRCode();
+    });
+    
+    function generateQRCode() {
+      try {
+        // 参加者入力ページのURL
+        const baseUrl = window.location.origin + window.location.pathname.replace('qr.html', '');
+        const inputUrl = baseUrl + 'input.html';
+        
+        // QRコード生成
+        const canvas = document.createElement('canvas');
+        
+        QRCode.toCanvas(canvas, inputUrl, {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        }, (error) => {
+          const qrCodeArea = document.getElementById('qrCodeArea');
+          
+          if (error) {
+            console.error('QRコード生成エラー:', error);
+            qrCodeArea.innerHTML = `
+              <div style="color: #f44336;">
+                <i class="fas fa-exclamation-triangle"></i><br>
+                QRコードの生成に失敗しました
+              </div>
+            `;
+          } else {
+            qrCodeArea.innerHTML = '';
+            qrCodeArea.appendChild(canvas);
+            
+            // URL表示を追加
+            const urlDisplay = document.createElement('div');
+            urlDisplay.style.marginTop = '1rem';
+            urlDisplay.style.fontSize = '0.9rem';
+            urlDisplay.style.color = '#666';
+            urlDisplay.style.wordBreak = 'break-all';
+            urlDisplay.innerHTML = `<strong>URL:</strong> ${inputUrl}`;
+            qrCodeArea.appendChild(urlDisplay);
+          }
+        });
+        
+      } catch (error) {
+        console.error('QRコード生成エラー:', error);
+        document.getElementById('qrCodeArea').innerHTML = `
+          <div style="color: #f44336;">
+            <i class="fas fa-exclamation-triangle"></i><br>
+            QRコードの生成に失敗しました
+          </div>
+        `;
+      }
+    }
+  </script>
+</body>
+</html> 

@@ -1,643 +1,1170 @@
 /**
- * ぬるっと翻訳・校閲ツール JavaScript
- * LLMを活用したテキスト処理ツール
+ * マルチLLMシステム JavaScript
+ * io.net APIを活用した複数LLMモデル同時実行ツール
  */
-document.addEventListener('DOMContentLoaded', () => {
-  // 要素の参照を取得
-  const tabs = document.querySelectorAll('.tabs .tab');
-  const inputArea = document.getElementById('inputArea');
-  const finalOutput = document.getElementById('final');
-  const reviewOutput = document.getElementById('review');
-  const runBtn = document.getElementById('runBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const copyBtn = document.getElementById('copyBtn');
-  const speakBtn = document.getElementById('speakBtn');
-  const toInputBtn = document.getElementById('toInputBtn');
-  const loadingIndicator = document.getElementById('loadingIndicator');
-  
-  // ---- BEGIN MODIFICATION: Load saved input text ----
-  // Load saved input text from localStorage, clearing a specific erroneous string if present
-  let savedInputText = localStorage.getItem('inputText');
-  if (savedInputText === "This will ensure that your input text is preserved even if you refresh the page.") {
-    localStorage.removeItem('inputText');
-    savedInputText = null; // Prevent loading this specific string
-  }
-  if (savedInputText) {
-    inputArea.value = savedInputText;
-  } else {
-    inputArea.value = ''; // Ensure it's empty if nothing valid is loaded or after clearing the specific string
-  }
-  // ---- END MODIFICATION ----
 
-  // ---- BEGIN MODIFICATION: Save input text on change ----
-  // Save input text to localStorage whenever it changes
-  inputArea.addEventListener('input', () => {
-    localStorage.setItem('inputText', inputArea.value);
-  });
-  // ---- END MODIFICATION ----
+// 利用可能なLLMモデル一覧と特徴
+const AVAILABLE_MODELS = {
+  'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8': {
+    name: 'Llama-4-Maverick-17B',
+    description: '17Bパラメータ、128エキスパートMoE構成、FP8量子化。高い推論性能と大規模コンテキスト対応（最大430Kトークン）を実現。'
+  },
+  'deepseek-ai/DeepSeek-R1-Distill-Llama-70B': {
+    name: 'DeepSeek-R1-Distill-Llama-70B',
+    description: 'R1を教師とした70B蒸留モデル。Llama基盤ながら強力な推論能力を維持。'
+  },
+  'Qwen/Qwen3-235B-A22B-FP8': {
+    name: 'Qwen3-235B-A22B',
+    description: '235BパラメータのMoEモデル（A22Bエキスパート構成）、FP8量子化と32Kコンテキスト対応。'
+  },
+  'deepseek-ai/DeepSeek-R1': {
+    name: 'DeepSeek-R1',
+    description: '推論ライセンス付きの高性能汎用推論モデル。128Kトークン対応、汎用QAや対話に強い。'
+  },
+  'Qwen/QwQ-32B': {
+    name: 'QwQ-32B',
+    description: 'Qwen3系のベースモデルから軽量化した32B版。'
+  },
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B': {
+    name: 'DeepSeek-R1-Distill-Qwen-32B',
+    description: 'Qwen2.5-32Bを元にR1蒸留データでファインチューニング。高効率かつ軽量化を両立。'
+  },
+  'meta-llama/Llama-3.3-70B-Instruct': {
+    name: 'Llama-3.3-70B-Instruct',
+    description: '70Bパラメータのインストラクション向けLlama3系モデル。大規模コンテキスト（128K）対応で、社内・オフライン用途にも最適。'
+  },
+  'databricks/dbrx-instruct': {
+    name: 'DBRX-Instruct',
+    description: 'Databricksの高性能インストラクションモデル。エンタープライズ用途に最適化。'
+  },
+  'neuralmagic/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic': {
+    name: 'Llama-3.1-Nemotron-70B',
+    description: 'Nemotron圧縮＋FP8動的量子化搭載70Bインストモデル。'
+  },
+  'microsoft/phi-4': {
+    name: 'Phi-4',
+    description: '16Kコンテキスト対応の汎用高性能モデル。微調整済みチャット版含む。'
+  },
+  'nvidia/AceMath-7B-Instruct': {
+    name: 'AceMath-7B-Instruct',
+    description: '数学計算特化モデル。高度な演算タスクに最適。'
+  },
+  'google/gemma-3-27b-it': {
+    name: 'Gemma-3-27B-IT',
+    description: '27B、int4量子化で14.1GBに圧縮、最小GPUでの動作を実現。マルチモーダル＋安全分類器搭載。'
+  },
+  'mistralai/Mistral-Large-Instruct-2411': {
+    name: 'Mistral-Large-Instruct',
+    description: '123Bパラメータ密モデル。長文コンテキスト（128K）、エージェント機能、関数呼び出し強化。'
+  },
+  'watt-ai/watt-tool-70B': {
+    name: 'Watt-Tool-70B',
+    description: 'Llama-3.3-70Bベースのツール呼び出し最適化モデル。BFCL（機能呼び出しベンチマーク）トップ性能。'
+  },
+  'SentientAGI/Dobby-Mini-Unhinged-Llama-3.1-8B': {
+    name: 'Dobby-Mini-Unhinged',
+    description: '"失礼で率直"なキャラクター特化8Bチャットモデル。'
+  },
+  'tiiuae/Falcon3-10B-Instruct': {
+    name: 'Falcon3-10B-Instruct',
+    description: '10Bパラメータ、32Kコンテキスト対応。4言語サポートで高性能評価済み。'
+  },
+  'bespokelabs/Bespoke-Stratos-32B': {
+    name: 'Bespoke-Stratos-32B',
+    description: 'DeepSeek-R1蒸留による推論向け32Bモデル。17Kデータで高効率学習・高性能。'
+  },
+  'netease-youdao/Confucius-o1-14B': {
+    name: 'Confucius-o1-14B',
+    description: '「孔子」を冠した14B推論モデル。チェインオブソート技術でステップバイステップ解法生成。'
+  },
+  'CohereForAI/aya-expanse-32b': {
+    name: 'Aya-Expanse-32B',
+    description: 'Cohereのマルチ言語対応32Bモデル。世界各国の言語に対応。'
+  },
+  'Qwen/Qwen2.5-Coder-32B-Instruct': {
+    name: 'Qwen2.5-Coder-32B',
+    description: '5.5兆トークン超のコードデータで継続学習。オープンソースコードLLMとして最先端性能を発揮。'
+  },
+  'NovaSky-AI/Sky-T1-32B-Preview': {
+    name: 'Sky-T1-32B-Preview',
+    description: '17Kデータ・$450学習のコスト効率推論モデル。o1-previewと同等性能。'
+  },
+  'THUDM/glm-4-9b-chat': {
+    name: 'GLM-4-9B-Chat',
+    description: '9Bマルチ言語・長文（128K）チャットモデル。ウェブ閲覧・コード実行・ツール呼び出し機能備え。'
+  },
+  'mistralai/Ministral-8B-Instruct-2410': {
+    name: 'Ministral-8B-Instruct',
+    description: 'Mistral AIの軽量8Bインストラクションモデル。効率性と性能のバランスが取れた設計。'
+  },
+  'jinaai/ReaderLM-v2': {
+    name: 'ReaderLM-v2',
+    description: '1.5BモデルでHTML→Markdown/JSON変換に特化。最大512Kトークン対応の長文処理性能。'
+  },
+  'openbmb/MiniCPM3-4B': {
+    name: 'MiniCPM3-4B',
+    description: '4Bパラメータのエッジ向け高速モデル。32K長コンテキスト＋MapReduce推論対応。'
+  },
+  'Qwen/Qwen2.5-1.5B-Instruct': {
+    name: 'Qwen2.5-1.5B-Instruct',
+    description: '軽量版1.5Bでインストラクション特化。'
+  },
+  'ibm-granite/granite-3.1-8b-instruct': {
+    name: 'Granite-3.1-8B-Instruct',
+    description: '8Bインストモデル。信頼性とセキュリティチューニングを強化。'
+  },
+  'ozone-ai/0x-lite': {
+    name: '0x-Lite',
+    description: '超軽量モデル。IoTや組み込み用途に最適化。'
+  },
+  'microsoft/Phi-3.5-mini-instruct': {
+    name: 'Phi-3.5-Mini-Instruct',
+    description: '3.8B相当のミニチュアPhi-3.5。エッジデバイス向け。'
+  },
+  'meta-llama/Llama-3.2-90B-Vision-Instruct': {
+    name: 'Llama-3.2-90B-Vision',
+    description: '90Bパラメータでビジョン入力も扱えるマルチモーダルインストラクションモデル。'
+  },
+  'Qwen/Qwen2-VL-7B-Instruct': {
+    name: 'Qwen2-VL-7B-Instruct',
+    description: 'ビジョン+言語対応の7Bモデル。'
+  }
+};
+
+// グローバル変数
+let currentExecutions = new Map(); // 実行中のタスクを管理
+let nextPanelId = 4; // 次のパネルIDカウンター
+const MAX_PANELS = 6; // 最大パネル数
+
+// ローカルストレージのキー
+const STORAGE_KEYS = {
+  PROMPT: 'multiLlmPrompt',
+  RESULTS: 'multiLlmResults',
+  PANEL_COUNT: 'multiLlmPanelCount',
+  NEXT_PANEL_ID: 'multiLlmNextPanelId'
+};
+
+// サンプルプロンプト一覧
+const SAMPLE_PROMPTS = [
+  "人工知能の未来について、メリットとデメリットを比較して分析してください。",
+  "Pythonで素数を判定する関数を作成し、コメント付きで説明してください。",
+  "恋人との関係で悩んでいます。お互いの時間を大切にしながら良い関係を築くアドバイスをください。",
+  "日本の四季をテーマにした短い詩を作ってください。",
+  "スタートアップ企業の新サービス企画書の概要を作成してください。テーマは「環境に優しい配達サービス」です。",
+  "宇宙探査の歴史と今後の展望について、わかりやすく説明してください。",
+  "健康的な一週間の食事メニューを提案してください。栄養バランスも考慮してください。",
+  "時間管理が苦手な人向けの効果的なタイムマネジメント方法を教えてください。",
+  "気候変動問題の解決策を3つ提案し、それぞれの実現可能性を評価してください。",
+  "初心者向けに投資の基本知識と始め方をわかりやすく説明してください。"
+];
+
+// ページ読み込み時の初期化
+document.addEventListener('DOMContentLoaded', () => {
+  initializeApp();
+});
+
+function initializeApp() {
+  // DOM要素の取得
+  const elements = {
+    tabs: document.querySelectorAll('.tab'),
+    promptInput: document.getElementById('promptInput'),
+    runAllBtn: document.getElementById('runAllBtn'),
+    stopAllBtn: document.getElementById('stopAllBtn'),
+    clearAllBtn: document.getElementById('clearAllBtn'),
+    randomSelectBtn: document.getElementById('randomSelectBtn'),
+    randomPromptBtn: document.getElementById('randomPromptBtn'),
+    addPanelBtn: document.getElementById('addPanelBtn'),
+    loadingIndicator: document.getElementById('loadingIndicator'),
+    executionPage: document.getElementById('execution-page'),
+    modelsPage: document.getElementById('models-page'),
+    toggleGuide: document.querySelector('.toggle-guide'),
+    guideContent: document.querySelector('.guide-content')
+  };
+
+  // イベントリスナーの設定
+  setupEventListeners(elements);
   
-  // 現在のモード（デフォルト：日本語→英語）
-  let currentMode = 'jaen';
+  // モデル選択肢を初期化
+  initializeModelSelectors();
   
-  // 起動時にタブの状態を明示的に確認
-  console.log('初期タブ状態:');
-  tabs.forEach(tab => {
-    console.log(`${tab.id}: ${tab.classList.contains('active') ? 'active' : 'inactive'}`);
-    // スタイル確認のためのデバッグコード追加
-    const computedStyle = window.getComputedStyle(tab);
-    console.log(`${tab.id} スタイル: 背景色=${computedStyle.backgroundColor}, 色=${computedStyle.color}, ボーダー=${computedStyle.borderBottom}`);
-  });
+  // 保存されたプロンプトを復元
+  restoreSavedPrompt();
   
-  // すべてのタブの表示を更新する関数
-  function updateTabDisplay() {
-    tabs.forEach(tab => {
-      if (tab.classList.contains('active')) {
-        // アクティブなタブのスタイル
-        tab.style.cssText = `
-          background-color: #fff;
-          color: var(--primary);
-          font-weight: bold;
-          border-bottom: 3px solid var(--primary);
-          box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
-        `;
-      } else {
-        // 非アクティブなタブのスタイル
-        tab.style.cssText = `
-          background-color: #f8f9fa;
-          color: var(--text-secondary);
-          font-weight: normal;
-          border-bottom: none;
-          box-shadow: none;
-        `;
-      }
-    });
+  // 保存された結果を復元（パネル復元も含む）
+  const hasRestoredData = restoreResults();
+  
+  // 保存データがない場合のみ初期モデルを自動選択
+  if (!hasRestoredData) {
+    setInitialModelSelection();
   }
   
-  // タブ切り替え関数
-  function switchTab(selectedTab) {
-    // 前のタブから active クラスを削除
-    tabs.forEach(tab => tab.classList.remove('active'));
-    
-    // 選択されたタブに active クラスを追加
-    selectedTab.classList.add('active');
-    
-    // タブの表示を更新
-    updateTabDisplay();
-    
-    // IDからモードを取得
-    currentMode = selectedTab.id.replace('tab-', '');
-    console.log('モード切替:', currentMode);
-    
-    // タブ切り替え時は結果だけをクリア（入力は保持）
-    clearResults();
-  }
+  // モデル説明ページを初期化
+  initializeModelDescriptions();
   
+  // パネルの削除ボタンを適切に表示/非表示
+  updateRemoveButtons();
+  
+  console.log('マルチLLMシステムが初期化されました');
+}
+
+function setupEventListeners(elements) {
   // タブ切り替え
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      switchTab(tab);
-      
-      // タブの状態を確認
-      console.log('タブ切り替え後の状態:');
-      tabs.forEach(t => {
-        console.log(`${t.id}: ${t.classList.contains('active') ? 'active' : 'inactive'}`);
-        const computedStyle = window.getComputedStyle(t);
-        console.log(`${t.id} スタイル: 背景色=${computedStyle.backgroundColor}, 色=${computedStyle.color}, ボーダー=${computedStyle.borderBottom}`);
-      });
-    });
+  elements.tabs.forEach(tab => {
+    tab.addEventListener('click', () => switchTab(tab, elements));
   });
   
-  // 初期表示時にタブの表示を更新
-  updateTabDisplay();
-  
-  // ページ離脱時に読み上げを停止
-  window.addEventListener('beforeunload', () => {
-    if (currentSpeech) {
-      speechSynthesis.cancel();
-    }
+  // プロンプト入力の保存
+  elements.promptInput.addEventListener('input', () => {
+    localStorage.setItem(STORAGE_KEYS.PROMPT, elements.promptInput.value);
   });
-  
-  // コピー禁止制御（校閲結果）
-  reviewOutput.addEventListener('copy', e => {
-    e.preventDefault();
-  });
-  
-  // 最終結果コピー機能
-  copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(finalOutput.value).then(() => {
-      // コピー成功時の処理
-      copyBtn.classList.add('copy-success');
-      
-      // 2秒後に元に戻す
-      setTimeout(() => {
-        copyBtn.classList.remove('copy-success');
-      }, 2000);
-    }).catch(err => {
-      console.error('コピーに失敗しました', err);
-      alert('コピーできませんでした。');
-    });
-  });
-  
-  // 読み上げ機能
-  let currentSpeech = null;
-  
-  speakBtn.addEventListener('click', () => {
-    const text = finalOutput.value.trim();
-    
-    if (!text) {
-      alert('読み上げるテキストがありません。');
-      return;
-    }
-    
-    // Web Speech API対応チェック
-    if (!('speechSynthesis' in window)) {
-      alert('お使いのブラウザは音声読み上げ機能に対応していません。');
-      return;
-    }
-    
-    // 現在の読み上げを停止
-    if (currentSpeech) {
-      speechSynthesis.cancel();
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
-      return;
-    }
-    
-    // 新しい読み上げを開始
-    currentSpeech = new SpeechSynthesisUtterance(text);
-    
-    // 言語を自動判定
-    const language = detectLanguageForSpeech(text);
-    currentSpeech.lang = language;
-    
-    // 読み上げ設定
-    currentSpeech.rate = 0.9; // 読み上げ速度
-    currentSpeech.pitch = 1.0; // 音の高さ
-    currentSpeech.volume = 1.0; // 音量
-    
-    // イベントリスナー
-    currentSpeech.onstart = () => {
-      speakBtn.classList.add('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-stop"></i> 停止';
-    };
-    
-    currentSpeech.onend = () => {
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
-    };
-    
-    currentSpeech.onerror = (event) => {
-      console.error('読み上げエラー:', event.error);
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
-      alert('読み上げ中にエラーが発生しました。');
-    };
-    
-    // 読み上げ開始
-    speechSynthesis.speak(currentSpeech);
-  });
-  
-  // 言語自動判定関数（読み上げ用）
-  function detectLanguageForSpeech(text) {
-    // 日本語文字が含まれている場合は日本語
-    if (containsJapaneseChars(text)) {
-      return 'ja-JP';
-    }
-    // 英語文字のみの場合は英語
-    else if (containsLatinChars(text)) {
-      return 'en-US';
-    }
-    // デフォルトは日本語
-    return 'ja-JP';
-  }
-  
-  // リセットボタン
-  resetBtn.addEventListener('click', resetUI);
   
   // 実行ボタン
-  runBtn.addEventListener('click', runLLM);
+  elements.runAllBtn.addEventListener('click', () => executeAllModels(elements));
   
-  // 入力欄に戻すボタン
-  toInputBtn.addEventListener('click', () => {
-    // 最終結果を入力欄に設定
-    inputArea.value = finalOutput.value;
+  // 停止ボタン
+  elements.stopAllBtn.addEventListener('click', () => stopAllExecutions(elements));
+  
+  // クリアボタン
+  elements.clearAllBtn.addEventListener('click', () => clearAllOutputs());
+  
+  // ランダム選択ボタン
+  elements.randomSelectBtn.addEventListener('click', () => randomSelectModels());
+  
+  // ランダムプロンプトボタン
+  elements.randomPromptBtn.addEventListener('click', () => randomSelectPrompt(elements));
+  
+  // パネル追加ボタン
+  elements.addPanelBtn.addEventListener('click', () => addNewPanel());
+  
+  // ガイド表示切り替え
+  elements.toggleGuide.addEventListener('click', () => {
+    elements.guideContent.style.display = 
+      elements.guideContent.style.display === 'none' ? 'block' : 'none';
+  });
+}
+
+function switchTab(selectedTab, elements) {
+  // タブの状態を更新
+  elements.tabs.forEach(tab => tab.classList.remove('active'));
+  selectedTab.classList.add('active');
+  
+  // ページの表示切り替え
+  const isExecutionPage = selectedTab.id === 'tab-execution';
+  elements.executionPage.style.display = isExecutionPage ? 'block' : 'none';
+  elements.modelsPage.style.display = isExecutionPage ? 'none' : 'block';
+}
+
+function initializeModelSelectors() {
+  const selectors = document.querySelectorAll('.model-select');
+  
+  selectors.forEach(selector => {
+    // オプションをクリア
+    selector.innerHTML = '<option value="">モデルを選択</option>';
     
-    // スクロールを入力欄の先頭に移動
-    inputArea.scrollTop = 0;
+    // モデルを追加
+    Object.entries(AVAILABLE_MODELS).forEach(([id, model]) => {
+      const option = document.createElement('option');
+      option.value = id;
+      option.textContent = model.name;
+      selector.appendChild(option);
+    });
     
-    // 入力欄にフォーカスを当てる
-    inputArea.focus();
+    // 変更イベントを設定
+    selector.addEventListener('change', (e) => {
+      updateModelSelection(e.target);
+      updateModelTooltip(e.target);
+      
+      // モデル選択変更時に状態を保存
+      saveResults();
+    });
+  });
+}
+
+function updateModelSelection(changedSelector) {
+  updateAllModelSelections();
+}
+
+function updateModelTooltip(selector) {
+  const panelId = selector.dataset.panel;
+  const modelId = selector.value;
+  const tooltipElement = document.querySelector(`[data-panel-id="${panelId}"] .model-tooltip`);
+  const outputElement = document.querySelector(`[data-panel-id="${panelId}"] .panel-output`);
+  
+  if (modelId && AVAILABLE_MODELS[modelId]) {
+    tooltipElement.textContent = AVAILABLE_MODELS[modelId].description;
+    // モデルが選択されている場合はプロンプト実行の案内に変更
+    if (outputElement && outputElement.textContent === 'モデルを選択してプロンプトを実行してください。') {
+      outputElement.textContent = 'プロンプトを実行してください。';
+    }
+  } else {
+    tooltipElement.textContent = 'モデルを選択してください';
+    // モデルが未選択の場合は元のメッセージに戻す
+    if (outputElement) {
+      outputElement.textContent = 'モデルを選択してプロンプトを実行してください。';
+    }
+  }
+}
+
+function initializeModelDescriptions() {
+  const container = document.getElementById('modelDescriptions');
+  
+  // モデルをシリーズ別に分類
+  const modelGroups = {
+    'Llama系モデル': [
+      'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
+      'meta-llama/Llama-3.3-70B-Instruct',
+      'neuralmagic/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic',
+      'meta-llama/Llama-3.2-90B-Vision-Instruct',
+      'SentientAGI/Dobby-Mini-Unhinged-Llama-3.1-8B'
+    ],
+    'Qwen系モデル': [
+      'Qwen/Qwen3-235B-A22B-FP8',
+      'Qwen/QwQ-32B',
+      'Qwen/Qwen2.5-Coder-32B-Instruct',
+      'Qwen/Qwen2.5-1.5B-Instruct',
+      'Qwen/Qwen2-VL-7B-Instruct'
+    ],
+    'DeepSeek系モデル': [
+      'deepseek-ai/DeepSeek-R1',
+      'deepseek-ai/DeepSeek-R1-Distill-Llama-70B',
+      'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B'
+    ],
+    'Microsoft Phi系モデル': [
+      'microsoft/phi-4',
+      'microsoft/Phi-3.5-mini-instruct'
+    ],
+    'Mistral系モデル': [
+      'mistralai/Mistral-Large-Instruct-2411',
+      'mistralai/Ministral-8B-Instruct-2410'
+    ],
+    'Google & DeepMind系モデル': [
+      'google/gemma-3-27b-it'
+    ],
+         '専門特化モデル': [
+       'nvidia/AceMath-7B-Instruct',
+       'jinaai/ReaderLM-v2',
+       'watt-ai/watt-tool-70B'
+     ],
+    '新興・実験的モデル': [
+      'tiiuae/Falcon3-10B-Instruct',
+      'bespokelabs/Bespoke-Stratos-32B',
+      'netease-youdao/Confucius-o1-14B',
+      'NovaSky-AI/Sky-T1-32B-Preview',
+      'openbmb/MiniCPM3-4B',
+      'ozone-ai/0x-lite'
+    ],
+    'エンタープライズ・産業系モデル': [
+      'databricks/dbrx-instruct',
+      'CohereForAI/aya-expanse-32b',
+      'THUDM/glm-4-9b-chat',
+      'ibm-granite/granite-3.1-8b-instruct'
+    ]
+  };
+  
+  // 各グループを順番に表示
+  Object.entries(modelGroups).forEach(([groupName, modelIds]) => {
+    // グループタイトルを作成
+    const groupHeader = document.createElement('div');
+    groupHeader.className = 'usage-guide';
+    groupHeader.style.marginBottom = '1rem';
+    groupHeader.style.background = 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)';
+    groupHeader.style.color = 'white';
     
-    // アニメーション効果（オプション）
-    inputArea.classList.add('highlight-input');
-    setTimeout(() => {
-      inputArea.classList.remove('highlight-input');
-    }, 1000);
+    groupHeader.innerHTML = `
+      <h3 style="margin: 0; padding: 1rem; color: white;">${groupName}</h3>
+    `;
+    
+    container.appendChild(groupHeader);
+    
+    // グループ内のモデルを表示
+    modelIds.forEach(modelId => {
+      if (AVAILABLE_MODELS[modelId]) {
+        const model = AVAILABLE_MODELS[modelId];
+        const modelCard = document.createElement('div');
+        modelCard.className = 'usage-guide';
+        modelCard.style.marginBottom = '1rem';
+        modelCard.style.marginLeft = '1rem';
+        modelCard.style.borderLeft = '4px solid var(--primary)';
+        
+        modelCard.innerHTML = `
+          <h4 style="color: var(--primary); margin-top: 0;">${model.name}</h4>
+          <p style="margin: 0.5rem 0;"><code style="background: #f8f9fa; padding: 0.2rem 0.4rem; border-radius: 3px; font-size: 0.8rem;">${modelId}</code></p>
+          <p style="margin: 0; color: #555;">${model.description}</p>
+        `;
+        
+        container.appendChild(modelCard);
+      }
+    });
+    
+    // グループ間のスペース
+    const spacer = document.createElement('div');
+    spacer.style.height = '1.5rem';
+    container.appendChild(spacer);
   });
   
-  // 結果のみクリア（タブ切り替え時に使用）
-  function clearResults() {
-    finalOutput.value = '';
-    reviewOutput.innerHTML = '';
-  }
+  // API情報を追加
+  const apiInfo = document.createElement('div');
+  apiInfo.className = 'usage-guide';
+  apiInfo.style.marginTop = '2rem';
+  apiInfo.style.borderTop = '3px solid var(--primary)';
+  apiInfo.style.background = 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)';
   
-  // UI初期化（全てクリア）
-  function resetUI() {
-    inputArea.value = '';
-    clearResults();
-  }
+  apiInfo.innerHTML = `
+    <h3 style="color: var(--primary); margin-top: 1rem;">🚀 使用API情報</h3>
+    <div style="background: #fff; padding: 1rem; border-radius: 8px; border-left: 4px solid var(--secondary);">
+      <p style="margin: 0 0 0.5rem 0; font-weight: bold; color: var(--text-primary);">
+        <i class="fas fa-cloud" style="color: var(--primary); margin-right: 0.5rem;"></i>
+        io.net API
+      </p>
+      <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">
+        本システムは<strong>io.net API</strong>を活用して、31種類の最新LLMモデルを提供しています。
+        io.netは分散型AIネットワークで、高性能なGPUクラスターを通じて
+        世界最先端のAIモデルへのアクセスを実現しています。
+      </p>
+      <div style="margin-top: 1rem; padding: 0.8rem; background: #f1f3f5; border-radius: 5px;">
+        <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">
+          <i class="fas fa-info-circle" style="color: var(--primary); margin-right: 0.5rem;"></i>
+          すべてのモデルは非同期で並列実行され、リアルタイムで結果を表示します。
+        </p>
+      </div>
+    </div>
+  `;
   
-  // ---- BEGIN MODIFICATION: Helper functions for language detection ----
-  // Helper function to detect Japanese characters
-  function containsJapaneseChars(text) {
-    const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
-    return japaneseRegex.test(text);
-  }
+  container.appendChild(apiInfo);
+}
 
-  // Helper function to detect Latin characters
-  function containsLatinChars(text) {
-    const latinRegex = /[a-zA-Z]/;
-    return latinRegex.test(text);
+function updateRemoveButtons() {
+  const panels = document.querySelectorAll('.llm-panel');
+  const hasMoreThanThree = panels.length > 3;
+  
+  panels.forEach((panel, index) => {
+    const removeBtn = panel.querySelector('.remove-panel');
+    if (removeBtn) {
+      removeBtn.style.display = hasMoreThanThree ? 'block' : 'none';
+    }
+  });
+  
+  // パネル追加ボタンの状態更新
+  const addBtn = document.getElementById('addPanelBtn');
+  if (addBtn) {
+    addBtn.style.display = panels.length >= MAX_PANELS ? 'none' : 'block';
   }
-  // ---- END MODIFICATION ----
+}
+
+function addNewPanel() {
+  const panelsContainer = document.getElementById('llmPanels');
+  const currentPanels = document.querySelectorAll('.llm-panel');
   
-  // 使い方表示トグル
-  const toggleGuide = document.querySelector('.toggle-guide');
-  const guideContent = document.querySelector('.guide-content');
+  if (currentPanels.length >= MAX_PANELS) {
+    alert('最大6つまでのパネルを追加できます。');
+    return;
+  }
   
-  if (toggleGuide && guideContent) {
-    toggleGuide.addEventListener('click', function() {
-      guideContent.style.display = guideContent.style.display === 'none' ? 'block' : 'none';
-      this.classList.toggle('active');
+  const newPanel = createPanelElement(nextPanelId);
+  panelsContainer.appendChild(newPanel);
+  
+  // 新しいパネルのセレクターのみ初期化
+  initializeNewPanelSelector(newPanel);
+  
+  // 未選択のモデルを自動的に選択
+  autoSelectUnusedModel(newPanel);
+  
+  // 削除ボタンイベント設定
+  setupRemoveButtonEvent(newPanel);
+  
+  nextPanelId++;
+  updateRemoveButtons();
+  
+  // パネル追加時に状態を保存
+  saveResults();
+}
+
+function createPanelElement(panelId) {
+  const panel = document.createElement('div');
+  panel.className = 'llm-panel';
+  panel.dataset.panelId = panelId;
+  
+  panel.innerHTML = `
+    <div class="panel-header">
+      <div class="model-selector">
+        <select class="model-select" data-panel="${panelId}">
+          <option value="">モデルを選択</option>
+        </select>
+        <div class="model-info">
+          <i class="fas fa-info-circle"></i>
+          <div class="model-tooltip">モデルを選択してください</div>
+        </div>
+      </div>
+      <div class="panel-controls">
+        <button class="remove-panel" data-panel="${panelId}">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+    <div class="panel-content">
+      <div class="panel-status status-waiting">待機中</div>
+      <div class="panel-output">プロンプトを実行してください。</div>
+    </div>
+  `;
+  
+  return panel;
+}
+
+function setupRemoveButtonEvent(panel) {
+  const removeBtn = panel.querySelector('.remove-panel');
+  removeBtn.addEventListener('click', () => {
+    panel.remove();
+    updateAllModelSelections(); // 既存の選択を保持して更新
+    updateRemoveButtons();
+    
+    // パネル削除時に状態を保存
+    saveResults();
+  });
+}
+
+function initializeNewPanelSelector(panel) {
+  const selector = panel.querySelector('.model-select');
+  
+  // オプションをクリア
+  selector.innerHTML = '<option value="">モデルを選択</option>';
+  
+  // モデルを追加
+  Object.entries(AVAILABLE_MODELS).forEach(([id, model]) => {
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = model.name;
+    selector.appendChild(option);
+  });
+  
+      // 変更イベントを設定
+    selector.addEventListener('change', (e) => {
+      updateModelSelection(e.target);
+      updateModelTooltip(e.target);
       
-      // テキストを切り替え
-      const heading = this.querySelector('h3');
-      if (heading) {
-        if (guideContent.style.display === 'block') {
-          heading.textContent = '使い方を隠す';
-        } else {
-          heading.textContent = '使い方を表示';
-        }
-      }
+      // モデル選択変更時に状態を保存
+      saveResults();
     });
-  } else {
-    console.error('使い方表示/非表示の要素が見つかりません');
-  }
   
-  // LLM実行
-  function runLLM() {
-    const input = inputArea.value.trim();
-    if (!input) {
-      alert('テキストを入力してください');
-      return;
+  // 現在の選択状態を反映
+  updateAllModelSelections();
+}
+
+function autoSelectUnusedModel(panel) {
+  const selector = panel.querySelector('.model-select');
+  const allSelectors = document.querySelectorAll('.model-select');
+  const selectedModels = new Set();
+  
+  // 現在選択されているモデルを収集（新しいパネル以外）
+  allSelectors.forEach(otherSelector => {
+    if (otherSelector !== selector && otherSelector.value) {
+      selectedModels.add(otherSelector.value);
     }
+  });
+  
+  // 未選択のモデルから1つをランダム選択
+  const availableModels = Object.keys(AVAILABLE_MODELS).filter(
+    modelId => !selectedModels.has(modelId)
+  );
+  
+  if (availableModels.length > 0) {
+    const randomIndex = Math.floor(Math.random() * availableModels.length);
+    const selectedModel = availableModels[randomIndex];
     
-    // ---- BEGIN MODIFICATION: Language check for proofreading modes ----
-    if (currentMode === 'jajarev') {
-      if (!containsJapaneseChars(input)) {
-        loadingIndicator.classList.remove('active'); // Ensure loading is off
-        finalOutput.value = ''; 
-        if (containsLatinChars(input)) {
-          reviewOutput.innerHTML = `<div class='error'>入力されたテキストには日本語の文字が含まれていないようです。英語のようなラテン文字ベースのテキストが検出されました。<br>日本語校閲モードでは日本語のテキストを入力してください。英語の校閲が必要な場合は、英語校閲モードに切り替えてください。</div>`;
-        } else {
-          reviewOutput.innerHTML = `<div class='error'>入力されたテキストに日本語の文字が見当たりません。日本語校閲モードでは、日本語のテキストを入力してください。</div>`;
-        }
-        return;
-      }
-    } else if (currentMode === 'enrev') {
-      if (containsJapaneseChars(input)) {
-        loadingIndicator.classList.remove('active'); // Ensure loading is off
-        finalOutput.value = '';
-        reviewOutput.innerHTML = `<div class='error'>入力されたテキストに日本語の文字が含まれています。<br>英語校閲モードでは、主に英語のテキストを対象としています。日本語の校閲が必要な場合は、日本語校閲モードをご利用ください。</div>`;
-        return;
-      }
+    selector.value = selectedModel;
+    updateModelTooltip(selector);
+    
+    // 選択状態を更新
+    updateAllModelSelections();
+  }
+}
+
+function updateAllModelSelections() {
+  const selectedModels = new Set();
+  const allSelectors = document.querySelectorAll('.model-select');
+  
+  // 現在選択されているモデルを収集
+  allSelectors.forEach(selector => {
+    if (selector.value) {
+      selectedModels.add(selector.value);
     }
-    // ---- END MODIFICATION ----
-    
-    // UI更新
-    loadingIndicator.classList.add('active');
-    finalOutput.value = '';
-    reviewOutput.innerHTML = '';
-    
-    // モードに応じたプロンプト作成
-    const messages = createMessages(currentMode, input);
-    
-    // APIリクエスト（非ストリーミングモードを使用）
-    // ストリーミングモードで問題が続いているため、一旦非ストリーミングモードに切り替え
-    fallbackNonStreamingAPI(messages);
-  }
+  });
   
-  // モードごとのメッセージ作成
-  function createMessages(mode, input) {
-    const messagesMap = {
-      'jaen': [
-        { role: "system", content: "あなたは翻訳エンジンです。日本語テキストを英語に翻訳するだけです。挨拶や説明、コメントは一切含めないでください。入力テキストの英訳だけを返してください。必ず文章全体を完全に翻訳し、途中で切れないようにしてください。思考過程や翻訳に関する考察は絶対に出力しないでください。" },
-        { role: "user", content: `以下の日本語文を英語に翻訳してください。必ず全体を完全に翻訳し、途中で切れないように注意してください：\n\n『${input}』` }
-      ],
-      'enja': [
-        { role: "system", content: "あなたは翻訳エンジンです。英語テキストを日本語に翻訳するだけです。挨拶や説明、コメントは一切含めないでください。入力テキストの日本語訳だけを返してください。必ず完全な文章全体を翻訳してください。部分訳や省略は行わないでください。思考過程や翻訳に関する考察は絶対に出力しないでください。" },
-        { role: "user", content: `以下の英文を日本語に翻訳してください。必ず全体を完全に翻訳し、部分的な訳は避けてください：\n\n『${input}』` }
-      ],
-      'jajarev': [
-        { role: "system", content: "あなたは日本語校閲エンジンです。入力された日本語文を詳細に校閲し、3つの部分に分けて出力してください。\n\n1. まず「校閲結果:」で始まる校閲コメントを書いてください。以下の点を詳しく解説してください：\n- 文法・表現の誤りや改善点\n- 語彙の選択や言い回しの提案\n- 文章構造や論理展開の改善点\n- 読みやすさや自然さの向上のためのアドバイス\n\n2. 次に「変更箇所:」で始まるセクションに、元の文章から変更した箇所を以下の形式で示してください：\n```diff\n- 削除された文や単語\n+ 追加または変更された文や単語\n```\n特に重要な変更箇所を3〜5か所程度ピックアップしてください。\n\n3. 最後に「最終案:」で始まる改善された文章全体を提示してください。\n\n文章の種類や内容に応じて適切な校閲を行い、具体的な改善理由も示してください。自己紹介や余計な説明は含めないでください。" },
-        { role: "user", content: input }
-      ],
-      'enrev': [
-        { role: "system", content: "あなたは英語校閲エンジンです。入力された英語文を詳細に校閲し、3つの部分に分けて出力してください。\n\n1. まず「校閲結果:」で始まる日本語での校閲コメントを書いてください。以下の点を詳しく解説してください：\n- 文法・表現の誤りや改善点\n- 語彙の選択や言い回しの提案\n- 文章構造や論理展開の改善点\n- 英語表現としての自然さや適切さの向上のためのアドバイス\n\n2. 次に「変更箇所:」で始まるセクションに、元の文章から変更した箇所を以下の形式で示してください：\n```diff\n- 削除された文や単語（原文）\n+ 追加または変更された文や単語（修正後）\n```\n特に重要な変更箇所を3〜5か所程度ピックアップしてください。\n\n3. 最後に「最終案:」で始まる改善された英語文全体を提示してください。\n\n文章の種類や内容に応じて適切な校閲を行い、なぜその修正が必要なのかも日本語で分かりやすく説明してください。自己紹介や余計な説明は含めないでください。" },
-        { role: "user", content: input }
-      ]
-    };
+  // 各セレクターのオプションを更新
+  allSelectors.forEach(selector => {
+    const currentValue = selector.value;
+    const options = selector.querySelectorAll('option:not([value=""])');
     
-    return messagesMap[mode] || messagesMap['jaen'];
-  }
-  
-  // 余計な説明テキストを除去する関数
-  function cleanResponse(text, mode) {
-    console.log("入力テキスト(元):", text);
-    console.log("モード:", mode);
-
-    if (mode === 'jaen' || mode === 'enja') {
-      let cleaned = text;
-      console.log("引用符チェック前:", cleaned);
-
-      // Remove surrounding quotes
-      if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
-        console.log("ダブルクォート検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
-        console.log("シングルクォート検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith('「') && cleaned.endsWith('」')) {
-        console.log("鉤括弧検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith('『') && cleaned.endsWith('』')) {
-        console.log("二重鉤括弧検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      }
-      console.log("引用符除去後:", cleaned);
-
-      // Remove common prefixes
-      const exactPrefixes = [
-        "Translation: ",
-        "Translated text: ",
-        "翻訳結果: ",
-        "翻訳: ",
-        "訳文: ",
-        "英訳: ",
-        "和訳: "
-      ];
-
-      for (const prefix of exactPrefixes) {
-        if (cleaned.startsWith(prefix)) {
-          cleaned = cleaned.substring(prefix.length);
-          console.log(`プレフィックス "${prefix}" を除去`);
-          break; // Stop after removing the first found prefix
-        }
-      }
+    options.forEach(option => {
+      const isSelected = selectedModels.has(option.value);
+      const isCurrentValue = option.value === currentValue;
       
-      console.log("最終クリーニング結果:", cleaned);
-      return cleaned.trim();
-    }
-
-    return text; // For non-translation modes, return as is
-  }
-  
-  // エラー発生時のフォールバックモード
-  function fallbackNonStreamingAPI(messages) {
-    // 非ストリーミングモードでのAPIリクエスト
-    console.log("非ストリーミングモードでAPIリクエスト送信", messages);
-    
-    const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
-    const requestData = {
-      model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-      temperature: 0.7,
-      stream: false,
-      max_completion_tokens: 1500,  // トークン上限を増やして長文対応
-      messages: messages
-    };
-    
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestData)
-    })
-    .then(response => response.json())
-    .then(data => {
-      loadingIndicator.classList.remove('active');
-      
-      console.log("非ストリーミングAPIレスポンス:", data);
-      
-      if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-        const text = data.choices[0].message.content;
-        console.log("LLMレスポンス:", text);
-        
-        // 余計な説明文が含まれていないか確認して処理
-        const cleanedResponse = cleanResponse(text, currentMode);
-        console.log("クリーニング後:", cleanedResponse);
-        
-        if (currentMode === 'jajarev' || currentMode === 'enrev') {
-          processReviewOutput(cleanedResponse);
-        } else {
-          // 翻訳結果の欠落チェック
-          if (currentMode === 'enja' && isPossiblyTruncatedResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 翻訳の先頭部分が欠落している可能性があります。翻訳全体を確認してください。</div>`;
-          } else if (currentMode === 'jaen' && isPossiblyTruncatedEnglishResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 英語翻訳が不完全である可能性があります。翻訳全体を確認してください。</div>`;
-          } else {
-            finalOutput.value = cleanedResponse;
-          }
-        }
-      } else if (data.answer) {
-        const text = data.answer;
-        console.log("LLMレスポンス(answer):", text);
-        
-        // 余計な説明文が含まれていないか確認して処理
-        const cleanedResponse = cleanResponse(text, currentMode);
-        console.log("クリーニング後:", cleanedResponse);
-        
-        if (currentMode === 'jajarev' || currentMode === 'enrev') {
-          processReviewOutput(cleanedResponse);
-        } else {
-          // 翻訳結果の欠落チェック
-          if (currentMode === 'enja' && isPossiblyTruncatedResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 翻訳の先頭部分が欠落している可能性があります。翻訳全体を確認してください。</div>`;
-          } else if (currentMode === 'jaen' && isPossiblyTruncatedEnglishResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 英語翻訳が不完全である可能性があります。翻訳全体を確認してください。</div>`;
-          } else {
-            finalOutput.value = cleanedResponse;
-          }
-        }
-      } else {
-        throw new Error('レスポンスに期待されるフィールドがありません');
-      }
-    })
-    .catch(error => {
-      console.error('非ストリーミングAPI呼び出しエラー:', error);
-      loadingIndicator.classList.remove('active');
-      reviewOutput.innerHTML = `<div class="error">エラーが発生しました: ${error.message}</div>`;
+      // 他のセレクターで選択済みのモデルを無効化（ただし、現在のセレクターで選択中のものは除く）
+      option.disabled = isSelected && !isCurrentValue;
     });
+  });
+}
+
+function randomSelectModels() {
+  const selectors = document.querySelectorAll('.model-select');
+  const modelIds = Object.keys(AVAILABLE_MODELS);
+  const shuffled = [...modelIds].sort(() => Math.random() - 0.5);
+  
+  selectors.forEach((selector, index) => {
+    if (index < shuffled.length) {
+      selector.value = shuffled[index];
+      updateModelTooltip(selector);
+    }
+  });
+  
+  // 選択状態を更新
+  updateModelSelection(selectors[0]);
+}
+
+function randomSelectPrompt(elements) {
+  // ランダムにプロンプトを選択
+  const randomIndex = Math.floor(Math.random() * SAMPLE_PROMPTS.length);
+  const selectedPrompt = SAMPLE_PROMPTS[randomIndex];
+  
+  // プロンプト入力フィールドに設定
+  elements.promptInput.value = selectedPrompt;
+  
+  // ローカルストレージにも保存
+  localStorage.setItem(STORAGE_KEYS.PROMPT, selectedPrompt);
+  
+  // 視覚的フィードバック
+  elements.randomPromptBtn.style.transform = 'scale(0.95)';
+  setTimeout(() => {
+    elements.randomPromptBtn.style.transform = 'scale(1)';
+  }, 150);
+}
+
+async function executeAllModels(elements) {
+  const prompt = elements.promptInput.value.trim();
+  
+  if (!prompt) {
+    alert('プロンプトを入力してください。');
+    return;
   }
   
-  // 翻訳が先頭欠落している可能性を判定する関数
-  function isPossiblyTruncatedResponse(text) {
-    // 日本語の文が「が」「は」「を」「に」「で」「と」から始まっていたら、
-    // 先頭が欠落している可能性が高いと判定
-    const truncationIndicators = /^[がはをにでと]/;
-    
-    if (truncationIndicators.test(text)) {
-      console.log('翻訳の先頭欠落を検出:', text);
-      return true;
-    }
-    
-    // 先頭が小文字から始まる場合も怪しい
-    if (/^[a-z]/.test(text)) {
-      console.log('翻訳の先頭欠落の可能性あり (小文字から始まる):', text);
-      return true;
-    }
-    
-    return false;
+  const panels = document.querySelectorAll('.llm-panel');
+  const selectedPanels = Array.from(panels).filter(panel => {
+    const selector = panel.querySelector('.model-select');
+    return selector.value;
+  });
+  
+  if (selectedPanels.length === 0) {
+    alert('少なくとも1つのモデルを選択してください。');
+    return;
   }
   
-  // 英語翻訳結果が不完全である可能性を判定する関数
-  function isPossiblyTruncatedEnglishResponse(text) {
-    // 文章が途中で終わっている可能性のあるパターン
-    if (text.endsWith(',') || text.endsWith(';') || 
-        /[a-z]$/.test(text) || // 小文字で終わる
-        /[^\.\?\!]$/.test(text)) { // 句読点なしで終わる
-      console.log('英語翻訳の末尾欠落を検出:', text);
-      return true;
-    }
-    
-    // 単語数と文字数の比率が異常に小さい場合（短い単語が多すぎる）
-    const words = text.split(/\s+/).filter(w => w.length > 0);
-    const chars = text.replace(/\s+/g, '').length;
-    if (words.length > 5 && chars / words.length < 3) {
-      console.log('英語翻訳の異常を検出 (単語/文字比率):', text);
-      return true;
-    }
-    
-    return false;
-  }
+  // UI状態を更新
+  elements.runAllBtn.disabled = true;
+  elements.stopAllBtn.disabled = false;
+  elements.loadingIndicator.classList.add('active');
   
-  // 校閲結果の処理
-  function processReviewOutput(text) {
-    // 新しいパターン：校閲結果、変更箇所、最終案の3つのセクションを抽出
-    const reviewPattern = /校閲結果[:：]([\s\S]+?)(変更箇所[:：]([\s\S]+?))?最終案[:：]([\s\S]+)/i;
-    const match = text.match(reviewPattern);
+  // 各パネルで実行開始（完全非同期）
+  console.log(`🚀 非同期実行開始: ${selectedPanels.length}個のモデルを並列実行`);
+  const startTime = Date.now();
+  
+  const promises = selectedPanels.map((panel, index) => {
+    const modelName = panel.querySelector('.model-select option:checked')?.textContent || 'Unknown';
+    console.log(`📡 パネル${index + 1} (${modelName}): API呼び出し開始`);
+    return executeModelInPanel(panel, prompt, index + 1);
+  });
+  
+  try {
+    const results = await Promise.allSettled(promises);
+    const endTime = Date.now();
+    console.log(`✅ 全実行完了: ${(endTime - startTime) / 1000}秒`);
     
-    if (match) {
-      // 校閲結果の抽出と構造化
-      let reviewText = match[1].trim();
-      
-      // 数字リストのフォーマット強化（1. 2. 3.など）
-      reviewText = reviewText.replace(/(\d+)\.\s+/g, '<strong>$1.</strong> ');
-      
-      // カテゴリ見出しのフォーマット強化（「文法：」「語彙：」など）
-      reviewText = reviewText.replace(/(文法|語彙|表現|構文|読みやすさ|論理展開|構造|自然さ|その他)(の問題|について|に関して)?[:：]/g, '<h4>$1</h4>');
-      
-      // 改行を段落に変換
-      reviewText = '<p>' + reviewText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
-      
-      // 重要な単語を強調
-      reviewText = reviewText.replace(/(問題点|誤り|改善点|推奨|提案|修正|不自然|適切でない)/g, '<strong>$1</strong>');
-      
-      // 変更箇所の処理（あれば）
-      let diffHtml = '';
-      if (match[3]) {
-        diffHtml = '<h4>変更箇所ハイライト</h4>';
-        
-        // diff形式の処理
-        const diffLines = match[3].trim().split('\n');
-        let inDiffBlock = false;
-        
-        diffLines.forEach(line => {
-          // diffブロックの開始と終了を検出
-          if (line.trim() === '```diff') {
-            inDiffBlock = true;
-            return;
-          } else if (line.trim() === '```' && inDiffBlock) {
-            inDiffBlock = false;
-            return;
-          }
-          
-          // diffブロック内の行を処理
-          if (inDiffBlock) {
-            if (line.startsWith('-')) {
-              // 削除された行
-              diffHtml += `<div class="diff-removed">${line.substring(1).trim()}</div>`;
-            } else if (line.startsWith('+')) {
-              // 追加された行
-              diffHtml += `<div class="diff-added">${line.substring(1).trim()}</div>`;
-            } else if (line.trim()) {
-              // コンテキスト行（内容があれば表示）
-              diffHtml += `<div>${line.trim()}</div>`;
-            }
-          } else if (line.trim()) {
-            // diffブロック外の説明文
-            diffHtml += `<p>${line.trim()}</p>`;
-          }
-        });
-      }
-      
-      // 最終案
-      let determinedFinalText = match[4] ? match[4].trim() : '';
-      if (currentMode === 'enrev' && determinedFinalText) {
-        const lines = determinedFinalText.split('\n');
-        const englishPortion = [];
-        for (const line of lines) {
-          if (containsJapaneseChars(line) && !containsLatinChars(line)) {
-            break; // Likely a purely Japanese explanatory line
-          }
-          englishPortion.push(line);
-        }
-        determinedFinalText = englishPortion.join('\n').trim();
-      }
-      
-      // 最終的な表示内容を構築
-      reviewOutput.innerHTML = reviewText + (diffHtml ? '<hr>' + diffHtml : '');
-      finalOutput.value = determinedFinalText;
+    // 結果の集計
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    console.log(`📊 結果: 成功 ${successful}個, 失敗 ${failed}個`);
+    
+  } finally {
+    // UI状態を元に戻す
+    elements.runAllBtn.disabled = false;
+    elements.stopAllBtn.disabled = true;
+    elements.loadingIndicator.classList.remove('active');
+  }
+}
+
+async function executeModelInPanel(panel, prompt, panelIndex = 0) {
+  const panelId = panel.dataset.panelId;
+  const selector = panel.querySelector('.model-select');
+  const statusElement = panel.querySelector('.panel-status');
+  const outputElement = panel.querySelector('.panel-output');
+  const modelId = selector.value;
+  const modelName = selector.options[selector.selectedIndex]?.text || 'Unknown';
+  
+  if (!modelId) return;
+  
+  const startTime = Date.now();
+  console.log(`⏰ パネル${panelIndex} (${modelName}): 実行開始`);
+  
+  // パネル状態を実行中に更新
+  statusElement.className = 'panel-status status-running';
+  statusElement.textContent = '実行中...';
+  outputElement.textContent = '';
+  
+  try {
+    // AbortControllerを作成して実行管理に追加
+    const abortController = new AbortController();
+    currentExecutions.set(panelId, abortController);
+    
+    // API呼び出し
+    await callCloudflareAPI(modelId, prompt, outputElement, abortController.signal);
+    
+    const endTime = Date.now();
+    console.log(`✅ パネル${panelIndex} (${modelName}): 完了 (${(endTime - startTime) / 1000}秒)`);
+    
+    // 成功時の状態更新
+    statusElement.className = 'panel-status status-completed';
+    statusElement.textContent = '完了';
+    
+    // 結果を保存
+    saveResults();
+    
+  } catch (error) {
+    // エラー時の状態更新
+    statusElement.className = 'panel-status status-error';
+    statusElement.textContent = 'エラー';
+    
+    if (error.name === 'AbortError') {
+      outputElement.textContent = '実行が停止されました。';
     } else {
-      // 旧パターンとのフォールバック互換性（2セクション版）
-      const oldPattern = /校閲結果[:：]([\s\S]+?)最終案[:：]([\s\S]+)/i;
-      const oldMatch = text.match(oldPattern);
-      
-      if (oldMatch) {
-        // 旧パターンで処理
-        let reviewText = oldMatch[1].trim();
-        reviewText = reviewText.replace(/(\d+)\.\s+/g, '<strong>$1.</strong> ');
-        reviewText = reviewText.replace(/(文法|語彙|表現|構文|読みやすさ|論理展開|構造|自然さ|その他)(の問題|について|に関して)?[:：]/g, '<h4>$1</h4>');
-        reviewText = '<p>' + reviewText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
-        reviewText = reviewText.replace(/(問題点|誤り|改善点|推奨|提案|修正|不自然|適切でない)/g, '<strong>$1</strong>');
-        
-        reviewOutput.innerHTML = reviewText;
-        
-        let determinedOldFinalText = oldMatch[2] ? oldMatch[2].trim() : '';
-        if (currentMode === 'enrev' && determinedOldFinalText) {
-          const lines = determinedOldFinalText.split('\n');
-          const englishPortion = [];
-          for (const line of lines) {
-            if (containsJapaneseChars(line) && !containsLatinChars(line)) {
-              break; 
-            }
-            englishPortion.push(line);
-          }
-          determinedOldFinalText = englishPortion.join('\n').trim();
-        }
-        finalOutput.value = determinedOldFinalText;
-      } else {
-        // どちらのパターンにも一致しない場合
-        reviewOutput.innerHTML = '校閲結果が期待される形式で見つかりませんでした。最終案も表示できません。';
-        finalOutput.value = ''; // Ensure finalOutput is empty if structure is not found
+      outputElement.textContent = `エラー: ${error.message}`;
+      console.error('API呼び出しエラー:', error);
+    }
+  } finally {
+    // 実行管理から削除
+    currentExecutions.delete(panelId);
+  }
+}
+
+async function callCloudflareAPI(modelId, prompt, outputElement, signal) {
+  // Cloudflare Worker APIのエンドポイント
+  const API_ENDPOINT = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+  
+  // 大型モデルには特別な設定を適用
+  const isLargeModel = modelId.includes('90B') || modelId.includes('70B') || modelId.includes('Large');
+  const maxTokens = isLargeModel ? 12000 : 8000; // 大型モデルには更に大きな制限
+  
+  const requestBody = {
+    model: modelId,
+    temperature: 0.7,
+    stream: false,
+    max_completion_tokens: maxTokens,
+    messages: [
+      {
+        role: 'user',
+        content: prompt
       }
+    ]
+  };
+  
+  console.log(`🚀 API呼び出し開始: ${modelId}`);
+  
+  const response = await fetch(API_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody),
+    signal: signal
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`❌ API呼び出しエラー (${modelId}):`, response.status, response.statusText, errorText);
+    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+  }
+  
+  // stream: false なので直接JSONレスポンスを処理
+  const data = await response.json();
+  console.log(`📥 API応答受信: ${modelId}, データサイズ:`, JSON.stringify(data).length);
+  
+  // レスポンスからコンテンツを取得
+  const content = data.choices?.[0]?.message?.content;
+  
+  if (content) {
+    console.log(`📝 受信コンテンツ長: ${content.length}文字 (${modelId})`);
+    
+    // ステータスを生成中に変更
+    const panel = outputElement.closest('.llm-panel');
+    const statusElement = panel.querySelector('.panel-status');
+    statusElement.className = 'panel-status status-generating';
+    statusElement.textContent = '生成中...';
+    
+    // コンテンツをクリーンアップ（最小限の処理のみ）- モデルIDを渡す
+    const cleanedContent = cleanContent(content, modelId);
+    
+    // デバッグ用：クリーンアップ前後の先頭100文字を比較
+    console.log(`📋 クリーンアップ前の先頭100文字 (${modelId}):`, content.substring(0, 100));
+    console.log(`📋 クリーンアップ後の先頭100文字 (${modelId}):`, cleanedContent.substring(0, 100));
+    
+    // タイピング効果で文字を順次表示
+    outputElement.innerHTML = '';
+    console.log(`🎬 表示開始: ${cleanedContent.length}文字 (${modelId})`);
+    await typeTextWithMarkdown(outputElement, cleanedContent);
+    console.log(`✨ 表示完了: ${modelId}`);
+  } else {
+    console.error(`❌ レスポンスにコンテンツが含まれていません:`, data);
+    throw new Error('レスポンスにコンテンツが含まれていません');
+  }
+}
+
+// コンテンツをクリーンアップする関数（最小限の処理のみ）
+function cleanContent(content, modelId = '') {
+  console.log('🔧 元のコンテンツ長:', content.length, 'モデル:', modelId);
+  
+  // 元のコンテンツを保持
+  let cleaned = content;
+  
+  // <think>...</think>タグを削除（DeepSeek-R1の思考タグのみ）
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '');
+  
+  // </think>タグのみが残っている場合も削除
+  cleaned = cleaned.replace(/<\/think>/gi, '');
+  
+  // 連続する空行を3つ以上ある場合のみ2つに統合（最小限の整形）
+  cleaned = cleaned.replace(/\n\s*\n\s*\n\s*\n/g, '\n\n');
+  
+  // 前後の余分な空白を削除
+  cleaned = cleaned.trim();
+  
+  console.log('✂️ クリーンアップ後の長さ:', cleaned.length);
+  
+  // 安全策：元のコンテンツの90%以上が残っていない場合は元のコンテンツを返す
+  if (cleaned.length < content.length * 0.9) {
+    console.log('⚠️ 予期せぬ削除が発生したため元のコンテンツを使用');
+    return content.trim();
+  }
+  
+  return cleaned;
+}
+
+// Markdownをサポートしたタイピング効果関数
+async function typeTextWithMarkdown(element, text, delay = 5) {
+  element.innerHTML = '';
+  let currentHtml = '';
+  const textLength = text.length;
+  
+  // 長いテキストの場合は遅延を動的に調整
+  let adjustedDelay = delay;
+  if (textLength > 5000) {
+    adjustedDelay = 1; // 非常に長い場合は高速表示
+  } else if (textLength > 2000) {
+    adjustedDelay = 2; // 長い場合は高速表示
+  } else if (textLength > 1000) {
+    adjustedDelay = 3; // 中程度の場合
+  }
+  
+  console.log(`⌨️ タイピング効果開始: ${textLength}文字, 遅延${adjustedDelay}ms`);
+  
+  // 非常に長いテキストの場合は段階的に表示
+  const chunkSize = textLength > 3000 ? 50 : 10;
+  
+  for (let i = 0; i < textLength; i++) {
+    currentHtml += text[i];
+    
+    // リアルタイムでMarkdownをHTMLに変換して表示
+    element.innerHTML = convertMarkdownToHtml(currentHtml);
+    element.scrollTop = element.scrollHeight; // 自動スクロール
+    
+    // チャンクサイズごとに遅延（パフォーマンス向上）
+    if (i % chunkSize === 0) {
+      await new Promise(resolve => setTimeout(resolve, adjustedDelay));
     }
   }
+  
+  console.log('✅ タイピング効果完了');
+}
+
+// 簡易Markdown to HTML変換関数
+function convertMarkdownToHtml(markdown) {
+  let html = markdown;
+  
+  // ヘッダー（###### ##### #### ### ## #）- 長いものから順番に処理
+  html = html.replace(/^###### (.*$)/gm, '<h6>$1</h6>');
+  html = html.replace(/^##### (.*$)/gm, '<h5>$1</h5>');
+  html = html.replace(/^#### (.*$)/gm, '<h4>$1</h4>');
+  html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+  
+  // ボールド（**text** または __text__）
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
+  
+  // イタリック（*text* または _text_）
+  html = html.replace(/(?<!\*)\*(?!\*)([^*]+)\*(?!\*)/g, '<em>$1</em>');
+  html = html.replace(/(?<!_)_(?!_)([^_]+)_(?!_)/g, '<em>$1</em>');
+  
+  // インラインコード（`code`）
+  html = html.replace(/`([^`]+)`/g, '<code style="background: #f1f1f1; padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>');
+  
+  // コードブロック（```code```）
+  html = html.replace(/```([\s\S]*?)```/g, '<pre style="background: #f8f8f8; padding: 12px; border-radius: 5px; overflow-x: auto; font-family: monospace; border: 1px solid #e1e1e1;"><code>$1</code></pre>');
+  
+  // 改行をHTMLの改行に変換
+  html = html.replace(/\n/g, '<br>');
+  
+  // 連続する<br>を段落に変換
+  html = html.replace(/(<br>\s*){2,}/g, '</p><p>');
+  
+  // 最初と最後に<p>タグを追加（必要に応じて）
+  if (html && !html.startsWith('<h') && !html.startsWith('<pre')) {
+    html = '<p>' + html + '</p>';
+  }
+  
+  return html;
+}
+
+// 従来のtypeText関数（後方互換性のため保持）
+async function typeText(element, text, delay = 20) {
+  element.textContent = '';
+  
+  for (let i = 0; i < text.length; i++) {
+    element.textContent += text[i];
+    element.scrollTop = element.scrollHeight; // 自動スクロール
+    
+    // キャンセル可能な遅延
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+}
+
+function stopAllExecutions(elements) {
+  // すべての実行を停止
+  currentExecutions.forEach((controller, panelId) => {
+    controller.abort();
+    
+    // パネル状態を更新
+    const panel = document.querySelector(`[data-panel-id="${panelId}"]`);
+    if (panel) {
+      const statusElement = panel.querySelector('.panel-status');
+      statusElement.className = 'panel-status status-waiting';
+      statusElement.textContent = '停止済み';
+    }
+  });
+  
+  currentExecutions.clear();
+  
+  // UI状態を元に戻す
+  elements.runAllBtn.disabled = false;
+  elements.stopAllBtn.disabled = true;
+  elements.loadingIndicator.classList.remove('active');
+}
+
+function clearAllOutputs() {
+  const panels = document.querySelectorAll('.llm-panel');
+  const promptInput = document.getElementById('promptInput');
+  
+  // プロンプト入力をクリア
+  if (promptInput) {
+    promptInput.value = '';
+    // ローカルストレージからも削除
+    localStorage.removeItem(STORAGE_KEYS.PROMPT);
+    localStorage.removeItem(STORAGE_KEYS.RESULTS);
+    localStorage.removeItem(STORAGE_KEYS.PANEL_COUNT);
+    localStorage.removeItem(STORAGE_KEYS.NEXT_PANEL_ID);
+  }
+  
+  panels.forEach(panel => {
+    const statusElement = panel.querySelector('.panel-status');
+    const outputElement = panel.querySelector('.panel-output');
+    const selector = panel.querySelector('.model-select');
+    
+    statusElement.className = 'panel-status status-waiting';
+    statusElement.textContent = '待機中';
+    
+    // 出力内容を完全にクリア（HTMLも含む）
+    outputElement.innerHTML = '';
+    
+    // モデルが選択されているかどうかで表示を変える
+    if (selector && selector.value) {
+      outputElement.textContent = 'プロンプトを実行してください。';
+    } else {
+      outputElement.textContent = 'モデルを選択してプロンプトを実行してください。';
+    }
+  });
+}
+
+function restoreSavedPrompt() {
+  const savedPrompt = localStorage.getItem(STORAGE_KEYS.PROMPT);
+  const promptInput = document.getElementById('promptInput');
+  
+  if (savedPrompt && promptInput) {
+    promptInput.value = savedPrompt;
+  }
+}
+
+// 実行結果を保存する関数
+function saveResults() {
+  const results = {};
+  const panels = document.querySelectorAll('.llm-panel');
+  
+  panels.forEach(panel => {
+    const panelId = panel.dataset.panelId;
+    const selector = panel.querySelector('.model-select');
+    const statusElement = panel.querySelector('.panel-status');
+    const outputElement = panel.querySelector('.panel-output');
+    
+    results[panelId] = {
+      selectedModel: selector.value,
+      status: {
+        className: statusElement.className,
+        text: statusElement.textContent
+      },
+      output: outputElement.innerHTML
+    };
+  });
+  
+  // パネル情報も保存
+  localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(results));
+  localStorage.setItem(STORAGE_KEYS.PANEL_COUNT, panels.length.toString());
+  localStorage.setItem(STORAGE_KEYS.NEXT_PANEL_ID, nextPanelId.toString());
+}
+
+// 実行結果を復元する関数
+function restoreResults() {
+  try {
+    const savedResults = localStorage.getItem(STORAGE_KEYS.RESULTS);
+    const savedPanelCount = localStorage.getItem(STORAGE_KEYS.PANEL_COUNT);
+    const savedNextPanelId = localStorage.getItem(STORAGE_KEYS.NEXT_PANEL_ID);
+    
+    if (!savedResults) return false;
+    
+    const results = JSON.parse(savedResults);
+    const panelCount = parseInt(savedPanelCount) || 3;
+    nextPanelId = parseInt(savedNextPanelId) || 4;
+    
+    // 保存されたパネルIDリストを取得
+    const savedPanelIds = Object.keys(results);
+    const currentPanels = document.querySelectorAll('.llm-panel');
+    const currentPanelIds = Array.from(currentPanels).map(panel => panel.dataset.panelId);
+    
+    // 不足しているパネルを特定して作成
+    savedPanelIds.forEach(panelId => {
+      if (!currentPanelIds.includes(panelId)) {
+        addNewPanelForRestoreWithId(panelId);
+      }
+    });
+    
+    // 結果を復元
+    Object.entries(results).forEach(([panelId, result]) => {
+      const panel = document.querySelector(`[data-panel-id="${panelId}"]`);
+      if (panel && result) {
+        const selector = panel.querySelector('.model-select');
+        const statusElement = panel.querySelector('.panel-status');
+        const outputElement = panel.querySelector('.panel-output');
+        
+        // モデル選択を復元
+        if (result.selectedModel && selector) {
+          selector.value = result.selectedModel;
+          updateModelTooltip(selector);
+        }
+        
+        // ステータスを復元
+        if (result.status && statusElement) {
+          statusElement.className = result.status.className;
+          statusElement.textContent = result.status.text;
+        }
+        
+        // 出力を復元
+        if (result.output && outputElement) {
+          outputElement.innerHTML = result.output;
+        }
+      }
+    });
+    
+    // モデル選択状態を更新
+    updateAllModelSelections();
+    updateRemoveButtons();
+    
+    return true; // 復元成功
+    
+  } catch (error) {
+    console.warn('結果の復元に失敗しました:', error);
+    return false; // 復元失敗
+  }
+}
+
+// 復元用のパネル追加（イベントリスナーなし）
+function addNewPanelForRestore() {
+  const panelsContainer = document.getElementById('llmPanels');
+  const currentPanels = document.querySelectorAll('.llm-panel');
+  
+  if (currentPanels.length >= MAX_PANELS) return;
+  
+  const newPanel = createPanelElement(nextPanelId);
+  panelsContainer.appendChild(newPanel);
+  
+  // 新しいパネルのセレクターのみ初期化
+  initializeNewPanelSelector(newPanel);
+  
+  // 削除ボタンイベント設定
+  setupRemoveButtonEvent(newPanel);
+  
+  nextPanelId++;
+}
+
+// 指定IDでパネルを復元作成する関数
+function addNewPanelForRestoreWithId(panelId) {
+  const panelsContainer = document.getElementById('llmPanels');
+  const currentPanels = document.querySelectorAll('.llm-panel');
+  
+  if (currentPanels.length >= MAX_PANELS) return;
+  
+  const newPanel = createPanelElement(panelId);
+  panelsContainer.appendChild(newPanel);
+  
+  // 新しいパネルのセレクターのみ初期化
+  initializeNewPanelSelector(newPanel);
+  
+  // 削除ボタンイベント設定
+  setupRemoveButtonEvent(newPanel);
+  
+  // nextPanelIdを更新（最大値+1にする）
+  const allPanelIds = Array.from(document.querySelectorAll('.llm-panel'))
+    .map(panel => parseInt(panel.dataset.panelId))
+    .filter(id => !isNaN(id));
+  nextPanelId = Math.max(...allPanelIds, nextPanelId) + 1;
+}
+
+function setInitialModelSelection() {
+  // 初期選択するモデル
+  const initialModels = [
+    'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8', // Llama-4-Maverick-17B
+    'Qwen/Qwen3-235B-A22B-FP8', // Qwen3-235B-A22B
+    'microsoft/phi-4' // Phi-4
+  ];
+  
+  const selectors = document.querySelectorAll('.model-select');
+  
+  selectors.forEach((selector, index) => {
+    if (index < initialModels.length) {
+      selector.value = initialModels[index];
+      updateModelTooltip(selector);
+      
+      // 初期選択されたパネルの出力メッセージを更新
+      const panelId = selector.dataset.panel;
+      const outputElement = document.querySelector(`[data-panel-id="${panelId}"] .panel-output`);
+      if (outputElement) {
+        outputElement.textContent = 'プロンプトを実行してください。';
+      }
+    }
+  });
+  
+  // 選択状態を更新（重複チェック）
+  if (selectors.length > 0) {
+    updateModelSelection(selectors[0]);
+  }
+}
+
+// 初期パネルの削除ボタンイベント設定
+document.addEventListener('DOMContentLoaded', () => {
+  const initialPanels = document.querySelectorAll('.llm-panel');
+  initialPanels.forEach(setupRemoveButtonEvent);
 }); 
