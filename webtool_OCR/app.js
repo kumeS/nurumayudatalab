@@ -11,13 +11,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const copyBtn = document.getElementById('copyBtn');
   const loadingIndicator = document.getElementById('loadingIndicator');
   
+  // 状態管理用のキー
+  const STORAGE_KEYS = {
+    ACTIVE_TAB: 'nurumayuActiveTab',
+    INPUT_TEXT: 'quizInputText',
+    OCR_TEXT: 'ocrTextContent',
+    OCR_IMAGE_NAME: 'ocrImageName'
+  };
+  
   // タブ関連要素
-  const tabText = document.getElementById('tab-text');
   const tabOcr = document.getElementById('tab-ocr');
-  const tabQuiz = document.getElementById('tab-quiz');
-  const contentText = document.getElementById('content-text');
+  const tabText = document.getElementById('tab-text');
   const contentOcr = document.getElementById('content-ocr');
-  const contentQuiz = document.getElementById('content-quiz');
+  const contentText = document.getElementById('content-text');
   
   // OCR関連要素
   const imageUpload = document.getElementById('imageUpload');
@@ -33,12 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const progressPercent = document.getElementById('progressPercent');
   const ocrResult = document.getElementById('ocrResult');
   const ocrText = document.getElementById('ocrText');
-  const useOcrTextBtn = document.getElementById('useOcrTextBtn');
   
   // 学習コンテンツ生成関連要素
-  const generateContentBtn = document.getElementById('generateContentBtn');
-  const resetContentBtn = document.getElementById('resetContentBtn');
-  const targetText = document.getElementById('targetText');
+  const generateContentTextBtn = document.getElementById('generateContentTextBtn');
+  const resetContentTextBtn = document.getElementById('resetContentTextBtn');
+  const generateContentOcrBtn = document.getElementById('generateContentOcrBtn');
+  const resetContentOcrBtn = document.getElementById('resetContentOcrBtn');
   
   // クイズ関連要素
   const quizContainer = document.getElementById('quizContainer');
@@ -89,7 +95,27 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // サンプルテキストデータ（各レベル6つずつ：AI基礎・機械学習・生成AI・活用事例・技術動向・AI歴史）
   const sampleTexts = {
-    'sleep': [
+    'elementary-low': [
+      // AI基礎
+      `コンピューターにも、とてもかしこいものがあります。それがAI（エーアイ）です。AIは、人のように考えたり、話したりできるコンピューターです。みんなのおうちにあるスマホやタブレットにも、AIがいます。「OK グーグル」と言うと、こたえてくれるでしょう？あれがAIです。AIは、みんなのお友だちのようなコンピューターなのです。`,
+      
+      // 機械学習
+      `コンピューターも「べんきょう」ができます。犬の写真をたくさん見せると、「これが犬だ」と覚えます。つぎに、犬の写真を見せると、「犬だ！」と分かるようになります。人の赤ちゃんが、ママやパパの顔を覚えるのと同じです。コンピューターは、たくさん見て、たくさん覚えて、だんだんかしこくなるのです。`,
+      
+      // 生成AI
+      `AIは、とてもじょうずに絵を描いたり、お話を作ったりできます。「ねこの絵を描いて」と言うと、かわいいねこの絵を描いてくれます。「楽しいお話を作って」と言うと、おもしろいお話を作ってくれます。みんなが工作をするように、AIは、コンピューターの中で、いろいろなものを作ってくれるのです。`,
+      
+      // 活用事例
+      `AIは、いろいろなところで、みんなのお手伝いをしています。お店で、おかしを買うときの機械にもAIがいます。車が安全に走れるように見張ってくれたり、病院で先生のお手伝いをしたりもします。お家のお掃除ロボットも、AIが動かしています。AIは、みんなの生活を楽しく、便利にしてくれているのです。`,
+      
+      // 技術動向
+      `最近、AIがもっとすごくなりました。おしゃべりがとても上手になって、人とまるで友だちのように話ができます。絵を描くのも上手になって、写真みたいにきれいな絵を描けます。これから、AIはもっともっと上手になって、みんなの勉強や遊びを手伝ってくれるかもしれませんね。`,
+      
+      // AI歴史
+      `AIは、とても昔から人が作りたいと思っていました。昔の人は、「コンピューターが人のように考えられたらいいな」と思ったのです。最初は、とても大きなコンピューターでした。お部屋全部くらい大きかったのです。でも、だんだん小さくなって、今はみんなのスマホにもAIがいます。長い時間をかけて、AIは上手になったのです。`
+    ],
+    
+    'elementary-mid': [
       // AI基礎
       `AIって何？と聞かれたら、「コンピューターが人間みたいに考える技術」と答えればOKです。スマホのSiriやGoogleアシスタントに話しかけると答えてくれますよね。あれがAIです。写真を撮ると自動で人の顔にピントが合うのも、YouTubeがあなたの好きそうな動画をおすすめしてくれるのも、全部AIが働いているからです。`,
       
@@ -109,7 +135,27 @@ document.addEventListener('DOMContentLoaded', () => {
       `AIの歴史は意外と古くて、1950年代から始まりました。最初は「コンピューターが人間みたいに考えられるかな？」という夢から始まったんです。昔のSF映画に出てくるロボットみたいなものを作りたかったんですね。でも当時のコンピューターはとても大きくて、部屋いっぱいの大きさでした。今のスマホの方がずっと賢いんですよ。長い時間をかけて、少しずつ今のAIになったんです。`
     ],
     
-    'beginner': [
+    'elementary-high': [
+      // AI基礎
+      `人工知能（AI）は、コンピューターが人間のように学習し、判断し、問題を解決する技術です。身近な例として、スマートフォンの音声アシスタント、動画サイトのおすすめ機能、写真アプリの自動補正などがあります。AIは大きく分けて、決められたルールに従って動く「ルールベースAI」と、データから学習する「機械学習AI」があります。現在話題のChatGPTなどは機械学習AIの一種で、大量の文章データから学習して人間のような文章を生成できます。`,
+      
+      // 機械学習
+      `機械学習は、コンピューターがデータから自動的にパターンを見つけて学習する方法です。例えば、メールのスパム判定では、たくさんのスパムメールと正常なメールを学習させることで、新しいメールがスパムかどうかを自動判断できるようになります。教師あり学習、教師なし学習、強化学習という3つの主要な方法があり、それぞれ異なる目的で使われます。画像認識、音声認識、自然言語処理など、私たちの身の回りの多くの技術で活用されています。`,
+      
+      // 生成AI
+      `生成AIは、新しい文章、画像、音楽などを自動的に作り出すAIです。ChatGPTのような文章生成AIは、インターネット上の膨大な文章を学習して、まるで人間が書いたような自然な文章を生成できます。画像生成AIでは、「青い空に白い雲が浮かぶ風景」のような説明文から、実際にそのような画像を作り出すことができます。これらの技術は、創作活動の支援や教育分野での活用が期待されています。`,
+      
+      // 活用事例
+      `AIは医療、教育、交通、エンターテインメントなど、様々な分野で活用されています。医療では、レントゲン写真の診断支援やがんの早期発見に役立っています。教育では、一人一人の学習進度に合わせた個別指導システムが開発されています。自動運転車では、周囲の状況を認識して安全な運転を支援します。また、翻訳アプリや音楽の自動作曲、ゲームのAIキャラクターなど、身近なところでもAIが活躍しています。`,
+      
+      // 技術動向
+      `最近のAI技術の進歩は目覚ましく、特に2022年以降の生成AIの発展が注目されています。ChatGPTのような会話AI、DALL-Eのような画像生成AI、音楽や動画を作るAIなど、クリエイティブな分野でのAI活用が急速に広がっています。また、複数の能力を持つマルチモーダルAIや、スマートフォンなどの端末で動作するエッジAIの開発も進んでいます。これからAIはさらに身近な存在になり、学習や仕事、日常生活をサポートしてくれるでしょう。`,
+      
+      // AI歴史
+      `AIの研究は1950年代から始まりました。最初は計算やチェスなどの単純なゲームからスタートし、1980年代にはエキスパートシステムという専門知識を活用するAIが実用化されました。1990年代にインターネットが普及すると大量のデータが利用できるようになり、機械学習が本格的に発展しました。2010年代に入ると深層学習という新しい技術により画像認識や音声認識が飛躍的に向上し、2020年代には現在のような高性能な生成AIが登場したのです。`
+    ],
+    
+    'junior': [
       // AI基礎
       `人工知能（AI）は、機械学習、深層学習、自然言語処理などの技術から構成されています。機械学習はデータからパターンを学習する技術で、教師あり学習、教師なし学習、強化学習の3つの手法があります。深層学習はニューラルネットワークを多層化した手法で、画像認識や音声認識で高い性能を発揮します。AIシステムの構築には、データ収集、前処理、モデル訓練、評価のプロセスが必要です。`,
       
@@ -129,9 +175,9 @@ document.addEventListener('DOMContentLoaded', () => {
       `AI研究は1956年のダートマス会議で正式に始まりました。1960年代にはエキスパートシステムが開発され、1980年代には第2次AIブームが到来しました。1990年代後半からインターネットの普及により大量データが利用可能になり、2000年代に機械学習が実用化されました。2010年代の深層学習革命により画像認識が飛躍的に向上し、2020年代には大規模言語モデルが登場して現在の生成AIブームに至っています。`
     ],
     
-    'intermediate': [
+    'senior': [
       // AI基礎
-      `深層学習アーキテクチャは目的に応じて選択する必要があります。CNN（畳み込みニューラルネットワーク）は画像処理に、RNN/LSTMは時系列データに、Transformerは自然言語処理に適用されます。注意機構（Attention Mechanism）により、入力の重要な部分に焦点を当てることができます。転移学習では事前学習済みモデルを活用し、少ないデータでも高性能なモデルを構築できます。ハイパーパラメータチューニングにはグリッドサーチやベイズ最適化を使用します。`,
+      `人工知能の基盤技術には、確率・統計、線形代数、微積分などの数学的知識が必要です。ニューラルネットワークは人間の脳の神経細胞を模倣した計算モデルで、活性化関数、損失関数、最適化アルゴリズムによって学習が進行します。バックプロパゲーション（誤差逆伝播法）により、出力誤差を入力層まで逆算して重みを更新します。過学習を防ぐため、ドロップアウト、正則化、データ拡張などの手法が用いられます。`,
       
       // 機械学習
       `アンサンブル学習では複数のモデルを組み合わせて予測精度を向上させます。バギング、ブースティング、スタッキングが主要な手法です。特徴量エンジニアリングでは、ドメイン知識を活用してモデルの性能向上に寄与する特徴量を作成します。データの前処理では正規化、標準化、欠損値処理、外れ値除去が重要です。モデルの解釈性向上にはSHAP値やLIMEなどの技術を使用します。`,
@@ -149,38 +195,40 @@ document.addEventListener('DOMContentLoaded', () => {
       `AI研究の歴史は複数のブームと冬の時代を経験しています。第1次AIブーム（1950-1960年代）では論理的推論に焦点が当てられ、第2次AIブーム（1980年代）ではエキスパートシステムが実用化されました。1990年代のAI冬の時代を経て、2000年代にビッグデータと計算能力の向上により機械学習が復活しました。2012年のAlexNetによる画像認識革命、2017年のTransformer論文、2022年のChatGPT登場が現在のAI黄金時代を築いています。`
     ],
     
-    'advanced': [
+    'university': [
       // AI基礎
-      `Transformer アーキテクチャの Self-Attention メカニズムは O(n²) の計算複雑度を持つため、長いシーケンスでは効率的な近似手法が必要です。Sparse Attention、Linear Attention、Flash Attention などの最適化技術により、メモリ使用量と計算時間を削減できます。Constitutional AI や Constitutional Learning により、AI システムの行動を原則に基づいて制御する研究が進んでいます。Mixture of Experts（MoE）アーキテクチャにより、パラメータ効率的な大規模モデルを実現できます。`,
+      `深層学習アーキテクチャは目的に応じて選択する必要があります。CNN（畳み込みニューラルネットワーク）は画像処理に、RNN/LSTMは時系列データに、Transformerは自然言語処理に適用されます。注意機構（Attention Mechanism）により、入力の重要な部分に焦点を当てることができます。転移学習では事前学習済みモデルを活用し、少ないデータでも高性能なモデルを構築できます。ハイパーパラメータチューニングにはグリッドサーチやベイズ最適化を使用します。`,
       
       // 機械学習
-      `Neural Architecture Search（NAS）により、タスクに最適なニューラルネットワーク構造を自動発見できます。Differentiable Neural Computer（DNC）や Neural Turing Machine（NTM）により、外部メモリを持つニューラルネットワークを実現できます。Meta-Learning（学習の学習）により、少数のサンプルから新しいタスクに迅速に適応するモデルを構築できます。Continual Learning により、破滅的忘却を回避しながら新しい知識を継続的に学習できます。`,
+      `マルチモーダル学習では異なる種類のデータ（テキスト、画像、音声）を統合して学習します。GAN（敵対的生成ネットワーク）では生成器と識別器が競合することで、リアルなデータを生成できます。強化学習では報酬信号に基づいてエージェントが最適な行動を学習し、Q学習やポリシー勾配法などのアルゴリズムが使用されます。連合学習（Federated Learning）により、プライバシーを保護しながら分散環境で機械学習を行えます。`,
       
       // 生成AI
-      `Chain-of-Thought プロンプティングや Tree-of-Thoughts により、複雑な推論タスクでの性能を向上させることができます。Parameter-Efficient Fine-Tuning（PEFT）手法である LoRA、AdaLoRA、QLoRA により、少ないパラメータ更新で効率的なファインチューニングが可能です。Retrieval-Augmented Generation（RAG）の高度化として、Dense Passage Retrieval や FiD（Fusion-in-Decoder）が研究されています。Constitutional AI や RLHF の改良版である DPO（Direct Preference Optimization）により、より効率的な人間の嗜好学習が可能になります。`,
+      `大規模言語モデルの性能は主にパラメータ数とトレーニングデータの質・量によって決まります。GPT-4のようなモデルはIn-Context LearningやFew-Shot Learningにより、少数の例から新しいタスクを学習できます。RLHF（Reinforcement Learning from Human Feedback）により、人間の価値観に沿った出力を生成できます。Parameter-Efficient Fine-tuning（PEFT）では、少ないパラメータの更新で特定タスクに適応できます。`,
       
       // 活用事例
-      `MLOps の成熟度レベルに応じて、CI/CD パイプライン、特徴量ストア、モデル監視、自動再学習システムを構築します。カナリア デプロイメント、ブルーグリーン デプロイメント、A/B テストフレームワークにより、本番環境でのリスクを最小化します。Federated Learning により、プライバシーを保護しながら分散データで学習できます。Differential Privacy により、個人情報を保護しながらモデル学習を行えます。`,
+      `AI開発のベストプラクティスには、データバイアスの除去、モデルの解釈可能性確保、A/Bテストによる効果検証が含まれます。エッジコンピューティングでは、モデルの軽量化（量子化、プルーニング、知識蒸留）が重要です。リアルタイム推論では、レイテンシとスループットのトレードオフを考慮したアーキテクチャ設計が必要です。DevOpsとMLOpsの統合により、継続的インテグレーション・継続的デリバリー（CI/CD）パイプラインを構築できます。`,
       
       // 技術動向
-      `AGI（Artificial General Intelligence）への道筋として、World Model、Emergent Abilities、Scaling Laws の研究が進んでいます。Neuromorphic Computing や Quantum Machine Learning により、従来のコンピューティングパラダイムを超えた AI システムが研究されています。AI Safety の分野では、Alignment Problem、Mesa-Optimization、Instrumental Convergence などの課題が議論されています。Multi-Agent Reinforcement Learning により、複数の AI エージェントが協調・競争する複雑なシステムを実現できます。`,
+      `次世代AI技術として、神経記号学習（Neural-Symbolic Learning）やカジュアル推論（Causal Inference）、メタ学習（Meta-Learning）が注目されています。量子機械学習では、量子コンピューターの特性を活用した新しいアルゴリズムが研究されています。グリーンAIの概念により、計算効率とエネルギー効率を両立したAIシステムの開発が重要視されています。AGI（汎用人工知能）に向けた研究では、マルチタスク学習と転移学習の高度化が進んでいます。`,
       
       // AI歴史
-      `AI研究の理論的基盤は、チューリングの計算可能性理論（1936）、マカロックとピッツのニューロンモデル（1943）、ウィーナーのサイバネティクス（1948）に遡ります。1956年のダートマス会議でジョン・マッカーシーが「人工知能」という用語を提唱し、学問分野として確立されました。パーセプトロンの限界（1969年のミンスキー・パパート）、エキスパートシステムの興隆と衰退、コネクショニズムの復活、統計的学習理論の発展、深層学習革命、そして現在のFoundation Modelsに至る歴史的変遷は、計算理論、認知科学、統計学の融合過程として理解できます。`
+      `AI研究の発展は計算資源の向上と密接に関連しています。1970年代のAI冬の時代から、1980年代のエキスパートシステムブーム、1990年代の統計的機械学習の台頭、2000年代のウェブデータ活用、2010年代のビッグデータとGPU活用による深層学習革命まで、技術的ブレークスルーと社会的期待のサイクルが繰り返されてきました。現在のTransformer時代は、注意機構の発明（2017年）から始まり、計算パワーの指数的増加により実現されています。`
     ]
   };
   
   // 各レベルのサンプルインデックスを管理
   let sampleIndices = {
-    'sleep': 0,
-    'beginner': 0,
-    'intermediate': 0,
-    'advanced': 0
+    'elementary-low': 0,
+    'elementary-mid': 0,
+    'elementary-high': 0,
+    'junior': 0,
+    'senior': 0,
+    'university': 0
   };
   
   // サンプルボタンのイベントリスナー
   sampleBtn.addEventListener('click', () => {
-    const selectedLevel = document.querySelector('input[name="level"]:checked').value;
+    const selectedLevel = document.querySelector('input[name="level-text"]:checked').value;
     const levelSamples = sampleTexts[selectedLevel];
     
     if (levelSamples && levelSamples.length > 0) {
@@ -197,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // テキストを入力エリアに設定
       inputArea.value = sampleText;
-      localStorage.setItem('quizInputText', inputArea.value);
+      localStorage.setItem(STORAGE_KEYS.INPUT_TEXT, inputArea.value);
       
       // 入力エリアをハイライト
       inputArea.classList.add('highlight-input');
@@ -214,15 +262,22 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
     // 保存されたテキストを読み込み
-  let savedInputText = localStorage.getItem('quizInputText');
+  let savedInputText = localStorage.getItem(STORAGE_KEYS.INPUT_TEXT);
   if (savedInputText) {
     inputArea.value = savedInputText;
   }
 
   // テキスト変更時に保存
   inputArea.addEventListener('input', () => {
-    localStorage.setItem('quizInputText', inputArea.value);
+    localStorage.setItem(STORAGE_KEYS.INPUT_TEXT, inputArea.value);
   });
+
+  // OCRテキスト変更時に保存
+  if (ocrText) {
+    ocrText.addEventListener('input', () => {
+      saveOcrText(ocrText.value);
+    });
+  }
   
   // タブ切り替え機能
   function switchTab(targetTab) {
@@ -242,30 +297,15 @@ document.addEventListener('DOMContentLoaded', () => {
       targetContent.classList.add('active');
     }
     
-    // 学習コンテンツ生成タブが選択された場合、現在のテキストを表示
-    if (targetTab.id === 'tab-quiz') {
-      updateTargetText();
-    }
+    // タブ状態を保存
+    saveTabState(targetTab.id);
   }
   
   // タブクリックイベント
-  tabText.addEventListener('click', () => switchTab(tabText));
   tabOcr.addEventListener('click', () => switchTab(tabOcr));
-  tabQuiz.addEventListener('click', () => switchTab(tabQuiz));
+  tabText.addEventListener('click', () => switchTab(tabText));
   
-  // 処理対象テキストの更新
-  function updateTargetText() {
-    const textFromInput = inputArea.value.trim();
-    const textFromOcr = currentOcrText.trim();
-    
-    if (textFromOcr) {
-      targetText.value = textFromOcr;
-    } else if (textFromInput) {
-      targetText.value = textFromInput;
-    } else {
-      targetText.value = '';
-    }
-  }
+
 
   // OCRイベントリスナー
   imageUploadZone.addEventListener('click', () => {
@@ -308,11 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
     correctOCRText();
   });
 
-  useOcrTextBtn.addEventListener('click', () => {
-    currentOcrText = ocrText.value;
-    updateTargetText();
-    switchTab(tabQuiz);
-  });
+
 
   // クリアボタンの処理
   clearBtn.addEventListener('click', () => {
@@ -320,17 +356,29 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem('quizInputText');
   });
 
-  // 学習コンテンツ生成ボタン
-  generateContentBtn.addEventListener('click', () => {
-    generateLearningContent();
+  // 学習コンテンツ生成ボタン（テキスト入力タブ）
+  generateContentTextBtn.addEventListener('click', () => {
+    generateLearningContent('text');
   });
 
-  resetContentBtn.addEventListener('click', () => {
-    resetContent();
+  resetContentTextBtn.addEventListener('click', () => {
+    resetContent('text');
   });
 
-    // 理解度レベル変更時の処理
-  document.querySelectorAll('input[name="level"]').forEach(radio => {
+  // 学習コンテンツ生成ボタン（OCRタブ）
+  generateContentOcrBtn.addEventListener('click', () => {
+    generateLearningContent('ocr');
+  });
+
+  resetContentOcrBtn.addEventListener('click', () => {
+    resetContent('ocr');
+  });
+
+  // コンテンツトグルボタンのイベントリスナー
+  setupContentToggleButtons();
+
+    // 理解度レベル変更時の処理（テキスト入力タブ）
+  document.querySelectorAll('input[name="level-text"]').forEach(radio => {
     radio.addEventListener('change', () => {
       const selectedLevel = radio.value;
       // 選択されたレベルのサンプルインデックスをリセット
@@ -338,6 +386,15 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // 理解度レベル変更時は入力エリアの内容を変更しない
       // ユーザーが入力した内容を保持する
+    });
+  });
+
+  // 理解度レベル変更時の処理（OCRタブ）
+  document.querySelectorAll('input[name="level-ocr"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const selectedLevel = radio.value;
+      // 選択されたレベルのサンプルインデックスをリセット
+      sampleIndices[selectedLevel] = 0;
     });
   });
   
@@ -372,6 +429,11 @@ document.addEventListener('DOMContentLoaded', () => {
     ocrResult.style.display = 'none';
     ocrProgress.style.display = 'none';
     correctOcrBtn.style.display = 'none';
+    
+    // OCR関連の保存データもクリア
+    ocrText.value = '';
+    localStorage.removeItem(STORAGE_KEYS.OCR_TEXT);
+    localStorage.removeItem(STORAGE_KEYS.OCR_IMAGE_NAME);
   }
 
   // OCR実行
@@ -408,6 +470,10 @@ document.addEventListener('DOMContentLoaded', () => {
       ocrText.value = text.trim();
       ocrResult.style.display = 'block';
       correctOcrBtn.style.display = 'inline-block';
+      
+      // OCRテキストと画像名を保存
+      saveOcrText(text.trim());
+      saveImageName(currentImageFile.name);
       
       // プログレス非表示
       ocrProgress.style.display = 'none';
@@ -447,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const correctedText = await callLLMAPI(messages);
       if (correctedText && correctedText.trim()) {
         ocrText.value = correctedText.trim();
+        saveOcrText(correctedText.trim());
       }
 
     } catch (error) {
@@ -459,21 +526,50 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 学習コンテンツ生成
-  function generateLearningContent() {
-    const text = targetText.value.trim();
-    if (!text) {
-      alert('処理するテキストがありません。テキスト入力タブまたはOCRタブで入力してください。');
+  function generateLearningContent(tabType) {
+    let text = '';
+    
+    if (tabType === 'text') {
+      text = inputArea.value.trim();
+      if (!text) {
+        alert('学習内容を入力してください。');
+        return;
+      }
+    } else if (tabType === 'ocr') {
+      text = ocrText.value.trim();
+      if (!text) {
+        alert('OCR結果がありません。画像をアップロードして文字認識を実行してください。');
+        return;
+      }
+    }
+    
+    // 選択されたコンテンツタイプを取得
+    const selectedTypes = getSelectedContentTypes(tabType);
+    
+    if (selectedTypes.length === 0) {
+      alert('生成するコンテンツを選択してください。');
       return;
     }
     
-    // 既存のクイズ生成機能を流用
-    generateQuiz();
+    // クイズが選択されている場合は既存のクイズ生成機能を使用
+    if (selectedTypes.includes('quiz')) {
+      generateQuiz(text, tabType);
+    } else {
+      // クイズ以外のコンテンツ生成は今後の実装予定
+      alert('要約・詳しい説明機能は今後のアップデートで実装予定です。現在はクイズ機能のみご利用いただけます。');
+    }
   }
 
   // コンテンツリセット
-  function resetContent() {
-    targetText.value = '';
-    currentOcrText = '';
+  function resetContent(tabType) {
+    if (tabType === 'text') {
+      inputArea.value = '';
+      localStorage.removeItem(STORAGE_KEYS.INPUT_TEXT);
+    } else if (tabType === 'ocr') {
+      clearImageUpload();
+      currentOcrText = '';
+    }
+    
     // クイズ結果もリセット
     quizContainer.style.display = 'none';
     outputContainer.style.display = 'none';
@@ -587,13 +683,12 @@ document.addEventListener('DOMContentLoaded', () => {
     recordBtn.innerHTML = '<i class="fas fa-microphone"></i> 音声録音';
   }
   
-  // クイズ生成
-  generateQuizBtn.addEventListener('click', generateQuiz);
+  // クイズ生成関数は generateContentBtn.addEventListener で既に設定済み
   
-  function generateQuiz() {
-    const input = targetText.value.trim() || inputArea.value.trim();
+  function generateQuiz(inputText, tabType) {
+    const input = inputText;
     if (!input) {
-      alert('学習内容を入力してください。テキスト入力タブまたはOCRタブで入力してください。');
+      alert('学習内容を入力してください。');
       return;
     }
     
@@ -604,23 +699,28 @@ document.addEventListener('DOMContentLoaded', () => {
       previousInputText = input;
     }
     
-    // 設定値を取得
-    const level = document.querySelector('input[name="level"]:checked').value;
-    const questionCount = document.querySelector('input[name="questionCount"]:checked').value;
-    const quizType = document.querySelector('input[name="quizType"]:checked').value;
+    // 設定値を取得（タブ別）
+    const levelName = tabType === 'text' ? 'level-text' : 'level-ocr';
+    const questionCountName = tabType === 'text' ? 'questionCount-text' : 'questionCount-ocr';
+    const quizTypeName = tabType === 'text' ? 'quizType-text' : 'quizType-ocr';
+    
+    const level = document.querySelector(`input[name="${levelName}"]:checked`).value;
+    const questionCount = document.querySelector(`input[name="${questionCountName}"]:checked`).value;
+    const quizType = document.querySelector(`input[name="${quizTypeName}"]:checked`).value;
     
     // UI更新
     loadingIndicator.classList.add('active');
-    generateQuizBtn.disabled = true;
+    const generateBtn = tabType === 'text' ? generateContentTextBtn : generateContentOcrBtn;
+    generateBtn.disabled = true;
     quizContainer.style.display = 'none';
     outputContainer.style.display = 'none';
     
     // 生成回数の表示更新
-    updateGenerationInfo();
+    updateGenerationInfo(tabType);
     
     // LLMにクイズ生成を依頼
     const messages = createQuizGenerationMessages(input, level, questionCount, quizType);
-    callLLMAPI(messages);
+    callLLMAPI(messages, tabType);
   }
   
   // クイズ生成用メッセージ作成
@@ -755,21 +855,21 @@ ${avoidanceInstructions}
   }
   
   // 生成情報を更新
-  function updateGenerationInfo() {
-    const generateBtn = document.getElementById('generateQuizBtn');
-    const originalText = '<i class="fas fa-brain"></i> クイズ生成';
+  function updateGenerationInfo(tabType) {
+    const generateBtn = tabType === 'text' ? generateContentTextBtn : generateContentOcrBtn;
+    const originalText = '<i class="fas fa-brain"></i> 学習コンテンツ生成';
     
     if (generationCount === 0) {
       generateBtn.innerHTML = originalText;
     } else {
       const variationLevel = Math.min(generationCount, 5);
       const variationText = ['基本', '応用', '創造', '総合', '多角'][variationLevel - 1];
-      generateBtn.innerHTML = `<i class="fas fa-brain"></i> クイズ生成 (${generationCount + 1}回目・${variationText}モード)`;
+      generateBtn.innerHTML = `<i class="fas fa-brain"></i> 学習コンテンツ生成 (${generationCount + 1}回目・${variationText}モード)`;
     }
   }
   
   // LLM API呼び出し
-  function callLLMAPI(messages) {
+  function callLLMAPI(messages, tabType) {
     const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
     
     // 生成回数に応じてtemperatureを調整（バリエーション向上）
@@ -795,10 +895,11 @@ ${avoidanceInstructions}
     .then(response => response.json())
     .then(data => {
       loadingIndicator.classList.remove('active');
-      generateQuizBtn.disabled = false;
+      const generateBtn = tabType === 'text' ? generateContentTextBtn : generateContentOcrBtn;
+      generateBtn.disabled = false;
       
       // ボタンテキストを元に戻す
-      generateQuizBtn.innerHTML = '<i class="fas fa-brain"></i> クイズ生成';
+      generateBtn.innerHTML = '<i class="fas fa-brain"></i> 学習コンテンツ生成';
       
       console.log("LLMレスポンス:", data);
       
@@ -814,10 +915,11 @@ ${avoidanceInstructions}
     .catch(error => {
       console.error('LLM API呼び出しエラー:', error);
       loadingIndicator.classList.remove('active');
-      generateQuizBtn.disabled = false;
+      const generateBtn = tabType === 'text' ? generateContentTextBtn : generateContentOcrBtn;
+      generateBtn.disabled = false;
       
       // ボタンテキストを元に戻す
-      generateQuizBtn.innerHTML = '<i class="fas fa-brain"></i> クイズ生成';
+      generateBtn.innerHTML = '<i class="fas fa-brain"></i> 学習コンテンツ生成';
       
       alert(`エラーが発生しました: ${error.message}`);
     });
@@ -1354,36 +1456,7 @@ ${avoidanceInstructions}
     });
   });
   
-  // リセット機能
-  resetBtn.addEventListener('click', () => {
-    inputArea.value = '';
-    localStorage.removeItem('quizInputText');
-    quizContainer.style.display = 'none';
-    outputContainer.style.display = 'none';
-    stopRecording();
-    
-    // クイズ状態をリセット
-    currentQuiz = null;
-    userAnswers = [];
-    hintUsed = [];
-    score = 0;
-    totalQuestions = 0;
-    isQuizSubmitted = false;
-    
-    // 累積スコアもリセット
-    resetCumulativeScore();
-    previousInputText = '';
-    
-    // 生成履歴もリセット
-    quizGenerationHistory = [];
-    generationCount = 0;
-    
-    // 結果コンテナも削除
-    const resultsContainer = document.getElementById('quizResults');
-    if (resultsContainer) {
-      resultsContainer.remove();
-    }
-  });
+  // リセット機能は resetContentBtn で実装済み
   
   // 累積スコアをリセット
   function resetCumulativeScore() {
@@ -1437,8 +1510,106 @@ ${avoidanceInstructions}
     stopRecording();
   });
   
+  // コンテンツトグルボタンの設定
+  function setupContentToggleButtons() {
+    // 全てのトグルボタンにイベントリスナーを追加
+    document.querySelectorAll('.content-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        this.classList.toggle('active');
+        
+        // クイズボタンの状態をチェックしてグレイアウトを制御
+        const tabType = this.id.includes('-text') ? 'text' : 'ocr';
+        const quizButton = document.querySelector(`#content-quiz-${tabType}`);
+        const quizSettings = document.querySelector(`#quiz-settings-${tabType}`);
+        
+        if (quizButton && quizSettings) {
+          if (quizButton.classList.contains('active')) {
+            quizSettings.classList.remove('disabled');
+          } else {
+            quizSettings.classList.add('disabled');
+          }
+        }
+      });
+    });
+    
+    // 初期状態の設定
+    updateQuizSettingsState('text');
+    updateQuizSettingsState('ocr');
+  }
+  
+  // クイズ設定の状態を更新
+  function updateQuizSettingsState(tabType) {
+    const quizButton = document.querySelector(`#content-quiz-${tabType}`);
+    const quizSettings = document.querySelector(`#quiz-settings-${tabType}`);
+    
+    if (quizButton && quizSettings) {
+      if (quizButton.classList.contains('active')) {
+        quizSettings.classList.remove('disabled');
+      } else {
+        quizSettings.classList.add('disabled');
+      }
+    }
+  }
+  
+  // 選択されたコンテンツタイプを取得
+  function getSelectedContentTypes(tabType) {
+    const contentTypes = [];
+    const buttons = document.querySelectorAll(`[id^="content-"][id$="-${tabType}"]`);
+    
+    buttons.forEach(btn => {
+      if (btn.classList.contains('active')) {
+        contentTypes.push(btn.dataset.content);
+      }
+    });
+    
+    return contentTypes;
+  }
+
   // 初期化
   initSpeechRecognition();
+  restoreAppState();
+  
+  // 状態復元機能
+  function restoreAppState() {
+    // アクティブタブの復元
+    const savedTab = localStorage.getItem(STORAGE_KEYS.ACTIVE_TAB);
+    if (savedTab) {
+      const targetTab = document.getElementById(savedTab);
+      if (targetTab) {
+        switchTab(targetTab);
+      }
+    }
+    
+    // OCRテキストの復元
+    const savedOcrText = localStorage.getItem(STORAGE_KEYS.OCR_TEXT);
+    if (savedOcrText && ocrText) {
+      ocrText.value = savedOcrText;
+      ocrResult.style.display = 'block';
+      correctOcrBtn.style.display = 'inline-block';
+    }
+    
+    // 保存された画像名の復元（参考情報として）
+    const savedImageName = localStorage.getItem(STORAGE_KEYS.OCR_IMAGE_NAME);
+    if (savedImageName && savedOcrText) {
+      // OCR結果があって画像名も保存されている場合の表示
+      console.log('前回処理した画像:', savedImageName);
+    }
+  }
+  
+  // タブ状態の保存
+  function saveTabState(tabId) {
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, tabId);
+  }
+  
+  // OCRテキストの保存
+  function saveOcrText(text) {
+    localStorage.setItem(STORAGE_KEYS.OCR_TEXT, text);
+  }
+  
+  // 画像名の保存
+  function saveImageName(name) {
+    localStorage.setItem(STORAGE_KEYS.OCR_IMAGE_NAME, name);
+  }
   
   // 祝福演出を閉じる
   celebrationCloseBtn.addEventListener('click', () => {

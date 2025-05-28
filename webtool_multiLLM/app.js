@@ -245,6 +245,9 @@ function setupEventListeners(elements) {
     elements.guideContent.style.display = 
       elements.guideContent.style.display === 'none' ? 'block' : 'none';
   });
+  
+  // モバイルデバイスでのツールチップ対応
+  setupMobileTooltips();
 }
 
 function switchTab(selectedTab, elements) {
@@ -1029,7 +1032,7 @@ function clearAllOutputs() {
     
     // 出力内容を完全にクリア（HTMLも含む）
     outputElement.innerHTML = '';
-    outputElement.textContent = 'プロンプトを実行してください。';
+      outputElement.textContent = 'プロンプトを実行してください。';
   });
   
   // デフォルトモデルに戻す
@@ -1228,3 +1231,134 @@ document.addEventListener('DOMContentLoaded', () => {
   const initialPanels = document.querySelectorAll('.llm-panel');
   initialPanels.forEach(setupRemoveButtonEvent);
 }); 
+
+// モバイルデバイス向けのツールチップ機能
+function setupMobileTooltips() {
+  // タッチデバイスかどうかを判定
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  
+  if (!isTouchDevice) return; // タッチデバイス以外では何もしない
+  
+  console.log('📱 タッチデバイス検出: モバイル向けツールチップを有効化');
+  
+  // 情報アイコンのタップ対応を設定
+  document.addEventListener('click', handleTooltipClick);
+}
+
+function handleTooltipClick(event) {
+  const infoIcon = event.target.closest('.model-info');
+  const tooltip = event.target.closest('.model-tooltip');
+  
+  if (infoIcon && !tooltip) {
+    // 情報アイコンがタップされた場合
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const tooltipElement = infoIcon.querySelector('.model-tooltip');
+    if (tooltipElement) {
+      // 他のツールチップを閉じる
+      closeAllTooltips();
+      
+      // このツールチップを表示
+      tooltipElement.classList.add('show');
+      
+      // 背景オーバーレイを作成
+      createTooltipOverlay();
+    }
+  } else if (!tooltip && !infoIcon) {
+    // 他の場所がタップされた場合はツールチップを閉じる
+    closeAllTooltips();
+  }
+}
+
+function closeAllTooltips() {
+  const tooltips = document.querySelectorAll('.model-tooltip.show');
+  tooltips.forEach(tooltip => {
+    tooltip.classList.remove('show');
+  });
+  
+  // オーバーレイを削除
+  removeTooltipOverlay();
+}
+
+function createTooltipOverlay() {
+  removeTooltipOverlay(); // 既存のオーバーレイを削除
+  
+  const overlay = document.createElement('div');
+  overlay.className = 'tooltip-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    backdrop-filter: blur(2px);
+  `;
+  
+  overlay.addEventListener('click', closeAllTooltips);
+  document.body.appendChild(overlay);
+}
+
+function removeTooltipOverlay() {
+  const overlay = document.querySelector('.tooltip-overlay');
+  if (overlay) {
+    overlay.remove();
+  }
+}
+
+// パネル追加時にモバイル対応を適用
+function setupRemoveButtonEventMobile(panel) {
+  setupRemoveButtonEvent(panel); // 既存の機能
+  
+  // モバイル向けの追加設定があればここに追加
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  if (isTouchDevice) {
+    // タッチデバイス向けの追加調整があれば実装
+  }
+}
+
+// スクロール位置の自動調整（モバイル向け）
+function scrollToPanel(panel) {
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  if (isTouchDevice) {
+    // スマートフォンでパネルが追加された際に適切な位置にスクロール
+    setTimeout(() => {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+  }
+}
+
+// パネル追加時にスクロール調整を含める
+const originalAddNewPanel = addNewPanel;
+function addNewPanel() {
+  const panelsContainer = document.getElementById('llmPanels');
+  const currentPanels = document.querySelectorAll('.llm-panel');
+  
+  if (currentPanels.length >= MAX_PANELS) {
+    alert('最大6つまでのパネルを追加できます。');
+    return;
+  }
+  
+  const newPanel = createPanelElement(nextPanelId);
+  panelsContainer.appendChild(newPanel);
+  
+  // 新しいパネルのセレクターのみ初期化
+  initializeNewPanelSelector(newPanel);
+  
+  // 未選択のモデルを自動的に選択
+  autoSelectUnusedModel(newPanel);
+  
+  // 削除ボタンイベント設定（モバイル対応含む）
+  setupRemoveButtonEventMobile(newPanel);
+  
+  // モバイルでスクロール調整
+  scrollToPanel(newPanel);
+  
+  nextPanelId++;
+  updateRemoveButtons();
+  
+  // パネル追加時に状態を保存
+  saveResults();
+} 

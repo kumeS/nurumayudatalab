@@ -760,126 +760,6 @@
       100% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0); }
     }
     
-    /* 段階的祝福演出 */
-    .celebration-overlay.excellent {
-      background: linear-gradient(135deg, 
-        rgba(255, 215, 0, 0.9),   /* 金色 */
-        rgba(255, 165, 0, 0.9),   /* オレンジ金 */
-        rgba(255, 69, 0, 0.8)     /* 赤オレンジ */
-      );
-    }
-    
-    .celebration-overlay.good {
-      background: linear-gradient(135deg, 
-        rgba(192, 192, 192, 0.9), /* 銀色 */
-        rgba(169, 169, 169, 0.9), /* 濃い銀 */
-        rgba(128, 128, 128, 0.8)  /* グレー */
-      );
-    }
-    
-    .celebration-overlay.average {
-      background: linear-gradient(135deg, 
-        rgba(205, 127, 50, 0.9),  /* 銅色 */
-        rgba(184, 115, 51, 0.9),  /* 濃い銅 */
-        rgba(160, 82, 45, 0.8)    /* サドルブラウン */
-      );
-    }
-    
-    .celebration-overlay.encouraging {
-      background: linear-gradient(135deg, 
-        rgba(255, 165, 0, 0.9),   /* オレンジ */
-        rgba(255, 140, 0, 0.9),   /* 濃いオレンジ */
-        rgba(255, 99, 71, 0.8)    /* トマト色 */
-      );
-    }
-    
-    .celebration-overlay.motivating {
-      background: linear-gradient(135deg, 
-        rgba(106, 90, 205, 0.9),  /* スレートブルー */
-        rgba(72, 61, 139, 0.9),   /* 濃いスレートブルー */
-        rgba(75, 0, 130, 0.8)     /* インディゴ */
-      );
-    }
-    
-    /* 紙吹雪の色バリエーション */
-    .confetti.gold { background: #FFD700; }
-    .confetti.silver { background: #C0C0C0; }
-    .confetti.bronze { background: #CD7F32; }
-    .confetti.orange { background: #FF8C00; }
-    .confetti.purple { background: #9370DB; }
-    
-    /* メダルアイコン */
-    .medal-icon {
-      font-size: 4rem;
-      margin-bottom: 1rem;
-      animation: medalGlow 2s ease-in-out infinite alternate;
-    }
-    
-    .medal-gold { color: #FFD700; }
-    .medal-silver { color: #C0C0C0; }
-    .medal-bronze { color: #CD7F32; }
-    
-    @keyframes medalGlow {
-      0% { 
-        text-shadow: 0 0 20px currentColor;
-        transform: scale(1);
-      }
-      100% { 
-        text-shadow: 0 0 30px currentColor, 0 0 40px currentColor;
-        transform: scale(1.1);
-      }
-    }
-    
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      color: var(--primary);
-      text-decoration: none;
-      margin-top: 1rem;
-      transition: all 0.3s;
-    }
-    
-    .back-link:hover {
-      color: var(--secondary);
-    }
-    
-    .back-link i {
-      margin-right: 0.5rem;
-    }
-    
-    @media (max-width: 600px) {
-      .container {
-        padding: 1rem;
-      }
-      
-      .tab {
-        padding: 8px 12px;
-        font-size: 0.9rem;
-      }
-      
-      .button-container, .button-group {
-        flex-wrap: wrap;
-      }
-      
-      .level-options, .quiz-options {
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      
-      .level-name, .quiz-option-name {
-        text-align: center;
-        width: 100%;
-      }
-      
-      .quiz-navigation {
-        flex-direction: column;
-      }
-      
-      .input-area {
-        min-height: 120px;
-      }
-    }
-    
     /* 祝福演出の基本スタイル */
     .celebration-overlay {
       position: fixed;
@@ -1037,6 +917,381 @@
       50% {
         opacity: 1;
         transform: scale(1.2);
+      }
+    }
+    
+    /* 段階的祝福演出 */
+    .celebration-overlay.excellent {
+      background: linear-gradient(135deg, 
+        rgba(255, 215, 0, 0.9),   /* 金色 */
+        rgba(255, 165, 0, 0.9),   /* オレンジ金 */
+        rgba(255, 69, 0, 0.8)     /* 赤オレンジ */
+      );
+    }
+    
+    .celebration-overlay.good {
+      background: linear-gradient(135deg, 
+        rgba(192, 192, 192, 0.9), /* 銀色 */
+        rgba(169, 169, 169, 0.9), /* 濃い銀 */
+        rgba(128, 128, 128, 0.8)  /* グレー */
+      );
+    }
+    
+    .celebration-overlay.average {
+      background: linear-gradient(135deg, 
+        rgba(205, 127, 50, 0.9),  /* 銅色 */
+        rgba(184, 115, 51, 0.9),  /* 濃い銅 */
+        rgba(160, 82, 45, 0.8)    /* サドルブラウン */
+      );
+    }
+    
+    .celebration-overlay.encouraging {
+      background: linear-gradient(135deg, 
+        rgba(255, 165, 0, 0.9),   /* オレンジ */
+        rgba(255, 140, 0, 0.9),   /* 濃いオレンジ */
+        rgba(255, 99, 71, 0.8)    /* トマト色 */
+      );
+    }
+    
+    .celebration-overlay.motivating {
+      background: linear-gradient(135deg, 
+        rgba(106, 90, 205, 0.9),  /* スレートブルー */
+        rgba(72, 61, 139, 0.9),   /* 濃いスレートブルー */
+        rgba(75, 0, 130, 0.8)     /* インディゴ */
+      );
+    }
+    
+    /* 紙吹雪の色バリエーション */
+    .confetti.gold { background: #FFD700; }
+    .confetti.silver { background: #C0C0C0; }
+    .confetti.bronze { background: #CD7F32; }
+    .confetti.orange { background: #FF8C00; }
+    .confetti.purple { background: #9370DB; }
+    
+    /* メダルアイコン */
+    .medal-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      animation: medalGlow 2s ease-in-out infinite alternate;
+    }
+    
+    .medal-gold { color: #FFD700; }
+    .medal-silver { color: #C0C0C0; }
+    .medal-bronze { color: #CD7F32; }
+    
+    @keyframes medalGlow {
+      0% { 
+        text-shadow: 0 0 20px currentColor;
+        transform: scale(1);
+      }
+      100% { 
+        text-shadow: 0 0 30px currentColor, 0 0 40px currentColor;
+        transform: scale(1.1);
+      }
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      color: var(--primary);
+      text-decoration: none;
+      margin-top: 1rem;
+      transition: all 0.3s;
+    }
+    
+    .back-link:hover {
+      color: var(--secondary);
+    }
+    
+    .back-link i {
+      margin-right: 0.5rem;
+    }
+    
+    @media (max-width: 600px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      h1 {
+        font-size: 1.8rem;
+        line-height: 1.2;
+      }
+      
+      .description {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+      }
+      
+      .tab {
+        padding: 12px 8px;
+        font-size: 0.85rem;
+      }
+      
+      .level-selection, .quiz-settings {
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      
+      .level-selection-label, .quiz-settings-label {
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+      }
+      
+      .level-options, .quiz-options {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      
+      .level-name, .quiz-option-name {
+        text-align: center;
+        width: 100%;
+        padding: 0.8rem 1rem;
+        font-size: 0.9rem;
+      }
+      
+      .input-label {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+      }
+      
+      .input-area {
+        min-height: 120px;
+        padding: 1rem;
+        font-size: 16px; /* iOS zoom prevention */
+      }
+      
+      .button-container, .button-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+      
+      .button {
+        padding: 0.8rem 1rem;
+        font-size: 0.9rem;
+        text-align: center;
+        justify-content: center;
+      }
+      
+      #generateQuizBtn {
+        grid-column: 1 / -1; /* Full width for main action button */
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        font-weight: bold;
+      }
+      
+      .quiz-container {
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      
+      .question-card {
+        padding: 1rem;
+      }
+      
+      .question-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+      
+      .question-number {
+        align-self: flex-start;
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+      }
+      
+      .hint-button {
+        align-self: flex-end;
+        padding: 0.3rem 0.6rem;
+        font-size: 0.75rem;
+      }
+      
+      .question-text {
+        font-size: 1rem;
+        line-height: 1.4;
+      }
+      
+      .option-item {
+        padding: 0.8rem;
+        font-size: 0.9rem;
+        text-align: left;
+      }
+      
+      .quiz-navigation {
+      display: flex;
+      flex-direction: column;
+        gap: 0.75rem;
+      }
+      
+      .quiz-navigation .button {
+        width: 100%;
+        padding: 1rem;
+        font-size: 1rem;
+      }
+      
+      .quiz-results {
+        padding: 1.5rem 1rem;
+      }
+      
+      .results-title {
+        font-size: 1.5rem;
+      }
+      
+      .results-score {
+        font-size: 1.5rem;
+      }
+      
+      .results-breakdown {
+        flex-direction: column;
+        gap: 1rem;
+      }
+      
+      .breakdown-item {
+        display: flex;
+        justify-content: space-between;
+      align-items: center;
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+      }
+      
+      .loading {
+        grid-column: 1 / -1;
+        justify-self: center;
+        margin: 0;
+    }
+    
+      .usage-guide {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+      .guide-step {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+      }
+      
+      .step-number {
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+    }
+    
+      .celebration-overlay {
+        padding: 1rem;
+    }
+    
+    .celebration-title {
+        font-size: 2.5rem;
+        line-height: 1.2;
+    }
+    
+    .celebration-message {
+        font-size: 1.2rem;
+        text-align: center;
+    }
+    
+    .celebration-stats {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .celebration-score {
+        font-size: 1.5rem;
+      }
+      
+      .back-link {
+        margin-top: 2rem;
+        padding: 0.75rem;
+        text-align: center;
+        display: block;
+        background: rgba(255, 126, 95, 0.1);
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+    
+      .back-link:hover {
+        background: rgba(255, 126, 95, 0.2);
+      }
+    }
+    
+    /* 超小画面対応 (iPhone SE等) */
+    @media (max-width: 375px) {
+      .container {
+        padding: 0.75rem;
+    }
+    
+      h1 {
+        font-size: 1.5rem;
+      }
+      
+      .level-name, .quiz-option-name {
+        padding: 0.7rem;
+        font-size: 0.85rem;
+      }
+      
+      .button {
+        padding: 0.7rem 0.8rem;
+        font-size: 0.85rem;
+      }
+      
+      .question-text {
+        font-size: 0.95rem;
+      }
+      
+      .option-item {
+        padding: 0.7rem;
+        font-size: 0.85rem;
+      }
+      
+      .celebration-title {
+        font-size: 2rem;
+      }
+      
+      .medal-icon {
+        font-size: 3rem;
+      }
+    }
+    
+    /* タッチデバイス用のスタイル */
+    @media (hover: none) and (pointer: coarse) {
+      .button, .level-name, .quiz-option-name, .option-item {
+        min-height: 44px; /* Appleの推奨タッチターゲットサイズ */
+      }
+      
+      .option-item:hover {
+        background: #f8f9fa; /* ホバー効果を無効化 */
+      }
+      
+      .button:hover {
+        transform: none; /* ホバー変形を無効化 */
+      }
+    }
+    
+    /* 横向きスマホ対応 */
+    @media (max-width: 768px) and (orientation: landscape) {
+      .container {
+        padding: 1rem 2rem;
+      }
+      
+      .button-container {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
+      #generateQuizBtn {
+        grid-column: 1 / -1;
+      }
+      
+      .quiz-navigation {
+        flex-direction: row;
+        justify-content: center;
+      }
+      
+      .quiz-navigation .button {
+        flex: 1;
+        max-width: 200px;
       }
     }
   </style>

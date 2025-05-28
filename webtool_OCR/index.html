@@ -212,6 +212,68 @@
       box-shadow: 0 3px 8px rgba(126, 232, 250, 0.3);
     }
     
+    /* コンテンツトグルボタンのスタイル */
+    .content-toggle-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    
+    .content-toggle-btn {
+      padding: 0.75rem 1.25rem;
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      color: var(--text-secondary);
+      border: 2px solid #e0e0e0;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+    
+    .content-toggle-btn:hover {
+      background: linear-gradient(135deg, #fff, #f8f9fa);
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .content-toggle-btn.active {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(255, 126, 95, 0.3);
+    }
+    
+    .content-toggle-btn i {
+      margin-right: 0.5rem;
+    }
+    
+    /* グレイアウトスタイル */
+    .quiz-settings.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    
+    .quiz-settings.disabled .quiz-settings-label {
+      color: #999;
+    }
+    
+    .quiz-settings.disabled .quiz-option-name {
+      background: #f5f5f5;
+      color: #999;
+      border-color: #ddd;
+    }
+    
+    .quiz-settings.disabled .quiz-option input[type="radio"]:checked + .quiz-option-name {
+      background: #ddd;
+      color: #999;
+      border-color: #ccc;
+      box-shadow: none;
+    }
+    
     .input-section {
       margin-bottom: 1rem;
     }
@@ -816,6 +878,12 @@
     .usage-guide h3 {
       margin-top: 0;
     }
+
+    .content-generation-section {
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 2px solid #e0e0e0;
+    }
     
     .guide-step {
       display: flex;
@@ -1001,12 +1069,12 @@
         flex-wrap: wrap;
       }
       
-      .level-options, .quiz-options {
+      .level-options, .quiz-options, .content-toggle-buttons {
         flex-direction: column;
         gap: 0.5rem;
       }
       
-      .level-name, .quiz-option-name {
+      .level-name, .quiz-option-name, .content-toggle-btn {
         text-align: center;
         width: 100%;
       }
@@ -1184,8 +1252,8 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>AI研修クイズ自動作成ツール</h1>
-      <p class="description">LLM活用学習支援ツール｜AI技術・生成AI学習用クイズ生成システム</p>
+      <h1>NuruMayu StudyLab</h1>
+      <p class="description">AI OCR学習支援ツール｜写真から文字起こし＆AI学習コンテンツ自動生成</p>
     </div>
     
     <div class="usage-guide">
@@ -1235,31 +1303,14 @@
 
     <!-- メインタブ -->
     <div class="tabs">
-      <div class="tab active" id="tab-text">テキスト入力</div>
-      <div class="tab" id="tab-ocr">OCR（写真から文字起こし）</div>
-      <div class="tab" id="tab-quiz">学習コンテンツ生成</div>
+      <div class="tab active" id="tab-ocr">OCR（写真から文字起こし）</div>
+      <div class="tab" id="tab-text">テキスト入力</div>
     </div>
     
     <!-- タブコンテンツ -->
     
-    <!-- テキスト入力タブ -->
-    <div id="content-text" class="tab-content active">
-      <!-- 入力エリア -->
-      <div class="input-section">
-        <label for="inputArea" class="input-label"><i class="fas fa-edit"></i> 学習内容を入力</label>
-        <textarea id="inputArea" class="input-area" placeholder="ここに学習内容を入力するか、サンプル入力ボタンや音声録音ボタンを使って入力してください...&#10;&#10;例：&#10;・教科書やノートの内容&#10;・授業で習った内容&#10;・理解したい概念や用語&#10;・復習したい分野"></textarea>
-      </div>
-      
-      <!-- ボタン部分 -->
-      <div class="button-container">
-        <button id="sampleBtn" class="button"><i class="fas fa-file-text"></i> サンプル入力</button>
-        <button id="recordBtn" class="button recording-button"><i class="fas fa-microphone"></i> 音声録音</button>
-        <button id="clearBtn" class="button"><i class="fas fa-trash"></i> クリア</button>
-      </div>
-    </div>
-    
     <!-- OCRタブ -->
-    <div id="content-ocr" class="tab-content" style="display: none;">
+    <div id="content-ocr" class="tab-content active">
       <div class="ocr-section">
         <label class="input-label"><i class="fas fa-camera"></i> 画像をアップロードして文字起こし</label>
         
@@ -1315,114 +1366,225 @@
         <div id="ocrResult" class="ocr-result" style="display: none;">
           <label class="input-label"><i class="fas fa-file-text"></i> 認識結果（編集可能）</label>
           <textarea id="ocrText" class="input-area" placeholder="OCR結果がここに表示されます..."></textarea>
-          <div class="button-container">
-            <button id="useOcrTextBtn" class="button"><i class="fas fa-arrow-right"></i> この内容で学習コンテンツを生成</button>
+          
+          <!-- 学習コンテンツ生成セクション -->
+          <div class="content-generation-section">
+            <!-- 理解度レベル選択 -->
+            <div class="level-selection">
+              <label class="level-selection-label"><i class="fas fa-brain"></i> 理解度レベルを選択</label>
+              <div class="level-options">
+                <div class="level-option">
+                  <input type="radio" id="level-elementary-low-ocr" name="level-ocr" value="elementary-low" checked>
+                  <label for="level-elementary-low-ocr" class="level-name">小学生（低学年）</label>
+                </div>
+                <div class="level-option">
+                  <input type="radio" id="level-elementary-mid-ocr" name="level-ocr" value="elementary-mid">
+                  <label for="level-elementary-mid-ocr" class="level-name">小学生（中学年）</label>
+                </div>
+                <div class="level-option">
+                  <input type="radio" id="level-elementary-high-ocr" name="level-ocr" value="elementary-high">
+                  <label for="level-elementary-high-ocr" class="level-name">小学生（高学年）</label>
+                </div>
+                <div class="level-option">
+                  <input type="radio" id="level-junior-ocr" name="level-ocr" value="junior">
+                  <label for="level-junior-ocr" class="level-name">中学生</label>
+                </div>
+                <div class="level-option">
+                  <input type="radio" id="level-senior-ocr" name="level-ocr" value="senior">
+                  <label for="level-senior-ocr" class="level-name">高校生</label>
+                </div>
+                <div class="level-option">
+                  <input type="radio" id="level-university-ocr" name="level-ocr" value="university">
+                  <label for="level-university-ocr" class="level-name">大学生</label>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 生成コンテンツ選択 -->
+            <div class="quiz-settings">
+              <div class="quiz-settings-group">
+                <label class="quiz-settings-label"><i class="fas fa-cogs"></i> 生成する学習コンテンツ</label>
+                <div class="content-toggle-buttons">
+                  <button type="button" id="content-summary-ocr" class="content-toggle-btn active" data-content="summary">
+                    <i class="fas fa-file-alt"></i> 要約
+                  </button>
+                  <button type="button" id="content-explanation-ocr" class="content-toggle-btn active" data-content="explanation">
+                    <i class="fas fa-book-open"></i> 詳しい説明
+                  </button>
+                  <button type="button" id="content-quiz-ocr" class="content-toggle-btn active" data-content="quiz">
+                    <i class="fas fa-question-circle"></i> クイズ
+                  </button>
+                </div>
+              </div>
+            </div>
+          
+            <!-- クイズ設定 -->
+            <div class="quiz-settings" id="quiz-settings-ocr">
+              <div class="quiz-settings-group">
+                <label class="quiz-settings-label"><i class="fas fa-list-ol"></i> 問題数を選択</label>
+                <div class="quiz-options">
+                  <div class="quiz-option">
+                    <input type="radio" id="count-3-ocr" name="questionCount-ocr" value="3" checked>
+                    <label for="count-3-ocr" class="quiz-option-name">3問</label>
+                  </div>
+                  <div class="quiz-option">
+                    <input type="radio" id="count-5-ocr" name="questionCount-ocr" value="5">
+                    <label for="count-5-ocr" class="quiz-option-name">5問</label>
+                  </div>
+                </div>
+              </div>
+              <div class="quiz-settings-group">
+                <label class="quiz-settings-label"><i class="fas fa-check-circle"></i> クイズ形式を選択</label>
+                <div class="quiz-options">
+                  <div class="quiz-option">
+                    <input type="radio" id="type-2-ocr" name="quizType-ocr" value="2">
+                    <label for="type-2-ocr" class="quiz-option-name">2択（はい・いいえ）</label>
+                  </div>
+                  <div class="quiz-option">
+                    <input type="radio" id="type-3-ocr" name="quizType-ocr" value="3">
+                    <label for="type-3-ocr" class="quiz-option-name">3択</label>
+                  </div>
+                  <div class="quiz-option">
+                    <input type="radio" id="type-4-ocr" name="quizType-ocr" value="4" checked>
+                    <label for="type-4-ocr" class="quiz-option-name">4択</label>
+                  </div>
+                  <div class="quiz-option">
+                    <input type="radio" id="type-5-ocr" name="quizType-ocr" value="5">
+                    <label for="type-5-ocr" class="quiz-option-name">5択</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 生成ボタン -->
+            <div class="button-container">
+              <button id="generateContentOcrBtn" class="button"><i class="fas fa-brain"></i> 学習コンテンツ生成</button>
+              <button id="resetContentOcrBtn" class="button"><i class="fas fa-trash"></i> リセット</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
     
-    <!-- 学習コンテンツ生成タブ -->
-    <div id="content-quiz" class="tab-content" style="display: none;">
-      <!-- 理解度レベル選択 -->
-      <div class="level-selection">
-        <label class="level-selection-label"><i class="fas fa-brain"></i> 理解度レベルを選択</label>
-        <div class="level-options">
-          <div class="level-option">
-            <input type="radio" id="level-sleep" name="level" value="sleep" checked>
-            <label for="level-sleep" class="level-name">寝てても分かるレベル</label>
-          </div>
-          <div class="level-option">
-            <input type="radio" id="level-beginner" name="level" value="beginner">
-            <label for="level-beginner" class="level-name">初級レベル</label>
-          </div>
-          <div class="level-option">
-            <input type="radio" id="level-intermediate" name="level" value="intermediate">
-            <label for="level-intermediate" class="level-name">中級レベル</label>
-          </div>
-          <div class="level-option">
-            <input type="radio" id="level-advanced" name="level" value="advanced">
-            <label for="level-advanced" class="level-name">上級者向けの難しいやつ</label>
-          </div>
-        </div>
-      </div>
-      
-      <!-- 生成コンテンツ選択 -->
-      <div class="quiz-settings">
-        <div class="quiz-settings-group">
-          <label class="quiz-settings-label"><i class="fas fa-cogs"></i> 生成する学習コンテンツ</label>
-          <div class="quiz-options">
-            <div class="quiz-option">
-              <input type="checkbox" id="content-summary" name="contentType" value="summary" checked>
-              <label for="content-summary" class="quiz-option-name">要約</label>
-            </div>
-            <div class="quiz-option">
-              <input type="checkbox" id="content-explanation" name="contentType" value="explanation" checked>
-              <label for="content-explanation" class="quiz-option-name">詳しい説明</label>
-            </div>
-            <div class="quiz-option">
-              <input type="checkbox" id="content-quiz" name="contentType" value="quiz" checked>
-              <label for="content-quiz" class="quiz-option-name">クイズ</label>
-            </div>
-          </div>
-        </div>
-      </div>
-    
-      <!-- クイズ設定 -->
-      <div class="quiz-settings">
-        <div class="quiz-settings-group">
-          <label class="quiz-settings-label"><i class="fas fa-list-ol"></i> 問題数を選択</label>
-          <div class="quiz-options">
-            <div class="quiz-option">
-              <input type="radio" id="count-3" name="questionCount" value="3" checked>
-              <label for="count-3" class="quiz-option-name">3問</label>
-            </div>
-            <div class="quiz-option">
-              <input type="radio" id="count-5" name="questionCount" value="5">
-              <label for="count-5" class="quiz-option-name">5問</label>
-            </div>
-          </div>
-        </div>
-        <div class="quiz-settings-group">
-          <label class="quiz-settings-label"><i class="fas fa-check-circle"></i> クイズ形式を選択</label>
-          <div class="quiz-options">
-            <div class="quiz-option">
-              <input type="radio" id="type-2" name="quizType" value="2" checked>
-              <label for="type-2" class="quiz-option-name">2択（はい・いいえ）</label>
-            </div>
-            <div class="quiz-option">
-              <input type="radio" id="type-3" name="quizType" value="3">
-              <label for="type-3" class="quiz-option-name">3択</label>
-            </div>
-            <div class="quiz-option">
-              <input type="radio" id="type-4" name="quizType" value="4">
-              <label for="type-4" class="quiz-option-name">4択</label>
-            </div>
-            <div class="quiz-option">
-              <input type="radio" id="type-5" name="quizType" value="5">
-              <label for="type-5" class="quiz-option-name">5択</label>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- 入力テキスト表示 -->
+    <!-- テキスト入力タブ -->
+    <div id="content-text" class="tab-content" style="display: none;">
+      <!-- 入力エリア -->
       <div class="input-section">
-        <label class="input-label"><i class="fas fa-file-text"></i> 処理対象のテキスト</label>
-        <textarea id="targetText" class="input-area" readonly placeholder="テキスト入力タブまたはOCRタブで入力されたテキストがここに表示されます..."></textarea>
+        <label for="inputArea" class="input-label"><i class="fas fa-edit"></i> 学習内容を入力</label>
+        <textarea id="inputArea" class="input-area" placeholder="ここに学習内容を入力するか、サンプル入力ボタンや音声録音ボタンを使って入力してください...&#10;&#10;例：&#10;・教科書やノートの内容&#10;・授業で習った内容&#10;・理解したい概念や用語&#10;・復習したい分野"></textarea>
       </div>
       
-      <!-- 生成ボタン -->
+      <!-- ボタン部分 -->
       <div class="button-container">
-        <button id="generateContentBtn" class="button"><i class="fas fa-brain"></i> 学習コンテンツ生成</button>
-        <button id="resetContentBtn" class="button"><i class="fas fa-trash"></i> リセット</button>
-        <div id="loadingIndicator" class="loading">
-          <div class="dot-pulse"></div>
-          <span class="loading-text">処理中</span>
+        <button id="sampleBtn" class="button"><i class="fas fa-file-text"></i> サンプル入力</button>
+        <button id="recordBtn" class="button recording-button"><i class="fas fa-microphone"></i> 音声録音</button>
+        <button id="clearBtn" class="button"><i class="fas fa-trash"></i> クリア</button>
+      </div>
+      
+      <!-- 学習コンテンツ生成セクション -->
+      <div class="content-generation-section">
+        <!-- 理解度レベル選択 -->
+        <div class="level-selection">
+          <label class="level-selection-label"><i class="fas fa-brain"></i> 理解度レベルを選択</label>
+          <div class="level-options">
+            <div class="level-option">
+              <input type="radio" id="level-elementary-low-text" name="level-text" value="elementary-low" checked>
+              <label for="level-elementary-low-text" class="level-name">小学生（低学年）</label>
+            </div>
+            <div class="level-option">
+              <input type="radio" id="level-elementary-mid-text" name="level-text" value="elementary-mid">
+              <label for="level-elementary-mid-text" class="level-name">小学生（中学年）</label>
+            </div>
+            <div class="level-option">
+              <input type="radio" id="level-elementary-high-text" name="level-text" value="elementary-high">
+              <label for="level-elementary-high-text" class="level-name">小学生（高学年）</label>
+            </div>
+            <div class="level-option">
+              <input type="radio" id="level-junior-text" name="level-text" value="junior">
+              <label for="level-junior-text" class="level-name">中学生</label>
+            </div>
+            <div class="level-option">
+              <input type="radio" id="level-senior-text" name="level-text" value="senior">
+              <label for="level-senior-text" class="level-name">高校生</label>
+            </div>
+            <div class="level-option">
+              <input type="radio" id="level-university-text" name="level-text" value="university">
+              <label for="level-university-text" class="level-name">大学生</label>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 生成コンテンツ選択 -->
+        <div class="quiz-settings">
+          <div class="quiz-settings-group">
+            <label class="quiz-settings-label"><i class="fas fa-cogs"></i> 生成する学習コンテンツ</label>
+            <div class="content-toggle-buttons">
+              <button type="button" id="content-summary-text" class="content-toggle-btn active" data-content="summary">
+                <i class="fas fa-file-alt"></i> 要約
+              </button>
+              <button type="button" id="content-explanation-text" class="content-toggle-btn active" data-content="explanation">
+                <i class="fas fa-book-open"></i> 詳しい説明
+              </button>
+              <button type="button" id="content-quiz-text" class="content-toggle-btn active" data-content="quiz">
+                <i class="fas fa-question-circle"></i> クイズ
+              </button>
+            </div>
+          </div>
+        </div>
+      
+        <!-- クイズ設定 -->
+        <div class="quiz-settings" id="quiz-settings-text">
+          <div class="quiz-settings-group">
+            <label class="quiz-settings-label"><i class="fas fa-list-ol"></i> 問題数を選択</label>
+            <div class="quiz-options">
+              <div class="quiz-option">
+                <input type="radio" id="count-3-text" name="questionCount-text" value="3" checked>
+                <label for="count-3-text" class="quiz-option-name">3問</label>
+              </div>
+              <div class="quiz-option">
+                <input type="radio" id="count-5-text" name="questionCount-text" value="5">
+                <label for="count-5-text" class="quiz-option-name">5問</label>
+              </div>
+            </div>
+          </div>
+          <div class="quiz-settings-group">
+            <label class="quiz-settings-label"><i class="fas fa-check-circle"></i> クイズ形式を選択</label>
+            <div class="quiz-options">
+              <div class="quiz-option">
+                <input type="radio" id="type-2-text" name="quizType-text" value="2">
+                <label for="type-2-text" class="quiz-option-name">2択（はい・いいえ）</label>
+              </div>
+              <div class="quiz-option">
+                <input type="radio" id="type-3-text" name="quizType-text" value="3">
+                <label for="type-3-text" class="quiz-option-name">3択</label>
+              </div>
+              <div class="quiz-option">
+                <input type="radio" id="type-4-text" name="quizType-text" value="4" checked>
+                <label for="type-4-text" class="quiz-option-name">4択</label>
+              </div>
+              <div class="quiz-option">
+                <input type="radio" id="type-5-text" name="quizType-text" value="5">
+                <label for="type-5-text" class="quiz-option-name">5択</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 生成ボタン -->
+        <div class="button-container">
+          <button id="generateContentTextBtn" class="button"><i class="fas fa-brain"></i> 学習コンテンツ生成</button>
+          <button id="resetContentTextBtn" class="button"><i class="fas fa-trash"></i> リセット</button>
         </div>
       </div>
     </div>
     
+    
+    <!-- 読み込みインジケーター -->
+    <div id="loadingIndicator" class="loading">
+      <div class="dot-pulse"></div>
+      <span class="loading-text">処理中</span>
+    </div>
+      
     <!-- クイズ表示エリア -->
     <div id="quizContainer" class="quiz-container" style="display: none;">
       <div class="quiz-header">

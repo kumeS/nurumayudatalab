@@ -35,6 +35,7 @@
       font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
       background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
       min-height: 100vh;
+      min-height: calc(var(--vh, 1vh) * 100);
     }
     
     .nuruma-gradient {
@@ -151,13 +152,32 @@
     .mobile-menu {
       transition: transform var(--transition-speed) ease;
       transform: translateX(-100%);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
     
     .mobile-menu.active {
       transform: translateX(0);
     }
     
+    /* Mobile menu overlay */
+    .mobile-menu-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.3);
+      z-index: 39;
+      opacity: 0;
+      visibility: hidden;
+      transition: all var(--transition-speed) ease;
+    }
     
+    .mobile-menu-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
     
     /* Search styles */
     .search-container {
@@ -227,6 +247,192 @@
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-10px); }
     }
+
+    /* Mobile-first responsive design */
+    @media (max-width: 768px) {
+      /* ナビゲーション改善 */
+      .navbar {
+        padding: 0.75rem 1rem;
+      }
+      
+      /* ヒーローセクション最適化 */
+      .header-bg {
+        padding-top: 5rem;
+        padding-bottom: 2rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      
+      h1 {
+        font-size: 2rem !important;
+        line-height: 1.2;
+        margin-bottom: 1rem;
+      }
+      
+      .title-wrapper {
+        padding: 0 0.5rem;
+      }
+      
+      /* ヒーローボタンの最適化 */
+      .flex.flex-wrap.justify-center.gap-4 {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: center;
+      }
+      
+      .flex.flex-wrap.justify-center.gap-4 > a {
+        width: 100%;
+        max-width: 280px;
+        text-align: center;
+        padding: 0.875rem 1.5rem;
+        font-size: 1rem;
+        justify-content: center;
+        display: flex;
+        align-items: center;
+      }
+      
+      /* ツールカード最適化 */
+      .tool-card {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+      }
+      
+      .tool-card:hover {
+        transform: translateY(-5px);
+      }
+      
+      .card-header {
+        padding: 1.25rem 1rem;
+        font-size: 1.1em;
+        text-align: center;
+      }
+      
+      .card-header i {
+        display: block;
+        margin: 0 0 0.5rem 0;
+        font-size: 1.5em;
+      }
+      
+      /* ボタンのタッチフレンドリー化 */
+      .btn-primary {
+        min-height: 44px;
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        width: 100%;
+        text-align: center;
+        justify-content: center;
+      }
+      
+      /* セクション間の余白調整 */
+      .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      
+      /* テキストサイズの調整 */
+      .text-lg {
+        font-size: 1rem !important;
+      }
+      
+      .text-xl {
+        font-size: 1.125rem !important;
+      }
+      
+      .text-2xl {
+        font-size: 1.5rem !important;
+      }
+      
+      .text-3xl {
+        font-size: 1.875rem !important;
+      }
+      
+      /* モバイルメニューの改善 */
+      .mobile-menu {
+        width: 100%;
+        max-width: 300px;
+      }
+      
+      .mobile-menu a {
+        padding: 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 1.1rem;
+      }
+      
+      /* セクションの余白調整 */
+      #tools, #about, #overview, #contact {
+        margin-bottom: 3rem;
+      }
+      
+      .bg-white.rounded-xl, .bg-gradient-to-br {
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+        padding: 1.5rem 1rem;
+      }
+      
+      /* ウェーブの高さ調整 */
+      .wave-divider {
+        height: 40px;
+      }
+    }
+
+    /* Very small screens (iPhone SE, etc.) */
+    @media (max-width: 375px) {
+      h1 {
+        font-size: 1.75rem !important;
+      }
+      
+      .flex.flex-wrap.justify-center.gap-4 > a {
+        max-width: 100%;
+        font-size: 0.9rem;
+        padding: 0.75rem 1rem;
+      }
+      
+      .card-header {
+        padding: 1rem 0.75rem;
+        font-size: 1rem;
+      }
+      
+      .bg-white.rounded-xl, .bg-gradient-to-br {
+        margin-left: 0.25rem;
+        margin-right: 0.25rem;
+        padding: 1.25rem 0.75rem;
+      }
+    }
+
+    /* Touch improvements */
+    @media (pointer: coarse) {
+      .tool-card {
+        cursor: pointer;
+      }
+      
+      .btn-primary, button {
+        min-height: 44px;
+        touch-action: manipulation;
+      }
+      
+      a, button {
+        -webkit-tap-highlight-color: rgba(255, 126, 95, 0.2);
+      }
+    }
+
+    /* Accessibility improvements */
+    @media (prefers-reduced-motion: reduce) {
+      .tool-card:hover {
+        transform: none;
+      }
+      
+      .btn-primary:hover {
+        transform: none;
+      }
+      
+      .title-emoji {
+        animation: none;
+      }
+      
+      html {
+        scroll-behavior: auto;
+      }
+    }
   </style>
 </head>
 <body class="antialiased">
@@ -265,6 +471,9 @@
         <a href="Analysis.html" class="text-gray-600 hover:text-gray-800 font-medium py-2">Analysis</a>
       </div>
     </div>
+  
+  <!-- Mobile Menu Overlay -->
+  <div id="mobileMenuOverlay" class="mobile-menu-overlay md:hidden"></div>
   
   <!-- Hero Section -->
   <header class="header-bg pt-24 pb-12 px-4">
@@ -470,6 +679,7 @@
       
       setupEventListeners();
       setupSmoothScroll();
+      setupMobileOptimizations();
     });
 
     //--------------------------------------------------------------
@@ -532,9 +742,17 @@
       // Mobile menu toggle
       const menuToggle = document.getElementById('menuToggle');
       const mobileMenu = document.getElementById('mobileMenu');
+      const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
       
       menuToggle.addEventListener('click', () => {
         mobileMenu.classList.toggle('active');
+        mobileMenuOverlay.classList.toggle('active');
+      });
+      
+      // Close mobile menu when clicking overlay
+      mobileMenuOverlay.addEventListener('click', () => {
+        mobileMenu.classList.remove('active');
+        mobileMenuOverlay.classList.remove('active');
       });
       
       // Close mobile menu when clicking outside
@@ -543,6 +761,7 @@
             !mobileMenu.contains(e.target) && 
             e.target !== menuToggle) {
           mobileMenu.classList.remove('active');
+          mobileMenuOverlay.classList.remove('active');
         }
       });
             
@@ -614,8 +833,10 @@
             
             // モバイルメニューが開いている場合は閉じる
             const mobileMenu = document.getElementById('mobileMenu');
+            const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
             if (mobileMenu.classList.contains('active')) {
               mobileMenu.classList.remove('active');
+              mobileMenuOverlay.classList.remove('active');
             }
           }
         });
@@ -644,6 +865,140 @@
       // メールクライアントを開く
       const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       window.location.href = mailtoUrl;
+    }
+
+    //--------------------------------------------------------------
+    // ❼ モバイル用の最適化
+    //--------------------------------------------------------------
+    function setupMobileOptimizations() {
+      // タッチデバイスの検出
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      
+      if (isTouchDevice) {
+        // ツールカードにタッチフィードバックを追加
+        document.addEventListener('DOMContentLoaded', () => {
+          setTimeout(addTouchFeedback, 600);
+        });
+        
+        // バーチャルキーボード対応
+        setupVirtualKeyboardHandling();
+        
+        // スワイプジェスチャー（モバイルメニュー用）
+        setupSwipeGestures();
+      }
+      
+      // 画面向き変更対応
+      window.addEventListener('orientationchange', () => {
+        setTimeout(adjustLayoutForOrientation, 100);
+      });
+      
+      // ビューポート調整
+      adjustViewportForMobile();
+    }
+    
+    function addTouchFeedback() {
+      const toolCards = document.querySelectorAll('.tool-card');
+      
+      toolCards.forEach(card => {
+        // タッチ開始時のフィードバック
+        card.addEventListener('touchstart', function(e) {
+          this.style.transform = 'scale(0.98)';
+          this.style.transition = 'transform 0.1s ease';
+        }, { passive: true });
+        
+        // タッチ終了時のリセット
+        card.addEventListener('touchend', function(e) {
+          this.style.transform = '';
+          this.style.transition = '';
+        }, { passive: true });
+        
+        // タッチキャンセル時のリセット
+        card.addEventListener('touchcancel', function(e) {
+          this.style.transform = '';
+          this.style.transition = '';
+        }, { passive: true });
+      });
+    }
+    
+    function setupVirtualKeyboardHandling() {
+      const originalViewHeight = window.innerHeight;
+      
+      window.addEventListener('resize', () => {
+        const currentHeight = window.innerHeight;
+        const heightDifference = originalViewHeight - currentHeight;
+        
+        // バーチャルキーボードが表示されている可能性
+        if (heightDifference > 150) {
+          document.body.style.height = `${currentHeight}px`;
+        } else {
+          document.body.style.height = '';
+        }
+      });
+    }
+    
+    function setupSwipeGestures() {
+      let startX = 0;
+      let startY = 0;
+      const mobileMenu = document.getElementById('mobileMenu');
+      const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+      
+      document.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      }, { passive: true });
+      
+      document.addEventListener('touchmove', (e) => {
+        if (!startX || !startY) return;
+        
+        const currentX = e.touches[0].clientX;
+        const currentY = e.touches[0].clientY;
+        
+        const diffX = startX - currentX;
+        const diffY = startY - currentY;
+        
+        // 横方向のスワイプが縦方向より大きい場合
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+          // 右から左へのスワイプでメニューを閉じる
+          if (diffX > 50 && mobileMenu.classList.contains('active')) {
+            mobileMenu.classList.remove('active');
+            mobileMenuOverlay.classList.remove('active');
+          }
+          // 左から右へのスワイプでメニューを開く（画面左端から開始の場合のみ）
+          else if (diffX < -50 && startX < 50 && !mobileMenu.classList.contains('active')) {
+            mobileMenu.classList.add('active');
+            mobileMenuOverlay.classList.add('active');
+          }
+        }
+        
+        startX = 0;
+        startY = 0;
+      }, { passive: true });
+    }
+    
+    function adjustLayoutForOrientation() {
+      const toolGrid = document.getElementById('toolGrid');
+      if (!toolGrid) return;
+      
+      // 横向きの場合、カードの配置を調整
+      if (window.orientation === 90 || window.orientation === -90) {
+        toolGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
+      } else {
+        toolGrid.style.gridTemplateColumns = '';
+      }
+    }
+    
+    function adjustViewportForMobile() {
+      // iOS Safariの100vh問題を修正
+      const setVH = () => {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      };
+      
+      setVH();
+      window.addEventListener('resize', setVH);
+      window.addEventListener('orientationchange', () => {
+        setTimeout(setVH, 100);
+      });
     }
   </script>
 </body>

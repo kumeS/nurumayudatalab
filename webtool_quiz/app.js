@@ -380,6 +380,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 過去の生成履歴から重複回避指示を作成
     const avoidanceInstructions = createAvoidanceInstructions();
     
+    // 正解位置のバランス指示を生成
+    const balanceInstructions = createBalanceInstructions(questionCount, quizType);
+    
     const systemPrompt = `あなたはクイズ作成の専門家です。与えられたテキストから${levelDescriptions[level]}レベルの${typeDescriptions[quizType]}を${questionCount}問作成してください。
 
 ${variationInstructions}
@@ -389,6 +392,8 @@ ${focusAreas}
 ${questionStyles}
 
 ${avoidanceInstructions}
+
+${balanceInstructions}
 
 以下のJSON形式で回答してください：
 {
@@ -485,6 +490,21 @@ ${avoidanceInstructions}
     return "";
   }
   
+  // 正解位置のバランス指示を作成
+  function createBalanceInstructions(questionCount, quizType) {
+    let instructions = "";
+    
+    if (quizType === '2') {
+      instructions = `\n重要：2択問題では「はい」と「いいえ」の回答がバランスよく配分されるようにしてください。${questionCount}問中、可能な限り半々になるよう調整してください。`;
+    } else if (quizType === '3') {
+      instructions = `\n重要：3択問題では正解位置（1番目、2番目、3番目）が偏らないよう、できるだけ均等に配分してください。`;
+    } else if (quizType === '4') {
+      instructions = `\n重要：4択問題では正解位置（1番目、2番目、3番目、4番目）が偏らないよう、できるだけ均等に配分してください。`;
+    }
+    
+    return instructions;
+  }
+  
   // 生成情報を更新
   function updateGenerationInfo() {
     const generateBtn = document.getElementById('generateQuizBtn');
@@ -503,14 +523,12 @@ ${avoidanceInstructions}
   function callLLMAPI(messages) {
     const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
     
-    // 生成回数に応じてtemperatureを調整（バリエーション向上）
-    const baseTemperature = 0.7;
-    const temperatureVariation = Math.min(generationCount * 0.1, 0.3);
-    const adjustedTemperature = Math.min(baseTemperature + temperatureVariation, 1.0);
+    // temperatureを0.5に固定（質問の多様性を保ちつつ安定性を確保）
+    const temperature = 0.5;
     
     const requestData = {
       model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-      temperature: adjustedTemperature,
+      temperature: temperature,
       stream: false,
       max_completion_tokens: 2000,
       messages: messages
