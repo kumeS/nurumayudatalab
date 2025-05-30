@@ -1,4 +1,175 @@
+以下の７つの関数はいずれもデフォルトでは NumPy（CPU）バックエンドで動作しますが，CPU 上で特に高速かつ安定的に動かせるもの・問題規模に応じて適切なものをまとめ，それぞれの実行コード例を示します。
 
-Geoffrey Schiebinger et al, 
-Optimal-Transport Analysis of Single-Cell Gene Expression Identifies Developmental Trajectories in Reprogramming
-Cell, Volume 176, Issue 6, 7 March 2019, Pages 1517
+POT は NumPy ベースの純粋 Python 実装に加え，Cython 最適化や複数の近似手法を備え，CPU 上での大規模計算にも対応しています。
+
+---
+
+## 1. エントロピー正則化 Sinkhorn (`ot.sinkhorn`)
+
+**適性**：小〜中規模（サンプル数 $n\lesssim500$）の分布ペアの距離計算に適します。純粋 Python 実装ながら，Python–NumPy 環境のみで動作するため，追加依存なしで手軽に利用可能です。
+
+```python
+import numpy as np
+import ot
+
+# 分布 a, b を正規化ヒストグラムとして定義
+n = 100
+a = np.ones(n) / n
+b = np.random.rand(n)
+b /= b.sum()
+
+# ユークリッド距離行列を計算
+x = np.linspace(0, 1, n)[:, None]
+M = ot.utils.dist(x, x)
+
+# entropic OT プランとコストを取得
+gamma = ot.sinkhorn(a, b, M, reg=1e-1)
+cost   = np.sum(gamma * M)
+print("Sinkhorn cost:", cost)
+```
+
+---
+
+## 2. Cython 最適化版 Sinkhorn (`ot.sinkhorn2`)
+
+**適性**：上記 `ot.sinkhorn` と同じ用途ながら，Cython／C++ 実装により純粋 Python 実装比で数倍速いので，中規模（$n\lesssim2000$）までのペアワイズ計算で有効です。
+
+```python
+import numpy as np
+import ot
+
+n = 500
+a = np.ones(n) / n
+b = np.random.rand(n); b /= b.sum()
+x = np.linspace(0, 1, n)[:, None]
+M = ot.utils.dist(x, x)
+
+# Cython 最適化版を呼び出し
+# 戻り値は (transport_cost, transport_plan)
+cost, gamma = ot.sinkhorn2(a, b, M, reg=5e-1)
+print("Sinkhorn2 cost:", cost)
+```
+
+---
+
+## 3. 非平衡（Unbalanced）Sinkhorn (`ot.unbalanced.sinkhorn_unbalanced`)
+
+**適性**：分布間で総質量保存が成り立たない（ヒストグラム合計が異なる）場合に利用。CPU 環境で安定して収束しますが，反復回数や L-BFGS-B ベースの実装でやや遅くなるため，中〜小規模データ向けです。
+
+```python
+import numpy as np
+import ot
+
+n = 200
+a = np.ones(n)           # 非正規化ヒストグラム
+b = np.random.rand(n)*2  # ヒストグラム和が異なる
+x = np.linspace(0, 1, n)[:, None]
+M = ot.utils.dist(x, x)
+
+# KL 緩和付き非平衡 OT
+gamma = ot.unbalanced.sinkhorn_unbalanced(a, b, M,
+                                         reg=1e-1,   # entropy reg
+                                         reg_m=1e-1) # mass reg
+cost   = np.sum(gamma * M)
+print("Unbalanced Sinkhorn cost:", cost)
+```
+
+---
+
+## 4. Wasserstein 重心（Barycenter）計算 (`ot.barycenter`)
+
+**適性**：複数（たとえば10～100）の分布の“平均”分布を求めるときに適用。CPU 上の中規模（分布数 $\lesssim50$, ヒストグラム次元 $\lesssim500$）で実用的です。
+
+```python
+import numpy as np
+import ot
+
+# 5つのランダム分布を用意
+n = 100
+K = 5
+A = np.random.rand(n, K)
+A /= A.sum(axis=0, keepdims=True)
+x = np.linspace(0, 1, n)[:, None]
+M = ot.utils.dist(x, x)
+
+# 重心計算（均一重み）
+reg = 5e-2
+bary = ot.barycenter(A, M, reg=reg)
+print("Barycenter shape:", bary.shape)
+```
+
+---
+
+## 5. Sliced Wasserstein 距離 (`ot.sliced.sliced_wasserstein_distance`)
+
+**適性**：高次元データ（埋め込み次元 $d\sim100$）の多数ペア比較に最適。CPU 上で投影数（`n_projections`）を適度に小さくすれば，数千サンプル×数百ペアもこなせます。
+
+```python
+import numpy as np
+import ot
+
+# 2D分布サンプル
+ns = 300; nt = 300; d = 50
+Xs = np.random.randn(ns, d)
+Xt = np.random.randn(nt, d) + 0.5
+
+# Sliced Wasserstein を推定
+sw = ot.sliced.sliced_wasserstein_distance(Xs, Xt,
+                                          n_projections=30,
+                                          seed=0)
+print("Sliced Wasserstein:", sw)
+```
+
+---
+
+## 6. m-POT（ミニバッチ部分 OT）
+
+**適性**：大規模データ（サンプル数 $n\gtrsim10^4$）を小バッチに分割して部分的に輸送する手法。CPU 実装でも動きますが，バッチ単位の前処理・反復回数が多くなるため，並列ジョブに分けるなど工夫が必要です。
+
+```python
+import numpy as np
+from pot import mpot  # m-POT のパッケージ例
+
+# ダミーデータ生成
+n = 20000; dim = 20
+X = np.random.randn(n, dim)
+
+# ミニバッチ Partial OT の実行
+params = {'batch_size':1024, 'reg':1e-1, 'iterations':50}
+transport_plan = mpot.compute_mpot(X, params)
+print("m-POT plan shape:", transport_plan.shape)
+```
+
+---
+
+## 7. 多分散（マルチマージナル）OT (`ot.lp.dmmot_monge_1dgrid_loss`)
+
+**適性**：3 以上の分布を同時に最適輸送する場合に使う関数。CPU 上では非常に組合せ爆発的な計算量（$\widetilde O(m^3n^m)$）になるため，分布数 $m\lesssim3$, 次元 $n\lesssim100$ など極小規模での利用に限定されます。
+
+```python
+import numpy as np
+import ot
+
+# 1Dグリッド上に 3 つの分布を定義
+n = 50; m = 3
+A = np.abs(np.random.randn(n, m))
+A /= A.sum(axis=0, keepdims=True)
+
+# 多分散 OT を計算
+loss = ot.lp.dmmot_monge_1dgrid_loss(A)
+print("Multi-marginal OT loss:", loss)
+```
+
+---
+
+**まとめ**
+
+* **小規模（n≲500）**：`ot.sinkhorn`
+* **中規模（n≲2000）**：`ot.sinkhorn2`（Cython 最適化）
+* **質量不均衡**：`ot.unbalanced.sinkhorn_unbalanced`
+* **分布重心**：`ot.barycenter`
+* **高次元多数ペア**：`ot.sliced.sliced_wasserstein_distance`
+* **超大規模**：`m-POT`（ミニバッチ実装）
+* **複数分布同時**：`ot.lp.dmmot_monge_1dgrid_loss`（極小規模のみ）
+
+これらを問題規模や精度要件に応じて選択してください。
