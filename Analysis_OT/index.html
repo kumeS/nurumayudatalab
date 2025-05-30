@@ -365,6 +365,7 @@
 <button class='tab-button' onclick="showTab('transport-bc')">🌿 B→C輸送</button>
 <button class='tab-button' onclick="showTab('progression')">🎬 健康状態遷移</button>
 <button class='tab-button' onclick="showTab('data')">📋 データ詳細</button>
+<button class='tab-button' onclick="showTab('reference')">📚 リファレンス</button>
     </div>
     
 <div id='overview' class='tab-content active'>
@@ -503,11 +504,6 @@
 </div>
 </div>
 
-<div style="text-align: center; margin-top: 30px; padding: 20px; background: linear-gradient(135deg, var(--neutral-light), var(--primary-light)); border-radius: 10px;">
-<a href="../Analysis.html" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; text-decoration: none; border-radius: 25px; font-weight: 500; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-🏠 メインページに戻る
-</a>
-</div>
         
 </div>
 
@@ -911,11 +907,6 @@ cat("✅ Generated: transport_bc.png with ggplot2 (branching transport displayed
     </div>
 </div>
 
-<div style="text-align: center; margin-top: 30px; padding: 20px; background: linear-gradient(135deg, var(--neutral-light), var(--primary-light)); border-radius: 10px;">
-<a href="../Analysis.html" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; text-decoration: none; border-radius: 25px; font-weight: 500; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-🏠 メインページに戻る
-</a>
-</div>
 </div>
 
 </div>
@@ -985,5 +976,59 @@ function toggleLimitationsSection() {
   }
 }
 </script>
+
+    <div id='reference' class='tab-content'>
+        <h2>📚 リファレンス</h2>
+        
+        <div style="background: linear-gradient(135deg, var(--primary-light), var(--accent-light)); border-radius: 15px; padding: 25px; margin: 20px 0; border-left: 5px solid var(--secondary);">
+            <h3 style="color: var(--primary); margin-bottom: 20px; text-align: center;">📖 主要参考文献・グラフィカルアブストラクト</h3>
+            
+            <div style="display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap;">
+                <!-- 参考文献情報 -->
+                <div style="flex: 1; min-width: 400px;">
+                    <div style="background: white; border-radius: 10px; padding: 20px; margin: 15px 0; border-left: 3px solid var(--accent);">
+                        <h4 style="color: var(--secondary); margin-bottom: 15px;">🧬 単一細胞解析における最適輸送</h4>
+                        <p style="font-size: 1.1em; line-height: 1.6; color: var(--text-primary); margin-bottom: 10px;">
+                            <strong>Geoffrey Schiebinger et al.</strong>
+                        </p>
+                        <p style="font-size: 1.2em; font-weight: 500; color: var(--primary); margin-bottom: 10px;">
+                            "Optimal-Transport Analysis of Single-Cell Gene Expression Identifies Developmental Trajectories in Reprogramming"
+                        </p>
+                        <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                            <strong>Cell</strong>, Volume 176, Issue 6, 7 March 2019, Pages 1517
+                        </p>
+                        
+                        <div style="background: var(--info-light); border-radius: 8px; padding: 15px; margin: 15px 0;">
+                            <h5 style="color: var(--info); margin-bottom: 10px;">🌟 本研究への影響</h5>
+                            <p style="line-height: 1.6; margin: 0;">
+                                この研究は単一細胞遺伝子発現データに最適輸送理論を適用し、細胞の発生軌跡を推定する手法を確立しました。本解析では、この手法を健康状態データに応用し、状態遷移パターンの解明を行っています。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- グラフィカルアブストラクト -->
+                <div style="flex: 1; min-width: 400px;">
+                    <div style="background: white; border-radius: 10px; padding: 20px; margin: 15px 0; border-left: 3px solid var(--secondary);">
+                        <h4 style="color: var(--secondary); margin-bottom: 15px; text-align: center;">🎨 グラフィカルアブストラクト</h4>
+                        
+                        <div style="text-align: center; margin: 20px 0;">
+                            <img src="Cell2019.png" alt="Cell 2019 Graphical Abstract" 
+                                 style="max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); border: 2px solid white;">
+                        </div>
+                        
+                        <div style="background: var(--accent-light); border-radius: 8px; padding: 15px; margin: 15px 0;">
+                            <h5 style="color: var(--secondary); margin-bottom: 10px;">📊 図の説明</h5>
+                            <p style="line-height: 1.6; color: var(--text-primary); margin: 0;">
+                                最適輸送理論を用いた単一細胞データの軌跡推定手法の概念図。異なる時点のデータから連続的な発生プロセスを復元し、細胞分化の経路を明らかにする革新的なアプローチを示しています。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
 </body>
 </html>

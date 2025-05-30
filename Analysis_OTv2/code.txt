@@ -1,0 +1,4 @@
+
+Geoffrey Schiebinger et al, 
+Optimal-Transport Analysis of Single-Cell Gene Expression Identifies Developmental Trajectories in Reprogramming
+Cell, Volume 176, Issue 6, 7 March 2019, Pages 1517
