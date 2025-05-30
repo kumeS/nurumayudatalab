@@ -945,7 +945,8 @@ ${quizType === '2' ? `- 2択問題では以下の形式で問題文を作成し�
     // 累積結果の計算
     const cumulativePercentage = Math.round((cumulativeScore / cumulativeTotalQuestions) * 100);
     const cumulativeCorrectCount = Math.floor(cumulativeScore);
-    const cumulativePartialCount = (cumulativeScore % 1 > 0) ? Math.ceil(cumulativeScore - cumulativeCorrectCount) : 0;
+    // 修正: 累積部分正解の計算を正しく修正
+    const cumulativePartialCount = Math.round((cumulativeScore - cumulativeCorrectCount) * 2); // 0.5点単位なので2倍して整数化
     const cumulativeIncorrectCount = cumulativeTotalQuestions - cumulativeCorrectCount - cumulativePartialCount;
     
     // 結果コンテナを作成
@@ -1087,11 +1088,13 @@ ${quizType === '2' ? `- 2択問題では以下の形式で問題文を作成し�
     const celebrationTitle = document.querySelector('.celebration-title');
     const celebrationMessage = document.querySelector('.celebration-message');
     const celebrationScoreElement = document.querySelector('.celebration-score');
+    const celebrationPercentageElement = document.getElementById('celebrationPercentage');
     const celebrationButton = document.querySelector('.celebration-button');
     
     celebrationTitle.textContent = title;
     celebrationMessage.textContent = message;
     celebrationScoreElement.textContent = `得点: ${score.toFixed(1)} / ${totalQuestions}`;
+    celebrationPercentageElement.textContent = `正解率: ${percentage}%`;
     celebrationButton.innerHTML = `${medalIcon} 素晴らしい結果です！`;
     
     // オーバーレイのクラスを設定
