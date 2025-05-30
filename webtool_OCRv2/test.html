@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>テスト</title>
+  <style>
+    .tab { 
+      padding: 10px 20px; 
+      background: #f0f0f0; 
+      margin: 5px; 
+      cursor: pointer; 
+      display: inline-block;
+    }
+    .tab.active { background: #007bff; color: white; }
+    .tab-content { 
+      padding: 20px; 
+      border: 1px solid #ccc; 
+      margin: 10px 0;
+      display: none;
+    }
+    .tab-content.active { display: block; }
+    .upload-zone {
+      border: 2px dashed #ccc;
+      padding: 50px;
+      text-align: center;
+      cursor: pointer;
+      margin: 20px 0;
+    }
+    .upload-zone:hover {
+      border-color: #007bff;
+    }
+  </style>
+</head>
+<body>
+  <h1>機能テスト</h1>
+  
+  <!-- タブテスト -->
+  <div id="tab-ocr" class="tab active">OCRタブ</div>
+  <div id="tab-text" class="tab">テキストタブ</div>
+  
+  <div id="content-ocr" class="tab-content active">
+    <h3>OCRタブ内容</h3>
+    <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+    <div id="imageUploadZone" class="upload-zone">
+      <p>ここをクリックして画像を選択</p>
+    </div>
+  </div>
+  
+  <div id="content-text" class="tab-content">
+    <h3>テキストタブ内容</h3>
+    <textarea placeholder="テキスト入力"></textarea>
+  </div>
+
+  <script>
+    console.log('テストページ読み込み完了');
+    
+    // タブ切り替えテスト
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        const tabName = e.target.id.replace('tab-', '');
+        console.log('タブクリック:', tabName);
+        
+        // 全タブの非アクティブ化
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        // 選択タブのアクティブ化
+        e.target.classList.add('active');
+        document.getElementById('content-' + tabName).classList.add('active');
+      });
+    });
+    
+    // アップロードゾーンテスト
+    const uploadZone = document.getElementById('imageUploadZone');
+    const fileInput = document.getElementById('imageUpload');
+    
+    if (uploadZone && fileInput) {
+      uploadZone.addEventListener('click', () => {
+        console.log('アップロードゾーンクリック');
+        fileInput.click();
+      });
+      
+      fileInput.addEventListener('change', (e) => {
+        console.log('ファイル選択:', e.target.files[0]?.name);
+        alert('ファイル選択: ' + (e.target.files[0]?.name || 'なし'));
+      });
+      
+      console.log('イベントリスナー設定完了');
+    } else {
+      console.error('要素が見つかりません');
+    }
+  </script>
+</body>
+</html>

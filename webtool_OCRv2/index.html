@@ -6,6 +6,77 @@
   <title>NuruMayu StudyLab - AI OCR学習支援ツール</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+  <script>
+    // Tesseract.js のデバッグとライブラリ確認（改善版）
+    window.addEventListener('load', () => {
+      console.log('=== Tesseract.js ライブラリ確認（改善版）===');
+      console.log('Tesseract オブジェクト:', typeof Tesseract);
+      
+      if (typeof Tesseract !== 'undefined') {
+        console.log('Tesseract.js バージョン:', Tesseract.version || 'バージョン情報なし');
+        console.log('利用可能なメソッド:', Object.getOwnPropertyNames(Tesseract));
+        
+        // ワーカーパスの設定とログ設定
+        try {
+          if (Tesseract.setLogging) {
+            Tesseract.setLogging(true);
+          }
+          
+          // 基本的なワーカー作成テスト（非同期）
+          setTimeout(async () => {
+            try {
+              console.log('Tesseract.js ワーカー作成テスト開始...');
+              const testWorker = await Tesseract.createWorker();
+              console.log('✅ ワーカー作成テスト成功');
+              await testWorker.terminate();
+              console.log('✅ ワーカー終了テスト成功');
+              console.log('🎉 Tesseract.js 完全初期化完了');
+            } catch (testError) {
+              console.error('⚠️ ワーカー作成テスト失敗:', testError);
+              console.log('OCR機能は制限的に動作する可能性があります');
+            }
+          }, 1000);
+          
+          console.log('✅ Tesseract.js 基本初期化完了');
+        } catch (initError) {
+          console.error('⚠️ Tesseract.js 初期化でエラー:', initError);
+        }
+      } else {
+        console.error('❌ Tesseract.js の読み込みに失敗しました');
+        alert('OCR機能の初期化に失敗しました。ページを再読み込みしてください。\n\nもし問題が継続する場合は、ブラウザのキャッシュをクリアしてください。');
+      }
+    });
+    
+    // グローバルエラーハンドラーの追加
+    window.addEventListener('error', (event) => {
+      console.error('🚨 ページエラー:', event.error);
+      if (event.error.message && event.error.message.includes('Tesseract')) {
+        console.error('Tesseract.js関連のエラーが発生しました');
+      }
+    });
+
+    // アプリケーション開始前の最終チェック
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🔍 DOMContentLoaded - 最終チェック開始');
+      console.log('DOM要素確認:', {
+        imageUpload: !!document.getElementById('imageUpload'),
+        startOcrBtn: !!document.getElementById('startOcrBtn'),
+        ocrText: !!document.getElementById('ocrText'),
+        progressFill: !!document.getElementById('progressFill')
+      });
+      
+      // 少し遅らせてTesseract.jsの確認
+      setTimeout(() => {
+        console.log('Tesseract.js最終確認:', typeof Tesseract);
+        if (typeof Tesseract === 'undefined') {
+          console.error('❌ Tesseract.js の読み込みが完了していません');
+          alert('OCR機能の初期化に失敗しました。ページを再読み込みしてください。');
+        } else {
+          console.log('✅ Tesseract.js 読み込み確認済み');
+        }
+      }, 500);
+    });
+  </script>
   <style>
     :root {
       --primary: #ff7e5f;
@@ -387,6 +458,11 @@
       border-radius: 0 0 12px 12px;
       box-shadow: var(--card-shadow);
       margin-bottom: 1rem;
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
     }
     
     /* OCR関連スタイル */
@@ -402,6 +478,7 @@
       cursor: pointer;
       transition: all 0.3s ease;
       background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      pointer-events: auto;
     }
     
     .image-upload-zone:hover {
@@ -1261,7 +1338,7 @@
         <i class="fas fa-info-circle"></i>
         <h3>使い方を表示</h3>
       </div>
-      <div class="guide-content" style="display: none;">
+      <div class="guide-content" style="display: block;">
         <div class="guide-step">
           <div class="step-number">1</div>
           <div>
@@ -1351,6 +1428,7 @@
         <!-- OCR実行ボタン -->
         <div class="button-container">
           <button id="startOcrBtn" class="button" disabled><i class="fas fa-eye"></i> 文字起こし開始</button>
+          <button id="stopOcrBtn" class="button" style="display: none; background: linear-gradient(135deg, #e74c3c, #c0392b);"><i class="fas fa-stop"></i> 停止</button>
           <button id="correctOcrBtn" class="button" style="display: none;"><i class="fas fa-magic"></i> AI補正</button>
         </div>
         
@@ -1467,7 +1545,7 @@
     </div>
     
     <!-- テキスト入力タブ -->
-    <div id="content-text" class="tab-content" style="display: none;">
+    <div id="content-text" class="tab-content">
       <!-- 入力エリア -->
       <div class="input-section">
         <label for="inputArea" class="input-label"><i class="fas fa-edit"></i> 学習内容を入力</label>
