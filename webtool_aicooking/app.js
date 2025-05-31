@@ -406,7 +406,14 @@ document.addEventListener('DOMContentLoaded', () => {
           { id: "cod", name: "たら", season: ["冬"] },
           { id: "octopus", name: "たこ", season: ["夏"] },
           { id: "scallop", name: "ホタテ", season: ["冬"] },
-          { id: "clam", name: "あさり", season: ["春"] }
+          { id: "clam", name: "あさり", season: ["春"] },
+          { id: "oyster", name: "牡蠣", season: ["冬"] },
+          { id: "mussel", name: "ムール貝", season: ["秋", "冬"] },
+          { id: "abalone", name: "アワビ", season: ["夏"] },
+          { id: "turbanShell", name: "サザエ", season: ["夏"] },
+          { id: "ark", name: "ハマグリ", season: ["春"] },
+          { id: "cockle", name: "赤貝", season: ["春"] },
+          { id: "whelk", name: "つぶ貝", season: ["秋", "冬"] }
         ],
         processed: [
           { id: "ham", name: "ハム", season: ["春", "夏", "秋", "冬"] },
@@ -1935,33 +1942,37 @@ ${settings.ingredients.join('、')}
       
       // 各否定パターンで矛盾をチェック
       allNegativePatterns.forEach(pattern => {
-        // より柔軟な正規表現パターンを使用
-        const variations = [
-          new RegExp(`${cleanIngredientName}[^。]*?${pattern}`, 'gi'),
-          new RegExp(`${pattern}[^。]*?${cleanIngredientName}`, 'gi'),
-          new RegExp(`${cleanIngredientName}.*?は.*?${pattern}`, 'gi'),
-          new RegExp(`${cleanIngredientName}.*?を.*?${pattern}`, 'gi')
-        ];
-        
-        variations.forEach(regex => {
-          const matches = descriptionTexts.match(regex);
-          if (matches) {
-            // 重複チェック（同じ食材・パターンの組み合わせは一度だけ）
-            const existingContradiction = contradictions.find(c => 
-              c.ingredient === ingredient && 
-              c.pattern === pattern
-            );
-            
-            if (!existingContradiction) {
-              contradictions.push({
-                type: 'ingredient_contradiction',
-                ingredient: ingredient,
-                pattern: pattern,
-                context: matches[0],
-                message: `材料リストに「${ingredient}」が含まれていますが、説明では「${matches[0]}」と記載されており矛盾しています。`
-              });
+        // 各食材のバリエーションをチェック
+        ingredientVariations.forEach(variation => {
+          // より柔軟な正規表現パターンを使用
+          const regexPatterns = [
+            new RegExp(`${variation}[^。]*?${pattern}`, 'gi'),
+            new RegExp(`${pattern}[^。]*?${variation}`, 'gi'),
+            new RegExp(`${variation}.*?は.*?${pattern}`, 'gi'),
+            new RegExp(`${variation}.*?を.*?${pattern}`, 'gi')
+          ];
+          
+          regexPatterns.forEach(regex => {
+            const matches = descriptionTexts.match(regex);
+            if (matches) {
+              // 重複チェック（同じ食材・パターンの組み合わせは一度だけ）
+              const existingContradiction = contradictions.find(c => 
+                c.ingredient === ingredient && 
+                c.pattern === pattern
+              );
+              
+              if (!existingContradiction) {
+                contradictions.push({
+                  type: 'ingredient_contradiction',
+                  ingredient: ingredient,
+                  pattern: pattern,
+                  context: matches[0],
+                  matchedVariation: variation,
+                  message: `材料リストに「${ingredient}」が含まれていますが、説明では「${matches[0]}」と記載されており矛盾しています。`
+                });
+              }
             }
-          }
+          });
         });
       });
     });
