@@ -1,0 +1,536 @@
+**1. Chore Quest 実装のポイント・想定機能（全体像）**
+以下では、Chore Quest を HTML5/CSS/JavaScript の単一ページアプリ（PWA）として実装するにあたり、抑えておくべき主要なポイント・機能を箇条書きで整理します。
+
+---
+
+### 🌟 アーキテクチャ＆技術スタック
+
+* **HTML5 + CSS3 + Vanilla JavaScript** あるいは軽量フレームワーク（例：Vue.js/React）でフロントエンドを構築
+* **PWA 化**：`manifest.json`＋`service-worker.js` を使い、ホーム画面追加／オフラインキャッシュを実装
+* **クライアントサイドだけで完結するデータ管理**
+
+  * 今回の index.html では `localStorage` に `gameState`・`bossState` を保存・復元している（リアルタイムDB は未実装）。
+  * 将来的に Firebase Firestore 等を使う場合は、同じオブジェクト構造を “コレクション＋ドキュメント” にマッピング
+* **アニメーション・演出**
+
+  * CSS3 のトランジション／キーフレームで画面遷移やバウンス効果を実現
+  * 簡易なサウンドエフェクトは Web Audio API でトーンを鳴らす（complete／reward／start）
+* **通知**（ブラウザ通知）
+
+  * `Notification.requestPermission()` → `new Notification(...)` で簡易的なデモ通知を表示
+  * PWA と組み合わせれば、Firebase Cloud Messaging を使った本格的なプッシュ通知も追加可能
+
+---
+
+### 📋 ユーザー情報＆進捗管理
+
+* **ユーザープロフィール保存**
+
+  * ニックネーム、アバター絵文字、家族チーム名を入力画面で受け取り、`gameState.user` に保存
+  * `localStorage` に `gameState` を JSON 化して永続化し、ページリロード後に再読み込み
+* **ユーザーステータス**
+
+  * `level`、`xp`、`nextLevelXP`、`stamina`（最大値 `maxStamina`）、`coins` を保持
+  * レベルアップ時に XP を差し引き、`nextLevelXP = level * 100` で次までの必要経験値を再計算
+  * スタミナはクエスト開始時に消費し、定期リカバリー（デモでは1分ごとに +5）を設定
+
+---
+
+### 🎯 クエスト機能（Quest）
+
+* **クエスト定義オブジェクト**
+
+  ```js
+  {
+    id, title, description, difficulty,
+    xpReward, coinReward, category,
+    duration (秒), staminaCost
+  }
+  ```
+* **クエスト一覧表示**
+
+  * `gameState.quests` 配列に登録した複数クエストを「クエストカード（.quest-card）」で表示
+  * 難易度を星（⭐）で可視化し、報酬（XP/コイン）と消費スタミナを表示
+  * スタミナが足りない場合は「スタミナ不足」でボタンを無効化
+* **デイリークエスト表示**
+
+  * `gameState.quests.slice(0,2)` を「今日のクエスト」としてトップに表示
+  * 毎日・毎時間のリセットロジック（デモでは 5 分ごとに「dailyReset()」を呼び、スタミナ全回復＋50コイン付与）
+* **クエスト開始→進行→完了**
+
+  1. クエストカードの「クエスト開始」ボタン押下で `startQuest(questId)`
+  2. `gameState.currentQuest` に選択中のクエストを設定し、スタミナを即時減少
+  3. クエスト進行画面 (`#questProgress`) に切り替え。`startQuestTimer(duration)` で `setInterval` により
+
+     * 残り時間（MM\:SS）を更新
+     * プログレスバー（`.progress-fill`）を width％ で伸縮
+     * 進行状況に応じてメッセージ (`progressText`) を「クエスト進行中」「もう少しで完了！」「完了ボタンを押してください」に変更
+  4. タイマーが 0 になっても自動で「クエスト完了」にはならず、ユーザーが `completeQuest()` を呼び出すことで完了処理を実行
+* **クエスト完了処理**
+
+  1. タイマーの `clearInterval` → 進行画面のタイマー停止
+  2. XP・コインを付与し、ユーザーの `xp` を加算
+  3. レベルアップ判定（`xp >= nextLevelXP` → `level++`, `xp -= nextLevelXP`, `nextLevelXP = level * 100`, `maxStamina += 5`）
+  4. ボスへダメージを与える (`dealBossDamage(xpReward * 0.1)` を呼び出し)
+  5. 「報酬ポップアップ (`#rewardPopup`) を表示」
+
+     * `rewardText` に `${xpReward} XP と ${coinReward} コインを獲得しました！` と表示
+     * `.reward-animation` に CSS キーフレーム（bounce）を一時的に再付与してアニメーション再生
+  6. 3秒後にメイン画面（ダッシュボード）へ自動遷移し、UI（ユーザーステータス・クエスト一覧）を更新
+
+---
+
+### 🐲 ボス戦機能（Boss Battle）
+
+* **ボスステート管理オブジェクト**
+
+  ```js
+  {
+    currentHP: 7500,
+    maxHP: 10000,
+    participants: [
+      { name: 'ママ', avatar: '👩‍🍳', damage: 1500 },
+      { name: user.nickname || 'あなた', avatar: user.avatar, damage: 1000 }
+    ]
+  }
+  ```
+* **ダメージ計算**
+
+  * `dealBossDamage(damage)` を呼び出すと以下を実行：
+
+    1. `bossState.currentHP = max(0, currentHP - damage)`
+    2. 参加者のうち該当ユーザーの `damage += ダメージ` を更新
+    3. UI（`.boss-hp-fill` の width％、`#bossCurrentHp`）を更新
+    4. `if currentHP <= 0` → `showBossDefeatedMessage()` を呼び出す
+* **ボス討伐時の演出**
+
+  * `showBossDefeatedMessage()`：1秒の遅延の後に `alert('🎉 ボス討伐成功！…')` を表示し、
+
+    * 500コインを付与
+    * `bossState.currentHP = maxHP`、各参加者のダメージを 0 にリセット
+    * UI を更新して次回に備えた表示に戻す
+
+---
+
+### 🏆 ランキング・実績機能
+
+* **ランキング画面**（静的サンプル表示）
+
+  * 画面切り替えで `#ranking` スクリーンを表示し、HTML 内にハードコーディングされた「今週のランキング」をリスト表示
+  * (`.ranking-item` を3つ並べ、ポジション・ユーザー名・達成クエスト数・獲得XP・称号をサンプル表示)
+* **実績（Achievement）システム**
+
+  * `achievements` 配列に複数の実績定義を持ち、`unlocked` フラグを保持
+  * `checkAchievements()` で条件をチェックしてアンロックが必要なら
+
+    * `achievement.unlocked = true`
+    * `showAchievementPopup(achievement)`：2秒後に `alert('🎊 実績解除！…')` と報酬 100コインを付与
+  * `completeQuest()` の呼び出しをオーバーライドして、クエスト完了ごとに `checkAchievements()` を実行
+* **隠し要素（Easter Egg）**
+
+  * アバター（`#userAvatar`）を 10 回クリックしたら、`alert('🎁 隠しボーナス発見！…')` を表示し +1000コイン付与
+
+---
+
+## 2. 添付 `index.html` で「実装済み」の部分（現状確認）
+
+以下では、添付いただいた `index.html`（単一ファイル）の中で**実際に動作／見た目が実装されている機能**を箇条書きで示します。
+
+---
+
+### ✔ ログイン画面関連
+
+* **アバター選択 UI**
+
+  * 6種類の絵文字アイコンを並べてクリック可能 (`.avatar-option`)
+  * クリックすると `selected` クラスが付与され、ボーダー＋拡大エフェクト
+* **ニックネーム・家族チーム入力フォーム**
+
+  * `#nicknameInput`、`#familyInput` の `<input>` で値を受け取る
+  * `startGame()` 呼び出しで入力チェック（未入力時は `alert`）
+* **ログインボタン**
+
+  * `onclick="startGame()"` で `gameState.user` に `nickname`・`avatar`・`familyId` を格納
+  * ログイン成功 → `#loginScreen` から `#mainApp` へ画面遷移
+  * ロード時に `loadGameState()` で保存データを復元し、`nickname` がある場合はログイン済みとみなし自動遷移
+
+---
+
+### ✔ ヘッダー＆ユーザー情報
+
+* **アバター・ユーザー名・ステータス表示**
+
+  * `#userAvatar`（絵文字）、`#userName`（ニックネーム）、`#userLevel`、`#userStamina`、`#userCoins` を更新
+  * `updateUI()` で DOM テキストを `gameState.user` に同期
+* **アプリ起動時の初期化**
+
+  * `DOMContentLoaded` イベントで `loadGameState()` → `init()`（クエスト描画＋ UI 更新）を呼び出し
+  * `saveGameState()` を 30 秒ごと・`beforeunload` 時に `localStorage` へ保存
+
+---
+
+### ✔ 画面遷移（Navigation）
+
+* **タブ切り替え用ボタン**（`.nav-tab`）
+
+  * `onclick="showScreen('dashboard')"`, `showScreen('quest')`, `showScreen('boss')`, `showScreen('ranking')` を設定
+  * `showScreen(screenName)`：すべてのタブから `active` クラスを除去し、対象タブに付与 → すべての `.content .screen` から `active` を除去し、該当スクリーンに `active` を付与
+  * CSS `.screen.active { display: block; animation: fadeIn … }` でフェードイン遷移
+
+---
+
+### ✔ クエスト一覧＆開始機能
+
+* **クエスト定義**
+
+  * `gameState.quests` 配列に 4 種類のクエストオブジェクトを定義（`id, title, description, difficulty, xpReward, coinReward, category, duration, staminaCost`）
+* **デイリークエスト表示**
+
+  * `renderDailyQuests()` で `gameState.quests.slice(0,2)` を取得し、 `createQuestCard(quest, true)` を用いて 2 件のカードを `#dailyQuests` に追加
+* **クエスト一覧表示**
+
+  * `renderQuests()` で `gameState.quests` 全件を `#questList` に追加
+  * カードには「タイトル」「難易度（⭐表示）」「説明」「報酬（⚡XP・🪙コイン・消費スタミナ表示）」「開始ボタン」まで含む
+  * スタミナが足りない場合はボタンに `disabled style="opacity: 0.5; cursor: not-allowed;"` を付与
+* **クエスト開始ボタン**
+
+  * `onclick="startQuest(${quest.id})"` で `startQuest(questId)` を呼出し、
+
+    * `gameState.currentQuest = quest`、`gameState.user.stamina -= quest.staminaCost`
+    * 画面遷移→ `#questProgress` を `active` にし、`startQuestTimer(duration)` でタイマーを起動
+    * `updateUI()` → ステータスを更新し、クエストカードのボタン表示も再描画
+
+---
+
+### ✔ クエスト進行中画面＆タイマー演出
+
+* **クエスト進行画面（`#questProgress`）**
+
+  * タイトル (`#currentQuestTitle`)、説明 (`#currentQuestDesc`)、タイマー表示 (`#questTimer`)、プログレスバー (`.progress-fill`)、進行テキスト (`#progressText`)、完了ボタン (`complete-btn`) を配置
+* **タイマー処理** (`startQuestTimer(duration)`)
+
+  * `let timeLeft = duration` でカウントダウン開始（秒単位）
+  * `setInterval` で 1 秒ごとに `timeLeft--`
+
+    * `#questTimer` に `MM:SS` 形式を表示
+    * プログレスバーの幅を `((duration - timeLeft) / duration) * 100%` で伸縮
+    * 進捗に応じて `#progressText` を「クエスト進行中…」「もう少しで完了！」「完了ボタンを押してください」に切替
+  * `timeLeft < 0` で `clearInterval` → タイマー停止・バーを 100% に固定
+
+---
+
+### ✔ クエスト完了処理＆報酬付与
+
+* **`completeQuest()`**
+
+  1. `gameState.currentQuest` がなければ即 return
+  2. `clearInterval(gameState.questTimer)` でタイマー停止
+  3. `gameState.user.xp += quest.xpReward`、`gameState.user.coins += quest.coinReward`
+  4. レベルアップ判定：`if xp >= nextLevelXP` →
+
+     * `level++`、`xp -= nextLevelXP`、`nextLevelXP = level * 100`、`maxStamina += 5`
+  5. ボスにダメージを与える：`dealBossDamage(Math.floor(xpReward * 0.1))`
+  6. `showRewardPopup(quest)`：
+
+     * `#rewardPopup` を `display: flex` に変更
+     * `#rewardText` に `“150 XP と 50 コインを獲得しました！”` のようにテキスト更新
+     * `.reward-animation` に `bounce` アニメーションを再付与
+  7. 3秒後に「ダッシュボード画面へ戻る」
+
+     * `.screen.active` をすべて消してから `#dashboard` に `active` を付与
+     * `updateUI()` `renderQuests()` `renderDailyQuests()` を呼び出して一覧・ステータスを更新
+
+---
+
+### ✔ ボス戦表示＆ダメージ計算
+
+* **ボス状態オブジェクト**
+
+  * `bossState = { currentHP: 7500, maxHP: 10000, participants: […] }` を定義
+* **UI 更新**
+
+  * `updateBossUI()` で `hpPercentage = (currentHP / maxHP) * 100` を計算し、`#bossHpFill` の width を更新
+  * `#bossCurrentHp`・`#bossMaxHp` をそれぞれ書き換え
+* **ダメージ処理** (`dealBossDamage(damage)`)
+
+  1. `bossState.currentHP = max(0, bossState.currentHP - damage)`
+  2. 参加者（名前が一致する）の `damage += damage` を更新
+  3. `updateBossUI()` を呼び出して HPバーを更新
+  4. `if currentHP <= 0` → `showBossDefeatedMessage()` を呼ぶ
+* **討伐成功メッセージ** (`showBossDefeatedMessage()`)
+
+  * 1 秒後に `alert('🎉 ボス討伐成功！…')` を表示し、家族全員に報酬（500コイン＋レアアイテム）を付与
+  * `bossState.currentHP = bossState.maxHP`, 各参加者の `damage = 0` にリセットし、UI を再描画
+
+---
+
+### ✔ ランキング画面の静的表示
+
+* **`#ranking` スクリーンにハードコードされたランキングアイテムを表示**
+
+  * `.ranking-item` を3つ並べ、左に順位バッジ (`.ranking-position`)、右に「獲得XP」「称号」を表示
+  * 現状、ダイナミックデータではなく、サンプル値が HTML 内に直書きされている
+
+---
+
+### ✔ 実績（Achievement）機能
+
+* **`achievements` 配列に定義済み**（`id, name, description, icon, unlocked: false`）
+* **`checkAchievements()`**：
+
+  * 各実績を未解除 (`unlocked === false`) の場合に条件チェック
+
+    * `first_quest`: いつでも最初のクエスト完了で解除
+    * `level_up`: `user.level >= 2` で解除
+    * `boss_damage`: 自分の参加者ダメージが `>= 1000` で解除
+    * `stamina_saver`: `user.stamina === user.maxStamina` で解除
+  * 条件を満たせば `unlocked = true` → `showAchievementPopup()` を呼び出し、2秒後に `alert('🎊 実績解除！…')` ＋ 100コイン付与
+* **`completeQuest()` のオーバーライド**
+
+  * 元の `completeQuest` を保存してラップし、クエスト完了後に `checkAchievements()` を実行
+
+---
+
+### ✔ 隠し要素（イースターエッグ）
+
+* **アバター連打カウンタ**
+
+  * 画面クリックで `if (e.target.id === 'userAvatar') easterEggCounter++`
+  * 10 回クリックで `alert('🎁 隠しボーナス発見！…')` ＋ 1000コイン付与
+  * カウンタをリセット
+
+---
+
+### ✔ サウンドエフェクト（Web Audio API）
+
+* **`playSound(type)`** で三角波オシレーターを生成
+
+  * 音程 (`frequency`) を切り替えて「start」「complete」「reward」など用途別に音色を少しだけ変化
+  * `gainNode` を使って 0.3 → 0.01 まで徐々にフェードアウトさせる
+* **HTML 全体にクリックリスナーを追加**
+
+  * ボタン要素 (`.start-quest-btn`, `.complete-btn`) のクリックで `playSound('start')` / `playSound('complete')` を実行
+
+---
+
+### ✔ 定期処理（スタミナ回復・デイリーボーナス）
+
+* **スタミナ自動回復**
+
+  * `recoverStamina()` を 1 分ごとに `setInterval(recoverStamina, 60000)` で呼び出し
+  * `if stamina < maxStamina` → `stamina = min(maxStamina, stamina + 5)` → `updateUI()`
+* **デイリーリセット（デモ用）**
+
+  * `dailyReset()` を 5 分ごとに `setInterval(dailyReset, 300000)` で呼び出し
+  * 内容：
+
+    1. `renderDailyQuests()` → デイリークエストを再描画
+    2. `user.stamina = maxStamina` → スタミナ全回復
+    3. 1 秒後に `alert('🌅 新しい日が始まりました！…')` → 50コイン付与 + UI 更新
+
+---
+
+### ✔ 通知システム（ブラウザ通知・デモ）
+
+* **`showNotification(message)`**
+
+  * `if Notification.permission === 'granted'` → `new Notification('Chore Quest', { body: message, icon: '⚔️' })`
+* **起動時に通知権限をリクエスト**
+
+  * `'Notification' in window && Notification.permission === 'default'` → `Notification.requestPermission()`
+* **デモ通知**
+
+  * 10秒後に `showNotification('新しいデイリークエストが利用可能です！')`
+
+---
+
+## 3. 添付 `index.html` で「未実装・要拡張」の部分
+
+以下では、現状の index.html に含まれていない、または実装を補う必要がある機能や拡張ポイントを箇条書きで示します。
+
+---
+
+### ✖ 本格的な認証＆バックエンド連携
+
+* **Firebase / 任意サーバーへの接続**
+
+  * 現状、すべてのデータ（ユーザー情報・クエスト一覧・ボスステート・ランキング・実績）はクライアント内の `gameState`・`bossState`・`achievements` 配列で管理し、`localStorage` への保存・復元で擬似的に永続化している。
+  * そのため：
+
+    * 複数端末で同じアカウント状態を共有できない
+    * 家族間のリアルタイム協力（ボスHP の同期）・ランキング集計・実績管理が“ローカル環境内”に限定される
+  * **要実装**：
+
+    * Firebase Authentication（メール or Google or LINE）を導入し、真のユーザー認証フローを追加
+    * Firestore または独自API（Node.js+Express など）／Realtime Database などを使って、
+
+      * `/users/{uid}` にユーザープロフィール・ステータスを保存
+      * `/chores` にクエストマスターデータを置き、クライアント会得時に動的ロード
+      * `/familyBossBattles/{familyId}` にボスHP 共有情報・参加者ダメージをリアルタイム同期
+      * `/leaderboard/{familyId}` に週間・月間ランキングを自動集計
+      * `/achievements/{uid}` に実績フラグを保存し、複数端末で統一
+
+---
+
+### ✖ オンライン協力プレイ・リアルタイム同期
+
+* **家族間のリアルタイム協力**
+
+  * 現状、`bossState.participants` はあくまでページロード時の静的サンプルであり、「ママ」「あなた」が固定。
+  * **要実装**：
+
+    * Firestore の realtime listener (`onSnapshot`) を使って、他メンバーがタスクを完了してダメージを与えるたびに全員の画面で更新
+    * 参加メンバーの追加／削除（家族参加・退出）処理をバックエンドで管理
+* **ランキングの動的集計**
+
+  * 現状は HTML にハードコーディングされたサンプル。
+  * **要実装**：
+
+    * タスク完了ごとに Cloud Function 等で `/leaderboard/{familyId}` を更新
+    * クライアント側でリアルタイムに `/leaderboard/{familyId}` を購読し、常に最新のランキングを表示
+
+---
+
+### ✖ マップ・ワールド要素／サイドクエスト
+
+* **マップ画面（ホームタウン）**
+
+  * 現状、ホーム画面に「今日のクエスト」と「進行中のボス戦」を並べているが、マップ表示（「料理の谷」「掃除の山」など）は未実装。
+  * **要実装**：
+
+    * Canvas か SVG で越境的なマップを描画し、エリアごとにクエストを集約
+    * 「特定カテゴリを〇件クリアすると次エリアがアンロック」といった遷移ロジック
+* **サイドクエスト・チャプター**
+
+  * 「週末限定ミッション」「特定カテゴリ連続クリアチャレンジ」などは現状なし。
+  * **要実装**：
+
+    * クエストマスターテーブルに `isSideQuest, availableFrom, availableTo` フィールドを追加し、期間CSSフィルタで表示／非表示を制御
+    * 達成報酬として限定アイテム・アチーブメントを付与
+
+---
+
+### ✖ アイテム（装備）・ペット・ショップ要素
+
+* **装備・アイテム管理**
+
+  * 現状、コイン付与のみでアイテム購入・装備スロットはなし。
+  * **要実装**：
+
+    * `items` コレクションまたは配列で「武器・防具・消耗品」を管理
+    * アイテム詳細画面で「装備」「使用」操作を実装し、所持アイテム（`gameState.user.inventory`）を更新
+    * 装備時に `xpReward` や `staminaCost` にバフ/デバフを適用
+* **ペット育成・進化**
+
+  * 現状、ペット関連の表示・機能はない。
+  * **要実装**：
+
+    * `pets` コレクションまたは配列で「進化段階」「効果ボーナス」を定義
+    * クエスト完了ごとに `petXP` を加算し、`evolutionStage` を更新。
+    * ペット画面でステータス・進化条件を表示、進化演出を CSS アニメーションまたは Lottie で実装
+* **ショップ機能**
+
+  * 現状、所持コインは増減するが購入画面はない。
+  * **要実装**：
+
+    * ショップスクリーン (`#shop`) を追加し、「コインでアイテム購入」「課金アイテム（ジェム）導入」などの機能を実装
+    * 購入後に `gameState.user.coins -= price`、`inventory.push(itemId)` などを行い、データを永続化
+
+---
+
+### ✖ 通知・リマインダーの強化
+
+* **リアルなブラウザプッシュ通知**
+
+  * 現状は `setTimeout(..., 10000)` で 10 秒後にデモ通知を出すのみ
+  * **要実装**：
+
+    * Firebase Cloud Messaging の設定を行い、特定時間（例：朝8時）に「今日のクエスト」通知を自動送信
+    * ボス戦開始・終了 1 時間前に「参加しよう」、クエスト進行中に「あと◯分で完了」など細かいプッシュ通知
+
+---
+
+### ✖ チャット機能（家族間コミュニケーション）
+
+* **現状**：`addFamilyMessage()` がコンソールログ出力するだけのモック関数
+* **要実装**：
+
+  * Firestore のサブコレクション `/familyChats/{familyId}/messages` に実際のメッセージを保存
+  * クライアント側でリアルタイムリスナーを張り、チャット画面を作成して表示（スタンプ／いいね機能も可）
+
+---
+
+### ✖ データ永続化と同期の強化
+
+* **現状**：`saveGameState()` で 30 秒ごとに `localStorage` へ保存し、読み込み時に復元のみ
+* **要実装**：
+
+  * Firestore または自前バックエンドと同期する仕組みを追加し、リアルタイムで複数端末・複数ユーザー間の最新データを取得／更新
+  * クライアントでローカルオフライン時に行った操作（クエスト完了、スタミナ回復など）をキューイングし、再オンライン時に一括同期
+
+---
+
+### ✖ UI/UX 改善・アクセシビリティ対応
+
+* **画面遷移時のロード演出**
+
+  * 現状は CSS の `fadeIn` だけだが、
+
+    * スプラッシュ画面 → メイン画面のロビー演出
+    * 読み込み中インジケーター（クエスト／ボス情報の読み込み待機時）
+  * **要実装**：
+
+    * キーフレームを使ったローディングスピナー、Lottie のローディングループ
+* **レスポンシブ＆アクセシビリティ**
+
+  * 現状メディアクエリで簡易対応されているものの、
+
+    * スクリーンリーダー対応（`aria-*` 属性）
+    * コントラスト比チェック、フォントサイズ動的変更
+    * タップ領域確保（ボタン周囲に十分な余白）
+  * **要実装**：
+
+    * スマホ・タブレット・PC 向けレイアウト微調整
+    * キーボード操作対応、ARIAロール付与でアクセシビリティ強化
+
+---
+
+### ✖ シーズナルイベント・マップ要素
+
+* **現状**：`checkSeasonalEvents()` で12月・春のみ背景色を差し替える軽微な変更
+* **要実装**：
+
+  * 雪エフェクト、花びらアニメ、季節限定クエストの追加
+  * マップ画面を `<canvas>` または SVG で表現し、エリアごとにクエストを配置する
+  * マップ上のアイコンをクリックすると、そのカテゴリのクエスト一覧がポップアップ表示される
+
+---
+
+**まとめると、添付の `index.html` は「クライアントサイド完結型の試作版」として以下が実装済みです：**
+
+1. ログイン画面（アバター選択／ニックネーム・家族チーム名入力 → メイン画面遷移）
+2. ユーザー情報管理（レベル／XP／スタミナ／コイン）を `gameState` で保持
+3. クエスト定義・一覧表示（デイリー2件 + 全クエスト）
+4. クエスト開始→タイマー進行→完了 → XP・コイン付与 → レベルアップ判定 → ボスダメージ付与 → 報酬ポップアップ → ダッシュボード表示
+5. ボス戦ステート管理（HP進捗／参加者ダメージ表示／討伐成功処理）
+6. 簡易ランキング画面（静的サンプル表示）
+7. 実績システム（クエスト完了・レベルアップ・ボスダメージ・スタミナ管理）＋実績ポップアップ
+8. イースターエッグ（アバター10回クリックで 1000コイン付与）
+9. サウンドエフェクト（Web Audio API でトーン再生）
+10. デモ用スタミナ自動回復＋デイリーボーナス
+11. ブラウザ通知（デモ通知1回のみ）
+12. `localStorage` によるゲーム状態の保存・復元
+
+**一方、「未実装または要拡張」すべき主な項目は下記のとおりです：**
+
+* 本格的なユーザー認証（Firebase Auth など）＆サーバーサイド永続化（Firestore, Realtime DB）
+* 家族間リアルタイム同期（ボス戦 HP, ランキング更新, チャット）
+* アイテム／装備管理・ペット育成・ショップ機能などの RPG 要素
+* マップ／サイドクエスト／チャプター要素（ワールドマップ画面・期間限定クエスト）
+* PWA のオフライン対応完備（service worker でリソースキャッシュ）
+* 本格的なプッシュ通知（Firebase Cloud Messaging 連携）
+* チャット機能（リアルタイム・スタンプ・いいね）
+* UI/UX 改善（ローディング演出、アクセシビリティ、レスポンシブ強化）
+* 季節イベント・ビジュアルエフェクト（雪・花びら・ハロウィン装飾など）
+
+このまま「既存コードを拡張」する場合は、まず①認証＋Firestore連携 → ②リアルタイム同期 → ③装備/ペット管理 → ④PWA オフライン → ⑤アクセシビリティ強化 の順にステップを踏むと、コード構造を大きく変えずに機能を拡張しやすくなります。

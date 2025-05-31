@@ -3844,6 +3844,20 @@ function clearAnalysisHistory() {
 }
 
 /**
+ * 親御さん向けレポート履歴全削除
+ */
+function clearParentReportHistory() {
+  if (!confirm('全ての親御さん向けレポート履歴を削除しますか？この操作は取り消せません。')) {
+    return;
+  }
+
+  localStorage.removeItem('parentReportHistory');
+  updateParentReportHistory();
+  
+  showAlert('親御さん向けレポート履歴を削除しました', 'success');
+}
+
+/**
  * 個別分析結果削除
  */
 function deleteIndividualAnalysis(analysisId) {

@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chore Quest</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            padding: 20px;
+            text-align: center;
+            color: white;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .user-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ff9ff3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin: 0 auto 10px;
+        }
+
+        /* Navigation */
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px 10px;
+            text-align: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .nav-tab.active {
+            background: white;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        /* Content Area */
+        .content {
+            padding: 20px;
+            min-height: 500px;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Quest Cards */
+        .quest-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .quest-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .quest-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .quest-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .quest-difficulty {
+            background: #feca57;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .quest-description {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .quest-rewards {
+            display: flex;
+            gap: 15px;
+        }
+
+        .reward-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        /* Start Quest Button */
+        .start-quest-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 15px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .start-quest-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Quest Progress */
+        .quest-progress {
+            background: #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            background: #e9ecef;
+            height: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .timer {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        }
+
+        /* Complete Button */
+        .complete-btn {
+            background: linear-gradient(135deg, #52c234, #61b15a);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+
+        .complete-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Boss Battle */
+        .boss-card {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .boss-image {
+            width: 100px;
+            height: 100px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+
+        .boss-hp-bar {
+            background: rgba(255,255,255,0.3);
+            height: 25px;
+            border-radius: 15px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .boss-hp-fill {
+            background: linear-gradient(90deg, #52c234, #61b15a);
+            height: 100%;
+            border-radius: 15px;
+            transition: width 0.5s ease;
+        }
+
+        /* Rankings */
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .ranking-position {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Reward Popup */
+        .reward-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .reward-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 300px;
+            margin: 20px;
+        }
+
+        .reward-animation {
+            font-size: 60px;
+            margin-bottom: 20px;
+            animation: bounce 0.6s ease;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-20px); }
+            60% { transform: translateY(-10px); }
+        }
+
+        /* Login Screen */
+        .login-screen {
+            text-align: center;
+            padding: 50px 20px;
+        }
+
+        .login-title {
+            font-size: 36px;
+            color: #667eea;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .login-subtitle {
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 16px;
+        }
+
+        .login-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .avatar-selection {
+            margin: 30px 0;
+        }
+
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .avatar-option {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .avatar-option.selected {
+            border-color: #667eea;
+            transform: scale(1.1);
+        }
+
+        .family-input {
+            margin: 20px 0;
+        }
+
+        .family-input input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .container {
+                max-width: 100%;
+            }
+            
+            .user-stats {
+                font-size: 12px;
+            }
+            
+            .quest-title {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Screen -->
+        <div id="loginScreen" class="screen active">
+            <div class="login-screen">
+                <h1 class="login-title">⚔️ Chore Quest</h1>
+                <p class="login-subtitle">家事を冒険に変えよう！</p>
+                
+                <div class="avatar-selection">
+                    <h3>アバターを選択</h3>
+                    <div class="avatar-grid">
+                        <div class="avatar-option selected" data-avatar="🧙‍♂️">🧙‍♂️</div>
+                        <div class="avatar-option" data-avatar="👩‍🍳">👩‍🍳</div>
+                        <div class="avatar-option" data-avatar="🧚‍♀️">🧚‍♀️</div>
+                        <div class="avatar-option" data-avatar="🦸‍♂️">🦸‍♂️</div>
+                        <div class="avatar-option" data-avatar="👨‍🔧">👨‍🔧</div>
+                        <div class="avatar-option" data-avatar="🧙‍♀️">🧙‍♀️</div>
+                    </div>
+                </div>
+                
+                <div class="family-input">
+                    <label>ニックネーム</label>
+                    <input type="text" id="nicknameInput" placeholder="あなたの名前を入力">
+                </div>
+                
+                <div class="family-input">
+                    <label>家族チーム名</label>
+                    <input type="text" id="familyInput" placeholder="例: 田中家">
+                </div>
+                
+                <button class="login-btn" onclick="startGame()">冒険を始める</button>
+            </div>
+        </div>
+
+        <!-- Main App -->
+        <div id="mainApp" class="screen">
+            <!-- Header -->
+            <div class="header">
+                <div class="avatar" id="userAvatar">🧙‍♂️</div>
+                <h1 id="userName">勇者</h1>
+                <div class="user-stats">
+                    <div class="stat-item">
+                        <span>⭐</span>
+                        <span>Lv.<span id="userLevel">1</span></span>
+                    </div>
+                    <div class="stat-item">
+                        <span>⚡</span>
+                        <span id="userStamina">50</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>🪙</span>
+                        <span id="userCoins">100</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="showScreen('dashboard')">ホーム</button>
+                <button class="nav-tab" onclick="showScreen('quest')">クエスト</button>
+                <button class="nav-tab" onclick="showScreen('boss')">ボス戦</button>
+                <button class="nav-tab" onclick="showScreen('ranking')">ランキング</button>
+            </div>
+
+            <!-- Dashboard Screen -->
+            <div id="dashboard" class="content screen active">
+                <h2>今日のクエスト</h2>
+                <div id="dailyQuests"></div>
+                
+                <h2 style="margin-top: 30px;">進行中のボス戦</h2>
+                <div class="boss-card">
+                    <div class="boss-image">🐉</div>
+                    <h3>ダーティ・ディッシュドラゴン</h3>
+                    <p>家族全員で協力して討伐しよう！</p>
+                    <div class="boss-hp-bar">
+                        <div class="boss-hp-fill" id="bossHpFill" style="width: 75%;"></div>
+                    </div>
+                    <p>HP: <span id="bossCurrentHp">7500</span> / <span id="bossMaxHp">10000</span></p>
+                </div>
+            </div>
+
+            <!-- Quest Screen -->
+            <div id="quest" class="content screen">
+                <div id="questList"></div>
+            </div>
+
+            <!-- Quest Progress Screen -->
+            <div id="questProgress" class="content screen">
+                <div class="quest-progress">
+                    <h2 id="currentQuestTitle">皿洗いクエスト</h2>
+                    <p id="currentQuestDesc">食後の食器をまとめて洗浄する</p>
+                    
+                    <div class="timer" id="questTimer">05:00</div>
+                    
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="questProgressFill" style="width: 0%;"></div>
+                    </div>
+                    
+                    <p id="progressText">クエスト進行中...</p>
+                    
+                    <button class="complete-btn" onclick="completeQuest()">クエスト完了</button>
+                </div>
+            </div>
+
+            <!-- Boss Screen -->
+            <div id="boss" class="content screen">
+                <div class="boss-card">
+                    <div class="boss-image">🐉</div>
+                    <h2>ダーティ・ディッシュドラゴン</h2>
+                    <p>弱点: キッチン系クエスト</p>
+                    <div class="boss-hp-bar">
+                        <div class="boss-hp-fill" style="width: 75%;"></div>
+                    </div>
+                    <p>HP: 7500 / 10000</p>
+                    <p style="margin-top: 15px;">🕒 討伐期限: あと 23時間</p>
+                </div>
+                
+                <h3>参加メンバー</h3>
+                <div class="ranking-item">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span>👩‍🍳</span>
+                        <span>ママ</span>
+                    </div>
+                    <span>1500 ダメージ</span>
+                </div>
+                <div class="ranking-item">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span>🧙‍♂️</span>
+                        <span>あなた</span>
+                    </div>
+                    <span>1000 ダメージ</span>
+                </div>
+            </div>
+
+            <!-- Ranking Screen -->
+            <div id="ranking" class="content screen">
+                <h2>今週のランキング</h2>
+                <div class="ranking-item">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="ranking-position">1</div>
+                        <div>
+                            <div style="font-weight: bold;">ママ</div>
+                            <div style="font-size: 12px; color: #666;">15クエスト完了</div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: bold;">2,500 XP</div>
+                        <div style="font-size: 12px; color: #666;">👑 勤勉な主婦</div>
+                    </div>
+                </div>
+                
+                <div class="ranking-item">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="ranking-position">2</div>
+                        <div>
+                            <div style="font-weight: bold;">あなた</div>
+                            <div style="font-size: 12px; color: #666;">12クエスト完了</div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: bold;">2,100 XP</div>
+                        <div style="font-size: 12px; color: #666;">⚔️ 見習い騎士</div>
+                    </div>
+                </div>
+                
+                <div class="ranking-item">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="ranking-position">3</div>
+                        <div>
+                            <div style="font-weight: bold;">パパ</div>
+                            <div style="font-size: 12px; color: #666;">8クエスト完了</div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: bold;">1,600 XP</div>
+                        <div style="font-size: 12px; color: #666;">🛡️ 新人冒険者</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reward Popup -->
+        <div id="rewardPopup" class="reward-popup">
+            <div class="reward-content">
+                <div class="reward-animation">🎉</div>
+                <h2>クエスト完了！</h2>
+                <p id="rewardText">150 XP と 50 コインを獲得しました！</p>
+                <button class="start-quest-btn" onclick="closeRewardPopup()">続ける</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript files -->
+    <script src="js/gameState.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/quests.js"></script>
+    <script src="js/boss.js"></script>
+    <script src="js/achievements.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

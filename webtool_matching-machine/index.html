@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>キーワード組み込みチェックマシーン - 高度版｜LLM活用キーワード最適化ツール</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ff7e5f;
+      --secondary: #feb47b;
+      --accent: #7ee8fa;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+      --success: #4CAF50;
+      --error: #f44336;
+      --warning: #ff9800;
+      --info: #2196F3;
+      --highlight-color: #ffeb3b;
+      --gray-highlight: #e0e0e0;
+    }
+    
+    body { 
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    h1 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+    }
+    
+    .description {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+
+    
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .input-section {
+      background-color: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .input-label {
+      display: block;
+      font-weight: bold;
+      color: var(--text-primary);
+      margin-bottom: 0.75rem;
+      font-size: 1.1rem;
+    }
+    
+    .input-label i {
+      margin-right: 0.5rem;
+      color: var(--primary);
+    }
+    
+    .input-area {
+      width: 100%;
+      min-height: 200px;
+      padding: 1.25rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      resize: vertical;
+      font-size: 1rem;
+      font-family: inherit;
+      box-shadow: var(--card-shadow);
+      transition: all 0.3s ease;
+      background-color: #fff;
+      box-sizing: border-box;
+    }
+    
+    .input-area:focus {
+      outline: none;
+      border-color: var(--primary);
+      background-color: #fff;
+      box-shadow: 0 0 0 3px rgba(255, 126, 95, 0.1);
+    }
+    
+    .input-area::placeholder {
+      color: #999;
+      font-style: italic;
+    }
+    
+    .center-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 2rem;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .execute-button {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(255, 126, 95, 0.3);
+    }
+    
+    .execute-button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(255, 126, 95, 0.4);
+    }
+    
+    .execute-button:disabled {
+      background: #ccc;
+      transform: none;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    
+    .clear-button {
+      background: linear-gradient(135deg, #f44336, #e53935);
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+    }
+    
+    .clear-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(244, 67, 54, 0.4);
+    }
+    
+    .analysis-options {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .help-section {
+      margin-bottom: 2rem;
+    }
+    
+    .help-toggle {
+      background: linear-gradient(135deg, #e8f5e8, #f0f8f0);
+      color: var(--success);
+      border: 2px solid var(--success);
+      padding: 0.75rem 1.5rem;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 1rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0 auto;
+    }
+    
+    .help-toggle:hover {
+      background: linear-gradient(135deg, var(--success), #45a049);
+      color: white;
+      transform: translateY(-2px);
+    }
+    
+    .help-arrow {
+      transition: transform 0.3s ease;
+    }
+    
+    .help-arrow.rotated {
+      transform: rotate(180deg);
+    }
+    
+    .help-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.5s ease;
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border-radius: 12px;
+      margin-top: 1rem;
+    }
+    
+    .help-content.active {
+      max-height: 1000px;
+      padding: 2rem;
+      border: 2px solid #e0e0e0;
+    }
+    
+    .help-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    
+    .help-grid .help-card:nth-child(1),
+    .help-grid .help-card:nth-child(2) {
+      grid-column: span 1;
+    }
+    
+    .help-grid .help-card:nth-child(3),
+    .help-grid .help-card:nth-child(4) {
+      grid-column: span 1;
+    }
+    
+    .example-card {
+      grid-column: span 1 !important;
+    }
+    
+    .help-card {
+      background: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      border-left: 4px solid var(--primary);
+    }
+    
+    .help-card h3 {
+      color: var(--primary);
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .help-card ul, .help-card ol {
+      margin: 0;
+      padding-left: 1.5rem;
+      text-align: left;
+    }
+    
+    .help-card li {
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      text-align: left;
+    }
+    
+    .help-card p {
+      text-align: left;
+    }
+    
+    .example-section {
+      margin-top: 1rem;
+    }
+    
+    .example-section h4 {
+      color: var(--text-primary);
+      margin: 1rem 0 0.5rem 0;
+      font-size: 0.9rem;
+    }
+    
+    .example-input, .example-output {
+      background: #f8f9fa;
+      padding: 0.75rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      margin-bottom: 0.5rem;
+    }
+    
+    .example-output {
+      background: #e8f5e8;
+    }
+    
+    .loading-indicator {
+      display: none;
+      text-align: center;
+      color: var(--primary);
+      font-weight: bold;
+    }
+    
+    .loading-indicator.active {
+      display: block;
+    }
+    
+    .progress-text {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .scores-section {
+      display: none;
+      max-width: 1000px;
+      margin: 2rem auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    
+    .scores-section.active {
+      display: grid;
+    }
+    
+    .score-card {
+      background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      border: 2px solid #e0e0e0;
+      transition: all 0.3s ease;
+    }
+    
+    .score-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+    
+    .score-card-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .score-card-title i {
+      color: var(--primary);
+    }
+    
+    .score-card-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+    
+    .score-card-content {
+      text-align: center;
+    }
+    
+    .main-score-value {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .main-score-detail {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    
+    .main-score-breakdown {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+    
+    .main-score-breakdown h4 {
+      color: var(--text-primary);
+      margin: 0 0 0.5rem 0;
+      font-size: 0.9rem;
+    }
+    
+    .main-score-breakdown ul {
+      margin: 0;
+      padding-left: 1.2rem;
+      color: var(--text-secondary);
+    }
+    
+    .main-score-breakdown li {
+      margin-bottom: 0.3rem;
+    }
+    
+    .results-section {
+      display: none;
+      background-color: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      margin-top: 1rem;
+    }
+    
+    .results-section.active {
+      display: block;
+    }
+    
+    .results-tabs {
+      display: flex;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    
+    .results-tab {
+      flex: 1;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: var(--text-secondary);
+    }
+    
+    .results-tab:hover {
+      background-color: #fff;
+      color: var(--primary);
+    }
+    
+    .results-tab.active {
+      background-color: #fff;
+      color: var(--primary);
+      font-weight: bold;
+      border-bottom: 3px solid var(--primary);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .score-section {
+      background: linear-gradient(135deg, #e3f2fd 0%, #f0f4ff 100%);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    
+    .score-value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .score-detail {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .score-breakdown {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      text-align: left;
+    }
+    
+    .score-breakdown h4 {
+      color: var(--text-primary);
+      margin: 0 0 0.5rem 0;
+      font-size: 0.9rem;
+    }
+    
+    .score-breakdown ul {
+      margin: 0;
+      padding-left: 1.2rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+    
+    .score-breakdown li {
+      margin-bottom: 0.3rem;
+    }
+    
+    .full-width {
+      grid-column: 1 / -1;
+      margin-top: 1rem;
+    }
+    
+    .keywords-display {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      word-spacing: 0.3rem;
+    }
+    
+    .results-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .result-item {
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      padding: 1rem;
+      border: 2px solid #e0e0e0;
+    }
+    
+    .result-title {
+      font-weight: bold;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .result-content {
+      min-height: 150px;
+      padding: 0.75rem;
+      background-color: #fff;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      font-family: 'Courier New', monospace;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+    }
+    
+    .highlight-yellow {
+      background-color: var(--highlight-color);
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    
+    .highlight-gray {
+      background-color: var(--gray-highlight);
+      color: #666;
+      padding: 2px 4px;
+      border-radius: 3px;
+      text-decoration: line-through;
+    }
+    
+    .sample-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    
+    .sample-btn {
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      color: var(--text-secondary);
+      border: 2px solid #e0e0e0;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+    
+    .sample-btn:hover {
+      background: linear-gradient(135deg, #fff, #f8f9fa);
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-1px);
+    }
+    
+    .analysis-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .detail-card {
+      background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+      border-radius: 8px;
+      padding: 1rem;
+      border-left: 4px solid var(--accent);
+    }
+    
+    .detail-title {
+      font-weight: bold;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+    
+    .detail-content {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+    
+    .keyword-tag {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--accent), #4dd0e1);
+      color: white;
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      margin: 0.2rem;
+    }
+    
+    .keyword-tag.high-value {
+      background: linear-gradient(135deg, var(--success), #66bb6a);
+    }
+    
+    .keyword-tag.medium-value {
+      background: linear-gradient(135deg, var(--warning), #ffa726);
+    }
+    
+    .keyword-tag.low-value {
+      background: linear-gradient(135deg, var(--error), #ef5350);
+    }
+    
+    .tips-section {
+      background: linear-gradient(135deg, #fff3e0 0%, #fff8f0 100%);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+      border-left: 4px solid var(--warning);
+    }
+    
+    .tips-title {
+      font-weight: bold;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .tips-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .tips-list li {
+      padding: 0.5rem 0;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    
+    .tips-list li:before {
+      content: "💡";
+      flex-shrink: 0;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background-color: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 1rem 0;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+    
+          @media (max-width: 768px) {
+        .main-layout,
+        .results-layout {
+          grid-template-columns: 1fr;
+        }
+        
+        .center-section {
+          padding: 1rem;
+        }
+        
+        .sample-buttons {
+          justify-content: center;
+        }
+        
+        .help-grid {
+          grid-template-columns: 1fr;
+        }
+        
+        .help-grid .help-card:nth-child(3),
+        .help-grid .help-card:nth-child(4) {
+          grid-column: span 1;
+        }
+        
+        .example-card {
+          grid-column: span 1 !important;
+        }
+        
+        .button-group {
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        
+        .results-tabs {
+          flex-direction: column;
+        }
+        
+        .scores-section {
+          grid-template-columns: 1fr;
+          margin: 1rem auto;
+        }
+      }
+    
+    .highlight-input {
+      animation: highlight-flash 1s ease-in-out;
+    }
+    
+    @keyframes highlight-flash {
+      0% { background-color: #fafafa; }
+      50% { background-color: #fff3cd; }
+      100% { background-color: #fafafa; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><i class="fas fa-search"></i> キーワード組み込みチェックマシーン</h1>
+      <p class="description">
+        LLM活用による高度なキーワード最適化 - メーカー名検出・形容詞判定・Amazon検索最適化
+      </p>
+      
+      <!-- 使い方説明（折りたたみ式） -->
+      <div class="help-section">
+        <button class="help-toggle" onclick="toggleHelp()">
+          <i class="fas fa-question-circle"></i> 使い方・機能説明
+          <i class="fas fa-chevron-down help-arrow"></i>
+        </button>
+        <div id="helpContent" class="help-content">
+          <div class="help-grid">
+            <div class="help-card">
+              <h3><i class="fas fa-play-circle"></i> 基本的な使い方</h3>
+              <ol>
+                <li><strong>キーワード入力</strong>を左側に入力（スペースまたは改行区切り）</li>
+                <li><strong>商品概要・仕様</strong>を右側に入力</li>
+                <li><strong>分析実行</strong>ボタンをクリック</li>
+                <li>結果をタブで確認（概要・詳細分析・最適化案・トレンド）</li>
+              </ol>
+            </div>
+            
+            <div class="help-card">
+              <h3><i class="fas fa-brain"></i> 実行される分析</h3>
+              <ul>
+                <li><strong>基本分析</strong>: 重複検出、関連性評価、最適化スコア算出</li>
+                <li><strong>メーカー名検出</strong>: ブランド名・商品名を特定してグレーハイライト</li>
+                <li><strong>キーワード分類</strong>: 形容詞・複合語・技術用語などに分類</li>
+                <li><strong>トレンド分析</strong>: 市場トレンド・季節性・成長性を評価</li>
+              </ul>
+            </div>
+            
+            <div class="help-card">
+              <h3><i class="fas fa-chart-line"></i> 出力される結果</h3>
+              <ul>
+                <li><strong>最適化スコア</strong>: 0-100点でキーワード品質を評価</li>
+                <li><strong>最適化キーワード</strong>: 重複除去・重要度順に並び替え</li>
+                <li><strong>ハイライト商品概要</strong>: キーワード一致箇所を黄色、メーカー名をグレーで表示</li>
+                <li><strong>改善提案</strong>: 具体的な最適化アドバイス</li>
+              </ul>
+            </div>
+            
+            <div class="help-card">
+              <h3><i class="fas fa-server"></i> 使用技術・API情報</h3>
+              <ul>
+                <li><strong>AI分析基盤</strong>: io.net 分散コンピューティングネットワーク</li>
+                <li><strong>LLMモデル</strong>: meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8</li>
+                <li><strong>分析精度</strong>: 高精度な日本語キーワード解析に最適化</li>
+                <li><strong>処理速度</strong>: 分散処理による高速レスポンス</li>
+                <li><strong>データ保護</strong>: 入力データは分析後に自動削除</li>
+              </ul>
+            </div>
+            
+            <div class="help-card example-card">
+              <h3><i class="fas fa-headphones"></i> 電子機器の例</h3>
+              <div class="example-section">
+                <h4>入力:</h4>
+                <div class="example-input">
+                  <strong>キーワード:</strong> ワイヤレス イヤホン Bluetooth 高音質 Sony ノイズキャンセリング<br>
+                  <strong>商品概要:</strong> Sony WF-1000XM4 ワイヤレスイヤホンは業界最高クラスのノイズキャンセリング技術を搭載...
+                </div>
+                <h4>出力:</h4>
+                <div class="example-output">
+                  <strong>スコア:</strong> 85点<br>
+                  <strong>最適化後:</strong> ワイヤレス イヤホン Bluetooth 高音質 ノイズキャンセリング<br>
+                  <strong>除外:</strong> <span class="highlight-gray">Sony</span>（メーカー名）
+                </div>
+              </div>
+            </div>
+            
+            <div class="help-card example-card">
+              <h3><i class="fas fa-tshirt"></i> ファッションの例</h3>
+              <div class="example-section">
+                <h4>入力:</h4>
+                <div class="example-input">
+                  <strong>キーワード:</strong> レディース ワンピース 夏 半袖 ZARA おしゃれ 大きいサイズ<br>
+                  <strong>商品概要:</strong> ZARA 春夏新作レディースワンピースは上品なデザインと快適な着心地を両立...
+                </div>
+                <h4>出力:</h4>
+                <div class="example-output">
+                  <strong>スコア:</strong> 78点<br>
+                  <strong>最適化後:</strong> レディース ワンピース 夏 半袖 おしゃれ 大きいサイズ<br>
+                  <strong>除外:</strong> <span class="highlight-gray">ZARA</span>（ブランド名）
+                </div>
+              </div>
+            </div>
+            
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+    <div class="main-layout">
+      <!-- 左側：キーワード一覧入力 -->
+      <div class="input-section">
+        <label class="input-label" for="keywordInput">
+          <i class="fas fa-tags"></i> キーワード入力
+        </label>
+        <div class="sample-buttons">
+          <button class="sample-btn" onclick="insertSampleKeywords('electronics')">電子機器</button>
+          <button class="sample-btn" onclick="insertSampleKeywords('fashion')">ファッション</button>
+          <button class="sample-btn" onclick="insertSampleKeywords('food')">食品</button>
+          <button class="sample-btn" onclick="insertSampleKeywords('clear')">クリア</button>
+        </div>
+        <textarea 
+          id="keywordInput" 
+          class="input-area" 
+          placeholder="キーワードを半角スペース区切りまたは改行で入力してください"
+        ></textarea>
+      </div>
+
+      <!-- 右側：商品概要入力 -->
+      <div class="input-section">
+        <label class="input-label" for="productInput">
+          <i class="fas fa-file-text"></i> 商品概要・仕様
+        </label>
+        <div class="sample-buttons">
+          <button class="sample-btn" onclick="insertSampleProduct('electronics')">電子機器例</button>
+          <button class="sample-btn" onclick="insertSampleProduct('fashion')">ファッション例</button>
+          <button class="sample-btn" onclick="insertSampleProduct('food')">食品例</button>
+          <button class="sample-btn" onclick="insertSampleProduct('clear')">クリア</button>
+        </div>
+        <textarea 
+          id="productInput" 
+          class="input-area" 
+          placeholder="商品の概要、仕様、説明文を入力してください"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- 中央：実行ボタンエリア -->
+    <div class="center-section">
+      <div class="button-group">
+        <button id="executeBtn" class="execute-button">
+          <i class="fas fa-play"></i> 分析実行
+        </button>
+        <button id="clearBtn" class="clear-button">
+          <i class="fas fa-trash-alt"></i> クリア
+        </button>
+      </div>
+      
+
+      
+      <div id="loadingIndicator" class="loading-indicator">
+        <div id="progressText" class="progress-text">0%</div>
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- スコア表示エリア -->
+    <div id="scoresSection" class="scores-section">
+      <!-- キーワード最適化スコア -->
+      <div class="score-card">
+        <div class="score-card-title">
+          <i class="fas fa-chart-pie"></i> キーワード最適化スコア
+        </div>
+        <div class="score-card-content">
+          <div id="mainScoreValue" class="main-score-value">0</div>
+          <div id="mainScoreDetail" class="main-score-detail">重複キーワード数: 0個 | 最適化候補: 0個</div>
+          <div id="mainScoreBreakdown" class="main-score-breakdown">
+            <!-- 算出根拠がここに表示される -->
+          </div>
+        </div>
+      </div>
+
+      <!-- トレンドスコア -->
+      <div class="score-card">
+        <div class="score-card-title">
+          <i class="fas fa-chart-line"></i> トレンドスコア
+        </div>
+        <div class="score-card-subtitle">キーワードの市場トレンド評価</div>
+        <div class="score-card-content">
+          <div id="trendScoreValue" class="main-score-value">0</div>
+          <div id="trendScoreDetail" class="main-score-detail">人気度: - | 成長性: -</div>
+          <div id="trendScoreBreakdown" class="main-score-breakdown">
+            <!-- トレンドスコア算出根拠がここに表示される -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 結果表示エリア -->
+    <div id="resultsSection" class="results-section">
+      <!-- タブナビゲーション -->
+      <div class="results-tabs">
+        <div class="results-tab active" data-tab="overview">
+          <i class="fas fa-chart-pie"></i> キーワードチェック
+        </div>
+        <div class="results-tab" data-tab="detailed">
+          <i class="fas fa-list-alt"></i> キーワード分析
+        </div>
+        <div class="results-tab" data-tab="optimization">
+          <i class="fas fa-tools"></i> 最適化案
+        </div>
+        <div class="results-tab" data-tab="trends">
+          <i class="fas fa-chart-line"></i> トレンド分析
+        </div>
+      </div>
+
+      <!-- キーワードチェックタブ -->
+      <div id="overview-tab" class="tab-content active">
+        <div class="results-layout">
+          <!-- キーワードチェックされた商品概要 -->
+          <div class="result-item">
+            <div class="result-title">
+              <i class="fas fa-highlighter" style="color: var(--warning);"></i> 
+              キーワードチェックされた商品概要
+            </div>
+            <div id="highlightedProduct" class="result-content"></div>
+          </div>
+
+          <!-- 最適化されたキーワード -->
+          <div class="result-item">
+            <div class="result-title">
+              <i class="fas fa-check-circle" style="color: var(--success);"></i> 
+              最適化されたキーワード
+            </div>
+            <div id="optimizedKeywords" class="result-content keywords-display"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 詳細分析タブ -->
+      <div id="detailed-tab" class="tab-content">
+        <div class="analysis-details" id="analysisDetails">
+          <!-- 動的に生成される詳細分析内容 -->
+        </div>
+      </div>
+
+      <!-- 最適化案タブ -->
+      <div id="optimization-tab" class="tab-content">
+        <div class="tips-section">
+          <div class="tips-title">
+            <i class="fas fa-lightbulb"></i> 改善提案
+          </div>
+          <ul id="improvementTips" class="tips-list">
+          </ul>
+        </div>
+      </div>
+
+      <!-- トレンドタブ -->
+      <div id="trends-tab" class="tab-content">
+        <div id="trendAnalysis">
+          <!-- 動的に生成されるトレンド分析内容 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- キーワード分析器を読み込み -->
+  <script src="app.js"></script>
+</body>
+</html> 
