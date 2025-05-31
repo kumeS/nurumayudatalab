@@ -105,6 +105,12 @@
     { "id": "margarine", "name": "マーガリン", "season": ["春", "夏", "秋", "冬"] },
     { "id": "cream", "name": "生クリーム", "season": ["春", "夏", "秋", "冬"] },
     { "id": "milk", "name": "牛乳", "season": ["春", "夏", "秋", "冬"] },
+
+    { "id": "cannedTomato", "name": "トマト缶", "season": ["春", "夏", "秋", "冬"] },
+    { "id": "coconutMilk", "name": "ココナッツミルク", "season": ["春", "夏", "秋", "冬"] }
+  ],
+  "grains": [
+    { "id": "rice", "name": "米", "season": ["春", "夏", "秋", "冬"] },
     { "id": "bread", "name": "パン", "season": ["春", "夏", "秋", "冬"] },
     { "id": "shokupan", "name": "食パン", "season": ["春", "夏", "秋", "冬"] },
     { "id": "wheatFlour", "name": "小麦粉", "season": ["春", "夏", "秋", "冬"] },
@@ -112,10 +118,7 @@
     { "id": "noodles", "name": "麺類", "season": ["春", "夏", "秋", "冬"] },
     { "id": "udon", "name": "うどん", "season": ["春", "夏", "秋", "冬"] },
     { "id": "soba", "name": "そば", "season": ["春", "夏", "秋", "冬"] },
-    { "id": "pasta", "name": "パスタ", "season": ["春", "夏", "秋", "冬"] },
-    { "id": "rice", "name": "米", "season": ["春", "夏", "秋", "冬"] },
-    { "id": "cannedTomato", "name": "トマト缶", "season": ["春", "夏", "秋", "冬"] },
-    { "id": "coconutMilk", "name": "ココナッツミルク", "season": ["春", "夏", "秋", "冬"] }
+    { "id": "pasta", "name": "パスタ", "season": ["春", "夏", "秋", "冬"] }
   ],
   "seasonings": [
     { "id": "soySauce", "name": "醤油", "season": ["春", "夏", "秋", "冬"] },
@@ -164,7 +167,12 @@
     { "id": "fishSauce", "name": "ナンプラー", "season": ["春", "夏", "秋", "冬"] },
     { "id": "tabasco", "name": "タバスコ", "season": ["春", "夏", "秋", "冬"] },
     { "id": "honey", "name": "はちみつ", "season": ["春", "夏", "秋", "冬"] },
-    { "id": "maplesyrup", "name": "メープルシロップ", "season": ["春", "夏", "秋", "冬"] }
+    { "id": "maplesyrup", "name": "メープルシロップ", "season": ["春", "夏", "秋", "冬"] },
+    { "id": "chocolate", "name": "チョコレート", "season": ["春", "夏", "秋", "冬"] },
+    { "id": "walnut", "name": "くるみ", "season": ["秋", "冬"] },
+    { "id": "almond", "name": "アーモンド", "season": ["春", "夏", "秋", "冬"] },
+    { "id": "cocoaPowder", "name": "ココアパウダー", "season": ["春", "夏", "秋", "冬"] },
+    { "id": "vanillaEssence", "name": "バニラエッセンス", "season": ["春", "夏", "秋", "冬"] }
   ],
   "fruits": [
     { "id": "apple", "name": "りんご", "season": ["秋", "冬"] },

@@ -456,7 +456,12 @@ document.addEventListener('DOMContentLoaded', () => {
           { id: "garlic", name: "にんにく", season: ["春", "夏", "秋", "冬"] },
           { id: "ketchup", name: "ケチャップ", season: ["春", "夏", "秋", "冬"] },
           { id: "oysterSauce", name: "オイスターソース", season: ["春", "夏", "秋", "冬"] },
-          { id: "curry", name: "カレー粉", season: ["春", "夏", "秋", "冬"] }
+          { id: "curry", name: "カレー粉", season: ["春", "夏", "秋", "冬"] },
+          { id: "chocolate", name: "チョコレート", season: ["春", "夏", "秋", "冬"] },
+          { id: "walnut", name: "くるみ", season: ["秋", "冬"] },
+          { id: "almond", name: "アーモンド", season: ["春", "夏", "秋", "冬"] },
+          { id: "cocoaPowder", name: "ココアパウダー", season: ["春", "夏", "秋", "冬"] },
+          { id: "vanillaEssence", name: "バニラエッセンス", season: ["春", "夏", "秋", "冬"] }
         ],
         fruits: [
           { id: "apple", name: "りんご", season: ["秋", "冬"] },
