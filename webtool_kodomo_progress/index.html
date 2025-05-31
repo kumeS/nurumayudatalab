@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>児童進捗管理ツール｜Kids Progress Manager</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
     :root {
       --primary: #4f46e5;
@@ -114,9 +113,11 @@
     /* サイドバー */
     .sidebar {
       width: 300px;
+      min-width: 280px;
       padding: 1.5rem;
       border-right: 1px solid var(--border);
       background: var(--bg-secondary);
+      flex-shrink: 0;
     }
     
     .sidebar-section {
@@ -136,6 +137,8 @@
     .content-area {
       flex: 1;
       padding: 1.5rem;
+      min-width: 0;
+      overflow-x: auto;
     }
     
     /* ボタンスタイル */
@@ -250,6 +253,7 @@
       border-radius: 8px;
       border: 1px solid var(--border);
       max-width: 100%;
+      width: 100%;
     }
     
     .data-table {
@@ -434,6 +438,29 @@
     }
     
     /* レスポンシブ */
+    @media (max-width: 1200px) {
+      .sidebar {
+        width: 280px;
+        min-width: 260px;
+      }
+    }
+    
+    @media (max-width: 1024px) {
+      .sidebar {
+        width: 260px;
+        min-width: 240px;
+        padding: 1rem;
+      }
+      
+      .sidebar-title {
+        font-size: 0.9rem;
+      }
+      
+      .main-content {
+        min-height: 500px;
+      }
+    }
+    
     @media (max-width: 768px) {
       .main-content {
         flex-direction: column;
@@ -441,8 +468,10 @@
       
       .sidebar {
         width: 100%;
+        min-width: auto;
         border-right: none;
         border-bottom: 1px solid var(--border);
+        flex-shrink: 1;
       }
       
       .tabs {
@@ -475,69 +504,7 @@
     .justify-between { justify-content: space-between; }
     .gap-2 { gap: 0.5rem; }
     
-    /* Socket.IO関連スタイル */
-    .status-online {
-      color: var(--success);
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    
-    .status-offline {
-      color: var(--error);
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    
-    .room-info {
-      background: var(--bg-secondary);
-      padding: 0.5rem;
-      border-radius: 4px;
-      font-weight: 500;
-      color: var(--primary);
-    }
-    
-    .active-users {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    
-    .user-badge {
-      background: var(--primary);
-      color: white;
-      padding: 0.25rem 0.5rem;
-      border-radius: 12px;
-      font-size: 0.8rem;
-      font-weight: 500;
-    }
-    
-    .user-badge.current-user {
-      background: var(--success);
-    }
-    
-    .being-edited {
-      border: 2px solid var(--warning) !important;
-      background: rgba(245, 158, 11, 0.1) !important;
-    }
-    
-    .collaboration-indicator {
-      position: absolute;
-      top: -8px;
-      right: -8px;
-      background: var(--warning);
-      color: white;
-      border-radius: 50%;
-      width: 16px;
-      height: 16px;
-      font-size: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+
     
     .text-success {
       color: var(--success);
@@ -711,19 +678,19 @@
 
     <!-- タブナビゲーション -->
     <div class="tabs">
-      <button class="tab" data-tab="students">
+      <button class="tab" data-tab="students" onclick="switchTab('students')">
         <i class="fas fa-users"></i> 児童管理
       </button>
-      <button class="tab" data-tab="input">
-        <i class="fas fa-edit"></i> 進捗データ
+      <button class="tab" data-tab="input" onclick="switchTab('input')">
+        <i class="fas fa-edit"></i> 進捗データ入力
       </button>
-      <button class="tab" data-tab="overview">
-        <i class="fas fa-chart-line"></i> 進捗一覧
+      <button class="tab" data-tab="overview" onclick="switchTab('overview')">
+        <i class="fas fa-chart-line"></i> 進捗管理
       </button>
-      <button class="tab" data-tab="analysis">
+      <button class="tab" data-tab="analysis" onclick="switchTab('analysis')">
         <i class="fas fa-brain"></i> AI分析
       </button>
-      <button class="tab" data-tab="settings">
+      <button class="tab" data-tab="settings" onclick="switchTab('settings')">
         <i class="fas fa-cog"></i> 設定
       </button>
     </div>
@@ -794,9 +761,45 @@
               <span>今日の入力</span>
               <strong id="todayInputs">0</strong>
             </div>
-            <div class="flex justify-between">
+            <div class="flex justify-between" style="cursor: pointer;" onclick="toggleMissingInputsDetail()">
               <span>未入力項目</span>
-              <strong id="missingInputs">0</strong>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <strong id="missingInputs">0</strong>
+                <i id="missingInputsToggle" class="fas fa-chevron-down" style="font-size: 0.8rem; color: var(--text-secondary); transition: transform 0.3s ease;"></i>
+              </div>
+            </div>
+            <div class="flex justify-between">
+              <span>入力が滞っている児童</span>
+              <strong id="noRecentInputCount" style="color: var(--error);">0</strong>
+            </div>
+            
+            <!-- 未入力項目の詳細表示 -->
+            <div id="missingInputsDetail" class="hidden" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+              <div style="margin-bottom: 0.5rem;">
+                <h4 style="margin: 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                  <i class="fas fa-exclamation-circle" style="color: var(--warning);"></i>
+                  未入力の児童
+                </h4>
+              </div>
+              <div id="missingInputsList" style="max-height: 200px; overflow-y: auto;">
+                <!-- 動的に生成される未入力児童リスト -->
+              </div>
+              
+              <!-- 入力が滞っている児童セクション -->
+              <div id="noRecentInputSection" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                <div style="margin-bottom: 0.5rem;">
+                  <h4 style="margin: 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-clock" style="color: var(--error);"></i>
+                    入力が滞っている児童
+                  </h4>
+                  <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--text-secondary);">
+                    3日以上データ入力がない児童
+                  </p>
+                </div>
+                <div id="noRecentInputsList" style="max-height: 200px; overflow-y: auto;">
+                  <!-- 動的に生成される入力が滞っている児童リスト -->
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -825,6 +828,7 @@
                   <th>氏名</th>
                   <th>在籍番号</th>
                   <th>学年</th>
+                  <th>性別</th>
                   <th>クラス</th>
                   <th>登録日</th>
                   <th>データ数</th>
@@ -872,18 +876,42 @@
           </div>
         </div>
 
-        <!-- 進捗一覧タブ -->
+        <!-- 進捗管理タブ -->
         <div id="overview-tab" class="tab-content hidden">
           <div class="flex justify-between items-center mb-2">
-            <h2 class="card-title">児童進捗一覧</h2>
+            <h2 class="card-title">児童進捗管理</h2>
+            <div class="flex gap-2">
+              <button class="btn btn-primary" onclick="switchTab('input')">
+                <i class="fas fa-plus"></i> 進捗入力
+              </button>
+              <button class="btn btn-secondary" onclick="refreshTable()">
+                <i class="fas fa-sync-alt"></i> 更新
+              </button>
+              <button class="btn btn-success" onclick="exportData()">
+                <i class="fas fa-download"></i> エクスポート
+              </button>
+            </div>
           </div>
           
           <!-- データテーブル -->
           <div class="card" style="overflow-x: auto; padding: 0;">
             <div style="padding: 1.5rem 1.5rem 0 1.5rem;">
-              <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">
-                <i class="fas fa-table"></i> 進捗データ一覧
-              </h3>
+              <div class="flex justify-between items-center mb-2">
+                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">
+                  <i class="fas fa-table"></i> 進捗管理一覧
+                </h3>
+                <div class="flex gap-2">
+                  <button class="btn btn-secondary" onclick="filterProgressTable('all')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
+                    <i class="fas fa-list"></i> 全て
+                  </button>
+                  <button class="btn btn-warning" onclick="filterProgressTable('attention')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
+                    <i class="fas fa-exclamation-triangle"></i> 要注意
+                  </button>
+                  <button class="btn btn-success" onclick="filterProgressTable('good')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
+                    <i class="fas fa-thumbs-up"></i> 良好
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="data-table-container" style="max-height: 70vh; overflow-y: auto; overflow-x: auto; border-radius: 0;">
               <table class="data-table" id="progressTable">
@@ -892,11 +920,13 @@
                     <th style="position: sticky; left: 0; background: var(--bg-secondary); z-index: 11; box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);">氏名</th>
                     <th style="min-width: 100px;">在籍番号</th>
                     <th style="min-width: 80px;">学年</th>
+                    <th style="min-width: 60px;">性別</th>
                     <th style="min-width: 80px;">クラス</th>
                     <th style="min-width: 120px;">実施課題</th>
                     <th style="min-width: 100px;">学習状況</th>
                     <th style="min-width: 100px;">学習意欲</th>
                     <th style="min-width: 100px;">宿題提出</th>
+                    <th style="min-width: 100px;">ステータス</th>
                     <th style="min-width: 120px;">最終更新</th>
                     <th style="min-width: 180px;">操作</th>
                 </tr>
@@ -1036,6 +1066,86 @@
             </div>
           </div>
           
+          <!-- 親御さん向けレポート -->
+          <div class="card">
+            <div style="text-align: center; margin-bottom: 2rem;">
+              <h2 style="color: var(--secondary); font-size: 1.8rem; font-weight: 700; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                <i class="fas fa-heart" style="color: var(--secondary);"></i>
+                親御さん向けレポート
+              </h2>
+              <p style="color: var(--text-secondary); font-size: 1rem; margin: 0.5rem 0 0 0;">
+                保護者面談や家庭連携に活用できる、わかりやすいレポートを自動生成
+              </p>
+            </div>
+            
+            <!-- レポート生成ボタン -->
+            <div style="text-align: center; margin-bottom: 2rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                <!-- クラス全体レポート -->
+                <div style="background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); padding: 1.5rem; border-radius: 12px; border: 2px solid var(--secondary);">
+                  <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                    <i class="fas fa-users" style="color: var(--secondary); font-size: 2rem; margin-right: 1rem;"></i>
+                    <div>
+                      <h4 style="margin: 0; color: var(--secondary); font-weight: 700; font-size: 1.1rem;">クラス全体レポート</h4>
+                      <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">学級の様子を保護者向けに</p>
+                    </div>
+                  </div>
+                  <button class="btn" onclick="openClassReportModal()" style="width: 100%; background: var(--secondary); color: white; font-weight: 600;">
+                    <i class="fas fa-file-alt" style="margin-right: 0.5rem;"></i> クラス全体レポート作成
+                  </button>
+                </div>
+                
+                <!-- 個別児童レポート -->
+                <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 1.5rem; border-radius: 12px; border: 2px solid var(--accent);">
+                  <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                    <i class="fas fa-child" style="color: var(--accent); font-size: 2rem; margin-right: 1rem;"></i>
+                    <div>
+                      <h4 style="margin: 0; color: var(--accent); font-weight: 700; font-size: 1.1rem;">個別児童レポート</h4>
+                      <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">お子様の成長を詳しく</p>
+                    </div>
+                  </div>
+                  <button class="btn" onclick="generateParentReport('individual')" style="width: 100%; background: var(--accent); color: white; font-weight: 600;">
+                    <i class="fas fa-user-edit" style="margin-right: 0.5rem;"></i> 個別レポート作成
+                  </button>
+                </div>
+              </div>
+              
+              <div style="background: rgba(124, 58, 237, 0.05); border: 1px solid rgba(124, 58, 237, 0.2); border-radius: 8px; padding: 1rem;">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                  <i class="fas fa-lightbulb" style="color: var(--secondary); margin-right: 0.5rem;"></i>
+                  <strong style="color: var(--secondary);">親御さん向けレポートの特徴</strong>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; font-size: 0.9rem; color: var(--text-primary);">
+                  <span>• <strong>わかりやすい表現:</strong> 専門用語を避けた親しみやすい文章</span>
+                  <span>• <strong>具体的なアドバイス:</strong> 家庭でできる支援方法を提案</span>
+                  <span>• <strong>成長の可視化:</strong> お子様の良い点を積極的に紹介</span>
+                  <span>• <strong>連携のポイント:</strong> 学校と家庭の協力方法を明示</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 親御さん向けレポート履歴 -->
+            <div>
+              <h3 style="color: var(--secondary); margin-bottom: 1rem; font-size: 1.2rem; font-weight: 600; border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem;">
+                <i class="fas fa-history"></i> 親御さん向けレポート履歴
+              </h3>
+              <div id="parentReportHistory">
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle"></i>
+                  まだ親御さん向けレポートが作成されていません。上記のボタンからレポートを作成すると、ここに履歴が表示されます。
+                  <br><br>
+                  <strong>活用例：</strong>
+                  <ul style="margin-top: 0.5rem;">
+                    <li>保護者面談での資料として活用</li>
+                    <li>家庭訪問時の話題提供</li>
+                    <li>学級通信への内容反映</li>
+                    <li>個別の成長記録として保管</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div class="card">
             <h3 class="card-title">🎯 教育現場での活用方法</h3>
             <div style="margin-bottom: 1rem;">
@@ -1044,51 +1154,187 @@
               </h4>
             </div>
             
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
-              <!-- 保護者面談カード -->
-              <div style="background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--primary);">
+            <!-- 2x2グリッド表示 -->
+            <div class="grid-2x2" style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1.5rem; max-width: 800px; margin: 0 auto;">
+              <!-- 左上: 保護者面談カード -->
+              <div style="background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--primary); min-height: 140px; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; align-items: center; margin-bottom: 0.75rem;">
                   <i class="fas fa-users" style="color: var(--primary); font-size: 1.5rem; margin-right: 0.75rem;"></i>
                   <h5 style="margin: 0; color: var(--primary); font-weight: 600;">保護者面談</h5>
                 </div>
-                <p style="margin: 0; color: var(--text-primary); line-height: 1.6;">
-                  「最近の学習状況について<strong>具体的なデータと分析</strong>があります」
+                <p style="margin: 0; color: var(--text-primary); line-height: 1.6; font-size: 0.95rem;">
+                  「最近の学習状況について<br><strong>具体的なデータと分析</strong>があります」
                 </p>
               </div>
               
-              <!-- 指導計画見直しカード -->
-              <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--success);">
+              <!-- 右上: 指導計画見直しカード -->
+              <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--success); min-height: 140px; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; align-items: center; margin-bottom: 0.75rem;">
                   <i class="fas fa-clipboard-list" style="color: var(--success); font-size: 1.5rem; margin-right: 0.75rem;"></i>
                   <h5 style="margin: 0; color: var(--success); font-weight: 600;">指導計画見直し</h5>
                 </div>
-                <p style="margin: 0; color: var(--text-primary); line-height: 1.6;">
-                  「AIが提案する<strong>個別指導ポイント</strong>を参考に」
+                <p style="margin: 0; color: var(--text-primary); line-height: 1.6; font-size: 0.95rem;">
+                  「AIが提案する<br><strong>個別指導ポイント</strong>を参考に」
                 </p>
               </div>
               
-              <!-- チーム会議カード -->
-              <div style="background: linear-gradient(135deg, #fef3e2 0%, #fef7ed 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--warning);">
+              <!-- 左下: チーム会議カード -->
+              <div style="background: linear-gradient(135deg, #fef3e2 0%, #fef7ed 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--warning); min-height: 140px; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; align-items: center; margin-bottom: 0.75rem;">
                   <i class="fas fa-comments" style="color: var(--warning); font-size: 1.5rem; margin-right: 0.75rem;"></i>
                   <h5 style="margin: 0; color: var(--warning); font-weight: 600;">チーム会議</h5>
                 </div>
-                <p style="margin: 0; color: var(--text-primary); line-height: 1.6;">
-                  「<strong>客観的な分析結果</strong>を基に指導方針を検討」
+                <p style="margin: 0; color: var(--text-primary); line-height: 1.6; font-size: 0.95rem;">
+                  「<strong>客観的な分析結果</strong>を基に<br>指導方針を検討」
                 </p>
               </div>
               
-              <!-- 成長記録カード -->
-              <div style="background: linear-gradient(135deg, #fdf2f8 0%, #fef7f7 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--secondary);">
+              <!-- 右下: 成長記録カード -->
+              <div style="background: linear-gradient(135deg, #fdf2f8 0%, #fef7f7 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--secondary); min-height: 140px; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; align-items: center; margin-bottom: 0.75rem;">
                   <i class="fas fa-chart-line" style="color: var(--secondary); font-size: 1.5rem; margin-right: 0.75rem;"></i>
                   <h5 style="margin: 0; color: var(--secondary); font-weight: 600;">成長記録</h5>
                 </div>
-                <p style="margin: 0; color: var(--text-primary); line-height: 1.6;">
-                  「<strong>小さな変化の積み重ね</strong>を可視化」
+                <p style="margin: 0; color: var(--text-primary); line-height: 1.6; font-size: 0.95rem;">
+                  「<strong>小さな変化の積み重ね</strong>を<br>可視化」
                 </p>
               </div>
             </div>
+            
+            <!-- レスポンシブ対応用のモバイル表示 -->
+            <style>
+              @media (max-width: 768px) {
+                .grid-2x2 {
+                  grid-template-columns: 1fr !important;
+                  grid-template-rows: auto !important;
+                }
+              }
+              
+              /* 親御さんレポート専用スタイル */
+              .parent-report-modal {
+                width: 95vw !important;
+                max-width: min(1000px, 95vw) !important;
+              }
+              
+              .parent-report-divider {
+                border-top: 2px solid var(--border, #e2e8f0);
+                margin: 1.5rem 0;
+                opacity: 0.6;
+              }
+              
+              .parent-report-h3 {
+                color: var(--primary, #4f46e5) !important;
+                font-size: 1.3rem !important;
+                font-weight: 700 !important;
+                margin: 1.5rem 0 0.75rem 0 !important;
+                padding: 0.5rem 0 0.5rem 0.75rem !important;
+                border-left: 4px solid var(--primary, #4f46e5) !important;
+                background: rgba(79, 70, 229, 0.05) !important;
+                border-radius: 4px !important;
+              }
+              
+              .parent-report-h4 {
+                color: var(--secondary, #7c3aed) !important;
+                font-size: 1.1rem !important;
+                font-weight: 600 !important;
+                margin: 1rem 0 0.5rem 0 !important;
+                padding: 0.25rem 0.5rem !important;
+                border-left: 3px solid var(--secondary, #7c3aed) !important;
+                background: rgba(124, 58, 237, 0.05) !important;
+                border-radius: 0 4px 4px 0 !important;
+              }
+              
+              .parent-report-h5 {
+                color: var(--accent, #06b6d4) !important;
+                font-size: 1rem !important;
+                font-weight: 600 !important;
+                margin: 0.75rem 0 0.25rem 0 !important;
+                padding: 0.2rem 0.4rem !important;
+                background: rgba(6, 182, 212, 0.1) !important;
+                border-radius: 3px !important;
+                display: inline-block !important;
+              }
+              
+              .parent-report-strong {
+                color: var(--accent, #06b6d4) !important;
+                font-weight: 600 !important;
+                background: rgba(6, 182, 212, 0.15) !important;
+                padding: 0.15rem 0.4rem !important;
+                border-radius: 4px !important;
+              }
+              
+              .parent-report-paragraph {
+                margin-bottom: 0.75rem !important;
+                line-height: 1.7 !important;
+                color: var(--text-primary, #1f2937) !important;
+              }
+              
+              .parent-report-list {
+                margin: 0.75rem 0 !important;
+                padding-left: 1.5rem !important;
+              }
+              
+              .parent-report-list-item {
+                margin-bottom: 0.5rem !important;
+                padding: 0.2rem 0 !important;
+                color: var(--text-primary, #1f2937) !important;
+                line-height: 1.6 !important;
+              }
+              
+              .parent-report-hr {
+                border: none !important;
+                border-top: 1px solid var(--border, #e2e8f0) !important;
+                margin: 1.5rem 0 !important;
+                opacity: 0.6 !important;
+              }
+              
+              .parent-report-note {
+                font-style: italic !important;
+                color: var(--text-secondary, #6b7280) !important;
+                font-size: 0.9rem !important;
+                margin: 0.5rem 0 !important;
+              }
+              
+              .parent-report-content {
+                font-size: 1rem !important;
+                word-break: break-word !important;
+                overflow-wrap: break-word !important;
+              }
+              
+              @media (max-width: 768px) {
+                .parent-report-modal {
+                  width: 98vw !important;
+                  max-width: 98vw !important;
+                  margin: 1vh auto !important;
+                  max-height: 96vh !important;
+                }
+                
+                .parent-report-header {
+                  flex-direction: column !important;
+                  align-items: flex-start !important;
+                  gap: 0.75rem !important;
+                }
+                
+                .parent-report-meta-item {
+                  font-size: 0.9rem !important;
+                }
+                
+                .parent-report-h3 {
+                  font-size: 1.2rem !important;
+                  padding: 0.4rem 0 0.4rem 0.5rem !important;
+                }
+                
+                .parent-report-h4 {
+                  font-size: 1rem !important;
+                  padding: 0.2rem 0.4rem !important;
+                }
+                
+                .parent-report-content {
+                  padding: 1rem !important;
+                  font-size: 0.95rem !important;
+                }
+              }
+            </style>
             
             <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(79, 70, 229, 0.05); border-radius: 8px; border: 1px solid rgba(79, 70, 229, 0.1);">
               <p style="margin: 0; text-align: center; color: var(--primary); font-weight: 500;">
@@ -1397,6 +1643,103 @@
         </div>
   </div>
 
+  <!-- 親御さん向け個別レポート選択モーダル -->
+  <div id="parentReportStudentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fas fa-heart" style="color: var(--secondary); margin-right: 0.5rem;"></i>
+          親御さん向け個別レポート作成
+        </h3>
+        <button class="modal-close" onclick="closeModal('parentReportStudentModal')">&times;</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">レポートを作成する児童を選択してください</label>
+        <select id="parentReportStudentSelect" class="form-select" required>
+          <option value="">児童を選択してください</option>
+        </select>
+      </div>
+      <div style="background: rgba(124, 58, 237, 0.05); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+        <h4 style="margin: 0 0 0.5rem 0; color: var(--secondary); font-size: 1rem;">
+          <i class="fas fa-info-circle"></i> 親御さん向けレポートについて
+        </h4>
+        <ul style="margin: 0; color: var(--text-primary); font-size: 0.9rem; line-height: 1.6;">
+          <li>お子様の成長や頑張りを<strong>温かい表現</strong>でお伝えします</li>
+          <li>家庭でできる<strong>具体的なサポート方法</strong>を提案します</li>
+          <li>専門用語を使わず、<strong>わかりやすい言葉</strong>で説明します</li>
+          <li>お子様の<strong>良い点や可能性</strong>を積極的に紹介します</li>
+        </ul>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn" onclick="executeParentReportGeneration()" style="background: var(--secondary); color: white;">
+          <i class="fas fa-heart"></i> レポート作成
+        </button>
+        <button class="btn btn-secondary" onclick="closeModal('parentReportStudentModal')">
+          キャンセル
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- クラス全体レポート選択モーダル -->
+  <div id="classReportModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fas fa-users" style="color: var(--secondary); margin-right: 0.5rem;"></i>
+          クラス全体レポート作成
+        </h3>
+        <button class="modal-close" onclick="closeModal('classReportModal')">&times;</button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: rgba(124, 58, 237, 0.05); border-radius: 8px; border: 1px solid rgba(124, 58, 237, 0.2);">
+        <i class="fas fa-graduation-cap" style="color: var(--secondary); font-size: 1.5rem;"></i>
+        <div>
+          <h4 style="margin: 0; color: var(--secondary); font-weight: 600;">対象クラスを選択</h4>
+          <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">レポートを作成する学年・クラスを指定してください</p>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label class="form-label">学年 *</label>
+          <select id="classReportGrade" class="form-select" onchange="updateClassReportClassOptions()">
+            <option value="">学年を選択</option>
+            <option value="1">1年生</option>
+            <option value="2">2年生</option>
+            <option value="3">3年生</option>
+            <option value="4">4年生</option>
+            <option value="5">5年生</option>
+            <option value="6">6年生</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">クラス *</label>
+          <select id="classReportClass" class="form-select" onchange="updateClassReportPreview()">
+            <option value="">クラスを選択</option>
+          </select>
+        </div>
+      </div>
+      
+      <div id="classReportPreview" style="margin-top: 1rem; padding: 1rem; background: rgba(6, 182, 212, 0.05); border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.2); display: none;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+          <i class="fas fa-info-circle" style="color: var(--accent);"></i>
+          <strong style="color: var(--accent);">対象児童</strong>
+        </div>
+        <div id="classReportStudentList" style="color: var(--text-primary); font-size: 0.9rem;">
+        </div>
+      </div>
+      
+      <div class="flex gap-2" style="margin-top: 1.5rem;">
+        <button class="btn" onclick="executeClassReportGeneration()" id="classReportGenerateBtn" style="background: var(--secondary); color: white;" disabled>
+          <i class="fas fa-users"></i> レポート作成
+        </button>
+        <button class="btn btn-secondary" onclick="closeModal('classReportModal')">
+          キャンセル
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- AI分析履歴モーダル -->
   <div id="analysisHistoryModal" class="modal">
     <div class="modal-content" style="max-width: 1000px;">
@@ -1474,6 +1817,14 @@
           </select>
         </div>
         <div class="form-group">
+          <label class="form-label">性別 *</label>
+          <select id="studentGender" class="form-select" required>
+            <option value="">選択してください</option>
+            <option value="male">男子</option>
+            <option value="female">女子</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label class="form-label">クラス</label>
           <input type="text" id="studentClass" class="form-input" placeholder="例: A組">
         </div>
@@ -1537,6 +1888,26 @@
   <div id="alertContainer" style="position: fixed; top: 1rem; right: 1rem; z-index: 1100; max-width: 400px;">
   </div>
 
+  <!-- PDF生成ライブラリ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    // jsPDFライブラリの読み込み確認
+    window.addEventListener('load', function() {
+      console.log('jsPDF library check:');
+      console.log('window.jspdf:', typeof window.jspdf);
+      console.log('window.jsPDF:', typeof window.jsPDF);
+      console.log('global jsPDF:', typeof jsPDF);
+      
+      if (window.jspdf && window.jspdf.jsPDF) {
+        console.log('jsPDF loaded successfully via window.jspdf.jsPDF');
+      } else if (window.jsPDF) {
+        console.log('jsPDF loaded successfully via window.jsPDF');
+      } else {
+        console.warn('jsPDF library may not be loaded correctly');
+      }
+    });
+  </script>
+  
   <script src="app.js"></script>
 </body>
 </html> 

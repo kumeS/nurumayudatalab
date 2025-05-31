@@ -1,15 +1,7 @@
 /**
  * 児童進捗管理ツール JavaScript
  * Kids Progress Manager - MVP版
- * Socket.IO リアルタイム通信対応
  */
-
-// Socket.IO関連変数
-let socket = null;
-let isConnected = false;
-let collaborationMode = false;
-let activeUsers = new Set();
-let roomId = null;
 
 // グローバル変数
 let studentsData = {};
@@ -119,327 +111,37 @@ const builtInFields = {
 
 // DOMContentLoaded後の初期化
 document.addEventListener('DOMContentLoaded', () => {
+  // 保存されたタブ位置を即座に復元
+  const savedTab = localStorage.getItem('currentTab') || 'students';
+  
+  // CSS操作で即座にタブを表示（フラッシュを防ぐ）
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.style.display = 'none';
+  });
+  const targetContent = document.getElementById(`${savedTab}-tab`);
+  if (targetContent) {
+    targetContent.style.display = 'block';
+  }
+  
+  // タブボタンの状態も即座に設定
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  const targetTab = document.querySelector(`[data-tab="${savedTab}"]`);
+  if (targetTab) {
+    targetTab.classList.add('active');
+  }
+  
+  // アプリケーション初期化
   initializeApp();
-  initializeSocketIO();
   initializeAnalysisHistory();
 });
 
-/**
- * Socket.IO初期化
- */
-function initializeSocketIO() {
-  try {
-    // Socket.IOライブラリが利用可能かチェック
-    if (typeof io === 'undefined') {
-      console.warn('Socket.IOライブラリが利用できません。シングルユーザーモードで動作します。');
-      return;
-    }
 
-    // Socket.IOサーバーへの接続（開発環境用）
-    socket = io('http://localhost:3000', {
-      autoConnect: false,
-      transports: ['websocket', 'polling'],
-      timeout: 10000,
-      reconnection: true,
-      reconnectionDelay: 2000,
-      reconnectionAttempts: 5
-    });
 
-    // 接続イベント
-    socket.on('connect', () => {
-      console.log('Socket.IO 接続成功');
-      isConnected = true;
-      updateConnectionStatus(true);
-      showAlert('リアルタイム通信が開始されました', 'success');
-    });
 
-    // 切断イベント
-    socket.on('disconnect', (reason) => {
-      console.log('Socket.IO 切断:', reason);
-      isConnected = false;
-      updateConnectionStatus(false);
-      if (reason !== 'io client disconnect') {
-        showAlert('リアルタイム通信が切断されました', 'warning');
-      }
-    });
 
-    // エラーイベント
-    socket.on('connect_error', (error) => {
-      console.error('Socket.IO 接続エラー:', error);
-      isConnected = false;
-      updateConnectionStatus(false);
-      // サーバーが利用できない場合は静かに失敗
-    });
 
-    // 再接続試行イベント
-    socket.on('reconnect_attempt', (attemptNumber) => {
-      console.log(`Socket.IO 再接続試行: ${attemptNumber}`);
-    });
-
-    // 再接続失敗イベント
-    socket.on('reconnect_failed', () => {
-      console.warn('Socket.IO 再接続に失敗しました。オフラインモードで動作します。');
-      isConnected = false;
-      updateConnectionStatus(false);
-    });
-
-    // データ同期イベント
-    socket.on('data_updated', (data) => {
-      try {
-        handleRemoteDataUpdate(data);
-      } catch (error) {
-        console.error('リモートデータ更新エラー:', error);
-      }
-    });
-
-    // ユーザー参加/退出イベント
-    socket.on('user_joined', (userData) => {
-      try {
-        handleUserJoined(userData);
-      } catch (error) {
-        console.error('ユーザー参加処理エラー:', error);
-      }
-    });
-
-    socket.on('user_left', (userData) => {
-      try {
-        handleUserLeft(userData);
-      } catch (error) {
-        console.error('ユーザー退出処理エラー:', error);
-      }
-    });
-
-    // アクティブユーザー一覧更新
-    socket.on('active_users', (users) => {
-      try {
-        updateActiveUsersList(users);
-      } catch (error) {
-        console.error('アクティブユーザー更新エラー:', error);
-      }
-    });
-
-    // リアルタイム編集イベント
-    socket.on('field_editing', (data) => {
-      try {
-        handleFieldEditing(data);
-      } catch (error) {
-        console.error('フィールド編集処理エラー:', error);
-      }
-    });
-
-  } catch (error) {
-    console.error('Socket.IO初期化エラー:', error);
-  }
-}
-
-/**
- * Socket.IO接続開始
- */
-function connectSocket() {
-  if (socket && !isConnected) {
-    socket.connect();
-  }
-}
-
-/**
- * Socket.IO接続切断
- */
-function disconnectSocket() {
-  if (socket && isConnected) {
-    socket.disconnect();
-  }
-}
-
-/**
- * ルームに参加
- */
-function joinRoom(roomName) {
-  if (socket && isConnected) {
-    roomId = roomName;
-    socket.emit('join_room', {
-      room: roomName,
-      userData: {
-        name: getUserName(),
-        timestamp: new Date().toISOString()
-      }
-    });
-    collaborationMode = true;
-    updateCollaborationUI();
-  }
-}
-
-/**
- * ルームから退出
- */
-function leaveRoom() {
-  if (socket && isConnected && roomId) {
-    socket.emit('leave_room', { room: roomId });
-    roomId = null;
-    collaborationMode = false;
-    activeUsers.clear();
-    updateCollaborationUI();
-  }
-}
-
-/**
- * データをリアルタイム同期
- */
-function syncData(action, data) {
-  if (socket && isConnected && collaborationMode) {
-    socket.emit('sync_data', {
-      room: roomId,
-      action: action,
-      data: data,
-      timestamp: new Date().toISOString(),
-      user: getUserName()
-    });
-  }
-}
-
-/**
- * リモートデータ更新の処理
- */
-function handleRemoteDataUpdate(updateData) {
-  const { action, data, user, timestamp } = updateData;
-  
-  // 自分が送信したデータは無視
-  if (user === getUserName()) return;
-
-  try {
-    switch (action) {
-      case 'add_student':
-        if (!studentsData.students.find(s => s.id === data.id)) {
-          studentsData.students.push(data);
-          updateUI();
-          showAlert(`${user}さんが生徒「${data.name}」を追加しました`, 'info');
-        }
-        break;
-      
-      case 'update_student':
-        const studentIndex = studentsData.students.findIndex(s => s.id === data.id);
-        if (studentIndex !== -1) {
-          studentsData.students[studentIndex] = data;
-          updateUI();
-          showAlert(`${user}さんが生徒「${data.name}」の情報を更新しました`, 'info');
-        }
-        break;
-      
-      case 'delete_student':
-        studentsData.students = studentsData.students.filter(s => s.id !== data.id);
-        updateUI();
-        showAlert(`${user}さんが生徒を削除しました`, 'info');
-        break;
-      
-      case 'add_progress':
-        const student = studentsData.students.find(s => s.id === data.studentId);
-        if (student) {
-          student.records.push(data.record);
-          updateUI();
-          showAlert(`${user}さんが「${student.name}」の進捗を入力しました`, 'info');
-        }
-        break;
-      
-      default:
-        console.log('未知のアクション:', action);
-    }
-    
-    saveData();
-  } catch (error) {
-    console.error('リモートデータ更新エラー:', error);
-  }
-}
-
-/**
- * ユーザー参加の処理
- */
-function handleUserJoined(userData) {
-  activeUsers.add(userData.name);
-  updateActiveUsersList(Array.from(activeUsers));
-  showAlert(`${userData.name}さんが参加しました`, 'info');
-}
-
-/**
- * ユーザー退出の処理
- */
-function handleUserLeft(userData) {
-  activeUsers.delete(userData.name);
-  updateActiveUsersList(Array.from(activeUsers));
-  showAlert(`${userData.name}さんが退出しました`, 'info');
-}
-
-/**
- * フィールド編集状態の処理
- */
-function handleFieldEditing(data) {
-  const { fieldId, isEditing, user } = data;
-  
-  if (user === getUserName()) return;
-  
-  const field = document.getElementById(fieldId);
-  if (field) {
-    if (isEditing) {
-      field.classList.add('being-edited');
-      field.setAttribute('title', `${user}さんが編集中...`);
-    } else {
-      field.classList.remove('being-edited');
-      field.removeAttribute('title');
-    }
-  }
-}
-
-/**
- * ユーザー名取得
- */
-function getUserName() {
-  let userName = localStorage.getItem('userName');
-  if (!userName) {
-    userName = prompt('あなたの名前を入力してください:') || `ユーザー${Math.floor(Math.random() * 1000)}`;
-    localStorage.setItem('userName', userName);
-  }
-  return userName;
-}
-
-/**
- * 接続状態表示の更新
- */
-function updateConnectionStatus(connected) {
-  const statusElement = document.getElementById('connectionStatus');
-  if (statusElement) {
-    statusElement.innerHTML = connected 
-      ? '<i class="fas fa-wifi text-success"></i> オンライン'
-      : '<i class="fas fa-wifi-slash text-error"></i> オフライン';
-    statusElement.className = connected ? 'status-online' : 'status-offline';
-  }
-}
-
-/**
- * コラボレーションUI更新
- */
-function updateCollaborationUI() {
-  const collabSection = document.getElementById('collaborationSection');
-  const roomInfo = document.getElementById('roomInfo');
-  const activeUsersDiv = document.getElementById('activeUsers');
-
-  if (collaborationMode && roomId) {
-    if (roomInfo) roomInfo.textContent = `ルーム: ${roomId}`;
-    if (collabSection) collabSection.classList.remove('hidden');
-  } else {
-    if (collabSection) collabSection.classList.add('hidden');
-    if (activeUsersDiv) activeUsersDiv.innerHTML = '';
-  }
-}
-
-/**
- * アクティブユーザー一覧更新
- */
-function updateActiveUsersList(users) {
-  const activeUsersDiv = document.getElementById('activeUsers');
-  if (activeUsersDiv) {
-    activeUsersDiv.innerHTML = users.map(user => 
-      `<span class="user-badge ${user === getUserName() ? 'current-user' : ''}">${user}</span>`
-    ).join('');
-  }
-}
 
 /**
  * アプリケーション初期化
@@ -478,8 +180,13 @@ function setTabStateOnly(tabName) {
   // タブコンテンツの表示切り替え
   document.querySelectorAll('.tab-content').forEach(content => {
     content.classList.add('hidden');
+    content.style.display = 'none';
   });
-  document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+  const targetContent = document.getElementById(`${tabName}-tab`);
+  if (targetContent) {
+    targetContent.classList.remove('hidden');
+    targetContent.style.display = 'block';
+  }
 }
 
 /**
@@ -586,8 +293,13 @@ function switchTab(tabName) {
   // タブコンテンツの表示切り替え
   document.querySelectorAll('.tab-content').forEach(content => {
     content.classList.add('hidden');
+    content.style.display = 'none';
   });
-  document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+  const targetContent = document.getElementById(`${tabName}-tab`);
+  if (targetContent) {
+    targetContent.classList.remove('hidden');
+    targetContent.style.display = 'block';
+  }
 
   // タブ固有の処理
   switch (tabName) {
@@ -620,10 +332,12 @@ function updateProgressTable() {
       <th style="position: sticky; left: 0; background: var(--bg-secondary); z-index: 11; box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1); min-width: 120px;">氏名</th>
       <th style="min-width: 100px;">在籍番号</th>
       <th style="min-width: 80px;">学年</th>
+      <th style="min-width: 60px;">性別</th>
       <th style="min-width: 80px;">クラス</th>
       ${studentsData.fieldDefinitions.map(field => 
         `<th style="min-width: 120px;">${field.name}</th>`
       ).join('')}
+      <th style="min-width: 100px;">ステータス</th>
       <th style="min-width: 120px;">最終更新</th>
       <th style="min-width: 180px;">操作</th>
     `;
@@ -635,6 +349,60 @@ function updateProgressTable() {
     const row = createProgressTableRow(student);
     tbody.appendChild(row);
   });
+}
+
+/**
+ * 進捗テーブルのフィルタリング
+ */
+function filterProgressTable(filterType) {
+  const tbody = document.getElementById('progressTableBody');
+  const rows = tbody.querySelectorAll('tr');
+  
+  // フィルターボタンの状態更新
+  document.querySelectorAll('[onclick*="filterProgressTable"]').forEach(btn => {
+    btn.classList.remove('active');
+    btn.style.backgroundColor = '';
+    btn.style.color = '';
+  });
+  
+  // アクティブなボタンをハイライト
+  const activeButton = document.querySelector(`[onclick="filterProgressTable('${filterType}')"]`);
+  if (activeButton) {
+    activeButton.style.backgroundColor = 'var(--primary)';
+    activeButton.style.color = 'white';
+  }
+  
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length === 0) return; // ヘッダー行をスキップ
+    
+    let shouldShow = true;
+    
+    if (filterType === 'attention') {
+      // 要注意: ステータス列で「要注意」ラベルがあるかチェック
+      const statusCell = cells[cells.length - 3]; // ステータス列（操作列の3つ前）
+      const statusText = statusCell?.textContent || '';
+      shouldShow = statusText.includes('要注意');
+      
+    } else if (filterType === 'good') {
+      // 良好: ステータス列で「良好」ラベルがあるかチェック
+      const statusCell = cells[cells.length - 3]; // ステータス列（操作列の3つ前）
+      const statusText = statusCell?.textContent || '';
+      shouldShow = statusText.includes('良好');
+      
+    } else if (filterType === 'all') {
+      // 全て表示
+      shouldShow = true;
+    }
+    
+    row.style.display = shouldShow ? '' : 'none';
+  });
+  
+  // フィルター結果の統計を表示
+  const visibleRows = Array.from(rows).filter(row => row.style.display !== 'none').length;
+  const totalRows = rows.length;
+  
+  showAlert(`フィルター適用: ${visibleRows}/${totalRows}件を表示中`, 'info');
 }
 
 /**
@@ -670,13 +438,18 @@ function createProgressTableRow(student) {
     `<td>${getFieldValue(latestRecord, field.id)}</td>`
   ).join('');
   
+  // ステータスラベルを生成
+  const statusLabel = generateStatusLabel(latestRecord);
+  
   // 基本情報
   row.innerHTML = `
-    <td class="sticky-column" style="min-width: 120px;">${student.name}</td>
+    <td class="sticky-column" style="min-width: 120px;">${formatStudentName(student.name)}</td>
     <td>${student.studentNumber}</td>
     <td>${student.grade}年生</td>
+    <td>${getGenderDisplay(student.gender)}</td>
     <td>${student.class || '-'}</td>
     ${dynamicFields}
+    <td style="min-width: 100px;">${statusLabel}</td>
     <td>${latestRecord ? formatDate(latestRecord.timestamp) : '-'}</td>
     <td style="min-width: 180px;">
       ${actionButtons}
@@ -684,6 +457,79 @@ function createProgressTableRow(student) {
   `;
   
   return row;
+}
+
+/**
+ * ステータスラベルを生成
+ */
+function generateStatusLabel(record) {
+  if (!record || !record.data) {
+    return '<span style="color: var(--text-secondary); font-size: 0.9rem;">未入力</span>';
+  }
+  
+  // 学習状況と学習意欲の値を取得
+  const learningStatusField = studentsData.fieldDefinitions.find(f => f.id === 'learningStatus');
+  const motivationField = studentsData.fieldDefinitions.find(f => f.id === 'motivation');
+  
+  const learningStatus = record.data.learningStatus ? parseInt(record.data.learningStatus) : 0;
+  const motivation = record.data.motivation ? parseInt(record.data.motivation) : 0;
+  
+  // ステータス判定
+  if (learningStatus <= 3 || motivation <= 3) {
+    return `
+      <span style="
+        background: linear-gradient(135deg, #fef3c7, #fed7aa);
+        color: #92400e;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border: 1px solid #f59e0b;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+      ">
+        <i class="fas fa-exclamation-triangle" style="font-size: 0.7rem;"></i>
+        要注意
+      </span>
+    `;
+  } else if (learningStatus >= 4 && motivation >= 4) {
+    return `
+      <span style="
+        background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+        color: #065f46;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border: 1px solid #10b981;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+      ">
+        <i class="fas fa-thumbs-up" style="font-size: 0.7rem;"></i>
+        良好
+      </span>
+    `;
+  } else {
+    return `
+      <span style="
+        background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+        color: #0c4a6e;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border: 1px solid #0ea5e9;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+      ">
+        <i class="fas fa-minus" style="font-size: 0.7rem;"></i>
+        普通
+      </span>
+    `;
+  }
 }
 
 /**
@@ -701,24 +547,24 @@ function showAnalysisDetail({ title, content, analysisDate, studentName = '', ty
   modal.id = 'analysisDetailModal';
   modal.className = 'modal show';
   modal.innerHTML = `
-    <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal-content parent-report-modal" style="max-width: min(1000px, 95vw); max-height: 90vh; overflow-y: auto;">
       <div class="modal-header">
         <h3 class="modal-title">${title}</h3>
         <button class="modal-close" onclick="closeAnalysisDetailModal()">&times;</button>
       </div>
       <div style="margin-bottom: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 1rem;">
-          <div>
-            <strong style="color: var(--primary);">分析日時:</strong> ${analysisDate}
+        <div class="parent-report-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--bg-secondary, #f8fafc); border-radius: 8px; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div class="parent-report-meta-item">
+            <strong style="color: var(--primary, #4f46e5);">分析日時:</strong> ${analysisDate}
           </div>
-          ${studentName ? `<div><strong style="color: var(--secondary);">対象児童:</strong> ${studentName}</div>` : ''}
-          <div>
+          ${studentName ? `<div class="parent-report-meta-item"><strong style="color: var(--secondary, #7c3aed);">対象児童:</strong> ${studentName}</div>` : ''}
+          <div class="parent-report-meta-item">
             <span class="btn ${type === 'overall' ? 'btn-primary' : 'btn-success'}" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">
               ${type === 'overall' ? '全体分析' : '個別分析'}
             </span>
           </div>
         </div>
-        <div class="analysis-content analysis-content-detail" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); line-height: 1.8;">
+        <div class="analysis-content analysis-content-detail parent-report-content" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border, #e2e8f0); line-height: 1.8; word-wrap: break-word; overflow-wrap: break-word;">
           ${formatAnalysisContent(content)}
         </div>
       </div>
@@ -891,9 +737,6 @@ function addBuiltInField(categoryKey, fieldName) {
   // データ保存
   saveData();
   
-  // リアルタイム同期
-  syncData('add_field', newField);
-  
   // UI更新
   updateFieldSettings();
   updateProgressTable();
@@ -945,9 +788,6 @@ function removeField(index) {
   // データ保存
   saveData();
   
-  // リアルタイム同期
-  syncData('remove_field', { index, field: removedField });
-  
   // UI更新
   updateFieldSettings();
   updateProgressTable();
@@ -964,6 +804,27 @@ function hexToRgb(hex) {
   return result ? 
     `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : 
     '0, 0, 0';
+}
+
+/**
+ * 名前に「さん」をハイライト表示
+ */
+function formatStudentName(name) {
+  return `${name}<span style="color: var(--primary); font-weight: 600; margin-left: 0.2rem;">さん</span>`;
+}
+
+/**
+ * 性別の表示形式を取得
+ */
+function getGenderDisplay(gender) {
+  switch (gender) {
+    case 'male':
+      return '<span style="color: #3b82f6; font-weight: 500;">👦 男子</span>';
+    case 'female':
+      return '<span style="color: #ec4899; font-weight: 500;">👧 女子</span>';
+    default:
+      return '<span style="color: var(--text-secondary);">-</span>';
+  }
 }
 
 /**
@@ -1116,7 +977,8 @@ function updateStudentSelect() {
     studentsData.students.forEach(student => {
       const option = document.createElement('option');
       option.value = student.id;
-      option.textContent = `${student.name} (${student.grade}年 ${student.class || ''})`;
+      const genderIcon = student.gender === 'male' ? '👦' : student.gender === 'female' ? '👧' : '';
+      option.textContent = `${student.name}さん ${genderIcon} (${student.grade}年 ${student.class || ''})`;
       select.appendChild(option);
     });
   }
@@ -1139,7 +1001,7 @@ function updateStudentsTable() {
   if (!studentsData.students || studentsData.students.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+        <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
           <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
           まだ児童が登録されていません。「新規追加」ボタンから児童を追加してください。
         </td>
@@ -1151,19 +1013,17 @@ function updateStudentsTable() {
   studentsData.students.forEach(student => {
     const row = document.createElement('tr');
     row.innerHTML = `
-      <td>${student.name}</td>
+      <td>${formatStudentName(student.name)}</td>
       <td>${student.studentNumber}</td>
       <td>${student.grade}年生</td>
+      <td>${getGenderDisplay(student.gender)}</td>
       <td>${student.class || '-'}</td>
       <td>${formatDate(student.createdAt || new Date().toISOString())}</td>
       <td>${student.records ? student.records.length : 0}</td>
       <td>
-        <button class="btn btn-primary" onclick="editStudent('${student.id}')" style="margin-right: 0.5rem;">
+        <button class="btn btn-primary" onclick="editStudent('${student.id}')">
           <i class="fas fa-edit"></i> 編集
         </button>
-        <span style="color: var(--text-secondary); font-size: 0.9rem;">
-          削除は設定タブで行えます
-        </span>
       </td>
     `;
     tbody.appendChild(row);
@@ -1199,27 +1059,349 @@ function updateStatistics() {
     todayInputsElem.textContent = todayCount;
   }
 
-  // 未入力項目数（簡易計算）
+  // 未入力項目数と詳細の更新
+  updateMissingInputsStatistics();
+}
+
+/**
+ * 未入力項目統計の更新
+ */
+function updateMissingInputsStatistics() {
   const missingInputsElem = document.getElementById('missingInputs');
-  if (missingInputsElem) {
+  const noRecentInputCountElem = document.getElementById('noRecentInputCount');
+  const missingInputsList = document.getElementById('missingInputsList');
+  
+  if (!missingInputsElem || !missingInputsList) return;
+
     const fieldCount = studentsData.fieldDefinitions ? studentsData.fieldDefinitions.length : 0;
     const studentCount = studentsData.students ? studentsData.students.length : 0;
-    const totalExpected = fieldCount * studentCount;
+  
+  if (fieldCount === 0 || studentCount === 0) {
+    missingInputsElem.textContent = '0';
+    if (noRecentInputCountElem) noRecentInputCountElem.textContent = '0';
+    missingInputsList.innerHTML = `
+      <div style="text-align: center; padding: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+        <i class="fas fa-info-circle" style="margin-bottom: 0.5rem; display: block;"></i>
+        ${fieldCount === 0 ? '入力項目が設定されていません' : '児童が登録されていません'}
+      </div>
+    `;
+    return;
+  }
+
+  // 未入力の児童を詳細に分析
+  const missingInputsData = analyzeMissingInputs();
+  
+  // 未入力項目数を表示
+  missingInputsElem.textContent = missingInputsData.totalMissing;
+  
+  // 入力が滞っている児童数を表示
+  if (noRecentInputCountElem) {
+    noRecentInputCountElem.textContent = missingInputsData.studentsWithNoRecentInput.length;
+  }
+  
+  // 未入力児童リストを生成
+  generateMissingInputsList(missingInputsData);
+}
+
+/**
+ * 未入力項目の分析
+ */
+function analyzeMissingInputs() {
+  const fieldDefinitions = studentsData.fieldDefinitions || [];
+  const students = studentsData.students || [];
+  
+  let totalMissing = 0;
+  const studentsWithMissingInputs = [];
+  const studentsWithNoRecentInput = [];
+  
+  const today = new Date();
+  const threeDaysAgo = new Date(today.getTime() - (3 * 24 * 60 * 60 * 1000)); // 3日前
+  
+  students.forEach(student => {
+    const latestRecord = student.records && student.records.length > 0 ? 
+      student.records[student.records.length - 1] : null;
     
-    let actualInputs = 0;
-    if (studentsData.students) {
-      studentsData.students.forEach(student => {
-        if (student.records && student.records.length > 0) {
-          const latestRecord = student.records[student.records.length - 1];
-          if (latestRecord.data) {
-            actualInputs += Object.keys(latestRecord.data).length;
-          }
-        }
+    // 最終入力日の確認
+    const lastInputDate = latestRecord ? new Date(latestRecord.timestamp) : null;
+    const daysSinceLastInput = lastInputDate ? 
+      Math.floor((today - lastInputDate) / (24 * 60 * 60 * 1000)) : null;
+    
+    // 3日以上入力がない場合
+    if (!lastInputDate || lastInputDate < threeDaysAgo) {
+      studentsWithNoRecentInput.push({
+        student: student,
+        lastInputDate: lastInputDate,
+        daysSinceLastInput: daysSinceLastInput,
+        hasNeverInput: !lastInputDate
       });
     }
     
-    missingInputsElem.textContent = Math.max(0, totalExpected - actualInputs);
+    const missingFields = [];
+    
+    fieldDefinitions.forEach(field => {
+      const hasInput = latestRecord && latestRecord.data && latestRecord.data[field.id] !== undefined;
+      if (!hasInput) {
+        missingFields.push(field);
+        totalMissing++;
+      }
+    });
+    
+    if (missingFields.length > 0) {
+      studentsWithMissingInputs.push({
+        student: student,
+        missingFields: missingFields,
+        missingCount: missingFields.length,
+        totalFields: fieldDefinitions.length,
+        completionRate: Math.round(((fieldDefinitions.length - missingFields.length) / fieldDefinitions.length) * 100),
+        lastInputDate: lastInputDate,
+        daysSinceLastInput: daysSinceLastInput
+      });
+    }
+  });
+  
+  // 未入力数の多い順にソート
+  studentsWithMissingInputs.sort((a, b) => b.missingCount - a.missingCount);
+  
+  // 入力がない日数の多い順にソート
+  studentsWithNoRecentInput.sort((a, b) => {
+    if (a.hasNeverInput && !b.hasNeverInput) return -1;
+    if (!a.hasNeverInput && b.hasNeverInput) return 1;
+    return (b.daysSinceLastInput || 0) - (a.daysSinceLastInput || 0);
+  });
+  
+  return {
+    totalMissing: totalMissing,
+    studentsWithMissing: studentsWithMissingInputs,
+    studentsWithNoRecentInput: studentsWithNoRecentInput,
+    totalStudents: students.length,
+    totalFields: fieldDefinitions.length
+  };
+}
+
+/**
+ * 未入力児童リストの生成
+ */
+function generateMissingInputsList(missingInputsData) {
+  const container = document.getElementById('missingInputsList');
+  const noRecentInputContainer = document.getElementById('noRecentInputsList');
+  
+  if (!container) return;
+  
+  // 未入力項目のリスト生成
+  if (missingInputsData.studentsWithMissing.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 1rem; color: var(--success); font-size: 0.9rem;">
+        <i class="fas fa-check-circle" style="margin-bottom: 0.5rem; display: block; font-size: 1.5rem;"></i>
+        <strong>すべての児童のデータが入力済みです！</strong>
+      </div>
+    `;
+  } else {
+    let listHTML = '';
+    
+    missingInputsData.studentsWithMissing.forEach(item => {
+      const student = item.student;
+      const progressBarColor = item.completionRate >= 80 ? 'var(--success)' : 
+                             item.completionRate >= 50 ? 'var(--warning)' : 'var(--error)';
+      
+      // 最終入力日の表示
+      let lastInputInfo = '';
+      if (item.daysSinceLastInput !== null) {
+        lastInputInfo = `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+          <i class="fas fa-clock" style="margin-right: 0.25rem;"></i>
+          最終入力: ${item.daysSinceLastInput}日前
+        </div>`;
+      }
+      
+      listHTML += `
+        <div style="
+          background: var(--bg-secondary); 
+          border-radius: 8px; 
+          padding: 0.75rem; 
+          margin-bottom: 0.5rem;
+          border-left: 3px solid ${progressBarColor};
+          cursor: pointer;
+          transition: all 0.3s ease;
+        " onclick="goToStudentInput('${student.id}')" onmouseover="this.style.backgroundColor='var(--bg-primary)'" onmouseout="this.style.backgroundColor='var(--bg-secondary)'">
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <div>
+              <strong style="color: var(--text-primary); font-size: 0.9rem;">${formatStudentName(student.name)}</strong>
+              <span style="color: var(--text-secondary); font-size: 0.8rem; margin-left: 0.5rem;">
+                ${student.grade}年 ${student.class || ''}
+              </span>
+            </div>
+            <div style="text-align: right;">
+              <span style="color: ${progressBarColor}; font-weight: 600; font-size: 0.8rem;">
+                ${item.completionRate}%
+              </span>
+            </div>
+          </div>
+          
+          <div style="margin-bottom: 0.5rem;">
+            <div style="background: var(--border); height: 4px; border-radius: 2px; overflow: hidden;">
+              <div style="
+                background: ${progressBarColor}; 
+                height: 100%; 
+                width: ${item.completionRate}%; 
+                transition: width 0.3s ease;
+              "></div>
+            </div>
+          </div>
+          
+          <div style="font-size: 0.8rem; color: var(--text-secondary);">
+            <i class="fas fa-exclamation-triangle" style="color: var(--warning); margin-right: 0.25rem;"></i>
+            未入力: ${item.missingCount}/${item.totalFields}項目
+          </div>
+          
+          <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">
+            ${item.missingFields.slice(0, 3).map(field => field.name).join('、')}${item.missingFields.length > 3 ? '...' : ''}
+          </div>
+          
+          ${lastInputInfo}
+        </div>
+      `;
+    });
+    
+    container.innerHTML = listHTML;
   }
+  
+  // 入力が滞っている児童のリスト生成
+  if (noRecentInputContainer) {
+    generateNoRecentInputsList(missingInputsData.studentsWithNoRecentInput, noRecentInputContainer);
+  }
+}
+
+/**
+ * 入力が滞っている児童リストの生成
+ */
+function generateNoRecentInputsList(studentsWithNoRecentInput, container) {
+  if (studentsWithNoRecentInput.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 1rem; color: var(--success); font-size: 0.9rem;">
+        <i class="fas fa-check-circle" style="margin-bottom: 0.5rem; display: block; font-size: 1.5rem;"></i>
+        <strong>すべての児童が定期的に入力されています！</strong>
+      </div>
+    `;
+    return;
+  }
+  
+  let listHTML = '';
+  
+  studentsWithNoRecentInput.forEach(item => {
+    const student = item.student;
+    const isNeverInput = item.hasNeverInput;
+    const daysSince = item.daysSinceLastInput;
+    
+    // 緊急度に応じた色分け
+    let urgencyColor = 'var(--warning)';
+    let urgencyIcon = 'fas fa-clock';
+    let urgencyText = `${daysSince}日前`;
+    
+    if (isNeverInput) {
+      urgencyColor = 'var(--error)';
+      urgencyIcon = 'fas fa-exclamation-triangle';
+      urgencyText = '未入力';
+    } else if (daysSince >= 7) {
+      urgencyColor = 'var(--error)';
+      urgencyIcon = 'fas fa-exclamation-triangle';
+    } else if (daysSince >= 5) {
+      urgencyColor = '#ff6b35';
+      urgencyIcon = 'fas fa-exclamation-circle';
+    }
+    
+    listHTML += `
+      <div style="
+        background: var(--bg-secondary); 
+        border-radius: 8px; 
+        padding: 0.75rem; 
+        margin-bottom: 0.5rem;
+        border-left: 3px solid ${urgencyColor};
+        cursor: pointer;
+        transition: all 0.3s ease;
+      " onclick="goToStudentInput('${student.id}')" onmouseover="this.style.backgroundColor='var(--bg-primary)'" onmouseout="this.style.backgroundColor='var(--bg-secondary)'">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <div>
+            <strong style="color: var(--text-primary); font-size: 0.9rem;">${formatStudentName(student.name)}</strong>
+            <span style="color: var(--text-secondary); font-size: 0.8rem; margin-left: 0.5rem;">
+              ${student.grade}年 ${getGenderDisplay(student.gender).replace(/<[^>]*>/g, '').trim()} ${student.class || ''}
+            </span>
+          </div>
+          <div style="text-align: right;">
+            <span style="color: ${urgencyColor}; font-weight: 600; font-size: 0.8rem;">
+              <i class="${urgencyIcon}" style="margin-right: 0.25rem;"></i>
+              ${urgencyText}
+            </span>
+          </div>
+        </div>
+        
+        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+          ${isNeverInput ? 
+            '<i class="fas fa-user-plus" style="color: var(--error); margin-right: 0.25rem;"></i>まだ一度も入力されていません' :
+            `<i class="fas fa-calendar-times" style="color: ${urgencyColor}; margin-right: 0.25rem;"></i>最終入力: ${formatDate(item.lastInputDate)}`
+          }
+        </div>
+        
+        ${daysSince >= 7 ? `
+          <div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(239, 68, 68, 0.1); border-radius: 4px; border-left: 2px solid var(--error);">
+            <span style="color: var(--error); font-size: 0.75rem; font-weight: 600;">
+              <i class="fas fa-exclamation-triangle" style="margin-right: 0.25rem;"></i>
+              要注意: 1週間以上入力がありません
+            </span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  });
+  
+  container.innerHTML = listHTML;
+}
+
+/**
+ * 未入力項目詳細のトグル
+ */
+function toggleMissingInputsDetail() {
+  const detailDiv = document.getElementById('missingInputsDetail');
+  const toggleIcon = document.getElementById('missingInputsToggle');
+  
+  if (!detailDiv || !toggleIcon) return;
+  
+  if (detailDiv.classList.contains('hidden')) {
+    detailDiv.classList.remove('hidden');
+    toggleIcon.style.transform = 'rotate(180deg)';
+    // 詳細データを更新
+    updateMissingInputsStatistics();
+  } else {
+    detailDiv.classList.add('hidden');
+    toggleIcon.style.transform = 'rotate(0deg)';
+  }
+}
+
+/**
+ * 児童の入力画面に移動
+ */
+function goToStudentInput(studentId) {
+  // 進捗データ入力タブに切り替え
+  switchTab('input');
+  
+  // 児童を選択
+  setTimeout(() => {
+    const studentSelect = document.getElementById('studentSelect');
+    if (studentSelect) {
+      studentSelect.value = studentId;
+      
+      // 選択をハイライト
+      studentSelect.style.borderColor = 'var(--primary)';
+      studentSelect.style.boxShadow = '0 0 0 3px rgba(79, 70, 229, 0.1)';
+      
+      setTimeout(() => {
+        studentSelect.style.borderColor = '';
+        studentSelect.style.boxShadow = '';
+      }, 2000);
+    }
+  }, 100);
+  
+  showAlert('該当児童の入力画面に移動しました', 'info');
 }
 
 /**
@@ -1261,10 +1443,11 @@ function handleAddStudent(event) {
     const name = document.getElementById('studentName').value.trim();
     const studentNumber = document.getElementById('studentNumber').value.trim();
     const grade = document.getElementById('studentGrade').value;
+    const gender = document.getElementById('studentGender').value;
     const studentClass = document.getElementById('studentClass').value.trim();
     
     // バリデーション
-    if (!name || !studentNumber || !grade) {
+    if (!name || !studentNumber || !grade || !gender) {
       showAlert('必須項目を入力してください', 'error');
       return;
     }
@@ -1290,6 +1473,7 @@ function handleAddStudent(event) {
       name,
       studentNumber,
       grade: parseInt(grade),
+      gender,
       class: studentClass,
       records: [],
       createdAt: new Date().toISOString()
@@ -1297,7 +1481,6 @@ function handleAddStudent(event) {
     
     studentsData.students.push(newStudent);
     saveData();
-    syncData('add_student', newStudent);
     
     // フォームリセット
     document.getElementById('addStudentForm').reset();
@@ -1342,7 +1525,6 @@ function handleAddField(event) {
   
   studentsData.fieldDefinitions.push(newField);
   saveData();
-  syncData('add_field', newField);
   
   // フォームリセット
   document.getElementById('addFieldForm').reset();
@@ -1408,7 +1590,6 @@ function handleProgressInput(event) {
   
   student.records.push(record);
   saveData();
-  syncData('add_progress', { studentId, record });
   
   // フォームリセット
   document.getElementById('progressInputForm').reset();
@@ -1437,7 +1618,6 @@ function deleteStudent(studentId) {
   
   studentsData.students = studentsData.students.filter(s => s.id !== studentId);
   saveData();
-  syncData('delete_student', { id: studentId });
   
   updateUI();
   showAlert(`${student.name}さんを削除しました`, 'success');
@@ -1956,10 +2136,16 @@ function initializeAnalysisHistory() {
     analysisHistory = [];
   }
   
+  // 親御さん向けレポート履歴の初期化
+  if (!localStorage.getItem('parentReportHistory')) {
+    localStorage.setItem('parentReportHistory', JSON.stringify([]));
+  }
+  
   // 分析履歴の有無に関わらず、AI分析結果テーブルを表示
   setTimeout(() => {
     displayAnalysisResults(analysisHistory); // 空配列でも適切なメッセージを表示
     updateAnalysisHistoryPreview();
+    updateParentReportHistory();
   }, 100);
 }
 
@@ -2130,7 +2316,8 @@ function updateIndividualAnalysisModal() {
     studentsData.students.forEach(student => {
       const option = document.createElement('option');
       option.value = student.id;
-      option.textContent = `${student.name} (${student.grade}年 ${student.class || ''})`;
+      const genderIcon = student.gender === 'male' ? '👦' : student.gender === 'female' ? '👧' : '';
+      option.textContent = `${student.name}さん ${genderIcon} (${student.grade}年 ${student.class || ''})`;
       select.appendChild(option);
     });
   }
@@ -2335,7 +2522,10 @@ function calculateLearningStats(recentData) {
   const stats = {
     total: recentData.length,
     averages: {},
-    distribution: {}
+    distribution: {},
+    avgLearningStatus: 0,
+    avgMotivation: 0,
+    homeworkSubmissionRate: 0
   };
 
   // 5段階評価項目の統計を計算
@@ -2347,7 +2537,16 @@ function calculateLearningStats(recentData) {
         .map(val => parseInt(val));
       
       if (values.length > 0) {
-        stats.averages[field.name] = (values.reduce((sum, val) => sum + val, 0) / values.length).toFixed(1);
+        const average = values.reduce((sum, val) => sum + val, 0) / values.length;
+        stats.averages[field.name] = average.toFixed(1);
+        
+        // 特定項目の平均を個別に保存
+        if (field.id === 'learningStatus') {
+          stats.avgLearningStatus = average;
+        }
+        if (field.id === 'motivation') {
+          stats.avgMotivation = average;
+        }
         
         // 分布計算
         const distribution = [1,2,3,4,5].map(level => ({
@@ -2359,6 +2558,16 @@ function calculateLearningStats(recentData) {
       }
     }
   });
+
+  // 宿題提出率の計算
+  const homeworkData = recentData
+    .map(item => item.data.homework)
+    .filter(val => val !== undefined);
+  
+  if (homeworkData.length > 0) {
+    const submittedCount = homeworkData.filter(val => val === true || val === '提出').length;
+    stats.homeworkSubmissionRate = submittedCount / homeworkData.length;
+  }
 
   return stats;
 }
@@ -2848,20 +3057,24 @@ function viewIndividualAnalysisDetail(studentId) {
 function formatAnalysisContent(content) {
   if (!content) return '';
   
-  // マークダウン風の書式を適用
+  // Unicode区切り線をCSSボーダーに変換
+  content = content.replace(/━+/g, '<div class="parent-report-divider"></div>');
+  
+  // マークダウン風の書式を適用（改良版）
   return content
-    .replace(/### (.*)/g, '<h3>$1</h3>')
-    .replace(/#### (.*)/g, '<h4>$1</h4>')
-    .replace(/##### (.*)/g, '<h5>$1</h5>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/- (.*)/g, '<li>$1</li>')
-    .replace(/^\n/gm, '')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/^([^<])/, '<p>$1')
+    .replace(/### (.*?)(?=\n|$)/g, '<h3 class="parent-report-h3">$1</h3>')
+    .replace(/#### (.*?)(?=\n|$)/g, '<h4 class="parent-report-h4">$1</h4>')
+    .replace(/##### (.*?)(?=\n|$)/g, '<h5 class="parent-report-h5">$1</h5>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="parent-report-strong">$1</strong>')
+    .replace(/^・\s*(.*?)(?=\n|$)/gm, '<li class="parent-report-list-item">$1</li>')
+    .replace(/^-\s*(.*?)(?=\n|$)/gm, '<li class="parent-report-list-item">$1</li>')
+    .replace(/^\n+/gm, '')
+    .replace(/\n\n+/g, '</p><p class="parent-report-paragraph">')
+    .replace(/^([^<])/, '<p class="parent-report-paragraph">$1')
     .replace(/([^>])$/, '$1</p>')
-    .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
-    .replace(/<\/ul>\s*<ul>/g, '')
-    .replace(/---\n\*(.*)/g, '<hr><p style="font-style: italic; color: var(--text-secondary); font-size: 0.9rem;">$1</p>');
+    .replace(/(<li class="parent-report-list-item">.*?<\/li>)/gs, '<ul class="parent-report-list">$1</ul>')
+    .replace(/<\/ul>\s*<ul class="parent-report-list">/g, '')
+    .replace(/---\n\*(.*)/g, '<hr class="parent-report-hr"><p class="parent-report-note">$1</p>');
 }
 
 /**
@@ -2979,7 +3192,7 @@ function viewStudentProgress(studentId) {
   
   if (!content) return;
 
-  title.textContent = `${student.name}さんの進捗履歴`;
+  title.innerHTML = `${formatStudentName(student.name)}の進捗履歴`;
 
   if (!student.records || student.records.length === 0) {
     content.innerHTML = `
@@ -3105,7 +3318,7 @@ function updateStudentManagementSettings() {
   studentsData.students.forEach(student => {
     settingsHTML += `
       <tr>
-        <td>${student.name}</td>
+        <td>${formatStudentName(student.name)}</td>
         <td>${student.studentNumber}</td>
         <td>${student.grade}年生</td>
         <td>${student.records ? student.records.length : 0}件</td>
@@ -3146,9 +3359,1801 @@ function deleteStudentFromSettings(studentId) {
   
   studentsData.students = studentsData.students.filter(s => s.id !== studentId);
   saveData();
-  syncData('delete_student', { id: studentId });
   
   updateUI();
   updateStudentManagementSettings(); // 設定画面も更新
   showAlert(`${student.name}さんを削除しました`, 'success');
+}
+
+/**
+ * ======================
+ * 親御さん向けレポート機能
+ * ======================
+ */
+
+/**
+ * 親御さん向けレポート生成
+ */
+function generateParentReport(type) {
+  if (type === 'class') {
+    openClassReportModal();
+  } else if (type === 'individual') {
+    // 個別レポート用のモーダルを表示
+    updateParentReportStudentModal();
+    document.getElementById('parentReportStudentModal').classList.add('show');
+  }
+}
+
+/**
+ * クラス全体レポートモーダルを開く
+ */
+function openClassReportModal() {
+  if (!studentsData.students || studentsData.students.length === 0) {
+    showAlert('レポート作成対象の児童データがありません', 'warning');
+    return;
+  }
+  
+  // モーダルをリセット
+  document.getElementById('classReportGrade').value = '';
+  document.getElementById('classReportClass').innerHTML = '<option value="">クラスを選択</option>';
+  document.getElementById('classReportPreview').style.display = 'none';
+  document.getElementById('classReportGenerateBtn').disabled = true;
+  
+  document.getElementById('classReportModal').classList.add('show');
+}
+
+/**
+ * 学年選択に基づいてクラス選択肢を更新
+ */
+function updateClassReportClassOptions() {
+  const gradeSelect = document.getElementById('classReportGrade');
+  const classSelect = document.getElementById('classReportClass');
+  const selectedGrade = parseInt(gradeSelect.value);
+  
+  // クラス選択をリセット
+  classSelect.innerHTML = '<option value="">クラスを選択</option>';
+  document.getElementById('classReportPreview').style.display = 'none';
+  document.getElementById('classReportGenerateBtn').disabled = true;
+  
+  if (!selectedGrade) return;
+  
+  // 選択された学年の児童からクラス一覧を作成
+  const classesInGrade = new Set();
+  studentsData.students
+    .filter(student => student.grade === selectedGrade)
+    .forEach(student => {
+      if (student.class && student.class.trim()) {
+        classesInGrade.add(student.class.trim());
+      }
+    });
+  
+  // クラス選択肢を追加
+  if (classesInGrade.size > 0) {
+    // 「すべてのクラス」オプションを最初に追加
+    const allOption = document.createElement('option');
+    allOption.value = 'all';
+    allOption.textContent = 'すべてのクラス';
+    classSelect.appendChild(allOption);
+    
+    // 個別クラスオプションを追加
+    Array.from(classesInGrade).sort().forEach(className => {
+      const option = document.createElement('option');
+      option.value = className;
+      option.textContent = className;
+      classSelect.appendChild(option);
+    });
+  } else {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'この学年にはクラス情報がありません';
+    option.disabled = true;
+    classSelect.appendChild(option);
+  }
+}
+
+/**
+ * クラス選択に基づいて対象児童をプレビュー表示
+ */
+function updateClassReportPreview() {
+  const gradeSelect = document.getElementById('classReportGrade');
+  const classSelect = document.getElementById('classReportClass');
+  const previewDiv = document.getElementById('classReportPreview');
+  const studentListDiv = document.getElementById('classReportStudentList');
+  const generateBtn = document.getElementById('classReportGenerateBtn');
+  
+  const selectedGrade = parseInt(gradeSelect.value);
+  const selectedClass = classSelect.value;
+  
+  if (!selectedGrade || !selectedClass) {
+    previewDiv.style.display = 'none';
+    generateBtn.disabled = true;
+    return;
+  }
+  
+  // 対象児童を取得
+  let targetStudents;
+  if (selectedClass === 'all') {
+    // すべてのクラスを対象
+    targetStudents = studentsData.students.filter(student => student.grade === selectedGrade);
+  } else {
+    // 特定のクラスを対象
+    targetStudents = studentsData.students.filter(student => 
+      student.grade === selectedGrade && student.class === selectedClass
+    );
+  }
+  
+  if (targetStudents.length === 0) {
+    studentListDiv.innerHTML = '<span style="color: var(--warning);">この学年には児童がいません</span>';
+    generateBtn.disabled = true;
+  } else {
+    let displayInfo = '';
+    
+    if (selectedClass === 'all') {
+      // クラス別に分けて表示
+      const classSummary = new Map();
+      targetStudents.forEach(student => {
+        const className = student.class || '未設定';
+        if (!classSummary.has(className)) {
+          classSummary.set(className, []);
+        }
+        classSummary.get(className).push(student);
+      });
+      
+      const classDetails = Array.from(classSummary.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([className, students]) => {
+          const genderCounts = students.reduce((acc, student) => {
+            const gender = student.gender === 'male' ? '男子' : student.gender === 'female' ? '女子' : 'その他';
+            acc[gender] = (acc[gender] || 0) + 1;
+            return acc;
+          }, {});
+          const genderInfo = Object.entries(genderCounts).map(([gender, count]) => `${gender}${count}名`).join(', ');
+          return `${className}: ${students.length}名 (${genderInfo})`;
+        });
+      
+      displayInfo = `
+        <strong>対象: ${selectedGrade}年生全体 ${targetStudents.length}名</strong><br>
+        <div style="margin-top: 0.5rem; font-size: 0.9rem; line-height: 1.4;">
+          ${classDetails.join('<br>')}
+        </div>
+      `;
+    } else {
+      // 個別クラスの場合
+      const studentNames = targetStudents.map(student => {
+        const genderIcon = student.gender === 'male' ? '👦' : student.gender === 'female' ? '👧' : '';
+        const recordCount = student.records ? student.records.length : 0;
+        return `${student.name}さん ${genderIcon} (記録: ${recordCount}件)`;
+      });
+      
+      displayInfo = `
+        <strong>対象: ${targetStudents.length}名</strong><br>
+        ${studentNames.join(', ')}
+      `;
+    }
+    
+    studentListDiv.innerHTML = displayInfo;
+    generateBtn.disabled = false;
+  }
+  
+  previewDiv.style.display = 'block';
+}
+
+/**
+ * クラス全体レポート生成実行
+ */
+function executeClassReportGeneration() {
+  const gradeSelect = document.getElementById('classReportGrade');
+  const classSelect = document.getElementById('classReportClass');
+  const selectedGrade = parseInt(gradeSelect.value);
+  const selectedClass = classSelect.value;
+  
+  if (!selectedGrade || !selectedClass) {
+    showAlert('学年とクラスを選択してください', 'error');
+    return;
+  }
+  
+  // 対象児童を取得
+  let targetStudents;
+  let reportLabel;
+  
+  if (selectedClass === 'all') {
+    // すべてのクラスを対象
+    targetStudents = studentsData.students.filter(student => student.grade === selectedGrade);
+    reportLabel = `${selectedGrade}年生全体`;
+  } else {
+    // 特定のクラスを対象
+    targetStudents = studentsData.students.filter(student => 
+      student.grade === selectedGrade && student.class === selectedClass
+    );
+    reportLabel = `${selectedGrade}年${selectedClass}`;
+  }
+  
+  if (targetStudents.length === 0) {
+    showAlert('対象の児童がいません', 'error');
+    return;
+  }
+  
+  // モーダルを閉じる
+  closeModal('classReportModal');
+  
+  // レポート生成中の表示
+  showAnalysisLoading(`${reportLabel}の親御さん向けレポートを作成中...`);
+  
+  setTimeout(() => {
+    let classParentReport;
+    if (selectedClass === 'all') {
+      // 学年全体のレポート生成
+      classParentReport = generateClassParentReportContentForGrade(selectedGrade, targetStudents);
+    } else {
+      // 特定クラスのレポート生成
+      classParentReport = generateClassParentReportContentForClass(selectedGrade, selectedClass, targetStudents);
+    }
+    
+    saveParentReportToHistory(classParentReport);
+    updateParentReportHistory();
+    showParentReportDetail(classParentReport);
+    showAlert(`${reportLabel}の親御さん向けレポートが完成しました`, 'success');
+  }, 2500);
+}
+
+/**
+ * 親御さん向け個別レポート選択モーダルの更新
+ */
+function updateParentReportStudentModal() {
+  const select = document.getElementById('parentReportStudentSelect');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">児童を選択してください</option>';
+  
+  if (studentsData.students) {
+    studentsData.students.forEach(student => {
+      const option = document.createElement('option');
+      option.value = student.id;
+      const genderIcon = student.gender === 'male' ? '👦' : student.gender === 'female' ? '👧' : '';
+      option.textContent = `${student.name}さん ${genderIcon} (${student.grade}年 ${student.class || ''})`;
+      select.appendChild(option);
+    });
+  }
+}
+
+/**
+ * 親御さん向け個別レポート実行
+ */
+function executeParentReportGeneration() {
+  const studentId = document.getElementById('parentReportStudentSelect').value;
+  
+  if (!studentId) {
+    showAlert('児童を選択してください', 'error');
+    return;
+  }
+
+  const student = studentsData.students.find(s => s.id === studentId);
+  if (!student) {
+    showAlert('選択された児童が見つかりません', 'error');
+    return;
+  }
+
+  // モーダルを閉じる
+  closeModal('parentReportStudentModal');
+
+  // レポート生成中の表示
+  showAnalysisLoading(`${student.name}さんの親御さん向けレポートを作成中...`);
+
+  // レポート生成のシミュレーション
+  setTimeout(() => {
+    const parentReport = generateIndividualParentReport(student);
+    saveParentReportToHistory(parentReport);
+    updateParentReportHistory();
+    showParentReportDetail(parentReport);
+    showAlert(`${student.name}さんの親御さん向けレポートが完成しました`, 'success');
+  }, 2500);
+}
+
+/**
+ * クラス全体の親御さん向けレポート生成
+ */
+function generateClassParentReport() {
+  if (!studentsData.students || studentsData.students.length === 0) {
+    showAlert('レポート作成対象の児童データがありません', 'warning');
+    return;
+  }
+
+  // レポート生成中の表示
+  showAnalysisLoading('クラス全体の親御さん向けレポートを作成中...');
+
+  setTimeout(() => {
+    const classParentReport = generateClassParentReportContent();
+    saveParentReportToHistory(classParentReport);
+    updateParentReportHistory();
+    showParentReportDetail(classParentReport);
+    showAlert('クラス全体の親御さん向けレポートが完成しました', 'success');
+  }, 2500);
+}
+
+/**
+ * クラス全体の親御さん向けレポート内容生成（全体用・旧関数）
+ */
+function generateClassParentReportContent() {
+  const totalStudents = studentsData.students.length;
+  const studentsWithRecords = studentsData.students.filter(s => s.records && s.records.length > 0);
+  
+  // 最新データから傾向を分析
+  const recentData = [];
+  studentsWithRecords.forEach(student => {
+    if (student.records.length > 0) {
+      const latestRecord = student.records[student.records.length - 1];
+      if (latestRecord.data) {
+        recentData.push({
+          student: student.name,
+          data: latestRecord.data
+        });
+      }
+    }
+  });
+
+  const stats = calculateLearningStats(recentData);
+  
+  const content = `🌸 **クラスの様子をお伝えします**
+
+保護者の皆様、いつもお子様の教育にご協力いただき、ありがとうございます。
+今回は、クラス全体の様子について、温かい気持ちでお伝えさせていただきます。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 **クラス全体の学習の様子**
+
+お子様たちは、毎日一生懸命学習に取り組んでいます。
+
+✨ **素晴らしいところ**
+
+・クラス全体で、お互いを思いやりながら学習に取り組んでいます
+
+・分からないことがあると、友達同士で教え合う姿がよく見られます
+
+・新しいことに挑戦する意欲が、日に日に高まっています
+
+・みんなで協力して、温かいクラスの雰囲気を作り上げています
+
+📈 **学習の成長（数値で見る頑張り）**
+・**学習への取り組み**: クラス平均 **${stats.avgLearningStatus.toFixed(1)}点**（5点満点）
+・**学習への意欲**: クラス平均 **${stats.avgMotivation.toFixed(1)}点**（5点満点）
+・**宿題への取り組み**: **${Math.round((stats.homeworkSubmissionRate || 0) * 100)}%**のお子様が継続的に頑張っています。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🏠 **ご家庭でのサポートのお願い**
+
+📖 **学習面でのサポート**
+
+・お子様が学校での出来事を話してくれたときは、**ぜひ最後まで聞いてあげてください**
+
+・宿題に取り組む時間を、**できるだけ決まった時間**にしていただけると助かります
+
+・分からないことがあっても、**まずはお子様自身で考える時間**を作ってあげてください
+
+・学習内容について、お子様と一緒に**興味を持って話題にしてください**
+
+💝 **心の面でのサポート**
+
+・**小さな頑張りでも、たくさん褒めてあげてください**
+
+・**失敗しても大丈夫だということ**を、お子様に伝えてあげてください
+
+・学校での楽しかったことを、**一緒に喜んでいただけると嬉しいです**
+
+・お子様の気持ちに寄り添い、**安心できる家庭環境**を作ってあげてください
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌟 **これからの目標**
+
+クラス全体で、以下のことを大切にしていきたいと思います：
+
+1. **お互いを大切にする心** - 友達の良いところを見つけて、認め合える関係づくり
+
+2. **挑戦する勇気** - 新しいことにも、みんなで協力して取り組む姿勢
+
+3. **継続する力** - 毎日の小さな積み重ねを大切にする習慣
+
+4. **思いやりの気持ち** - 困っている友達がいたら、優しく支え合う心
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💌 **保護者の皆様へ**
+
+お子様たちは、毎日本当によく頑張っています。
+ご家庭でも、お子様の小さな成長を見つけて、**たくさん褒めてあげてください**。
+
+何かご心配なことやご質問がございましたら、**いつでもお気軽にお声かけください**。
+お子様の成長を、一緒に見守らせていただけることを、心より嬉しく思っています。
+
+---
+**作成日**: ${new Date().toLocaleDateString('ja-JP')}  
+**備考**: このレポートは、日々の観察記録をもとに作成しています`;
+
+  return {
+    id: `class_parent_report_all_${Date.now()}`,
+    type: 'class_parent',
+    grade: null,
+    className: 'all',
+    title: '🌸 クラス全体の様子（保護者向け）',
+    content: content,
+    timestamp: new Date().toISOString(),
+    studentCount: totalStudents
+  };
+}
+
+/**
+ * 学年全体用の親御さん向けレポート生成
+ */
+function generateClassParentReportContentForGrade(grade, targetStudents) {
+  const totalStudents = targetStudents.length;
+  const studentsWithRecords = targetStudents.filter(s => s.records && s.records.length > 0);
+  
+  // クラス別の情報を集計
+  const classSummary = new Map();
+  targetStudents.forEach(student => {
+    const className = student.class || '未設定';
+    if (!classSummary.has(className)) {
+      classSummary.set(className, {
+        students: [],
+        withRecords: 0
+      });
+    }
+    classSummary.get(className).students.push(student);
+    if (student.records && student.records.length > 0) {
+      classSummary.get(className).withRecords++;
+    }
+  });
+  
+  // 最新データから傾向を分析
+  const recentData = [];
+  studentsWithRecords.forEach(student => {
+    if (student.records.length > 0) {
+      const latestRecord = student.records[student.records.length - 1];
+      if (latestRecord.data) {
+        recentData.push({
+          student: student.name,
+          data: latestRecord.data
+        });
+      }
+    }
+  });
+
+  const stats = calculateLearningStats(recentData);
+  
+  // クラス別の詳細情報
+  const classDetails = Array.from(classSummary.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([className, info]) => {
+      const genderCounts = info.students.reduce((acc, student) => {
+        const gender = student.gender === 'male' ? '男子' : student.gender === 'female' ? '女子' : 'その他';
+        acc[gender] = (acc[gender] || 0) + 1;
+        return acc;
+      }, {});
+      const genderInfo = Object.entries(genderCounts).map(([gender, count]) => `${gender}${count}名`).join(', ');
+      return `- **${className}**: ${info.students.length}名 (${genderInfo}) - 記録のあるお子様: ${info.withRecords}名`;
+    }).join('\n');
+  
+  const content = `🌸 **${grade}年生全体の様子をお伝えします**
+
+${grade}年生の保護者の皆様、いつもお子様の教育にご協力いただき、ありがとうございます。
+今回は、${grade}年生全体の様子について、温かい気持ちでお伝えさせていただきます。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 **${grade}年生全体の学習の様子**
+
+**対象**: ${totalStudents}名のお子様（記録のあるお子様: ${studentsWithRecords.length}名）
+
+📋 **クラス別の構成**
+${classDetails}
+
+お子様たちは、各クラスでそれぞれの個性を活かしながら、毎日一生懸命学習に取り組んでいます。
+
+✨ **${grade}年生全体の素晴らしいところ**
+
+・**学年の結束**: ${grade}年生全体で、お互いを思いやりながら学習に取り組んでいます
+
+・**協力する姿勢**: クラスを超えて、分からないことがあると友達同士で教え合う姿がよく見られます
+
+・**学年らしい成長**: ${grade}年生らしく、新しいことに挑戦する意欲が日に日に高まっています
+
+・**多様性の尊重**: 各クラスの特色を活かしながら、学年全体で温かい雰囲気を作り上げています
+
+・**思いやりの心**: 学年を超えて、下級生や上級生との関わりも大切にしています
+
+📈 **学習の成長（数値で見る頑張り）**
+${recentData.length > 0 ? `
+・**学習への取り組み**: 学年平均 **${stats.avgLearningStatus.toFixed(1)}点**（5点満点）
+・**学習への意欲**: 学年平均 **${stats.avgMotivation.toFixed(1)}点**（5点満点）
+・**宿題への取り組み**: **${Math.round((stats.homeworkSubmissionRate || 0) * 100)}%**のお子様が継続的に頑張っています。` : `
+・現在、学習記録を蓄積中です。お子様たちの頑張りをしっかりと記録していきます。`}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🏠 **ご家庭でのサポートのお願い**
+
+📖 **学習面でのサポート（${grade}年生向け）**
+
+・${grade}年生のお子様が学校での出来事を話してくれたときは、**ぜひ最後まで聞いてあげてください**
+
+・宿題に取り組む時間を、**できるだけ決まった時間**にしていただけると助かります
+
+・分からないことがあっても、**まずはお子様自身で考える時間**を作ってあげてください
+
+・${grade}年生の発達段階に合わせて、**適度な挑戦**と**十分な支援**のバランスを心がけてください
+
+・学年の特性を理解して、**お子様の成長段階に応じた関わり**をお願いします
+
+💝 **心の面でのサポート**
+
+・**小さな頑張りでも、たくさん褒めてあげてください**
+
+・**失敗しても大丈夫だということ**を、お子様に伝えてあげてください
+
+・学校での楽しかったことを、**一緒に喜んでいただけると嬉しいです**
+
+・${grade}年生のお友達との関係についても、**温かく見守ってください**
+
+・お子様の気持ちの変化に敏感に気づき、**適切にサポートしてください**
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌟 **${grade}年生全体のこれからの目標**
+
+学年全体で、以下のことを大切にしていきたいと思います：
+
+1. **お互いを大切にする心** - ${grade}年生の仲間として、友達の良いところを見つけて認め合う
+
+2. **${grade}年生らしい挑戦** - 新しいことにも、みんなで協力して取り組む姿勢
+
+3. **継続する力** - 毎日の小さな積み重ねを大切にする習慣
+
+4. **学年の絆** - クラスは違っても${grade}年生としての一体感を大切にする
+
+5. **成長への意識** - ${grade}年生としての責任と誇りを持ち続ける
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💌 **${grade}年生の保護者の皆様へ**
+
+${grade}年生のお子様たちは、毎日本当によく頑張っています。
+ご家庭でも、お子様の小さな成長を見つけて、**たくさん褒めてあげてください**。
+
+${grade}年生全体に関すること、クラスのこと、個別のお子様のことなど、
+何かご心配なことやご質問がございましたら、**いつでもお気軽にお声かけください**。
+
+${grade}年生のお子様たちの成長を、一緒に見守らせていただけることを、心より嬉しく思っています。
+
+---
+**作成日**: ${new Date().toLocaleDateString('ja-JP')}  
+**対象**: ${grade}年生全体（${totalStudents}名）  
+**備考**: このレポートは、${grade}年生全体の日々の観察記録をもとに作成しています`;
+
+  return {
+    id: `class_parent_report_${grade}_all_${Date.now()}`,
+    type: 'class_parent',
+    grade: grade,
+    className: 'all',
+    title: `🌸 ${grade}年生全体の様子（保護者向け）`,
+    content: content,
+    timestamp: new Date().toISOString(),
+    studentCount: totalStudents,
+    targetStudents: targetStudents.map(s => s.name)
+  };
+}
+
+/**
+ * 特定クラス用の親御さん向けレポート生成
+ */
+function generateClassParentReportContentForClass(grade, className, targetStudents) {
+  const totalStudents = targetStudents.length;
+  const studentsWithRecords = targetStudents.filter(s => s.records && s.records.length > 0);
+  
+  // 最新データから傾向を分析
+  const recentData = [];
+  studentsWithRecords.forEach(student => {
+    if (student.records.length > 0) {
+      const latestRecord = student.records[student.records.length - 1];
+      if (latestRecord.data) {
+        recentData.push({
+          student: student.name,
+          data: latestRecord.data
+        });
+      }
+    }
+  });
+
+  const stats = calculateLearningStats(recentData);
+  
+  const content = `🌸 **${grade}年${className}の様子をお伝えします**
+
+${grade}年${className}の保護者の皆様、いつもお子様の教育にご協力いただき、ありがとうございます。
+今回は、${grade}年${className}の様子について、温かい気持ちでお伝えさせていただきます。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 **${grade}年${className}の学習の様子**
+
+**対象**: ${totalStudents}名のお子様（記録のあるお子様: ${studentsWithRecords.length}名）
+
+お子様たちは、毎日一生懸命学習に取り組んでいます。
+
+✨ **${grade}年${className}の素晴らしいところ**
+・クラス全体で、お互いを思いやりながら学習に取り組んでいます
+・分からないことがあると、友達同士で教え合う姿がよく見られます
+・${grade}年生らしく、新しいことに挑戦する意欲が日に日に高まっています
+・${className}独特の温かい雰囲気の中で、みんなが安心して学習できています
+
+📈 **学習の成長（数値で見る頑張り）**
+${recentData.length > 0 ? `
+・**学習への取り組み**: クラス平均 **${stats.avgLearningStatus.toFixed(1)}点**（5点満点）
+・**学習への意欲**: クラス平均 **${stats.avgMotivation.toFixed(1)}点**（5点満点）
+・**宿題への取り組み**: **${Math.round((stats.homeworkSubmissionRate || 0) * 100)}%**のお子様が継続的に頑張っています。` : `
+・現在、学習記録を蓄積中です。お子様たちの頑張りをしっかりと記録していきます。`}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🏠 **ご家庭でのサポートのお願い**
+
+📖 **学習面でのサポート（${grade}年生向け）**
+・${grade}年生のお子様が学校での出来事を話してくれたときは、**ぜひ最後まで聞いてあげてください**
+・宿題に取り組む時間を、**できるだけ決まった時間**にしていただけると助かります
+・分からないことがあっても、**まずはお子様自身で考える時間**を作ってあげてください
+・${grade}年生の発達段階に合わせて、**適度な挑戦**と**十分な支援**のバランスを心がけてください
+
+💝 **心の面でのサポート**
+・**小さな頑張りでも、たくさん褒めてあげてください**
+・**失敗しても大丈夫だということ**を、お子様に伝えてあげてください
+・学校での楽しかったことを、**一緒に喜んでいただけると嬉しいです**
+・${className}のお友達との関係についても、**温かく見守ってください**
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌟 **${grade}年${className}のこれからの目標**
+
+クラス全体で、以下のことを大切にしていきたいと思います：
+
+1. **お互いを大切にする心** - ${className}の仲間として、友達の良いところを見つけて認め合う
+2. **${grade}年生らしい挑戦** - 新しいことにも、みんなで協力して取り組む姿勢
+3. **継続する力** - 毎日の小さな積み重ねを大切にする習慣
+4. **クラスの絆** - ${className}ならではの温かい雰囲気を大切にする
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💌 **${grade}年${className}の保護者の皆様へ**
+
+${grade}年${className}のお子様たちは、毎日本当によく頑張っています。
+ご家庭でも、お子様の小さな成長を見つけて、**たくさん褒めてあげてください**。
+
+${grade}年${className}特有のご相談や、クラス全体に関すること、個別のお子様のことなど、
+何かご心配なことやご質問がございましたら、**いつでもお気軽にお声かけください**。
+
+${grade}年${className}のお子様たちの成長を、一緒に見守らせていただけることを、心より嬉しく思っています。
+
+---
+**作成日**: ${new Date().toLocaleDateString('ja-JP')}  
+**対象クラス**: ${grade}年${className}（${totalStudents}名）  
+**備考**: このレポートは、${grade}年${className}の日々の観察記録をもとに作成しています`;
+
+  return {
+    id: `class_parent_report_${grade}_${className}_${Date.now()}`,
+    type: 'class_parent',
+    grade: grade,
+    className: className,
+    title: `🌸 ${grade}年${className}の様子（保護者向け）`,
+    content: content,
+    timestamp: new Date().toISOString(),
+    studentCount: totalStudents,
+    targetStudents: targetStudents.map(s => s.name)
+  };
+}
+
+/**
+ * 個別の親御さん向けレポート生成
+ */
+function generateIndividualParentReport(student) {
+  const records = student.records || [];
+  const latestRecord = records.length > 0 ? records[records.length - 1] : null;
+  
+  if (!latestRecord || !latestRecord.data) {
+    return generateNoDataParentReport(student);
+  }
+
+  const data = latestRecord.data;
+  const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
+  const motivation = data.motivation ? parseInt(data.motivation) : 0;
+  const homework = data.homework || '';
+  
+  // 成長の傾向を分析
+  const growthTrend = analyzeStudentGrowthForParents(records, student.name);
+  
+  const content = `💝 **${student.name}さんの成長の様子**
+
+${student.name}さんの保護者様、いつも温かいご支援をいただき、ありがとうございます。
+${student.name}さんの最近の学校での様子を、愛情を込めてお伝えさせていただきます。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌟 **${student.name}さんの素晴らしいところ**
+
+${generateStudentStrengthsForParents(data, student.name)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 **学習面での成長**
+
+**現在の様子**
+・**学習への取り組み**: **${learningStatus}/5点** - ${getLearningStatusMessageForParents(learningStatus)}
+・**学習への意欲**: **${motivation}/5点** - ${getMotivationMessageForParents(motivation)}
+・**宿題への取り組み**: ${getHomeworkMessageForParents(homework)}
+
+**成長の様子**
+${growthTrend}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🏠 **ご家庭でのサポートのご提案**
+
+${generateHomeSupport(data, student.name)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💌 **${student.name}さんへの応援メッセージ**
+
+${generateEncouragementMessage(data, student.name)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📞 **今後の連携について**
+
+${generateCollaborationMessage(data, student.name)}
+
+---
+${student.name}さんの成長を、一緒に見守らせていただけることを心より嬉しく思っています。
+
+**作成日**: ${new Date().toLocaleDateString('ja-JP')}`;
+
+  return {
+    id: `individual_parent_report_${student.id}_${Date.now()}`,
+    type: 'individual_parent',
+    studentId: student.id,
+    studentName: student.name,
+    title: `💝 ${student.name}さんの成長レポート（保護者向け）`,
+    content: content,
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * データ不足時の親御さん向けレポート
+ */
+function generateNoDataParentReport(student) {
+  const content = `💝 **${student.name}さんについて**
+
+${student.name}さんの保護者様、いつもありがとうございます。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 **現在の状況**
+
+${student.name}さんについては、まだ詳しい学習記録が蓄積されていない状況です。
+これから${student.name}さんの成長の様子を、しっかりと記録していきたいと思います。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌱 **これからの取り組み**
+
+・**観察の強化**: ${student.name}さんの日々の様子をより詳しく記録します
+・**個別の関わり**: ${student.name}さんの個性を大切にした指導を心がけます
+・**定期的な報告**: 成長の様子を定期的にお伝えします
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🤝 **保護者様へのお願い**
+
+・ご家庭での${student.name}さんの様子で、気になることがあれば**お聞かせください**
+・学校での様子について、何かご質問があれば**いつでもお声かけください**
+
+---
+${student.name}さんの素晴らしい成長を、一緒に支えていきましょう。
+
+**作成日**: ${new Date().toLocaleDateString('ja-JP')}`;
+
+  return {
+    id: `individual_parent_report_${student.id}_${Date.now()}`,
+    type: 'individual_parent',
+    studentId: student.id,
+    studentName: student.name,
+    title: `💝 ${student.name}さんについて（保護者向け）`,
+    content: content,
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * 親御さん向けの学習状況メッセージ
+ */
+function getLearningStatusMessageForParents(status) {
+  if (status >= 5) return '本当に素晴らしい取り組みです！この調子で頑張っています';
+  if (status >= 4) return 'とても良く頑張っています！';
+  if (status >= 3) return '着実に取り組んでいます。';
+  if (status >= 2) return '一生懸命頑張っています。少しずつ成長しています';
+  return 'これから一緒に頑張っていきましょう。';
+}
+
+/**
+ * 親御さん向けの学習意欲メッセージ
+ */
+function getMotivationMessageForParents(motivation) {
+  if (motivation >= 5) return '学習への意欲がとても高く、積極的に取り組んでいます！';
+  if (motivation >= 4) return '意欲的に学習に取り組んでいます！';
+  if (motivation >= 3) return '安定して学習に向き合っています。';
+  if (motivation >= 2) return '少しずつ学習への興味が育っています。';
+  return 'これから一緒に学習の楽しさを見つけていきましょう。';
+}
+
+/**
+ * 親御さん向けの宿題メッセージ
+ */
+function getHomeworkMessageForParents(homework) {
+  if (homework === '提出') return '宿題をしっかりと提出しています。素晴らしいです！';
+  if (homework === '一部提出') return '宿題に取り組んでいます。継続していきましょう。';
+  return '宿題への取り組みを一緒にサポートしていきましょう。';
+}
+
+/**
+ * 親御さん向けの児童の強み生成
+ */
+function generateStudentStrengthsForParents(data, studentName) {
+  const strengths = [];
+  
+  const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
+  const motivation = data.motivation ? parseInt(data.motivation) : 0;
+  
+  if (learningStatus >= 4) {
+    strengths.push(`📚 **学習への取り組みがとても素晴らしく**、集中して課題に向き合っています`);
+  }
+  
+  if (motivation >= 4) {
+    strengths.push(`✨ **新しいことを学ぶことに意欲的で**、積極的に手を挙げて発言しています`);
+  }
+  
+  if (data.homework === '提出') {
+    strengths.push(`📝 **宿題をきちんと提出し**、責任感を持って取り組んでいます`);
+  }
+  
+  if (strengths.length === 0) {
+    strengths.push(`🌱 **${studentName}さんなりのペース**で、一生懸命頑張っています`);
+    strengths.push(`💪 **毎日学校に来て**、クラスの一員として大切な存在です`);
+  }
+  
+  return strengths.map(strength => `- ${strength}`).join('\n');
+}
+
+/**
+ * 親御さん向けの成長分析
+ */
+function analyzeStudentGrowthForParents(records, studentName) {
+  if (records.length < 2) {
+    return `\n📈 成長の記録\n${studentName}さんの成長の様子を、これからしっかりと記録していきます。`;
+  }
+  
+  const recent = records.slice(-2);
+  const prev = recent[0].data;
+  const current = recent[1].data;
+  
+  const prevLearning = prev.learningStatus ? parseInt(prev.learningStatus) : 0;
+  const currentLearning = current.learningStatus ? parseInt(current.learningStatus) : 0;
+  const prevMotivation = prev.motivation ? parseInt(prev.motivation) : 0;
+  const currentMotivation = current.motivation ? parseInt(current.motivation) : 0;
+  
+  let growthMessage = `**📈 最近の成長**\n`;
+  
+  if (currentLearning > prevLearning) {
+    growthMessage += `- **学習面で素晴らしい成長が見られます！** 前回より${currentLearning - prevLearning}ポイント向上しています\n`;
+  } else if (currentLearning === prevLearning && currentLearning >= 3) {
+    growthMessage += `- 学習面で**安定した取り組み**を続けています\n`;
+  }
+  
+  if (currentMotivation > prevMotivation) {
+    growthMessage += `- 学習への意欲が**さらに高まっています！**\n`;
+  } else if (currentMotivation === prevMotivation && currentMotivation >= 3) {
+    growthMessage += `- 学習への意欲を**継続して保っています**\n`;
+  }
+  
+  if (growthMessage === `**📈 最近の成長**\n`) {
+    growthMessage += `- **${studentName}さんなりのペース**で、着実に成長しています\n`;
+  }
+  
+  return growthMessage;
+}
+
+/**
+ * 親御さん向けの家庭サポート提案
+ */
+function generateHomeSupport(data, studentName) {
+  const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
+  const motivation = data.motivation ? parseInt(data.motivation) : 0;
+  
+  let support = '';
+  
+  if (learningStatus >= 4 && motivation >= 4) {
+    support = `🌟 **${studentName}さんは素晴らしく頑張っています！**
+
+・今の調子を維持できるよう、**たくさん褒めてあげてください**
+
+・新しいことにチャレンジしたいと言ったときは、**ぜひ応援してあげてください**
+
+・学校での出来事を楽しそうに話してくれたときは、**一緒に喜んでください**
+
+・${studentName}さんの頑張りを**具体的に褒めて**、自信につなげてあげてください`;
+  } else if (learningStatus >= 3 || motivation >= 3) {
+    support = `📚 **${studentName}さんの成長をサポートするために**
+
+・宿題に取り組むときは、**近くで見守ってあげてください**
+
+・分からないことがあっても、まずは**${studentName}さん自身で考える時間**を作ってあげてください
+
+・小さな頑張りでも、気づいたときには**たくさん褒めてあげてください**
+
+・学習の時間と休憩の時間を、**メリハリをつけて過ごせるよう**サポートしてください
+
+・${studentName}さんのペースを大切にして、**無理のない範囲で**学習を進めてください`;
+  } else {
+    support = `🤝 **${studentName}さんと一緒に頑張るために**
+
+・学習時間は${studentName}さんのそばにいて、**安心できる環境を作ってあげてください**
+
+・勉強が嫌になったときは、無理をせず、**${studentName}さんの気持ちを聞いてあげてください**
+
+・学校での楽しかったことを聞いて、**一緒に喜んでください**
+
+・小さなことでも、${studentName}さんが頑張ったときは**必ず褒めてあげてください**
+
+・${studentName}さんが**学校に行けたこと自体**を、まず認めて褒めてあげてください`;
+  }
+  
+  return support;
+}
+
+/**
+ * 親御さん向けの応援メッセージ
+ */
+function generateEncouragementMessage(data, studentName) {
+  const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
+  const motivation = data.motivation ? parseInt(data.motivation) : 0;
+  
+  if (learningStatus >= 4 && motivation >= 4) {
+    return `${studentName}さん、いつも本当によく頑張っていますね！
+
+あなたの一生懸命な姿を見ていると、先生もとても嬉しくなります。
+
+これからも、あなたらしく、楽しく学習を続けてくださいね。
+
+みんなも${studentName}さんの頑張りを見て、刺激を受けています。`;
+  } else if (learningStatus >= 3 || motivation >= 3) {
+    return `${studentName}さん、毎日お疲れさまです！
+
+あなたの頑張りを、先生はいつも見ています。
+
+分からないことがあったら、いつでも先生に聞いてくださいね。
+
+一緒に頑張りましょう！
+
+${studentName}さんの成長を、先生も保護者の方も応援しています。`;
+  } else {
+    return `${studentName}さん、学校に来てくれてありがとう！
+
+あなたがクラスにいてくれることで、みんなが嬉しい気持ちになります。
+
+勉強は少しずつで大丈夫です。
+
+先生も、お家の方も、いつも${studentName}さんを応援していますよ。
+
+${studentName}さんのペースで、一歩ずつ進んでいきましょう。`;
+  }
+}
+
+/**
+ * 親御さん向けの連携メッセージ
+ */
+function generateCollaborationMessage(data, studentName) {
+  return `**学校と家庭で連携して**、${studentName}さんの成長を支えていきたいと思います。
+
+**📞 いつでもご相談ください**
+
+・${studentName}さんのことで気になることがあれば、**いつでもお声かけください**
+
+・家庭での様子で変化があったときも、**ぜひ教えてください**
+
+・学校での取り組みについて、ご質問やご要望があれば**お聞かせください**
+
+・面談の時間以外でも、**お電話やメッセージでお気軽にご連絡ください**
+
+**🤝 一緒に見守りましょう**
+
+・${studentName}さんの小さな成長も、**一緒に喜び合いましょう**
+
+・困ったときは、**学校と家庭で協力して解決**していきましょう
+
+・${studentName}さんが**安心して成長できる環境**を、一緒に作っていきましょう
+
+・${studentName}さんの**個性と可能性**を大切に育んでいきましょう`;
+}
+
+/**
+ * 親御さん向けレポートを履歴に保存
+ */
+function saveParentReportToHistory(report) {
+  let parentReportHistory = [];
+  try {
+    const saved = localStorage.getItem('parentReportHistory');
+    if (saved) {
+      parentReportHistory = JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('親御さん向けレポート履歴読み込みエラー:', error);
+  }
+  
+  parentReportHistory.unshift(report);
+  
+  // 最大50件まで保持
+  if (parentReportHistory.length > 50) {
+    parentReportHistory = parentReportHistory.slice(0, 50);
+  }
+  
+  localStorage.setItem('parentReportHistory', JSON.stringify(parentReportHistory));
+}
+
+/**
+ * 親御さん向けレポート履歴の更新
+ */
+function updateParentReportHistory() {
+  const container = document.getElementById('parentReportHistory');
+  if (!container) return;
+  
+  let parentReportHistory = [];
+  try {
+    const saved = localStorage.getItem('parentReportHistory');
+    if (saved) {
+      parentReportHistory = JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('親御さん向けレポート履歴読み込みエラー:', error);
+  }
+  
+  if (parentReportHistory.length === 0) {
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        まだ親御さん向けレポートが作成されていません。上記のボタンからレポートを作成すると、ここに履歴が表示されます。
+        <br><br>
+        <strong>活用例：</strong>
+        <ul style="margin-top: 0.5rem;">
+          <li>保護者面談での資料として活用</li>
+          <li>家庭訪問時の話題提供</li>
+          <li>学級通信への内容反映</li>
+          <li>個別の成長記録として保管</li>
+        </ul>
+      </div>
+    `;
+    return;
+  }
+  
+  let historyHTML = '';
+  
+  parentReportHistory.slice(0, 10).forEach((report, index) => {
+    const date = new Date(report.timestamp);
+    const typeIcon = report.type === 'class_parent' ? '👥' : '👤';
+    const typeLabel = report.type === 'class_parent' ? 'クラス全体' : '個別レポート';
+    
+    historyHTML += `
+      <div class="card" style="margin-bottom: 1rem; border-left: 4px solid var(--secondary);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <h4 style="margin: 0; color: var(--secondary); font-size: 1rem;">
+            ${typeIcon} ${report.title}
+          </h4>
+          <span style="color: var(--text-secondary); font-size: 0.8rem;">
+            ${date.toLocaleDateString('ja-JP')} ${date.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})}
+          </span>
+        </div>
+        
+        <div style="margin-bottom: 1rem;">
+          <span style="background: rgba(124, 58, 237, 0.1); color: var(--secondary); padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.8rem;">
+            ${typeLabel}
+          </span>
+          ${report.studentName ? `
+            <span style="background: rgba(6, 182, 212, 0.1); color: var(--accent); padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.8rem; margin-left: 0.5rem;">
+              ${report.studentName}さん
+            </span>
+          ` : ''}
+        </div>
+        
+        <div style="margin-bottom: 1rem;">
+          <div style="color: var(--text-primary); font-size: 0.9rem; line-height: 1.6;">
+            ${generateAnalysisSummary(report.content)}
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button class="btn btn-secondary" onclick="showParentReportDetailById('${report.id}')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
+            <i class="fas fa-eye"></i> 詳細表示
+          </button>
+          <button class="btn btn-success" onclick="exportParentReportById('${report.id}')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
+            <i class="fas fa-download"></i> テキスト
+          </button>
+          <button class="btn" onclick="exportParentReportPDFById('${report.id}')" style="background: #dc2626; color: white; font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="印刷用ページを開いてPDF保存します">
+            <i class="fas fa-print"></i> PDF保存
+          </button>
+          <button class="btn btn-warning" onclick="regenerateParentReport('${report.type}', '${report.studentId || ''}', '${report.id}')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
+            <i class="fas fa-sync-alt"></i> 更新
+          </button>
+          <button class="btn" onclick="deleteParentReport('${report.id}')" style="background: #ef4444; color: white; font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="このレポートを削除します">
+            <i class="fas fa-trash"></i> 削除
+          </button>
+        </div>
+      </div>
+    `;
+  });
+  
+  if (parentReportHistory.length > 10) {
+    historyHTML += `
+      <div style="text-align: center; margin-top: 1rem;">
+        <button class="btn btn-secondary" onclick="viewAllParentReports()">
+          <i class="fas fa-list"></i> すべてのレポートを表示 (${parentReportHistory.length}件)
+        </button>
+      </div>
+    `;
+  }
+  
+  container.innerHTML = historyHTML;
+}
+
+/**
+ * IDでレポートを取得して詳細表示
+ */
+function showParentReportDetailById(reportId) {
+  const report = getParentReportById(reportId);
+  if (report) {
+    showParentReportDetail(report);
+  } else {
+    showAlert('レポートが見つかりません', 'error');
+  }
+}
+
+/**
+ * IDでレポートを取得してエクスポート
+ */
+function exportParentReportById(reportId) {
+  const report = getParentReportById(reportId);
+  if (report) {
+    exportParentReport(report);
+  } else {
+    showAlert('レポートが見つかりません', 'error');
+  }
+}
+
+/**
+ * IDでレポートを取得してPDFエクスポート
+ */
+function exportParentReportPDFById(reportId) {
+  const report = getParentReportById(reportId);
+  if (report) {
+    exportParentReportPDF(report);
+  } else {
+    showAlert('レポートが見つかりません', 'error');
+  }
+}
+
+/**
+ * IDからレポートを取得するヘルパー関数
+ */
+function getParentReportById(reportId) {
+  try {
+    const saved = localStorage.getItem('parentReportHistory');
+    if (saved) {
+      const parentReportHistory = JSON.parse(saved);
+      return parentReportHistory.find(report => report.id === reportId);
+    }
+  } catch (error) {
+    console.error('レポート取得エラー:', error);
+  }
+  return null;
+}
+
+/**
+ * 親御さん向けレポート詳細表示
+ */
+function showParentReportDetail(report) {
+  showAnalysisDetail({
+    title: report.title,
+    content: report.content,
+    analysisDate: report.timestamp,
+    studentName: report.studentName || '',
+    type: 'parent_report'
+  });
+}
+
+/**
+ * 親御さん向けレポートのエクスポート
+ */
+function exportParentReport(report) {
+  const date = new Date(report.timestamp);
+  const dateStr = date.toISOString().split('T')[0];
+  
+  // ファイル名の生成を改善
+  let filenamePart = 'class';
+  if (report.studentName) {
+    filenamePart = report.studentName.replace(/[^a-zA-Z0-9一-龯ひらがなカタカナ]/g, '_');
+  } else if (report.grade && report.className) {
+    filenamePart = `${report.grade}年${report.className}`;
+  }
+  
+  const filename = `parent_report_${filenamePart}_${dateStr}.txt`;
+  
+  const content = `${report.title}
+
+${report.content}
+
+---
+作成日時: ${date.toLocaleDateString('ja-JP')} ${date.toLocaleTimeString('ja-JP')}
+作成者: 児童進捗管理ツール
+`;
+  
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showAlert('親御さん向けレポートをダウンロードしました', 'success');
+}
+
+/**
+ * 親御さん向けレポートのPDFエクスポート
+ */
+function exportParentReportPDF(report) {
+  try {
+    // ブラウザの印刷機能を利用したPDF生成を優先
+    if (window.chrome || navigator.userAgent.includes('Chrome')) {
+      generatePrintablePDF(report);
+      return;
+    }
+    
+    // フォールバック: HTMLファイルとしてダウンロード
+    generateHTMLReport(report);
+    
+  } catch (error) {
+    console.error('PDF生成エラー:', error);
+    showAlert('PDF生成に失敗したため、HTMLファイルとしてダウンロードします', 'warning');
+    generateHTMLReport(report);
+  }
+}
+
+/**
+ * ブラウザの印刷機能を利用したPDF生成
+ */
+function generatePrintablePDF(report) {
+  try {
+    // 新しいウィンドウを作成
+    const printWindow = window.open('', '_blank');
+    
+    // ポップアップがブロックされた場合のエラーハンドリング
+    if (!printWindow) {
+      showAlert('ポップアップがブロックされました。ブラウザの設定でポップアップを許可してください', 'warning');
+      generateHTMLReport(report);
+      return;
+    }
+    
+    // HTMLコンテンツを作成
+    const htmlContent = formatReportForPrint(report);
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    
+    // スタイルが適用されるまで少し待つ
+    setTimeout(() => {
+      try {
+        printWindow.print();
+        showAlert('印刷ダイアログを開きました。「PDFとして保存」を選択してください', 'info');
+        
+        // 印刷後にウィンドウを閉じる
+        setTimeout(() => {
+          if (printWindow && !printWindow.closed) {
+            printWindow.close();
+          }
+        }, 1000);
+      } catch (error) {
+        console.error('印刷エラー:', error);
+        showAlert('印刷に失敗しました。HTMLファイルとしてダウンロードします', 'warning');
+        printWindow.close();
+        generateHTMLReport(report);
+      }
+    }, 500);
+  } catch (error) {
+    console.error('PDF生成エラー:', error);
+    showAlert('PDF生成に失敗しました。HTMLファイルとしてダウンロードします', 'warning');
+    generateHTMLReport(report);
+  }
+}
+
+/**
+ * HTMLファイルとしてダウンロード
+ */
+function generateHTMLReport(report) {
+  const htmlContent = formatReportForPrint(report);
+  
+  const date = new Date(report.timestamp);
+  const dateStr = date.toISOString().split('T')[0];
+  
+  // ファイル名の生成を改善
+  let filenamePart = 'class';
+  if (report.studentName) {
+    filenamePart = report.studentName.replace(/[^a-zA-Z0-9一-龯ひらがなカタカナ]/g, '_');
+  } else if (report.grade && report.className) {
+    filenamePart = `${report.grade}年${report.className}`;
+  }
+  
+  const filename = `parent_report_${filenamePart}_${dateStr}.html`;
+  
+  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showAlert('親御さん向けレポートをHTMLファイルでダウンロードしました', 'success');
+}
+
+/**
+ * レポートを印刷用HTMLに整形
+ */
+function formatReportForPrint(report) {
+  const date = new Date(report.timestamp);
+  const dateStr = date.toLocaleDateString('ja-JP');
+  
+  // マークダウンをHTMLに変換
+  const htmlContent = convertMarkdownToHTML(report.content);
+  
+  return `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${report.title}</title>
+  <style>
+    @media print {
+      @page {
+        margin: 20mm;
+        size: A4;
+      }
+    }
+    
+    body {
+      font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Meiryo', sans-serif;
+      line-height: 1.8;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: white;
+    }
+    
+    h1 {
+      color: #4f46e5;
+      border-bottom: 3px solid #4f46e5;
+      padding-bottom: 10px;
+      font-size: 24px;
+      margin-bottom: 30px;
+    }
+    
+    h2 {
+      color: #7c3aed;
+      border-left: 4px solid #7c3aed;
+      padding-left: 15px;
+      font-size: 20px;
+      margin: 25px 0 15px 0;
+      background: rgba(124, 58, 237, 0.05);
+      padding: 10px 15px;
+      border-radius: 8px;
+    }
+    
+    h3 {
+      color: #059669;
+      font-size: 16px;
+      margin: 20px 0 10px 0;
+      padding: 8px 12px;
+      background: rgba(5, 150, 105, 0.1);
+      border-radius: 5px;
+      border-left: 3px solid #059669;
+    }
+    
+    p {
+      margin-bottom: 15px;
+      line-height: 1.8;
+    }
+    
+    ul, ol {
+      margin: 15px 0;
+      padding-left: 25px;
+    }
+    
+    li {
+      margin-bottom: 8px;
+      line-height: 1.6;
+    }
+    
+    strong {
+      color: #e11d48;
+      font-weight: 600;
+    }
+    
+    .report-header {
+      text-align: center;
+      margin-bottom: 40px;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 20px;
+    }
+    
+    .report-meta {
+      text-align: right;
+      color: #6b7280;
+      font-size: 14px;
+      margin-top: 30px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 15px;
+    }
+    
+    .section {
+      margin-bottom: 30px;
+    }
+    
+    @media print {
+      body {
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+      }
+      
+      .no-print {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-header">
+    <h1>${report.title}</h1>
+  </div>
+  
+  <div class="report-content">
+    ${htmlContent}
+  </div>
+  
+  <div class="report-meta">
+    <p><strong>作成日:</strong> ${dateStr}</p>
+    <p><strong>作成者:</strong> 児童進捗管理ツール</p>
+  </div>
+  
+  <div class="no-print" style="margin-top: 30px; text-align: center; color: #6b7280;">
+    <p>このページを印刷する際は、ブラウザの印刷設定で「PDFとして保存」を選択してください。</p>
+  </div>
+</body>
+</html>`;
+}
+
+/**
+ * マークダウンをHTMLに変換（改良版）
+ */
+function convertMarkdownToHTML(markdown) {
+  if (!markdown) return '';
+  
+  // 行ごとに処理
+  const lines = markdown.split('\n');
+  const processed = [];
+  let inList = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    
+    // 空行の処理
+    if (line.trim() === '') {
+      if (inList) {
+        processed.push('</ul>');
+        inList = false;
+      }
+      processed.push('');
+      continue;
+    }
+    
+    // 区切り線（━も含む）
+    if (line.trim() === '---' || line.trim().match(/^━+$/)) {
+      if (inList) {
+        processed.push('</ul>');
+        inList = false;
+      }
+      processed.push('<hr style="border: none; height: 2px; background: linear-gradient(to right, #e5e7eb, #6b7280, #e5e7eb); margin: 20px 0;">');
+      continue;
+    }
+    
+    // ヘッダーの処理（**で囲まれた絵文字付きタイトル）
+    const boldTitleMatch = line.match(/^(🌸|📚|🏠|🌟|💌|💝|📝|🌱|🤝|📞|✨|📈|📖|💝|📋) \*\*(.*?)\*\*$/);
+    if (boldTitleMatch) {
+      if (inList) {
+        processed.push('</ul>');
+        inList = false;
+      }
+      processed.push(`<h2 style="color: #1f2937; margin-top: 25px; margin-bottom: 15px; font-size: 1.4em;">${boldTitleMatch[1]} ${boldTitleMatch[2]}</h2>`);
+      continue;
+    }
+    
+    // サブヘッダー（**で囲まれた絵文字なしタイトル）
+    const boldSubTitleMatch = line.match(/^\*\*(.*?)\*\*$/);
+    if (boldSubTitleMatch && !line.includes('：') && !line.includes(':')) {
+      if (inList) {
+        processed.push('</ul>');
+        inList = false;
+      }
+      processed.push(`<h3 style="color: #374151; margin-top: 15px; margin-bottom: 10px; font-size: 1.2em;">${boldSubTitleMatch[1]}</h3>`);
+      continue;
+    }
+    
+    // 旧形式のヘッダーも念のため対応
+    if (line.startsWith('### ')) {
+      if (inList) {
+        processed.push('</ul>');
+        inList = false;
+      }
+      processed.push(`<h2 style="color: #1f2937; margin-top: 25px; margin-bottom: 15px; font-size: 1.4em;">${line.substring(4)}</h2>`);
+      continue;
+    }
+    
+    if (line.startsWith('#### ')) {
+      if (inList) {
+        processed.push('</ul>');
+        inList = false;
+      }
+      processed.push(`<h3 style="color: #374151; margin-top: 15px; margin-bottom: 10px; font-size: 1.2em;">${line.substring(5)}</h3>`);
+      continue;
+    }
+    
+    // リストの処理（・も含む）
+    if (line.startsWith('- ') || line.startsWith('・')) {
+      if (!inList) {
+        processed.push('<ul style="margin: 10px 0; padding-left: 20px;">');
+        inList = true;
+      }
+      // 太字の変換も含める
+      const listContent = line.startsWith('- ') ? 
+        line.substring(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') :
+        line.substring(1).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      processed.push(`<li style="margin: 5px 0;">${listContent}</li>`);
+      continue;
+    }
+    
+    // リストが終了
+    if (inList && !line.startsWith('- ')) {
+      processed.push('</ul>');
+      inList = false;
+    }
+    
+    // 通常のテキスト行（太字変換も含める）
+    if (line.trim() !== '') {
+      const processedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      processed.push(`<p>${processedLine}</p>`);
+    }
+  }
+  
+  // 最後にリストが開いている場合は閉じる
+  if (inList) {
+    processed.push('</ul>');
+  }
+  
+  return processed.join('\n');
+}
+
+
+
+/**
+ * 親御さん向けレポートの再生成
+ */
+function regenerateParentReport(reportType, studentId = '', reportId = '') {
+  if (reportType === 'class_parent') {
+    // 既存レポートから学年・クラス情報を取得
+    let parentReportHistory = [];
+    try {
+      const saved = localStorage.getItem('parentReportHistory');
+      if (saved) {
+        parentReportHistory = JSON.parse(saved);
+      }
+    } catch (error) {
+      console.error('親御さん向けレポート履歴読み込みエラー:', error);
+    }
+    
+    // クラス全体レポートの再生成
+    let newReport;
+    if (reportId) {
+      // 既存レポートのIDから詳細情報を取得
+      const existingReport = parentReportHistory.find(r => r.id === reportId);
+      if (existingReport && existingReport.grade && existingReport.className) {
+        if (existingReport.className === 'all') {
+          // 学年全体のレポート更新
+          const targetStudents = studentsData.students.filter(student => 
+            student.grade === existingReport.grade
+          );
+          showAlert(`${existingReport.grade}年生全体のレポートを再生成中...`, 'info');
+          newReport = generateClassParentReportContentForGrade(existingReport.grade, targetStudents);
+          replaceOrAddParentReport(newReport, 'class_parent', '', reportId);
+          updateParentReportHistory();
+          showParentReportDetail(newReport);
+          showAlert(`${existingReport.grade}年生全体のレポートを更新しました！`, 'success');
+          return;
+        } else {
+          // 特定クラスのレポート更新
+          const targetStudents = studentsData.students.filter(student => 
+            student.grade === existingReport.grade && student.class === existingReport.className
+          );
+          showAlert(`${existingReport.grade}年${existingReport.className}のレポートを再生成中...`, 'info');
+          newReport = generateClassParentReportContentForClass(existingReport.grade, existingReport.className, targetStudents);
+          replaceOrAddParentReport(newReport, 'class_parent', '', reportId);
+          updateParentReportHistory();
+          showParentReportDetail(newReport);
+          showAlert(`${existingReport.grade}年${existingReport.className}のレポートを更新しました！`, 'success');
+          return;
+        }
+      }
+    }
+    
+    // 一般的なクラス全体レポート
+    showAlert('クラス全体レポートを再生成中...', 'info');
+    newReport = generateClassParentReportContent();
+    replaceOrAddParentReport(newReport, 'class_parent');
+    updateParentReportHistory();
+    showParentReportDetail(newReport);
+    showAlert('クラス全体レポートを更新しました！', 'success');
+  } else if (reportType === 'individual_parent' && studentId) {
+    // 個別レポートの再生成
+    const student = studentsData.students.find(s => s.id === studentId);
+    if (student) {
+      showAlert(`${student.name}さんのレポートを再生成中...`, 'info');
+      const newReport = generateIndividualParentReport(student);
+      
+      // 既存の同じ児童のレポートを探して置き換える
+      replaceOrAddParentReport(newReport, 'individual_parent', studentId);
+      updateParentReportHistory();
+      showParentReportDetail(newReport);
+      showAlert(`${student.name}さんのレポートを更新しました！`, 'success');
+    } else {
+      showAlert('対象の児童が見つかりませんでした', 'error');
+    }
+  } else {
+    showAlert('レポートの種類が不明です', 'error');
+  }
+}
+
+/**
+ * 既存レポートを置き換えるか新規追加
+ */
+function replaceOrAddParentReport(newReport, reportType, studentId = '', reportId = '') {
+  let parentReportHistory = [];
+  try {
+    const saved = localStorage.getItem('parentReportHistory');
+    if (saved) {
+      parentReportHistory = JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('親御さん向けレポート履歴読み込みエラー:', error);
+  }
+  
+  // 既存の同じレポートを探す
+  let foundIndex = -1;
+  
+  if (reportId) {
+    // 特定のレポートIDで検索（最優先）
+    foundIndex = parentReportHistory.findIndex(report => report.id === reportId);
+  } else if (reportType === 'class_parent') {
+    // クラス全体レポートの場合（学年・クラス情報も考慮）
+    if (newReport.grade && newReport.className) {
+      // 特定の学年・クラスレポートを検索
+      foundIndex = parentReportHistory.findIndex(report => 
+        report.type === 'class_parent' && 
+        report.grade === newReport.grade && 
+        report.className === newReport.className
+      );
+    } else {
+      // 一般的なクラス全体レポートを検索
+      foundIndex = parentReportHistory.findIndex(report => 
+        report.type === 'class_parent' && !report.grade && !report.className
+      );
+    }
+  } else if (reportType === 'individual_parent' && studentId) {
+    // 個別レポートの場合
+    foundIndex = parentReportHistory.findIndex(report => 
+      report.type === 'individual_parent' && report.studentId === studentId
+    );
+  }
+  
+  if (foundIndex !== -1) {
+    // 既存レポートを置き換え
+    parentReportHistory[foundIndex] = newReport;
+    console.log(`既存レポートを更新しました (インデックス: ${foundIndex})`);
+  } else {
+    // 新規追加
+    parentReportHistory.unshift(newReport);
+    console.log('新規レポートを追加しました');
+  }
+  
+  // 最大50件まで保持
+  if (parentReportHistory.length > 50) {
+    parentReportHistory = parentReportHistory.slice(0, 50);
+  }
+  
+  localStorage.setItem('parentReportHistory', JSON.stringify(parentReportHistory));
+}
+
+/**
+ * 親御さん向けレポートの削除
+ */
+function deleteParentReport(reportId) {
+  // レポート情報を取得して確認メッセージに含める
+  let parentReportHistory = [];
+  try {
+    const saved = localStorage.getItem('parentReportHistory');
+    if (saved) {
+      parentReportHistory = JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('親御さん向けレポート履歴読み込みエラー:', error);
+    showAlert('レポート履歴の読み込みに失敗しました', 'error');
+    return;
+  }
+  
+  const reportToDelete = parentReportHistory.find(report => report.id === reportId);
+  if (!reportToDelete) {
+    showAlert('削除対象のレポートが見つかりません', 'error');
+    return;
+  }
+  
+  // 確認ダイアログ
+  const typeLabel = reportToDelete.type === 'class_parent' ? 'クラス全体' : '個別レポート';
+  const studentName = reportToDelete.studentName ? `（${reportToDelete.studentName}さん）` : '';
+  const confirmMessage = `以下のレポートを削除してもよろしいですか？\n\n【${typeLabel}】${reportToDelete.title}${studentName}\n作成日: ${new Date(reportToDelete.timestamp).toLocaleDateString('ja-JP')}\n\n※この操作は取り消せません。`;
+  
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+  
+  // レポートを削除
+  const updatedHistory = parentReportHistory.filter(report => report.id !== reportId);
+  
+  try {
+    localStorage.setItem('parentReportHistory', JSON.stringify(updatedHistory));
+    updateParentReportHistory();
+    showAlert('レポートを削除しました', 'success');
+    console.log(`レポートを削除しました: ${reportToDelete.title}`);
+  } catch (error) {
+    console.error('レポート削除エラー:', error);
+    showAlert('レポートの削除に失敗しました', 'error');
+  }
+}
+
+
+
+/**
+ * 全ての親御さん向けレポート表示
+ */
+function viewAllParentReports() {
+  // 実装は必要に応じて追加
+  showAlert('全レポート表示機能は今後実装予定です', 'info');
 }

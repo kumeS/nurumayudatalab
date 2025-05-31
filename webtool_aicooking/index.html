@@ -131,6 +131,18 @@
       font-size: 1rem;
     }
     
+      .data-action-group {
+        flex-direction: column;
+        width: 100%;
+        align-items: center;
+      }
+      
+      .data-btn {
+        width: 100%;
+        max-width: 250px;
+        min-width: auto;
+      }
+    
       .recipe-meta {
         gap: 1rem;
         justify-content: space-around;
@@ -437,6 +449,57 @@
       transform: none;
       box-shadow: none;
     }
+
+    /* 注意喚起セクション */
+    .ingredient-warning {
+      margin: 1rem 0;
+      padding: 1rem;
+      background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+      border: 2px solid #ffc107;
+      border-radius: 8px;
+      border-left: 4px solid #ff9800;
+    }
+
+    .warning-content {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .warning-icon {
+      color: #ff8f00;
+      font-size: 1.2rem;
+      margin-top: 0.1rem;
+      flex-shrink: 0;
+    }
+
+    .warning-text {
+      flex: 1;
+      line-height: 1.5;
+    }
+
+    .warning-title {
+      font-weight: bold;
+      color: #e65100;
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .warning-message {
+      color: #bf360c;
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .warning-ingredients {
+      color: #d84315;
+      font-weight: 600;
+      background: rgba(255, 152, 0, 0.15);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      display: inline-block;
+      margin: 0.25rem 0.25rem 0.25rem 0;
+    }
     
     .category-legend {
       display: flex;
@@ -596,7 +659,8 @@
       position: relative;
     }
     
-    .setting-option input[type="radio"] {
+    .setting-option input[type="radio"],
+    .setting-option input[type="checkbox"] {
       position: absolute;
       opacity: 0;
       cursor: pointer;
@@ -624,11 +688,44 @@
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
     
-    .setting-option input[type="radio"]:checked + .setting-option-label {
+    .setting-option input[type="radio"]:checked + .setting-option-label,
+    .setting-option input[type="checkbox"]:checked + .setting-option-label {
       background: linear-gradient(135deg, var(--primary), var(--secondary));
       color: white;
       border-color: var(--primary);
       box-shadow: 0 4px 12px rgba(255, 126, 95, 0.3);
+    }
+    
+    /* 条件設定ランダム選択ボタン */
+    .random-settings-section {
+      text-align: center;
+      margin-top: 1rem;
+    }
+    
+    .random-settings-btn {
+      background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.9rem;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      box-shadow: 0 2px 8px rgba(156, 39, 176, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+    }
+    
+    .random-settings-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(156, 39, 176, 0.4);
+    }
+    
+    .random-settings-btn:active {
+      transform: translateY(0px);
+      box-shadow: 0 2px 6px rgba(156, 39, 176, 0.3);
     }
     
     /* アクションボタン */
@@ -637,8 +734,20 @@
       margin: 2rem 0;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 1.5rem;
       align-items: center;
+    }
+    
+    .main-action-group {
+      display: flex;
+      justify-content: center;
+    }
+    
+    .data-action-group {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
     }
     
     .generate-btn {
@@ -677,6 +786,53 @@
     
     .generate-btn.secondary-btn:hover {
       box-shadow: 0 6px 16px rgba(126, 232, 250, 0.4);
+    }
+    
+    /* データ操作ボタン */
+    .data-btn {
+      background: linear-gradient(135deg, #607D8B, #546E7A);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.9rem;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      box-shadow: 0 3px 10px rgba(96, 125, 139, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 160px;
+      justify-content: center;
+      font-weight: 500;
+    }
+    
+    .data-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(96, 125, 139, 0.4);
+    }
+    
+    .data-btn:active {
+      transform: translateY(0px);
+      box-shadow: 0 3px 8px rgba(96, 125, 139, 0.3);
+    }
+    
+    .export-btn {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      box-shadow: 0 3px 10px rgba(76, 175, 80, 0.3);
+    }
+    
+    .export-btn:hover {
+      box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+    }
+    
+    .import-btn {
+      background: linear-gradient(135deg, #2196F3, #1976D2);
+      box-shadow: 0 3px 10px rgba(33, 150, 243, 0.3);
+    }
+    
+    .import-btn:hover {
+      box-shadow: 0 5px 15px rgba(33, 150, 243, 0.4);
     }
     
     /* ローディング */
@@ -783,6 +939,15 @@
       align-items: center;
       padding: 0.5rem 0;
       border-bottom: 1px solid #e0e0e0;
+    }
+    
+    /* 調味料ハイライト機能 */
+    .ingredient-item-result.seasoning-item {
+      background: rgba(156, 39, 176, 0.05);
+      border-left: 4px solid #9C27B0;
+      padding-left: 1rem !important;
+      margin-left: -0.5rem;
+      border-radius: 4px;
     }
     
     .ingredient-item-result:last-child {
@@ -976,15 +1141,18 @@
       margin-left: 4px;
     }
     
-    /* 調味料アイテムの特別スタイル */
+        /* 調味料アイテムの特別スタイル */
     .seasoning-item {
       position: relative;
+      background: linear-gradient(135deg, #E1BEE7, #D1C4E9) !important;
+      border: 2px solid #9C27B0 !important;
+      box-shadow: 0 2px 8px rgba(156, 39, 176, 0.3) !important;
     }
-    
+
     .seasoning-item .not-selected-seasoning {
       animation: subtleGlow 2s ease-in-out infinite alternate;
     }
-    
+
     @keyframes subtleGlow {
       from {
         box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
@@ -992,6 +1160,18 @@
       to {
         box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
       }
+    }
+
+    /* 料理ジャンル表示のスタイル */
+    .cuisine-indicator {
+      background: linear-gradient(135deg, #E3F2FD, #BBDEFB) !important;
+      border: 1px solid #2196F3 !important;
+      font-weight: 600 !important;
+      border-radius: 6px !important;
+    }
+
+    .cuisine-indicator i {
+      color: #1976D2 !important;
     }
     
     .hidden {
@@ -1130,6 +1310,237 @@
         transition-duration: 0.01ms !important;
       }
     }
+
+    /* メニュー選択エリア */
+    .menu-selection-section {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .menu-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .menu-description {
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 1.5rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .menu-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 2px solid #f0f0f0;
+      cursor: pointer;
+      transition: all var(--transition-speed) ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+
+    .menu-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 4px 16px rgba(255, 126, 95, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .menu-card.selected {
+      border-color: #4CAF50;
+      background: linear-gradient(135deg, #f3fdf4, #e8f8ea);
+      box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+      transform: translateY(-5px);
+    }
+
+    .menu-card.selected::after {
+      content: "✓";
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: #4CAF50;
+      color: white;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+      animation: checkAppear 0.3s ease-out;
+    }
+
+    /* チェックアイコンのアニメーション */
+    .menu-check {
+      animation: checkAppear 0.3s ease-out;
+    }
+
+    @keyframes checkAppear {
+      from {
+        opacity: 0;
+        transform: scale(0.5);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .menu-card-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--text-primary);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .menu-card-description {
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+      line-height: 1.5;
+      font-size: 0.9rem;
+    }
+
+    .menu-card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: auto;
+    }
+
+    .menu-card-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      background: #f8f9fa;
+      padding: 0.3rem 0.6rem;
+      border-radius: 20px;
+    }
+
+          .menu-card-meta-item i {
+        color: var(--primary);
+      }
+
+      /* 決定ボタン */
+      .menu-decision-section {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #f0f0f0;
+      }
+
+      .menu-decision-btn {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border: none;
+        padding: 1rem 2.5rem;
+        font-size: 1.1rem;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all var(--transition-speed) ease;
+        box-shadow: 0 4px 12px rgba(255, 126, 95, 0.3);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 600;
+        min-width: 300px;
+        justify-content: center;
+      }
+
+      .menu-decision-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(255, 126, 95, 0.4);
+      }
+
+      .menu-decision-btn:disabled {
+        background: #e0e0e0;
+        color: #999;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+    @media (max-width: 768px) {
+      .menu-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        gap: 1rem;
+        max-width: none;
+      }
+    }
+
+    @media (max-width: 1024px) and (min-width: 769px) {
+      .menu-grid {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+      }
+      
+      .menu-card {
+        padding: 1.25rem;
+      }
+
+      .menu-card-title {
+        font-size: 1.1rem;
+      }
+
+      .menu-card-meta {
+        gap: 0.5rem;
+      }
+
+      .menu-card-meta-item {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+      }
+
+      .menu-decision-btn {
+        min-width: 250px;
+        font-size: 1rem;
+        padding: 0.75rem 2rem;
+      }
+    }
+
+    /* 戻るボタン */
+    .back-to-menu-section {
+      margin-bottom: 1rem;
+    }
+
+    .back-to-menu-btn {
+      background: #f8f9fa;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      padding: 0.75rem 1.25rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed) ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .back-to-menu-btn:hover {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
   </style>
 </head>
 <body>
@@ -1196,6 +1607,14 @@
               すべてクリア
             </button>
           </div>
+          
+          <!-- 注意喚起セクション -->
+          <div class="ingredient-warning" id="ingredientWarning" style="display: none;">
+            <div class="warning-content" id="warningContent">
+              <!-- 動的に生成される -->
+            </div>
+          </div>
+          
           <div class="category-legend">
             <span class="legend-item vegetables"><i class="fas fa-circle"></i> 野菜</span>
             <span class="legend-item meat"><i class="fas fa-circle"></i> 肉類</span>
@@ -1289,30 +1708,69 @@
         
         <!-- 料理ジャンル -->
         <div class="setting-group">
-          <label class="setting-label">料理ジャンル</label>
+          <label class="setting-label">料理ジャンル（複数選択可）</label>
           <div class="setting-options">
             <div class="setting-option">
-              <input type="radio" id="japanese" name="cuisine" value="和食" checked>
+              <input type="checkbox" id="japanese" name="cuisine" value="和食" checked>
               <label for="japanese" class="setting-option-label">和食</label>
           </div>
             <div class="setting-option">
-              <input type="radio" id="western" name="cuisine" value="洋食">
+              <input type="checkbox" id="western" name="cuisine" value="洋食">
               <label for="western" class="setting-option-label">洋食</label>
         </div>
             <div class="setting-option">
-              <input type="radio" id="chinese" name="cuisine" value="中華">
+              <input type="checkbox" id="chinese" name="cuisine" value="中華">
               <label for="chinese" class="setting-option-label">中華</label>
       </div>
             <div class="setting-option">
-              <input type="radio" id="italian" name="cuisine" value="イタリアン">
+              <input type="checkbox" id="italian" name="cuisine" value="イタリアン">
               <label for="italian" class="setting-option-label">イタリアン</label>
     </div>
             <div class="setting-option">
-              <input type="radio" id="other" name="cuisine" value="その他">
+              <input type="checkbox" id="other" name="cuisine" value="その他">
               <label for="other" class="setting-option-label">その他</label>
     </div>
       </div>
     </div>
+    
+        <!-- 調理法 -->
+        <div class="setting-group">
+          <label class="setting-label">調理法（複数選択可）</label>
+          <div class="setting-options">
+            <div class="setting-option">
+              <input type="checkbox" id="cookingRandom" name="cookingMethod" value="ランダム" checked>
+              <label for="cookingRandom" class="setting-option-label">ランダム</label>
+            </div>
+            <div class="setting-option">
+              <input type="checkbox" id="stirFry" name="cookingMethod" value="炒め物">
+              <label for="stirFry" class="setting-option-label">炒め物</label>
+            </div>
+            <div class="setting-option">
+              <input type="checkbox" id="simmer" name="cookingMethod" value="煮込み">
+              <label for="simmer" class="setting-option-label">煮込み</label>
+            </div>
+            <div class="setting-option">
+              <input type="checkbox" id="grill" name="cookingMethod" value="焼き物">
+              <label for="grill" class="setting-option-label">焼き物</label>
+            </div>
+            <div class="setting-option">
+              <input type="checkbox" id="steam" name="cookingMethod" value="蒸し料理">
+              <label for="steam" class="setting-option-label">蒸し料理</label>
+            </div>
+            <div class="setting-option">
+              <input type="checkbox" id="deepFry" name="cookingMethod" value="揚げ物">
+              <label for="deepFry" class="setting-option-label">揚げ物</label>
+            </div>
+            <div class="setting-option">
+              <input type="checkbox" id="salad" name="cookingMethod" value="サラダ・生">
+              <label for="salad" class="setting-option-label">サラダ・生</label>
+            </div>
+            <div class="setting-option">
+              <input type="checkbox" id="soup" name="cookingMethod" value="スープ・汁物">
+              <label for="soup" class="setting-option-label">スープ・汁物</label>
+            </div>
+          </div>
+        </div>
     
         <!-- 人数 -->
         <div class="setting-group">
@@ -1336,16 +1794,39 @@
       </div>
           </div>
         </div>
+        
+        <!-- 条件設定ランダム選択ボタン -->
+        <div class="setting-group">
+          <div class="random-settings-section">
+            <button class="random-settings-btn" id="randomSettingsBtn">
+              <i class="fas fa-dice"></i>
+              料理条件をランダムで選ぶ
+            </button>
+          </div>
+        </div>
       </div>
       </div>
       
     <!-- アクションボタン -->
     <div class="action-section">
-      <button class="generate-btn" id="generateRecipeBtn">
-        <i class="fas fa-magic"></i>
-        レシピを提案してもらう
+      <div class="main-action-group">
+        <button class="generate-btn" id="generateRecipeBtn">
+          <i class="fas fa-magic"></i>
+          メニューを提案してもらう
         </button>
       </div>
+      <div class="data-action-group">
+        <button class="data-btn export-btn" id="exportDataBtn">
+          <i class="fas fa-download"></i>
+          エクスポート
+        </button>
+        <button class="data-btn import-btn" id="importDataBtn">
+          <i class="fas fa-upload"></i>
+          インポート
+        </button>
+        <input type="file" id="importFileInput" accept=".json" style="display: none;">
+      </div>
+    </div>
 
     <!-- ローディング -->
     <div class="loading-indicator" id="loadingIndicator">
@@ -1353,9 +1834,35 @@
       <div>AIがあなたにぴったりのレシピを考えています...</div>
     </div>
     
+    <!-- メニュー選択エリア -->
+    <div class="menu-selection-section" id="menuSelectionSection" style="display: none;">
+      <div class="menu-header">
+        <h2 class="section-title">
+          <i class="fas fa-utensils"></i>
+          メニューを選択してください
+        </h2>
+        <p class="menu-description">以下の6つのメニューから、作りたいものを選んでクリックしてください</p>
+      </div>
+      <div class="menu-grid" id="menuGrid">
+        <!-- 動的に生成される -->
+      </div>
+      <div class="menu-decision-section">
+        <button class="menu-decision-btn" id="menuDecisionBtn" disabled>
+          <i class="fas fa-check"></i>
+          このメニューでレシピを作成する
+        </button>
+      </div>
+    </div>
+    
     <!-- 結果表示エリア -->
     <div class="results-section" id="resultsSection">
       <div class="recipe-header">
+        <div class="back-to-menu-section">
+          <button class="back-to-menu-btn" id="backToMenuBtn" style="display: none;">
+            <i class="fas fa-arrow-left"></i>
+            他のメニューを見る
+          </button>
+        </div>
         <h2 class="recipe-title" id="recipeTitle">美味しいレシピ</h2>
         <p class="recipe-description" id="recipeDescription">AIが提案するレシピです</p>
         <div class="recipe-meta" id="recipeMeta">

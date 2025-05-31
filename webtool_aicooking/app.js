@@ -8,11 +8,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const allIngredientsBtn = document.getElementById('allIngredientsBtn');
   const ingredientGrid = document.getElementById('ingredientGrid');
   const selectedList = document.getElementById('selectedList');
+  const ingredientWarning = document.getElementById('ingredientWarning');
+  const warningContent = document.getElementById('warningContent');
   const generateRecipeBtn = document.getElementById('generateRecipeBtn');
   const regenerateRecipeBtn = document.getElementById('regenerateRecipeBtn');
   const randomSelectBtn = document.getElementById('randomSelectBtn');
+  const randomSettingsBtn = document.getElementById('randomSettingsBtn');
+  const exportDataBtn = document.getElementById('exportDataBtn');
+  const importDataBtn = document.getElementById('importDataBtn');
+  const importFileInput = document.getElementById('importFileInput');
   const clearAllBtn = document.getElementById('clearAllBtn');
   const loadingIndicator = document.getElementById('loadingIndicator');
+  const menuSelectionSection = document.getElementById('menuSelectionSection');
+  const menuGrid = document.getElementById('menuGrid');
+  const menuDecisionBtn = document.getElementById('menuDecisionBtn');
+  const backToMenuBtn = document.getElementById('backToMenuBtn');
   const resultsSection = document.getElementById('resultsSection');
   
   // 結果表示要素
@@ -27,9 +37,60 @@ document.addEventListener('DOMContentLoaded', () => {
   let ingredientsData = {};
   let selectedIngredients = [];
   let currentCategory = 'vegetables';
+  let currentRecipe = null;
+  let proposedMenus = [];
+  let selectedMenuIndex = -1;
+  
+  // 注意喚起が必要な食材の定義
+  const warningIngredients = {
+    'natto': {
+      name: '納豆',
+      message: '納豆は独特の風味と粘りがあるため、他の食材との組み合わせに注意が必要です。',
+      tips: '臭いが強いため、他の繊細な味の食材と合わせる場合は調理法を工夫しましょう。'
+    },
+    'pasta': {
+      name: 'パスタ',
+      category: 'grains',
+      message: 'パスタなどの麺類は主食となるため、他の炭水化物との重複に注意してください。',
+      tips: '米やパンなど他の主食と同時に選択されています。メニュー提案時にバランスを考慮します。'
+    },
+    'noodles': {
+      name: 'うどん',
+      category: 'grains',
+      message: 'うどんなどの麺類は主食となるため、他の炭水化物との重複に注意してください。',
+      tips: '米やパンなど他の主食と同時に選択されています。メニュー提案時にバランスを考慮します。'
+    },
+    'soba': {
+      name: 'そば',
+      category: 'grains',
+      message: 'そばなどの麺類は主食となるため、他の炭水化物との重複に注意してください。',
+      tips: '米やパンなど他の主食と同時に選択されています。メニュー提案時にバランスを考慮します。'
+    },
+    'ramen': {
+      name: 'ラーメン',
+      category: 'grains',
+      message: 'ラーメンなどの麺類は主食となるため、他の炭水化物との重複に注意してください。',
+      tips: '米やパンなど他の主食と同時に選択されています。メニュー提案時にバランスを考慮します。'
+    },
+    'rice': {
+      name: '米',
+      category: 'grains',
+      message: '米は主食となるため、他の炭水化物との重複に注意してください。',
+      tips: 'パスタやパンなど他の主食と同時に選択されています。メニュー提案時にバランスを考慮します。'
+    },
+    'bread': {
+      name: 'パン',
+      category: 'grains',
+      message: 'パンは主食となるため、他の炭水化物との重複に注意してください。',
+      tips: '米やパスタなど他の主食と同時に選択されています。メニュー提案時にバランスを考慮します。'
+    }
+  };
   
   // 状態保存機能
   function saveState() {
+    const selectedCuisines = Array.from(document.querySelectorAll('input[name="cuisine"]:checked')).map(input => input.value);
+    const selectedCookingMethods = Array.from(document.querySelectorAll('input[name="cookingMethod"]:checked')).map(input => input.value);
+    
     const state = {
       selectedIngredients: selectedIngredients,
       currentCategory: currentCategory,
@@ -37,15 +98,22 @@ document.addEventListener('DOMContentLoaded', () => {
         season: document.querySelector('input[name="season"]:checked')?.value || '春',
         mealType: document.querySelector('input[name="mealType"]:checked')?.value || '昼食',
         cookingTime: document.querySelector('input[name="cookingTime"]:checked')?.value || '30分以内',
-        cuisine: document.querySelector('input[name="cuisine"]:checked')?.value || '和食',
+        cuisine: selectedCuisines.length > 0 ? selectedCuisines : ['和食'],
+        cookingMethod: selectedCookingMethods.length > 0 ? selectedCookingMethods : ['ランダム'],
         servings: document.querySelector('input[name="servings"]:checked')?.value || '2人分'
-      }
+      },
+      // メニューとレシピの状態も保存
+      proposedMenus: proposedMenus,
+      selectedMenuIndex: selectedMenuIndex,
+      currentRecipe: currentRecipe
     };
     localStorage.setItem('aiCookingState', JSON.stringify(state));
     console.log('状態を保存しました:', {
       selectedIngredients: selectedIngredients.length,
       currentCategory: currentCategory,
-      settings: state.settings
+      settings: state.settings,
+      hasMenus: proposedMenus.length > 0,
+      hasRecipe: currentRecipe !== null
     });
   }
   
@@ -69,11 +137,71 @@ document.addEventListener('DOMContentLoaded', () => {
         // 設定を復元
         if (state.settings) {
           Object.keys(state.settings).forEach(key => {
-            const radio = document.querySelector(`input[name="${key}"][value="${state.settings[key]}"]`);
-            if (radio) {
-              radio.checked = true;
+            const settingValue = state.settings[key];
+            
+            if (key === 'cuisine' || key === 'cookingMethod') {
+              // 複数選択項目の場合
+              // まず全てのチェックを外す
+              document.querySelectorAll(`input[name="${key}"]`).forEach(input => {
+                input.checked = false;
+              });
+              
+              // 保存された値に対応するチェックボックスをオンにする
+              if (Array.isArray(settingValue)) {
+                settingValue.forEach(value => {
+                  const checkbox = document.querySelector(`input[name="${key}"][value="${value}"]`);
+                  if (checkbox) {
+                    checkbox.checked = true;
+                  }
+                });
+              } else {
+                // 古い形式（文字列）の場合の互換性対応
+                const checkbox = document.querySelector(`input[name="${key}"][value="${settingValue}"]`);
+                if (checkbox) {
+                  checkbox.checked = true;
+                }
+              }
+            } else {
+              // 単一選択項目の場合（従来通り）
+              const radio = document.querySelector(`input[name="${key}"][value="${settingValue}"]`);
+              if (radio) {
+                radio.checked = true;
+              }
             }
           });
+        }
+        
+        // メニューの復元
+        if (state.proposedMenus && Array.isArray(state.proposedMenus) && state.proposedMenus.length > 0) {
+          proposedMenus = state.proposedMenus;
+          selectedMenuIndex = state.selectedMenuIndex || -1;
+          displayMenuSelection(proposedMenus);
+          
+          // 選択されたメニューがあれば復元
+          if (selectedMenuIndex >= 0) {
+            setTimeout(() => {
+              const menuCards = document.querySelectorAll('.menu-card');
+              if (menuCards[selectedMenuIndex]) {
+                menuCards[selectedMenuIndex].classList.add('selected');
+                const checkIcon = menuCards[selectedMenuIndex].querySelector('.menu-check');
+                if (checkIcon) checkIcon.style.display = 'block';
+                updateDecisionButton();
+              }
+            }, 100);
+          }
+        }
+        
+        // レシピの復元
+        if (state.currentRecipe) {
+          currentRecipe = state.currentRecipe;
+          const validationResult = validateRecipeIngredients(currentRecipe);
+          displayRecipe(validationResult.validatedRecipe);
+          
+          // レシピ表示領域を表示
+          const recipeResult = document.getElementById('recipeResult');
+          if (recipeResult) {
+            recipeResult.style.display = 'block';
+          }
         }
         
         // UIを更新
@@ -81,9 +209,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSelectedIngredients();
         updateClearButtonState();
         
-        console.log('状態を復元しました:', {
+        console.log('状態を復元しました（メニュー・レシピ含む）:', {
           selectedIngredients: selectedIngredients.length,
           currentCategory: currentCategory,
+          hasMenus: proposedMenus.length > 0,
+          hasRecipe: currentRecipe !== null,
           settings: state.settings
         });
       }
@@ -122,6 +252,87 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateClearButtonState() {
     if (clearAllBtn) {
       clearAllBtn.disabled = selectedIngredients.length === 0;
+    }
+  }
+  
+  // 注意喚起をチェック・表示
+  function checkAndShowWarnings() {
+    if (!ingredientWarning || !warningContent) return;
+    
+    const warnings = [];
+    const grainIngredients = [];
+    
+    selectedIngredients.forEach(ingredient => {
+      // 個別の注意喚起食材をチェック
+      if (warningIngredients[ingredient.id]) {
+        const warningInfo = warningIngredients[ingredient.id];
+        
+        // 穀物類の場合は別途処理
+        if (warningInfo.category === 'grains') {
+          grainIngredients.push(ingredient.name);
+        } else {
+          warnings.push({
+            type: 'individual',
+            ingredient: ingredient.name,
+            message: warningInfo.message,
+            tips: warningInfo.tips
+          });
+        }
+      }
+    });
+    
+    // 穀物類が複数選択されている場合の警告
+    if (grainIngredients.length > 1) {
+      warnings.push({
+        type: 'grains',
+        ingredients: grainIngredients,
+        message: '複数の主食が選択されています。メニュー提案時に適切に使い分けます。',
+        tips: '1つのメニューでは通常1種類の主食のみを使用するため、選択された主食から最適なものを自動選択します。'
+      });
+    }
+    
+    // 警告がある場合は表示
+    if (warnings.length > 0) {
+      let warningHtml = `
+        <div class="warning-icon">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="warning-text">
+          <div class="warning-title">選択食材に関する注意事項</div>
+      `;
+      
+      warnings.forEach(warning => {
+        if (warning.type === 'individual') {
+          warningHtml += `
+            <div class="warning-message">
+              <span class="warning-ingredients">${warning.ingredient}</span>
+              ${warning.message}
+            </div>
+            <div class="warning-message" style="font-size: 0.85rem; color: #8d6e63; margin-bottom: 0.75rem;">
+              💡 ${warning.tips}
+            </div>
+          `;
+        } else if (warning.type === 'grains') {
+          warningHtml += `
+            <div class="warning-message">
+              <span class="warning-ingredients">${warning.ingredients.join(', ')}</span>
+              ${warning.message}
+            </div>
+            <div class="warning-message" style="font-size: 0.85rem; color: #8d6e63; margin-bottom: 0.75rem;">
+              💡 ${warning.tips}
+            </div>
+          `;
+        }
+      });
+      
+      warningHtml += `
+        </div>
+      `;
+      
+      warningContent.innerHTML = warningHtml;
+      ingredientWarning.style.display = 'block';
+    } else {
+      ingredientWarning.style.display = 'none';
     }
   }
   
@@ -409,6 +620,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     updateClearButtonState();
+    
+    // 注意喚起をチェック
+    checkAndShowWarnings();
   }
   
   // レシピ生成ボタンのイベントリスナー
@@ -416,6 +630,37 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // おまかせ選択ボタンのイベントリスナー
   randomSelectBtn.addEventListener('click', randomSelectIngredients);
+  
+      // 条件設定ランダム選択ボタンのイベントリスナー
+    if (randomSettingsBtn) {
+      randomSettingsBtn.addEventListener('click', randomSelectSettings);
+    }
+    
+    // エクスポート・インポートボタンのイベントリスナー
+    if (exportDataBtn) {
+      exportDataBtn.addEventListener('click', exportData);
+    }
+    
+    if (importDataBtn) {
+      importDataBtn.addEventListener('click', () => {
+        if (importFileInput) {
+          importFileInput.click();
+        }
+      });
+    }
+    
+    if (importFileInput) {
+      importFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          importData(file);
+          // ファイル選択をリセット（同じファイルを再選択可能にする）
+          e.target.value = '';
+        }
+      });
+    }
+    
+
   
   // クリアボタンのイベントリスナー
   clearAllBtn.addEventListener('click', () => {
@@ -428,41 +673,48 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 設定値を取得
   function getSelectedValues() {
+    // 複数選択可能な項目を配列で取得
+    const selectedCuisines = Array.from(document.querySelectorAll('input[name="cuisine"]:checked')).map(input => input.value);
+    const selectedCookingMethods = Array.from(document.querySelectorAll('input[name="cookingMethod"]:checked')).map(input => input.value);
+    
     return {
       ingredients: selectedIngredients.map(ing => ing.name),
       season: document.querySelector('input[name="season"]:checked').value,
       mealType: document.querySelector('input[name="mealType"]:checked').value,
       cookingTime: document.querySelector('input[name="cookingTime"]:checked').value,
-      cuisine: document.querySelector('input[name="cuisine"]:checked').value,
+      cuisine: selectedCuisines,
+      cookingMethod: selectedCookingMethods,
       servings: document.querySelector('input[name="servings"]:checked').value
     };
   }
   
-  // レシピ生成
+    // メニュー提案生成
   async function generateRecipe(isRegenerate = false) {
     if (selectedIngredients.length === 0) {
       return;
     }
-    
+
     const settings = getSelectedValues();
-    
+
     // UI更新
     generateRecipeBtn.disabled = true;
-    generateRecipeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> レシピを考えています...';
+    generateRecipeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> メニューを考えています...';
     loadingIndicator.classList.add('active');
+    menuSelectionSection.style.display = 'none';
     resultsSection.style.display = 'none';
-    
+
     try {
       // APIリクエスト作成
-      const messages = createRecipeMessages(settings, isRegenerate);
+      const messages = createMenuSuggestionsMessages(settings, isRegenerate);
       const result = await callLLMAPI(messages);
-      displayRecipe(result);
+      proposedMenus = result;
+      displayMenuSelection(result);
     } catch (error) {
-      console.error('レシピ生成エラー:', error);
+      console.error('メニュー提案エラー:', error);
     } finally {
       // UI復元
       generateRecipeBtn.disabled = false;
-      generateRecipeBtn.innerHTML = '<i class="fas fa-magic"></i> レシピを提案してもらう';
+      generateRecipeBtn.innerHTML = '<i class="fas fa-magic"></i> メニューを提案してもらう';
       loadingIndicator.classList.remove('active');
     }
   }
@@ -553,6 +805,113 @@ document.addEventListener('DOMContentLoaded', () => {
     updateClearButtonState();
   }
   
+  // メニュー提案用のメッセージ作成
+  function createMenuSuggestionsMessages(settings, isRegenerate = false) {
+    const regenerateInstruction = isRegenerate ? 
+      '\n【重要】前回とは異なる、全く新しいメニューを6つ提案してください。同じ料理名や似たような調理法は避けてください。' : '';
+
+    const prompt = `
+あなたは優秀な料理研究家です。以下の条件に基づいて、美味しいメニューを6つ提案してください。${regenerateInstruction}
+
+【利用可能な食材】
+${settings.ingredients.join('、')}
+
+【条件】
+- 季節: ${settings.season}
+- 食事タイプ: ${settings.mealType}
+- 調理時間: ${settings.cookingTime}
+- 料理ジャンル: ${Array.isArray(settings.cuisine) ? settings.cuisine.join('、') : settings.cuisine}
+- 調理法: ${Array.isArray(settings.cookingMethod) ? settings.cookingMethod.join('、') : settings.cookingMethod}
+- 人数: ${settings.servings}
+
+【回答形式】
+以下のJSON形式で6つのメニューを提案してください。必ずjsonマークダウン形式で回答すること：
+
+\`\`\`json
+{
+  "menus": [
+    {
+      "menuName": "料理名1",
+      "description": "料理の簡単な説明（50文字程度）",
+      "cookingTime": "調理時間（例：30分）",
+      "difficulty": "難易度（簡単/普通/難しい）",
+      "servings": "人数（例：2人分）",
+      "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
+      "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
+    },
+    {
+      "menuName": "料理名2",
+      "description": "料理の簡単な説明（50文字程度）",
+      "cookingTime": "調理時間（例：20分）",
+      "difficulty": "難易度（簡単/普通/難しい）",
+      "servings": "人数（例：2人分）",
+      "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
+      "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
+    },
+    {
+      "menuName": "料理名3",
+      "description": "料理の簡単な説明（50文字程度）",
+      "cookingTime": "調理時間（例：45分）",
+      "difficulty": "難易度（簡単/普通/難しい）",
+      "servings": "人数（例：2人分）",
+      "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
+      "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
+    },
+    {
+      "menuName": "料理名4",
+      "description": "料理の簡単な説明（50文字程度）",
+      "cookingTime": "調理時間（例：25分）",
+      "difficulty": "難易度（簡単/普通/難しい）",
+      "servings": "人数（例：2人分）",
+      "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
+      "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
+    },
+    {
+      "menuName": "料理名5",
+      "description": "料理の簡単な説明（50文字程度）",
+      "cookingTime": "調理時間（例：35分）",
+      "difficulty": "難易度（簡単/普通/難しい）",
+      "servings": "人数（例：2人分）",
+      "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
+      "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
+    },
+    {
+      "menuName": "料理名6",
+      "description": "料理の簡単な説明（50文字程度）",
+      "cookingTime": "調理時間（例：40分）",
+      "difficulty": "難易度（簡単/普通/難しい）",
+      "servings": "人数（例：2人分）",
+      "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
+      "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
+    }
+  ]
+}
+\`\`\`
+
+【重要な注意事項】
+1. 指定された食材から適切なものを選んで6つの異なるメニューを提案すること（全ての食材を使う必要はありません）
+2. **各メニューは全く違う料理ジャンルや調理法にすること**
+3. **料理ジャンルが複数指定されている場合：各メニューごとに1つの料理ジャンルを選択して使用すること**
+4. **調理法が複数指定されている場合：各メニューごとに1つの調理法を選択して使用すること**
+5. **6つのメニューで指定された料理ジャンルと調理法をバランス良く使い分けること**
+6. 麺料理の場合は、categoryフィールドに具体的な麺の種類（パスタ、ラーメン、うどん、そば、焼きそば等）を記載すること
+7. 指定された条件（季節、時間、ジャンル、調理法など）を考慮すること
+8. 調理法が「ランダム」以外の場合は、指定された調理法を優先的に使用すること（例：「炒め物」指定の場合は炒め料理を中心に提案）
+9. 実際に作れる現実的なメニューにすること
+10. mainIngredientsには利用可能な食材から主要なものを3つ程度選んで記載すること
+11. 調理時間は指定された条件内に収めること
+12. 各メニューの説明は簡潔で魅力的にすること
+13. categoryには料理の種類を明確に記載すること（炒め物、煮物、焼き物、パスタ、ラーメン、うどん、そば、カレー、サラダ等）
+`;
+
+    return [
+      {
+        role: "user",
+        content: prompt
+      }
+    ];
+  }
+
   // レシピ生成用のメッセージ作成
   function createRecipeMessages(settings, isRegenerate = false) {
     const regenerateInstruction = isRegenerate ? 
@@ -573,11 +932,12 @@ ${settings.ingredients.join('、')}
 - 季節: ${settings.season}
 - 食事タイプ: ${settings.mealType}
 - 調理時間: ${settings.cookingTime}
-- 料理ジャンル: ${settings.cuisine}
+- 料理ジャンル: ${Array.isArray(settings.cuisine) ? settings.cuisine.join('、') : settings.cuisine}
+- 調理法: ${Array.isArray(settings.cookingMethod) ? settings.cookingMethod.join('、') : settings.cookingMethod}
 - 人数: ${settings.servings}
 
 【回答形式】
-以下のJSON形式で回答してください：
+以下のJSON形式で回答してください。必ずjsonマークダウン形式で回答すること：
 
 \`\`\`json
 {
@@ -612,21 +972,23 @@ ${settings.ingredients.join('、')}
 \`\`\`
 
 【重要な注意事項】
-1. 指定された食材（調味料以外）はできるだけ多く使用すること
-2. **ingredients配列には、指定された食材のみを含めること（追加の食材は含めない）**
-3. **ingredients配列には調味料を含めないこと（調味料はseasonings配列に分ける）**
-4. **seasonings配列では、すべての調味料にisSelectedフィールドを必ず設定すること**
+1. **料理ジャンルが複数指定されている場合：最も適した1つの料理ジャンルを選択して使用すること**
+2. **調理法が複数指定されている場合：最も適した1つの調理法を選択して使用すること**
+3. 指定された食材（調味料以外）から適切なものを選択して使用すること（全ての食材を使う必要はありません）
+4. **ingredients配列には、指定された食材のみを含めること（追加の食材は含めない）**
+5. **ingredients配列には調味料を含めないこと（調味料はseasonings配列に分ける）**
+6. **seasonings配列では、すべての調味料にisSelectedフィールドを必ず設定すること**
    - **選択済み調味料（上記の利用可能な食材リストに含まれる調味料）：isSelected: true**
    - **追加した調味料（上記の利用可能な食材リストに含まれない調味料）：isSelected: false**
    - **フィールドの省略は禁止**
    - **重要：利用可能な食材リストをよく確認して、リストに含まれる調味料と含まれない調味料を正確に判別すること**
-5. 調味料は必要に応じて自由に追加可能だが、seasonings配列に分けて記載し、isSelectedフィールドで選択済みかどうかを明記すること
-6. ingredientUsageフィールドで食材の使用状況を必ず説明すること
-7. 指定された条件（季節、時間、ジャンルなど）を考慮すること
-8. 実際に作れる現実的なレシピにすること
-9. 分量は具体的に記載すること
-10. 手順は分かりやすく順序立てて記載すること
-11. **指定されていない野菜や肉類などの主要食材を追加で使用しないこと**
+7. 調味料は必要に応じて自由に追加可能だが、seasonings配列に分けて記載し、isSelectedフィールドで選択済みかどうかを明記すること
+8. ingredientUsageフィールドで食材の使用状況を必ず説明すること
+9. 指定された条件（季節、時間、ジャンルなど）を考慮すること
+10. 実際に作れる現実的なレシピにすること
+11. 分量は具体的に記載すること
+12. 手順は分かりやすく順序立てて記載すること
+13. **指定されていない野菜や肉類などの主要食材を追加で使用しないこと**
 `;
     
     return [
@@ -672,51 +1034,695 @@ ${settings.ingredients.join('、')}
       }
   }
   
-  // レシピレスポンス解析
+  // メニュー提案レスポンス解析
   function parseRecipeResponse(text) {
     try {
-      // JSONの抽出を試行
-      let jsonText = text;
+      console.log('Raw API response:', text);
       
-      // ```json で囲まれている場合の処理
-      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+      // 複数の JSON 抽出パターンを試行
+      let jsonText = null;
+      
+      // パターン1: ```json と ``` で囲まれた JSON
+      let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         jsonText = jsonMatch[1];
+        console.log('JSON found with json marker:', jsonText);
       } else {
-        // { で始まり } で終わる部分を抽出
-        const startIndex = text.indexOf('{');
-        const lastIndex = text.lastIndexOf('}');
-        if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
-          jsonText = text.substring(startIndex, lastIndex + 1);
+        // パターン2: ``` と ``` で囲まれた JSON
+        jsonMatch = text.match(/```\s*([\s\S]*?)\s*```/);
+        if (jsonMatch) {
+          jsonText = jsonMatch[1];
+          console.log('JSON found with generic marker:', jsonText);
+        } else {
+          // パターン3: { から } までの最初の完全なJSON
+          const startIndex = text.indexOf('{');
+          const lastIndex = text.lastIndexOf('}');
+          if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
+            jsonText = text.substring(startIndex, lastIndex + 1);
+            console.log('JSON found with brace matching:', jsonText);
+          } else {
+            // パターン4: 直接JSONとして解析
+            jsonText = text.trim();
+            console.log('Using text directly as JSON:', jsonText);
+          }
         }
       }
       
-      const recipeData = JSON.parse(jsonText);
-      
-      // 必要なフィールドの検証
-      if (!recipeData.menuName || !recipeData.ingredients || !recipeData.cookingSteps) {
-        throw new Error('レシピデータに必要なフィールドがありません');
+      if (!jsonText) {
+        throw new Error('JSONコンテンツが見つかりません');
       }
       
-      return recipeData;
+      // JSONをクリーンアップ
+      jsonText = jsonText.trim();
+      
+      // 不要な文字を除去
+      jsonText = jsonText.replace(/^[^{]*/, ''); // { より前の文字を除去
+      jsonText = jsonText.replace(/[^}]*$/, ''); // } より後の文字を除去
+      jsonText = jsonText.replace(/```$/, ''); // 末尾の ``` を除去
+      
+      console.log('Cleaned JSON text:', jsonText);
+      
+      const data = JSON.parse(jsonText);
+      console.log('Parsed result:', data);
+      
+      // メニューデータの場合
+      if (data.menus && Array.isArray(data.menus)) {
+        console.log('Returning menu data');
+        return data.menus;
+      }
+      
+      // レシピデータの場合（従来の処理）
+      if (data.menuName || data.ingredients || data.cookingSteps) {
+        console.log('Returning recipe data');
+        return data;
+      }
+      
+      throw new Error('有効なデータが見つかりません');
+      
     } catch (error) {
-      console.error('レシピデータ解析エラー:', error);
-      console.log('元のテキスト:', text);
-      throw new Error('レシピの解析に失敗しました。もう一度お試しください。');
+      console.error('データ解析エラー:', error);
+      console.error('レスポンステキスト:', text);
+      
+      // エラーの詳細を提供
+      if (error instanceof SyntaxError) {
+        throw new Error(`JSONの構文エラー: ${error.message}\n\n受信したテキスト:\n${text.substring(0, 500)}...`);
+      } else {
+        throw new Error(`データの解析に失敗しました: ${error.message}\n\n受信したテキスト:\n${text.substring(0, 500)}...`);
+      }
     }
   }
+
+  // メニュー選択画面表示
+  function displayMenuSelection(menus) {
+    proposedMenus = menus;
+    // 状態を保存
+    saveState();
+    
+    menuGrid.innerHTML = '';
+    
+    menus.forEach((menu, index) => {
+      const menuCard = document.createElement('div');
+      menuCard.className = 'menu-card';
+      menuCard.dataset.menuIndex = index;
+      
+      const iconMap = {
+        '簡単': 'fas fa-leaf',
+        '普通': 'fas fa-balance-scale',
+        '難しい': 'fas fa-fire'
+      };
+      
+      const difficultyIcon = iconMap[menu.difficulty] || 'fas fa-utensils';
+      
+      // カテゴリーアイコンの設定（料理ジャンル対応を拡張）
+      const categoryIconMap = {
+        // 麺類
+        'パスタ': 'fas fa-seedling',
+        'ラーメン': 'fas fa-fire',
+        'うどん': 'fas fa-water',
+        'そば': 'fas fa-leaf',
+        '焼きそば': 'fas fa-fire',
+        // 調理法
+        '炒め物': 'fas fa-fire-alt',
+        '煮物': 'fas fa-tint',
+        '焼き物': 'fas fa-fire',
+        '蒸し料理': 'fas fa-cloud',
+        '揚げ物': 'fas fa-fire-flame-curved',
+        'サラダ': 'fas fa-leaf',
+        'スープ': 'fas fa-bowl-food',
+        '汁物': 'fas fa-soup',
+        // 料理ジャンル
+        '和食': 'fas fa-torii-gate',
+        '洋食': 'fas fa-utensils',
+        '中華': 'fas fa-dragon',
+        'イタリアン': 'fas fa-pizza-slice',
+        '韓国料理': 'fas fa-pepper-hot',
+        'タイ料理': 'fas fa-leaf',
+        'インド料理': 'fas fa-pepper-hot',
+        // その他
+        'カレー': 'fas fa-pepper-hot',
+        'ハンバーガー': 'fas fa-hamburger',
+        'ピザ': 'fas fa-pizza-slice',
+        'パン': 'fas fa-bread-slice',
+        'デザート': 'fas fa-ice-cream',
+        'ドリンク': 'fas fa-mug-hot'
+      };
+      
+      const categoryIcon = categoryIconMap[menu.category] || 'fas fa-utensils';
+      
+      // 料理ジャンルの判定（設定から取得）
+      const settings = getSelectedValues();
+      let cuisineType = '';
+      let cuisineIcon = '';
+      
+      // 複数選択された料理ジャンルから推測
+      if (settings.cuisine && Array.isArray(settings.cuisine)) {
+        // 最初の料理ジャンルを表示用に使用
+        cuisineType = settings.cuisine[0];
+        cuisineIcon = categoryIconMap[cuisineType] || 'fas fa-globe';
+      }
+      
+      const categoryHtml = menu.category ? `
+        <div class="menu-card-meta-item">
+          <i class="${categoryIcon}"></i>
+          ${menu.category}
+        </div>
+      ` : '';
+      
+      const cuisineHtml = cuisineType ? `
+        <div class="menu-card-meta-item cuisine-indicator">
+          <i class="${cuisineIcon}"></i>
+          ${cuisineType}
+        </div>
+      ` : '';
+
+      menuCard.innerHTML = `
+        <div class="menu-card-title">
+          <i class="fas fa-utensils"></i>
+          ${menu.menuName}
+        </div>
+        <div class="menu-card-description">
+          ${menu.description}
+        </div>
+        <div class="menu-card-meta">
+          ${categoryHtml}
+          ${cuisineHtml}
+          <div class="menu-card-meta-item">
+            <i class="fas fa-clock"></i>
+            ${menu.cookingTime}
+          </div>
+          <div class="menu-card-meta-item">
+            <i class="${difficultyIcon}"></i>
+            ${menu.difficulty}
+          </div>
+          <div class="menu-card-meta-item">
+            <i class="fas fa-users"></i>
+            ${menu.servings}
+          </div>
+        </div>
+      `;
+      
+      menuCard.addEventListener('click', () => toggleMenuSelection(index));
+      menuGrid.appendChild(menuCard);
+    });
+    
+    menuSelectionSection.style.display = 'block';
+    
+    // 決定ボタンを無効状態にリセット
+    selectedMenuIndex = -1;
+    updateDecisionButton();
+  }
+
+  // メニュー選択の切り替え
+  function toggleMenuSelection(menuIndex) {
+    console.log('メニュー選択:', menuIndex);
+    
+    // 前回選択されたカードから選択状態を除去
+    const allCards = menuGrid.querySelectorAll('.menu-card');
+    allCards.forEach((card, index) => {
+      card.classList.remove('selected');
+      // チェックアイコンを非表示
+      const checkIcon = card.querySelector('.menu-check');
+      if (checkIcon) {
+        checkIcon.style.display = 'none';
+      }
+    });
+    
+    // 新しく選択されたカードに選択状態を追加
+    if (selectedMenuIndex === menuIndex) {
+      // 同じカードを再クリックした場合は選択解除
+      selectedMenuIndex = -1;
+      console.log('メニュー選択を解除');
+    } else {
+      // 新しいカードを選択
+      selectedMenuIndex = menuIndex;
+      allCards[menuIndex].classList.add('selected');
+      
+      // チェックアイコンを表示（存在しない場合は作成）
+      let checkIcon = allCards[menuIndex].querySelector('.menu-check');
+      if (!checkIcon) {
+        checkIcon = document.createElement('div');
+        checkIcon.className = 'menu-check';
+        checkIcon.innerHTML = '<i class="fas fa-check-circle"></i>';
+        checkIcon.style.cssText = `
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          color: #4CAF50;
+          font-size: 1.5rem;
+          background: white;
+          border-radius: 50%;
+          display: none;
+        `;
+        allCards[menuIndex].appendChild(checkIcon);
+      }
+      checkIcon.style.display = 'block';
+      
+      console.log('メニューを選択:', proposedMenus[menuIndex]?.menuName);
+    }
+    
+    // 状態を保存
+    saveState();
+    updateDecisionButton();
+  }
+
+  // 決定ボタンの状態更新
+  function updateDecisionButton() {
+    if (menuDecisionBtn) {
+      if (selectedMenuIndex >= 0) {
+        menuDecisionBtn.disabled = false;
+        menuDecisionBtn.innerHTML = '<i class="fas fa-check"></i> このメニューでレシピを作成する';
+      } else {
+        menuDecisionBtn.disabled = true;
+        menuDecisionBtn.innerHTML = '<i class="fas fa-check"></i> メニューを選択してください';
+      }
+    }
+  }
+
+  // メニュー決定時の処理
+  async function selectMenu() {
+    console.log('selectMenu called with selectedMenuIndex:', selectedMenuIndex);
+    
+    if (selectedMenuIndex < 0 || !proposedMenus[selectedMenuIndex]) {
+      console.error('無効なメニュー選択:', { selectedMenuIndex, proposedMenusLength: proposedMenus.length });
+      return;
+    }
+    
+    const selectedMenu = proposedMenus[selectedMenuIndex];
+    const settings = getSelectedValues();
+    
+    console.log('選択されたメニュー:', selectedMenu);
+    console.log('設定:', settings);
+    
+    // UI更新
+    loadingIndicator.classList.add('active');
+    
+    // ローディングテキストの安全な更新
+    const loadingTextElement = loadingIndicator.querySelector('div:last-child');
+    if (loadingTextElement) {
+      loadingTextElement.textContent = 'レシピの詳細を作成しています...';
+    }
+    
+    menuSelectionSection.style.display = 'none';
+    
+    try {
+      // 選択されたメニューの詳細レシピを生成
+      console.log('詳細レシピメッセージを作成中...');
+      const messages = createDetailedRecipeMessages(selectedMenu, settings);
+      console.log('APIを呼び出し中...');
+      const result = await callLLMAPI(messages);
+      console.log('API呼び出し成功:', result);
+      
+      // バリデーションを実行
+      const validationResult = validateRecipeIngredients(result);
+      currentRecipe = validationResult.validatedRecipe;
+      
+      console.log('レシピ表示中...');
+      displayRecipe(validationResult.validatedRecipe);
+      
+      // 状態を保存
+      saveState();
+      
+    } catch (error) {
+      console.error('レシピ詳細生成エラー:', error);
+      alert('レシピの詳細生成に失敗しました。もう一度お試しください。\n\nエラー詳細: ' + error.message);
+      // エラーの場合はメニュー選択画面に戻る
+      menuSelectionSection.style.display = 'block';
+    } finally {
+      loadingIndicator.classList.remove('active');
+      
+      // ローディングテキストの安全な復元
+      const loadingTextElement = loadingIndicator.querySelector('div:last-child');
+      if (loadingTextElement) {
+        loadingTextElement.textContent = 'AIがあなたにぴったりのレシピを考えています...';
+      }
+    }
+  }
+
+  // 詳細レシピ生成用のメッセージ作成
+  function createDetailedRecipeMessages(selectedMenu, settings) {
+    const prompt = `
+あなたは優秀な料理研究家です。選択されたメニューの詳細なレシピを作成してください。
+
+【選択されたメニュー】
+料理名: ${selectedMenu.menuName}
+概要: ${selectedMenu.description}
+調理時間: ${selectedMenu.cookingTime}
+難易度: ${selectedMenu.difficulty}
+人数: ${selectedMenu.servings}
+
+【利用可能な食材】
+${settings.ingredients.join('、')}
+
+【条件】
+- 季節: ${settings.season}
+- 食事タイプ: ${settings.mealType}
+- 調理時間: ${settings.cookingTime}
+- 料理ジャンル: ${Array.isArray(settings.cuisine) ? settings.cuisine.join('、') : settings.cuisine}
+- 調理法: ${Array.isArray(settings.cookingMethod) ? settings.cookingMethod.join('、') : settings.cookingMethod}
+- 人数: ${settings.servings}
+
+【回答形式】
+以下のJSON形式で詳細なレシピを回答してください。必ずjsonマークダウン形式で回答すること：
+
+\`\`\`json
+{
+  "menuName": "${selectedMenu.menuName}",
+  "description": "${selectedMenu.description}",
+  "cookingTime": "${selectedMenu.cookingTime}",
+  "difficulty": "${selectedMenu.difficulty}",
+  "ingredients": [
+    {"name": "食材名", "amount": "分量", "isSelected": true}
+  ],
+  "seasonings": [
+    {"name": "調味料名", "amount": "分量", "isSelected": true},
+    {"name": "追加調味料名", "amount": "分量", "isSelected": false}
+  ],
+  "cookingSteps": [
+    "手順1の説明",
+    "手順2の説明",
+    "手順3の説明"
+  ],
+  "tips": "コツやポイント",
+  "ingredientUsage": {
+    "used": ["使用した食材名1", "使用した食材名2"],
+    "unused": ["使用しなかった食材名1", "使用しなかった食材名2"],
+    "reason": "使用・未使用の具体的な理由"
+  },
+  "alternatives": {
+    "substitutions": [
+      {"original": "元の食材", "substitute": "代替案"}
+    ]
+  }
+}
+\`\`\`
+
+【重要な注意事項】
+1. 選択されたメニューに基づいて詳細なレシピを作成すること
+2. **選択されたメニューに最も適した料理ジャンル1つと調理法1つを使用すること**
+3. 指定された食材から適切なものを選択して使用すること（全ての食材を使う必要はありません）
+4. ingredients配列には、指定された食材のみを含めること（追加の食材は含めない）
+5. ingredients配列には調味料を含めないこと（調味料はseasonings配列に分ける）
+6. seasonings配列では、すべての調味料にisSelectedフィールドを必ず設定すること
+7. 調理時間と難易度は選択されたメニューの設定に合わせること
+8. 指定された調理法を考慮すること（「ランダム」以外の場合は特にその調理法を活かしたレシピにすること）
+9. 実際に作れる現実的なレシピにすること
+10. 分量は具体的に記載すること
+11. 手順は分かりやすく順序立てて記載すること
+`;
+
+    return [
+      {
+        role: "user",
+        content: prompt
+      }
+    ];
+  }
   
+  // レシピ材料バリデーション
+  function validateRecipeIngredients(recipe) {
+    const validationResult = {
+      validatedRecipe: JSON.parse(JSON.stringify(recipe)), // ディープコピー
+      violations: [],
+      warnings: []
+    };
+    
+    // 選択された食材名のリストを作成
+    const selectedIngredientNames = selectedIngredients.map(ing => ing.name);
+    const selectedSeasoningNames = selectedIngredients
+      .filter(ing => ing.category === 'seasonings')
+      .map(ing => ing.name);
+    
+    // 既知の調味料リスト（ingredients.jsonの調味料カテゴリに基づく）
+    const knownSeasonings = [
+      '醤油', '味噌', '塩', '砂糖', 'サラダ油', 'オリーブオイル', 'ごま油',
+      '酢', 'みりん', 'だしの素', 'コンソメ', 'こしょう', 'にんにく',
+      'ケチャップ', 'オイスターソース', 'カレー粉', '料理酒', '本みりん',
+      'しょうゆ', 'みそ', 'ごま', '胡椒', 'バター', '砂糖', 'はちみつ',
+      'マヨネーズ', 'ソース', 'ウスターソース', '中濃ソース', 'とんかつソース',
+      'ポン酢', 'ドレッシング', 'めんつゆ', '白だし', '鶏ガラスープの素'
+    ];
+    
+    // ingredients配列のバリデーション
+    if (validationResult.validatedRecipe.ingredients && Array.isArray(validationResult.validatedRecipe.ingredients)) {
+      const validIngredients = [];
+      const movedToSeasonings = [];
+      
+      validationResult.validatedRecipe.ingredients.forEach(ingredient => {
+        const ingredientName = ingredient.name;
+        
+        // 選択された食材に含まれているかチェック
+        if (selectedIngredientNames.includes(ingredientName)) {
+          validIngredients.push(ingredient);
+        } else if (knownSeasonings.some(seasoning => 
+          ingredientName.includes(seasoning) || seasoning.includes(ingredientName)
+        )) {
+          // 調味料だった場合はseasonings配列に移動
+          movedToSeasonings.push({
+            name: ingredientName,
+            amount: ingredient.amount,
+            isSelected: selectedSeasoningNames.includes(ingredientName)
+          });
+          
+          validationResult.warnings.push({
+            type: 'moved_to_seasonings',
+            ingredient: ingredientName,
+            message: `「${ingredientName}」は調味料のため、調味料欄に移動しました`
+          });
+        } else {
+          // 選択されていない食材
+          validationResult.violations.push({
+            type: 'unauthorized_ingredient',
+            ingredient: ingredientName,
+            category: 'ingredients',
+            message: `選択されていない食材「${ingredientName}」がレシピに含まれています`
+          });
+        }
+      });
+      
+      // バリデーション結果を反映
+      validationResult.validatedRecipe.ingredients = validIngredients;
+      
+      // 調味料配列に移動されたものを追加
+      if (movedToSeasonings.length > 0) {
+        if (!validationResult.validatedRecipe.seasonings) {
+          validationResult.validatedRecipe.seasonings = [];
+        }
+        validationResult.validatedRecipe.seasonings.push(...movedToSeasonings);
+      }
+    }
+    
+    // seasonings配列のバリデーション
+    if (validationResult.validatedRecipe.seasonings && Array.isArray(validationResult.validatedRecipe.seasonings)) {
+      validationResult.validatedRecipe.seasonings.forEach(seasoning => {
+        const seasoningName = seasoning.name;
+        
+        // 選択された調味料でも既知の調味料でもない場合
+        if (!selectedSeasoningNames.includes(seasoningName) && 
+            !knownSeasonings.some(known => 
+              seasoningName.includes(known) || known.includes(seasoningName)
+            )) {
+          validationResult.violations.push({
+            type: 'unknown_seasoning',
+            ingredient: seasoningName,
+            category: 'seasonings',
+            message: `未知の調味料「${seasoningName}」がレシピに含まれています`
+          });
+        }
+        
+        // isSelectedフィールドの修正
+        const isActuallySelected = selectedSeasoningNames.includes(seasoningName);
+        if (seasoning.isSelected !== isActuallySelected) {
+          seasoning.isSelected = isActuallySelected;
+          validationResult.warnings.push({
+            type: 'corrected_selection_status',
+            ingredient: seasoningName,
+            message: `「${seasoningName}」の選択状態を修正しました`
+          });
+        }
+      });
+    }
+    
+    // 作り方テキスト内の材料チェック（強化版）
+    if (validationResult.validatedRecipe.cookingSteps && Array.isArray(validationResult.validatedRecipe.cookingSteps)) {
+      const allSelectedIngredients = selectedIngredients.map(ing => ing.name);
+      const stepsText = validationResult.validatedRecipe.cookingSteps.join(' ');
+      const unauthorizedIngredientsInSteps = [];
+      
+      // 具体的な調味料チェック（ごま油対策）
+      const specificSeasonings = [
+        'ごま油', 'サラダ油', 'オリーブオイル', '醤油', '味噌', '塩', '砂糖',
+        '酢', 'みりん', 'だしの素', 'コンソメ', 'こしょう', '胡椒', 'にんにく',
+        'ケチャップ', 'オイスターソース', 'カレー粉', '料理酒', 'バター'
+      ];
+      
+      // 特定の調味料が作り方に含まれているかチェック
+      specificSeasonings.forEach(seasoning => {
+        if (stepsText.includes(seasoning) && !selectedSeasoningNames.includes(seasoning)) {
+          unauthorizedIngredientsInSteps.push(seasoning);
+          validationResult.violations.push({
+            type: 'unauthorized_seasoning_in_steps',
+            ingredient: seasoning,
+            category: 'cookingSteps',
+            message: `作り方で「${seasoning}」が使用されていますが、選択された調味料に含まれていません`
+          });
+        }
+      });
+      
+      // 全食材リストから選択されていない材料を検索
+      if (typeof ingredientsData === 'object' && ingredientsData !== null) {
+        Object.values(ingredientsData).forEach(categoryData => {
+          if (Array.isArray(categoryData)) {
+            categoryData.forEach(ingredient => {
+              const ingredientName = ingredient.name;
+              // 選択されていない食材が作り方に含まれているかチェック
+              if (!allSelectedIngredients.includes(ingredientName) && 
+                  stepsText.includes(ingredientName)) {
+                // 既知の調味料でない場合のみ違反として報告
+                if (!knownSeasonings.some(known => 
+                  ingredientName.includes(known) || known.includes(ingredientName)
+                )) {
+                  unauthorizedIngredientsInSteps.push(ingredientName);
+                }
+              }
+            });
+          }
+        });
+      }
+      
+      // 重複を除去して違反として報告（調味料以外）
+      [...new Set(unauthorizedIngredientsInSteps)].forEach(ingredientName => {
+        // 調味料は上で既に処理済みなのでスキップ
+        if (!specificSeasonings.includes(ingredientName)) {
+          validationResult.violations.push({
+            type: 'unauthorized_ingredient_in_steps',
+            ingredient: ingredientName,
+            category: 'cookingSteps',
+            message: `作り方に選択されていない食材「${ingredientName}」が含まれています`
+          });
+        }
+      });
+    }
+    
+    // バリデーション結果をログ出力
+    if (validationResult.violations.length > 0 || validationResult.warnings.length > 0) {
+      console.group('🔍 レシピ材料バリデーション結果');
+      
+      if (validationResult.violations.length > 0) {
+        console.warn('❌ 違反が検出されました:');
+        validationResult.violations.forEach(violation => {
+          console.warn(`  - ${violation.message}`);
+        });
+      }
+      
+      if (validationResult.warnings.length > 0) {
+        console.info('⚠️ 警告・修正事項:');
+        validationResult.warnings.forEach(warning => {
+          console.info(`  - ${warning.message}`);
+        });
+      }
+      
+      console.groupEnd();
+    }
+    
+    return validationResult;
+  }
+
+  // バリデーション警告表示
+  function showValidationWarning(validationResult) {
+    // 既存の警告要素があれば削除
+    const existingWarning = document.getElementById('recipeValidationWarning');
+    if (existingWarning) {
+      existingWarning.remove();
+    }
+    
+    // 警告要素を作成
+    const warningDiv = document.createElement('div');
+    warningDiv.id = 'recipeValidationWarning';
+    warningDiv.className = 'validation-warning';
+    warningDiv.style.cssText = `
+      background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+      border: 2px solid #f39c12;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+      box-shadow: 0 2px 10px rgba(243, 156, 18, 0.3);
+    `;
+    
+    let warningContent = `
+      <div style="display: flex; align-items: center; margin-bottom: 10px;">
+        <i class="fas fa-exclamation-triangle" style="color: #f39c12; font-size: 1.2rem; margin-right: 10px;"></i>
+        <strong style="color: #856404;">レシピ生成時の注意事項</strong>
+      </div>
+    `;
+    
+    if (validationResult.violations.length > 0) {
+      warningContent += `
+        <div style="margin-bottom: 10px;">
+          <strong style="color: #dc3545;">❌ 修正された問題:</strong>
+          <ul style="margin: 5px 0; padding-left: 20px;">
+      `;
+      validationResult.violations.forEach(violation => {
+        warningContent += `<li style="color: #856404;">${violation.message}</li>`;
+      });
+      warningContent += `</ul></div>`;
+    }
+    
+    if (validationResult.warnings.length > 0) {
+      warningContent += `
+        <div style="margin-bottom: 10px;">
+          <strong style="color: #007bff;">ℹ️ 自動調整:</strong>
+          <ul style="margin: 5px 0; padding-left: 20px;">
+      `;
+      validationResult.warnings.forEach(warning => {
+        warningContent += `<li style="color: #856404;">${warning.message}</li>`;
+      });
+      warningContent += `</ul></div>`;
+    }
+    
+    warningContent += `
+      <div style="font-size: 0.9rem; color: #856404; margin-top: 10px; font-style: italic;">
+        💡 このメッセージは選択した食材リストに基づいてレシピを自動修正したことをお知らせしています。
+      </div>
+    `;
+    
+    warningDiv.innerHTML = warningContent;
+    
+    // レシピタイトルの前に挿入
+    const recipeTitle = document.getElementById('recipeTitle');
+    if (recipeTitle && recipeTitle.parentNode) {
+      recipeTitle.parentNode.insertBefore(warningDiv, recipeTitle);
+    }
+    
+    // 5秒後に自動的に薄くする
+    setTimeout(() => {
+      if (warningDiv && warningDiv.parentNode) {
+        warningDiv.style.opacity = '0.7';
+        warningDiv.style.transition = 'opacity 1s ease';
+      }
+    }, 5000);
+  }
+
   // レシピ表示
   function displayRecipe(recipe) {
+    // レシピのバリデーションを実行
+    const validationResult = validateRecipeIngredients(recipe);
+    const validatedRecipe = validationResult.validatedRecipe;
+    
+    // 違反があった場合はコンソールにログ出力のみ
+    if (validationResult.violations.length > 0) {
+      const violationMessages = validationResult.violations.map(v => v.message).join('\n');
+      console.error('レシピに問題が検出されました:\n' + violationMessages);
+    }
+    
     // タイトルと説明
-    recipeTitle.textContent = recipe.menuName;
-    recipeDescription.textContent = recipe.description || 'AIが提案する美味しいレシピです';
+    recipeTitle.textContent = validatedRecipe.menuName;
+    recipeDescription.textContent = validatedRecipe.description || 'AIが提案する美味しいレシピです';
     
     // メタ情報
     recipeMeta.innerHTML = '';
     const metaItems = [
-      { icon: 'fas fa-clock', text: recipe.cookingTime || '調理時間不明' },
-      { icon: 'fas fa-signal', text: recipe.difficulty || '普通' },
+      { icon: 'fas fa-clock', text: validatedRecipe.cookingTime || '調理時間不明' },
+      { icon: 'fas fa-signal', text: validatedRecipe.difficulty || '普通' },
       { icon: 'fas fa-users', text: getSelectedValues().servings }
     ];
     
@@ -740,28 +1746,25 @@ ${settings.ingredients.join('、')}
       .filter(ing => ing.category === 'seasonings')
       .map(ing => ing.name);
     
-    // 食材 - 選択された食材のみ表示（調味料以外）
-    if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
-      recipe.ingredients.forEach(ingredient => {
-        // 選択された食材のみ表示（調味料は除外）
-        if (selectedIngredientNames.includes(ingredient.name)) {
-          const item = document.createElement('div');
-          item.className = 'ingredient-item-result';
-          
-          item.innerHTML = `
-            <span class="ingredient-name">${ingredient.name}</span>
-            <span class="ingredient-amount">${ingredient.amount}</span>
-          `;
-          ingredientsList.appendChild(item);
-        }
+    // 食材 - バリデーション済みの食材のみ表示（調味料以外）
+    if (validatedRecipe.ingredients && Array.isArray(validatedRecipe.ingredients)) {
+      validatedRecipe.ingredients.forEach(ingredient => {
+        const item = document.createElement('div');
+        item.className = 'ingredient-item-result';
+        
+        item.innerHTML = `
+          <span class="ingredient-name">${ingredient.name}</span>
+          <span class="ingredient-amount">${ingredient.amount}</span>
+        `;
+        ingredientsList.appendChild(item);
       });
     }
     
-    // 調味料（選択されたもの + 追加されたもの）
-    if (recipe.seasonings && Array.isArray(recipe.seasonings)) {
-      recipe.seasonings.forEach(seasoning => {
+    // 調味料（バリデーション済み）
+    if (validatedRecipe.seasonings && Array.isArray(validatedRecipe.seasonings)) {
+      validatedRecipe.seasonings.forEach(seasoning => {
         const item = document.createElement('div');
-        item.className = 'ingredient-item-result seasoning-item';
+        item.className = 'ingredient-item-result'; // 調味料の基本スタイル
         
         // 選択された調味料かどうかをチェック
         const isSelectedSeasoning = selectedSeasoningNames.includes(seasoning.name);
@@ -779,11 +1782,11 @@ ${settings.ingredients.join('、')}
           isSelected = false;
         }
         
-        const selectionClass = !isSelected ? ' not-selected-seasoning' : '';
         const selectionIndicator = !isSelected ? ' <span class="added-seasoning-label" title="追加された調味料">追加</span>' : '';
+        const seasoningNameStyle = 'background: linear-gradient(135deg, #fff3e0, #ffe0b2); border: 1px solid #ffb74d; padding: 2px 6px; border-radius: 4px;';
         
         item.innerHTML = `
-          <span class="ingredient-name${selectionClass}">${seasoning.name}${selectionIndicator}</span>
+          <span class="ingredient-name" style="${seasoningNameStyle}">${seasoning.name}${selectionIndicator}</span>
           <span class="ingredient-amount">${seasoning.amount}</span>
         `;
         ingredientsList.appendChild(item);
@@ -792,8 +1795,8 @@ ${settings.ingredients.join('、')}
     
     // 作り方
     stepsList.innerHTML = '';
-    if (recipe.cookingSteps && Array.isArray(recipe.cookingSteps)) {
-      recipe.cookingSteps.forEach((step, index) => {
+    if (validatedRecipe.cookingSteps && Array.isArray(validatedRecipe.cookingSteps)) {
+      validatedRecipe.cookingSteps.forEach((step, index) => {
         const stepElement = document.createElement('div');
         stepElement.className = 'step-item';
         stepElement.innerHTML = `
@@ -822,6 +1825,10 @@ ${settings.ingredients.join('、')}
             <i class="fas fa-list-ol"></i>
             詳細な作り方を表示
           </button>
+          <button class="generate-btn pdf-btn" id="exportPdfBtn" style="background: linear-gradient(135deg, #f44336, #d32f2f);">
+            <i class="fas fa-file-pdf"></i>
+            レシピをPDF出力
+          </button>
         `;
         recipeTipsSection.appendChild(regenerateButtonDiv);
         
@@ -831,7 +1838,13 @@ ${settings.ingredients.join('、')}
         
         // 詳細作り方ボタンにイベントリスナーを追加
         const detailBtn = regenerateButtonDiv.querySelector('#detailRecipeBtn');
-        detailBtn.addEventListener('click', () => generateDetailedSteps(recipe));
+        detailBtn.addEventListener('click', () => generateDetailedSteps(validatedRecipe));
+        
+        // PDF出力ボタンにイベントリスナーを追加
+        const pdfBtn = regenerateButtonDiv.querySelector('#exportPdfBtn');
+        if (pdfBtn) {
+          pdfBtn.addEventListener('click', exportRecipeToPdf);
+        }
       }
       
       // コツ・ポイント
@@ -842,7 +1855,7 @@ ${settings.ingredients.join('、')}
           <i class="fas fa-lightbulb"></i>
           コツ・ポイント
         </div>
-        <div class="tips-content">${recipe.tips || '美味しく作るコツをお楽しみください！'}</div>
+        <div class="tips-content">${validatedRecipe.tips || '美味しく作るコツをお楽しみください！'}</div>
       `;
       recipeTipsSection.appendChild(tipsDiv);
       
@@ -855,10 +1868,10 @@ ${settings.ingredients.join('、')}
       let usageReason = '';
       
       // 新しいフォーマット（ingredientUsage）をチェック
-      if (recipe.ingredientUsage) {
-        const usedIngredients = recipe.ingredientUsage.used || [];
-        const unusedIngredients = recipe.ingredientUsage.unused || [];
-        usageReason = recipe.ingredientUsage.reason || '';
+      if (validatedRecipe.ingredientUsage) {
+        const usedIngredients = validatedRecipe.ingredientUsage.used || [];
+        const unusedIngredients = validatedRecipe.ingredientUsage.unused || [];
+        usageReason = validatedRecipe.ingredientUsage.reason || '';
         
         if (unusedIngredients.length > 0) {
           usageContent = `
@@ -871,14 +1884,14 @@ ${settings.ingredients.join('、')}
             <p style="color: #4CAF50;"><strong>✓ 選択された食材はすべて使用されました</strong></p>
           `;
         }
-    } else {
+          } else {
         // 従来のフォーマット（unusedIngredients）との互換性
         const usedIngredients = [];
-        if (recipe.ingredients) {
-          usedIngredients.push(...recipe.ingredients.map(ing => ing.name));
+        if (validatedRecipe.ingredients) {
+          usedIngredients.push(...validatedRecipe.ingredients.map(ing => ing.name));
         }
-        if (recipe.seasonings) {
-          usedIngredients.push(...recipe.seasonings.map(ing => ing.name));
+        if (validatedRecipe.seasonings) {
+          usedIngredients.push(...validatedRecipe.seasonings.map(ing => ing.name));
         }
         
         const selectedIngredientNames = selectedIngredients.map(ing => ing.name);
@@ -888,8 +1901,8 @@ ${settings.ingredients.join('、')}
           )
         );
         
-        if (recipe.unusedIngredients && recipe.unusedIngredients.reason) {
-          usageReason = recipe.unusedIngredients.reason;
+        if (validatedRecipe.unusedIngredients && validatedRecipe.unusedIngredients.reason) {
+          usageReason = validatedRecipe.unusedIngredients.reason;
     } else {
           usageReason = unusedIngredients.length > 0 ? 
             '今回のレシピでは、料理のバランスや調理時間、指定されたジャンルを考慮して、これらの食材は使用しませんでした。' :
@@ -924,7 +1937,15 @@ ${settings.ingredients.join('、')}
       recipeTipsSection.appendChild(usageDiv);
     } else {
       // 従来の方法（フォールバック）
-      tipsContent.textContent = recipe.tips || '美味しく作るコツをお楽しみください！';
+      tipsContent.textContent = validatedRecipe.tips || '美味しく作るコツをお楽しみください！';
+    }
+    
+    // バリデーション済みのレシピを保存
+    currentRecipe = validatedRecipe;
+    
+    // 戻るボタンの表示（メニュー選択から来た場合のみ）
+    if (proposedMenus && proposedMenus.length > 0 && backToMenuBtn) {
+      backToMenuBtn.style.display = 'flex';
     }
     
     // 結果表示
@@ -1059,15 +2080,17 @@ ${currentSteps}
 - コツ
 
 【回答形式】
-JSON形式で以下のように回答してください：
+以下のJSON形式で詳細な手順を回答してください。必ずjsonマークダウン形式で回答すること：
 
+\`\`\`json
 {
   "detailedSteps": [
     "詳細な手順1",
-    "詳細な手順2",
+    "詳細な手順2", 
     "詳細な手順3"
   ]
 }
+\`\`\`
 `;
     
     return [
@@ -1103,35 +2126,689 @@ JSON形式で以下のように回答してください：
   // 詳細ステップ専用のレスポンス解析
   function parseDetailedStepsResponse(text) {
     try {
-      // JSONの抽出を試行
-      let jsonText = text;
+      console.log('詳細ステップ Raw API response:', text);
       
-      // ```json で囲まれている場合の処理
-      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+      // 複数の JSON 抽出パターンを試行
+      let jsonText = null;
+      
+      // パターン1: ```json と ``` で囲まれた JSON
+      let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         jsonText = jsonMatch[1];
+        console.log('詳細ステップ JSON found with json marker:', jsonText);
       } else {
-        // { で始まり } で終わる部分を抽出
-        const startIndex = text.indexOf('{');
-        const lastIndex = text.lastIndexOf('}');
-        if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
-          jsonText = text.substring(startIndex, lastIndex + 1);
+        // パターン2: ``` と ``` で囲まれた JSON
+        jsonMatch = text.match(/```\s*([\s\S]*?)\s*```/);
+        if (jsonMatch) {
+          jsonText = jsonMatch[1];
+          console.log('詳細ステップ JSON found with generic marker:', jsonText);
+        } else {
+          // パターン3: { から } までの最初の完全なJSON
+          const startIndex = text.indexOf('{');
+          const lastIndex = text.lastIndexOf('}');
+          if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
+            jsonText = text.substring(startIndex, lastIndex + 1);
+            console.log('詳細ステップ JSON found with brace matching:', jsonText);
+          } else {
+            // パターン4: 直接JSONとして解析
+            jsonText = text.trim();
+            console.log('詳細ステップ Using text directly as JSON:', jsonText);
+          }
         }
       }
       
+      if (!jsonText) {
+        throw new Error('詳細ステップのJSONコンテンツが見つかりません');
+      }
+      
+      // JSONをクリーンアップ
+      jsonText = jsonText.trim();
+      jsonText = jsonText.replace(/^[^{]*/, ''); // { より前の文字を除去
+      jsonText = jsonText.replace(/[^}]*$/, ''); // } より後の文字を除去
+      jsonText = jsonText.replace(/```$/, ''); // 末尾の ``` を除去
+      
+      console.log('詳細ステップ Cleaned JSON text:', jsonText);
+      
       const data = JSON.parse(jsonText);
+      console.log('詳細ステップ Parsed result:', data);
       
       // detailedStepsフィールドの検証
       if (data.detailedSteps && Array.isArray(data.detailedSteps)) {
         return data;
-        } else {
+      } else {
         throw new Error('詳細ステップデータに必要なフィールドがありません');
       }
     } catch (error) {
       console.error('詳細ステップデータ解析エラー:', error);
-      console.log('元のテキスト:', text);
-      throw new Error('詳細ステップの解析に失敗しました。もう一度お試しください。');
+      console.error('レスポンステキスト:', text);
+      
+      // エラーの詳細を提供
+      if (error instanceof SyntaxError) {
+        throw new Error(`詳細ステップのJSONの構文エラー: ${error.message}\n\n受信したテキスト:\n${text.substring(0, 500)}...`);
+      } else {
+        throw new Error(`詳細ステップの解析に失敗しました: ${error.message}\n\n受信したテキスト:\n${text.substring(0, 500)}...`);
+      }
     }
+  }
+  
+  // 条件設定をランダムで選択
+  function randomSelectSettings() {
+    // 各設定項目の選択肢を定義
+    const settingOptions = {
+      season: ['春', '夏', '秋', '冬'],
+      mealType: ['朝食', '昼食', '夕食', 'おやつ'],
+      cookingTime: ['15分以内', '30分以内', '1時間以内', '時間制限なし'],
+      cuisine: ['和食', '洋食', '中華', 'イタリアン', 'その他'],
+      cookingMethod: ['ランダム', '炒め物', '煮込み', '焼き物', '蒸し料理', '揚げ物', 'サラダ・生', 'スープ・汁物'],
+      servings: ['1人分', '2人分', '3-4人分', '5人以上']
+    };
+    
+    // 各設定項目をランダムで選択
+    Object.keys(settingOptions).forEach(settingName => {
+      const options = settingOptions[settingName];
+      
+      if (settingName === 'cuisine' || settingName === 'cookingMethod') {
+        // 複数選択項目の場合
+        // まず全てのチェックを外す
+        document.querySelectorAll(`input[name="${settingName}"]`).forEach(input => {
+          input.checked = false;
+        });
+        
+        // 1-3個の項目をランダム選択
+        const numSelections = Math.floor(Math.random() * 3) + 1;
+        const shuffledOptions = [...options].sort(() => Math.random() - 0.5);
+        
+        for (let i = 0; i < Math.min(numSelections, shuffledOptions.length); i++) {
+          const checkbox = document.querySelector(`input[name="${settingName}"][value="${shuffledOptions[i]}"]`);
+          if (checkbox) {
+            checkbox.checked = true;
+          }
+        }
+      } else {
+        // 単一選択項目の場合（従来通り）
+        const randomIndex = Math.floor(Math.random() * options.length);
+        const randomValue = options[randomIndex];
+        
+        const radioElement = document.querySelector(`input[name="${settingName}"][value="${randomValue}"]`);
+        if (radioElement) {
+          radioElement.checked = true;
+        }
+      }
+    });
+    
+    // 状態を保存
+    saveState();
+    
+    // ユーザーに選択内容を知らせる（簡単なフィードバック）
+    if (randomSettingsBtn) {
+      randomSettingsBtn.innerHTML = '<i class="fas fa-check"></i> 条件をランダム選択しました！';
+      randomSettingsBtn.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
+      
+      // 2秒後に元の表示に戻す
+      setTimeout(() => {
+        randomSettingsBtn.innerHTML = '<i class="fas fa-dice"></i> 料理条件をランダムで選ぶ';
+        randomSettingsBtn.style.background = 'linear-gradient(135deg, #9C27B0, #7B1FA2)';
+      }, 2000);
+    }
+  }
+  
+  // データエクスポート機能
+  function exportData() {
+    try {
+      const currentSettings = getSelectedValues();
+      
+      const exportData = {
+        version: "1.0",
+        exportDate: new Date().toISOString(),
+        appName: "AI料理提案システム",
+        data: {
+          selectedIngredients: selectedIngredients,
+          settings: {
+            season: currentSettings.season,
+            mealType: currentSettings.mealType,
+            cookingTime: currentSettings.cookingTime,
+            cuisine: currentSettings.cuisine,
+            cookingMethod: currentSettings.cookingMethod,
+            servings: currentSettings.servings
+          },
+          currentCategory: currentCategory
+        }
+      };
+      
+      // JSONファイルとしてダウンロード
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      // ファイル名を生成（日時を含む）
+      const now = new Date();
+      const dateString = now.toISOString().slice(0, 19).replace(/[T:]/g, '-');
+      const filename = `ai-cooking-settings-${dateString}.json`;
+      
+      // ダウンロード実行
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      // ユーザーフィードバック
+      if (exportDataBtn) {
+        const originalText = exportDataBtn.innerHTML;
+        exportDataBtn.innerHTML = '<i class="fas fa-check"></i> エクスポート完了！';
+        exportDataBtn.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
+        
+        setTimeout(() => {
+          exportDataBtn.innerHTML = originalText;
+          exportDataBtn.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
+        }, 2000);
+      }
+      
+      console.log('データエクスポート完了:', filename);
+    } catch (error) {
+      console.error('エクスポートエラー:', error);
+      alert('設定のエクスポートに失敗しました。');
+    }
+  }
+  
+  // データインポート機能
+  function importData(file) {
+    if (!file) {
+      console.error('ファイルが選択されていません');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const importedData = JSON.parse(e.target.result);
+        
+        // データ形式の検証
+        if (!importedData.version || !importedData.data) {
+          throw new Error('無効なデータ形式です');
+        }
+        
+        if (importedData.appName !== "AI料理提案システム") {
+          const confirmImport = confirm('このファイルは他のアプリケーション用のようですが、インポートしますか？');
+          if (!confirmImport) {
+            return;
+          }
+        }
+        
+        const data = importedData.data;
+        
+        // 選択済み食材を復元
+        if (data.selectedIngredients && Array.isArray(data.selectedIngredients)) {
+          selectedIngredients = data.selectedIngredients;
+        }
+        
+        // カテゴリーを復元
+        if (data.currentCategory) {
+          currentCategory = data.currentCategory;
+        }
+        
+        // 設定を復元
+        if (data.settings) {
+          Object.keys(data.settings).forEach(key => {
+            const settingValue = data.settings[key];
+            
+            if (key === 'cuisine' || key === 'cookingMethod') {
+              // 複数選択項目の場合
+              // まず全てのチェックを外す
+              document.querySelectorAll(`input[name="${key}"]`).forEach(input => {
+                input.checked = false;
+              });
+              
+              // 保存された値に対応するチェックボックスをオンにする
+              if (Array.isArray(settingValue)) {
+                settingValue.forEach(value => {
+                  const checkbox = document.querySelector(`input[name="${key}"][value="${value}"]`);
+                  if (checkbox) {
+                    checkbox.checked = true;
+                  }
+                });
+              } else {
+                // 古い形式（文字列）の場合の互換性対応
+                const checkbox = document.querySelector(`input[name="${key}"][value="${settingValue}"]`);
+                if (checkbox) {
+                  checkbox.checked = true;
+                }
+              }
+            } else {
+              // 単一選択項目の場合（従来通り）
+              const radio = document.querySelector(`input[name="${key}"][value="${settingValue}"]`);
+              if (radio) {
+                radio.checked = true;
+              }
+            }
+          });
+        }
+        
+        // UIを更新
+        updateCategoryTab();
+        renderSelectedIngredients();
+        renderIngredients();
+        updateClearButtonState();
+        
+        // 状態を保存
+        saveState();
+        
+        // ユーザーフィードバック
+        if (importDataBtn) {
+          const originalText = importDataBtn.innerHTML;
+          importDataBtn.innerHTML = '<i class="fas fa-check"></i> インポート完了！';
+          importDataBtn.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
+          
+          setTimeout(() => {
+            importDataBtn.innerHTML = originalText;
+            importDataBtn.style.background = 'linear-gradient(135deg, #2196F3, #1976D2)';
+          }, 2000);
+        }
+        
+        const importDate = importedData.exportDate ? 
+          new Date(importedData.exportDate).toLocaleString('ja-JP') : '不明';
+        
+        alert(`設定を正常にインポートしました！\n\nエクスポート日時: ${importDate}\n選択食材数: ${selectedIngredients.length}個`);
+        
+        console.log('データインポート完了:', {
+          version: importedData.version,
+          exportDate: importedData.exportDate,
+          selectedIngredients: selectedIngredients.length,
+          settings: data.settings
+        });
+        
+      } catch (error) {
+        console.error('インポートエラー:', error);
+        alert('ファイルの読み込みに失敗しました。正しいJSONファイルを選択してください。');
+      }
+    };
+    
+    reader.onerror = function() {
+      console.error('ファイル読み込みエラー');
+      alert('ファイルの読み込みに失敗しました。');
+    };
+    
+    reader.readAsText(file);
+  }
+  
+  // レシピPDF出力機能（ブラウザネイティブPrint API使用）
+  async function exportRecipeToPdf() {
+    if (!currentRecipe) {
+      alert('エクスポートするレシピがありません。まずレシピを生成してください。');
+      return;
+    }
+    
+    try {
+      // PDF出力ボタンの状態を更新
+      const exportPdfBtn = document.getElementById('exportPdfBtn');
+      if (!exportPdfBtn) {
+        alert('PDFボタンが見つかりません。');
+        return;
+      }
+      
+      const originalText = exportPdfBtn.innerHTML;
+      exportPdfBtn.disabled = true;
+      exportPdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PDF準備中...';
+      
+      // 印刷用のウィンドウを作成
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      
+      // PDF用のHTMLコンテンツを作成
+      const pdfContent = createPrintableContent(currentRecipe);
+      
+      // 印刷用ウィンドウにコンテンツを書き込み
+      printWindow.document.write(pdfContent);
+      printWindow.document.close();
+      
+      // 印刷ダイアログを表示
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        
+        // 印刷後にウィンドウを閉じる
+        setTimeout(() => {
+          printWindow.close();
+        }, 1000);
+      }, 500);
+      
+      // ボタンの状態を復元
+      exportPdfBtn.disabled = false;
+      exportPdfBtn.innerHTML = '<i class="fas fa-check"></i> 印刷ダイアログを開きました';
+      exportPdfBtn.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
+      
+      setTimeout(() => {
+        exportPdfBtn.innerHTML = originalText;
+        exportPdfBtn.style.background = 'linear-gradient(135deg, #f44336, #d32f2f)';
+      }, 3000);
+      
+    } catch (error) {
+      console.error('PDF出力エラー:', error);
+      alert('PDFの出力に失敗しました。もう一度お試しください。');
+      
+      // エラー時のボタン復元
+      const exportPdfBtnError = document.getElementById('exportPdfBtn');
+      if (exportPdfBtnError) {
+        exportPdfBtnError.disabled = false;
+        exportPdfBtnError.innerHTML = '<i class="fas fa-file-pdf"></i> レシピをPDF出力';
+        exportPdfBtnError.style.background = 'linear-gradient(135deg, #f44336, #d32f2f)';
+      }
+    }
+  }
+  
+  // 印刷用のHTMLコンテンツを作成
+  function createPrintableContent(recipe) {
+    const settings = getSelectedValues();
+    const currentDate = new Date().toLocaleDateString('ja-JP');
+    
+    return `
+      <!DOCTYPE html>
+      <html lang="ja">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${recipe.menuName} - レシピ</title>
+        <style>
+          @page {
+            margin: 15mm;
+            size: A4;
+          }
+          
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            font-size: 12pt;
+            background: white;
+          }
+          
+          .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0;
+          }
+          
+          .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #ff6b35;
+            padding-bottom: 15px;
+            page-break-after: avoid;
+          }
+          
+          .recipe-title {
+            color: #ff6b35;
+            font-size: 24pt;
+            font-weight: bold;
+            margin-bottom: 8px;
+          }
+          
+          .subtitle {
+            color: #666;
+            font-size: 10pt;
+          }
+          
+          .section {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+          }
+          
+          .section-title {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 3px;
+            border-bottom: 2px solid #ccc;
+          }
+          
+          .overview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+          }
+          
+          .meta-info {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+          }
+          
+          .meta-item {
+            background: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 10pt;
+          }
+          
+          .ingredients-section {
+            margin-bottom: 15px;
+          }
+          
+          .ingredients-title {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #4CAF50;
+          }
+          
+          .seasonings-title {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #FF9800;
+          }
+          
+          .ingredients-list {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+          }
+          
+          .seasonings-list {
+            background: #fff3e0;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ffb74d;
+          }
+          
+          .ingredient-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid #eee;
+          }
+          
+          .ingredient-item:last-child {
+            border-bottom: none;
+          }
+          
+          .ingredient-name {
+            font-weight: 500;
+          }
+          
+          .ingredient-amount {
+            color: #666;
+          }
+          
+          .added-label {
+            background: #ff9800;
+            color: white;
+            font-size: 8pt;
+            padding: 1px 3px;
+            border-radius: 2px;
+            margin-left: 3px;
+          }
+          
+          .steps-container {
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+          }
+          
+          .step-item {
+            display: flex;
+            margin-bottom: 12px;
+            align-items: flex-start;
+          }
+          
+          .step-item:last-child {
+            margin-bottom: 0;
+          }
+          
+          .step-number {
+            background: #FF9800;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+            flex-shrink: 0;
+            font-size: 10pt;
+          }
+          
+          .step-text {
+            flex: 1;
+            font-size: 11pt;
+          }
+          
+          .tips-section {
+            background: #f3e5f5;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ba68c8;
+          }
+          
+          .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+            color: #999;
+            font-size: 9pt;
+            page-break-inside: avoid;
+          }
+          
+          @media print {
+            body {
+              font-size: 10pt;
+            }
+            .container {
+              padding: 0;
+            }
+            .section {
+              page-break-inside: avoid;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <!-- ヘッダー -->
+          <div class="header">
+            <h1 class="recipe-title">${recipe.menuName}</h1>
+            <p class="subtitle">AI料理提案システム - 生成日: ${currentDate}</p>
+          </div>
+          
+          <!-- レシピ概要 -->
+          <div class="section overview">
+            <h2 class="section-title" style="color: #1976d2;">📝 レシピ概要</h2>
+            <p style="margin-bottom: 10px;">${recipe.description || 'AIが提案する美味しいレシピです'}</p>
+            
+            <div class="meta-info">
+              <div class="meta-item">⏰ ${recipe.cookingTime || '調理時間不明'}</div>
+              <div class="meta-item">📊 ${recipe.difficulty || '普通'}</div>
+              <div class="meta-item">👥 ${settings.servings}</div>
+            </div>
+          </div>
+          
+          <!-- 材料 -->
+          <div class="section">
+            <h2 class="section-title" style="color: #4CAF50;">🥬 材料</h2>
+            
+            ${recipe.ingredients && recipe.ingredients.length > 0 ? `
+              <div class="ingredients-section">
+                <h3 class="ingredients-title">食材</h3>
+                <div class="ingredients-list">
+                  ${recipe.ingredients.map(ingredient => `
+                    <div class="ingredient-item">
+                      <span class="ingredient-name">${ingredient.name}</span>
+                      <span class="ingredient-amount">${ingredient.amount}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+            
+            ${recipe.seasonings && recipe.seasonings.length > 0 ? `
+              <div class="ingredients-section">
+                <h3 class="seasonings-title">調味料</h3>
+                <div class="seasonings-list">
+                  ${recipe.seasonings.map(seasoning => `
+                    <div class="ingredient-item">
+                      <span class="ingredient-name">
+                        ${seasoning.name}
+                        ${!seasoning.isSelected ? '<span class="added-label">追加</span>' : ''}
+                      </span>
+                      <span class="ingredient-amount">${seasoning.amount}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+          
+          <!-- 作り方 -->
+          <div class="section">
+            <h2 class="section-title" style="color: #FF9800;">👩‍🍳 作り方</h2>
+            <div class="steps-container">
+              ${recipe.cookingSteps && recipe.cookingSteps.length > 0 ? 
+                recipe.cookingSteps.map((step, index) => `
+                  <div class="step-item">
+                    <div class="step-number">${index + 1}</div>
+                    <div class="step-text">${step}</div>
+                  </div>
+                `).join('') : 
+                '<p style="color: #666;">作り方の情報がありません。</p>'
+              }
+            </div>
+          </div>
+          
+          <!-- コツ・ポイント -->
+          ${recipe.tips ? `
+            <div class="section">
+              <h2 class="section-title" style="color: #9C27B0;">💡 コツ・ポイント</h2>
+              <div class="tips-section">
+                <p>${recipe.tips}</p>
+              </div>
+            </div>
+          ` : ''}
+          
+          <!-- フッター -->
+          <div class="footer">
+            <p>このレシピは AI料理提案システム で生成されました</p>
+            <p>生成日時: ${new Date().toLocaleString('ja-JP')}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   }
   
   // 初期化処理
@@ -1173,6 +2850,20 @@ JSON形式で以下のように回答してください：
         renderIngredients(searchValue);
     });
   });
+  
+    // 戻るボタンのイベントリスナーを設定
+    if (backToMenuBtn) {
+      backToMenuBtn.addEventListener('click', () => {
+        resultsSection.style.display = 'none';
+        menuSelectionSection.style.display = 'block';
+        backToMenuBtn.style.display = 'none';
+      });
+    }
+    
+    // 決定ボタンのイベントリスナーを設定
+    if (menuDecisionBtn) {
+      menuDecisionBtn.addEventListener('click', selectMenu);
+    }
   
     console.log('初期化完了');
   }
