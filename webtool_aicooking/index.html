@@ -110,17 +110,24 @@
     @media (max-width: 768px) {
       .main-content {
         grid-template-columns: 1fr;
-        gap: 1rem;
-    }
+        gap: 1.5rem;
+      }
       
       .ingredients-section,
       .settings-section {
         min-height: auto;
         height: auto;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+      }
+      
+      .section-title {
+        font-size: 1.4rem;
+        margin-bottom: 1.25rem;
       }
       
       .search-section {
-        margin: 0.75rem 0 1rem 0;
+        margin: 1rem 0 1.25rem 0;
       }
       
       .search-container {
@@ -128,109 +135,197 @@
       }
       
       .ingredient-search-input {
-        font-size: 0.9rem;
-        padding: 0.6rem 0.8rem;
-        padding-right: 2.2rem;
+        font-size: 1rem;
+        padding: 0.8rem 1rem;
+        padding-right: 2.5rem;
+        border-radius: 25px;
       }
       
       .search-icon {
-        right: 0.8rem;
-        font-size: 0.9rem;
+        right: 1rem;
+        font-size: 1rem;
+      }
+      
+      .random-select-btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 1rem;
+        margin-top: 0.5rem;
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .all-ingredients-btn {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        width: 100%;
+        max-width: none;
+        min-width: auto;
       }
     
       .container {
         padding: 1rem;
-    }
+      }
     
       h1 {
-        font-size: 1.8rem;
+        font-size: 2rem;
         flex-direction: column;
         gap: 0.5rem;
-    }
-    
+        margin-bottom: 1rem;
+      }
+      
+      .description {
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      
       .section-header {
         flex-direction: column;
-      gap: 0.75rem;
+        gap: 1rem;
         align-items: stretch;
+        margin-bottom: 1.5rem;
       }
       
-      .header-search {
-        margin: 0;
-        order: 2;
-      }
-      
-      .header-search-input {
-        width: 100%;
-        font-size: 0.9rem;
-      }
-      
-      .random-select-btn {
-        order: 3;
-        align-self: center;
+      .ingredient-tabs {
+        margin-bottom: 1.25rem;
+        padding: 4px;
+        background: #f0f0f0;
+        border-radius: 10px;
       }
     
-            .ingredient-tabs {
+      .ingredient-tabs {
         flex-wrap: nowrap;
         overflow-x: auto;
         scrollbar-width: thin;
         -webkit-overflow-scrolling: touch;
+        gap: 3px;
+        padding: 5px;
+        background: #f0f0f0;
+        border-radius: 10px;
       }
       
       .ingredient-tabs::-webkit-scrollbar {
-        height: 4px;
+        height: 6px;
       }
       
       .ingredient-tabs::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 2px;
+        background: #f8f9fa;
+        border-radius: 3px;
       }
       
       .ingredient-tabs::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 2px;
+        background: var(--primary);
+        border-radius: 3px;
       }
       
       .ingredient-tabs::-webkit-scrollbar-thumb:hover {
-        background: #a1a1a1;
+        background: var(--secondary);
       }
     
-            .ingredient-tab {
-        font-size: 0.7rem;
-        padding: 0.6rem 0.25rem;
-        min-width: 125px;
+      .ingredient-tab {
+        font-size: 0.85rem;
+        padding: 0.75rem 0.5rem;
+        min-width: 130px;
         flex: none;
-        line-height: 1.1;
+        line-height: 1.2;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       }
     
       .ingredient-grid {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-        gap: 0.5rem;
-    }
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 0.75rem;
+        padding: 0.5rem;
+        max-height: 350px;
+      }
+      
+      .ingredient-item {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.9rem;
+        border-radius: 10px;
+        min-height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      
+      .selected-ingredients {
+        margin-top: 1.25rem;
+        padding: 1.25rem;
+        border-radius: 10px;
+      }
+      
+      .selected-ingredients-title {
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+      }
+      
+      .clear-all-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+        border-radius: 20px;
+      }
     
       .setting-options {
-        gap: 0.25rem;
-    }
+        gap: 0.5rem;
+      }
     
       .setting-option-label {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.8rem;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+        border-radius: 25px;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .setting-label {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+      }
+      
+      .setting-group {
+        margin-bottom: 2rem;
+      }
+      
+      .action-section {
+        margin: 2rem 0;
+        gap: 2rem;
       }
       
       .generate-btn {
-        padding: 0.75rem 1.5rem;
-      font-size: 1rem;
-    }
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        border-radius: 30px;
+        min-width: auto;
+        width: 100%;
+        max-width: none;
+      }
     
       .data-action-group {
         flex-direction: column;
         width: 100%;
         align-items: center;
+        gap: 1rem;
       }
       
       .data-btn {
         width: 100%;
-        max-width: 250px;
+        max-width: 280px;
         min-width: auto;
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        border-radius: 25px;
+      }
+      
+      .random-settings-btn {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        border-radius: 25px;
+        width: 100%;
+        justify-content: center;
       }
     
       .recipe-meta {
@@ -244,6 +339,27 @@
     }
     
       /* レシピ結果表示のスマホ最適化 */
+      .results-section {
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+        border-radius: 15px;
+      }
+      
+      .recipe-header {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+      }
+      
+      .recipe-title {
+        font-size: 1.8rem;
+        margin-bottom: 0.75rem;
+      }
+      
+      .recipe-description {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+      }
+      
       .recipe-content {
         grid-template-columns: 1fr;
         gap: 1.5rem;
@@ -251,33 +367,47 @@
       
       .ingredients-list, .steps-list {
         width: 100%;
-        padding: 1.25rem;
+        padding: 1.5rem;
+        border-radius: 12px;
       }
       
       .ingredients-list h3, .steps-list h3 {
-        font-size: 1.1rem;
-        margin-bottom: 1rem;
+        font-size: 1.2rem;
+        margin-bottom: 1.25rem;
       }
       
       .ingredient-item-result {
         padding: 0.75rem 0;
-        font-size: 0.95rem;
+        font-size: 1rem;
+        border-bottom: 1px solid #e9ecef;
       }
       
       .step-item {
-        padding: 1rem 0.75rem;
+        padding: 1.25rem 1rem;
         margin-bottom: 1rem;
+        border-radius: 10px;
       }
       
       .step-number {
-        width: 28px;
-        height: 28px;
-        font-size: 0.9rem;
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
       }
       
       .step-text {
-        font-size: 0.95rem;
+        font-size: 1rem;
         line-height: 1.7;
+      }
+      
+      .recipe-tips {
+        margin-top: 1.5rem;
+        padding: 1.5rem;
+        border-radius: 12px;
+      }
+      
+      .tips-title {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
       }
     }
     
@@ -1707,11 +1837,76 @@
       }
 
     @media (max-width: 768px) {
+      .menu-selection-section {
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-radius: 15px;
+      }
+      
+      .menu-header {
+        margin-bottom: 1.5rem;
+      }
+      
+      .menu-header .section-title {
+        font-size: 1.4rem;
+      }
+      
+      .menu-description {
+        font-size: 1rem;
+      }
+      
       .menu-grid {
         grid-template-columns: 1fr;
         grid-template-rows: auto;
-        gap: 1rem;
+        gap: 1.25rem;
         max-width: none;
+      }
+      
+      .menu-card {
+        padding: 1.5rem;
+        border-radius: 15px;
+      }
+      
+      .menu-card-title {
+        font-size: 1.3rem;
+        margin-bottom: 1rem;
+      }
+      
+      .menu-card-description {
+        font-size: 1rem;
+        margin-bottom: 1.25rem;
+        line-height: 1.6;
+      }
+      
+      .menu-card-meta {
+        gap: 0.75rem;
+      }
+      
+      .menu-card-meta-item {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.8rem;
+      }
+      
+      .menu-decision-section {
+        margin-top: 2rem;
+        padding-top: 2rem;
+      }
+      
+      .menu-decision-btn {
+        width: 100%;
+        max-width: none;
+        min-width: auto;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        border-radius: 30px;
+      }
+      
+      .back-to-menu-btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 1rem;
+        border-radius: 25px;
+        width: 100%;
+        justify-content: center;
       }
     }
 

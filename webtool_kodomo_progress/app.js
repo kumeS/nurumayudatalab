@@ -5008,36 +5008,63 @@ function regenerateParentReport(reportType, studentId = '', reportId = '') {
           const targetStudents = studentsData.students.filter(student => 
             student.grade === existingReport.grade
           );
-          showAlert(`${existingReport.grade}年生全体のレポートを再生成中...`, 'info');
-          newReport = generateClassParentReportContentForGrade(existingReport.grade, targetStudents);
-          replaceOrAddParentReport(newReport, 'class_parent', '', reportId);
-          updateParentReportHistory();
-          showParentReportDetail(newReport);
-          showAlert(`${existingReport.grade}年生全体のレポートを更新しました！`, 'success');
+          showAnalysisLoading(`${existingReport.grade}年生全体のレポートを再生成中...`);
+          setTimeout(() => {
+            try {
+              newReport = generateClassParentReportContentForGrade(existingReport.grade, targetStudents);
+              replaceOrAddParentReport(newReport, 'class_parent', '', reportId);
+              updateParentReportHistory();
+              showParentReportDetail(newReport);
+              showAlert(`${existingReport.grade}年生全体のレポートを更新しました！`, 'success');
+            } catch (error) {
+              console.error('学年全体レポート再生成エラー:', error);
+              showAlert('レポート再生成中にエラーが発生しました', 'error');
+            } finally {
+              window.isRegeneratingReport = false;
+            }
+          }, 1000);
           return;
         } else {
           // 特定クラスのレポート更新
           const targetStudents = studentsData.students.filter(student => 
             student.grade === existingReport.grade && student.class === existingReport.className
           );
-          showAlert(`${existingReport.grade}年${existingReport.className}のレポートを再生成中...`, 'info');
-          newReport = generateClassParentReportContentForClass(existingReport.grade, existingReport.className, targetStudents);
-          replaceOrAddParentReport(newReport, 'class_parent', '', reportId);
-          updateParentReportHistory();
-          showParentReportDetail(newReport);
-          showAlert(`${existingReport.grade}年${existingReport.className}のレポートを更新しました！`, 'success');
+          showAnalysisLoading(`${existingReport.grade}年${existingReport.className}のレポートを再生成中...`);
+          setTimeout(() => {
+            try {
+              newReport = generateClassParentReportContentForClass(existingReport.grade, existingReport.className, targetStudents);
+              replaceOrAddParentReport(newReport, 'class_parent', '', reportId);
+              updateParentReportHistory();
+              showParentReportDetail(newReport);
+              showAlert(`${existingReport.grade}年${existingReport.className}のレポートを更新しました！`, 'success');
+            } catch (error) {
+              console.error('クラスレポート再生成エラー:', error);
+              showAlert('レポート再生成中にエラーが発生しました', 'error');
+            } finally {
+              window.isRegeneratingReport = false;
+            }
+          }, 1000);
           return;
         }
       }
     }
     
     // 一般的なクラス全体レポート
-    showAlert('クラス全体レポートを再生成中...', 'info');
-    newReport = generateClassParentReportContent();
-    replaceOrAddParentReport(newReport, 'class_parent');
-    updateParentReportHistory();
-    showParentReportDetail(newReport);
-    showAlert('クラス全体レポートを更新しました！', 'success');
+    showAnalysisLoading('クラス全体レポートを再生成中...');
+    setTimeout(() => {
+      try {
+        newReport = generateClassParentReportContent();
+        replaceOrAddParentReport(newReport, 'class_parent');
+        updateParentReportHistory();
+        showParentReportDetail(newReport);
+        showAlert('クラス全体レポートを更新しました！', 'success');
+      } catch (error) {
+        console.error('クラス全体レポート再生成エラー:', error);
+        showAlert('レポート再生成中にエラーが発生しました', 'error');
+      } finally {
+        window.isRegeneratingReport = false;
+      }
+    }, 1000);
   } else if (reportType === 'individual_parent') {
     // 個別レポートの場合はstudentIdが必要
     if (!studentId) {
@@ -5047,16 +5074,26 @@ function regenerateParentReport(reportType, studentId = '', reportId = '') {
     // 個別レポートの再生成
     const student = studentsData.students.find(s => s.id === studentId);
     if (student) {
-      showAlert(`${student.name}さんのレポートを再生成中...`, 'info');
-      const newReport = generateIndividualParentReport(student);
-      
-      // 既存の同じ児童のレポートを探して置き換える
-      replaceOrAddParentReport(newReport, 'individual_parent', studentId);
-      updateParentReportHistory();
-      showParentReportDetail(newReport);
-      showAlert(`${student.name}さんのレポートを更新しました！`, 'success');
+      showAnalysisLoading(`${student.name}さんのレポートを再生成中...`);
+      setTimeout(() => {
+        try {
+          const newReport = generateIndividualParentReport(student);
+          
+          // 既存の同じ児童のレポートを探して置き換える
+          replaceOrAddParentReport(newReport, 'individual_parent', studentId);
+          updateParentReportHistory();
+          showParentReportDetail(newReport);
+          showAlert(`${student.name}さんのレポートを更新しました！`, 'success');
+        } catch (error) {
+          console.error('個別レポート再生成エラー:', error);
+          showAlert('レポート再生成中にエラーが発生しました', 'error');
+        } finally {
+          window.isRegeneratingReport = false;
+        }
+      }, 1000);
     } else {
       showAlert('対象の児童が見つかりませんでした', 'error');
+      window.isRegeneratingReport = false;
     }
   } else {
     showAlert('レポートの種類が不明です', 'error');
