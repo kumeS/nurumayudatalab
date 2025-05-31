@@ -232,6 +232,8 @@ function loadData() {
       if (!studentsData.fieldDefinitions || !studentsData.students) {
         throw new Error('Invalid data structure');
       }
+      // 行動タグフィールドの互換性チェック
+      ensureDataCompatibility();
     } catch (error) {
       console.error('データ読み込みエラー:', error);
       showAlert('保存データの読み込みに失敗しました。初期化します。', 'warning');
@@ -280,6 +282,10 @@ function initializeDefaultData() {
     ]
   };
   saveData();
+  // 初期化後も互換性チェックを実行（重複回避のため遅延実行）
+  setTimeout(() => {
+    ensureDataCompatibility();
+  }, 100);
 }
 
 /**
@@ -296,6 +302,52 @@ function saveData() {
     } else {
       showAlert('データの保存に失敗しました', 'error');
     }
+  }
+}
+
+/**
+ * データの互換性チェックと更新
+ */
+function ensureDataCompatibility() {
+  // 行動タグフィールドが存在しない場合は追加
+  const behaviorTagField = studentsData.fieldDefinitions.find(field => field.id === 'behaviorTags');
+  
+  if (!behaviorTagField) {
+    const newBehaviorTagField = {
+      id: 'behaviorTags',
+      name: '児童の行動タグ',
+      type: 'multiselect',
+      options: [
+        '積極的に手を上げる',
+        '黙っていた',
+        'クラスでのリーダー役',
+        '規則正しい生活習慣',
+        '一生懸命頑張っています',
+        '宿題をしっかり提出',
+        '学習への意欲が高い',
+        '友達に教える姿勢',
+        'いつも明るい',
+        '集中力が続く',
+        '細かいところに気づく',
+        '協力的な姿勢',
+        '独创的なアイデアを出す',
+        '整理整頓が上手',
+        '時間を守って行動',
+        '困っている友達を手助け',
+        '最後まであきらめない',
+        '新しいことに挑戦する',
+        '丁寧な字で書く',
+        '正直に報告する',
+        '質問を積極的にする',
+        '間違いを恐れず発言'
+      ],
+      required: false
+    };
+    
+    studentsData.fieldDefinitions.push(newBehaviorTagField);
+    saveData();
+    console.log('行動タグフィールドを追加しました');
+    showAlert('行動タグ機能が追加されました！', 'success');
   }
 }
 
@@ -978,11 +1030,11 @@ function updateInputFields() {
         fieldInput = `
           <div class="behavior-tags-container" id="input_${field.id}">
             ${field.options.map((option, index) => `
-              <label class="behavior-tag-item">
-                <input type="checkbox" name="${field.id}" value="${option}" class="behavior-tag-checkbox">
-                <span class="behavior-tag-label">${option}</span>
-              </label>
+              <button type="button" class="behavior-tag-button" data-value="${option}" onclick="toggleBehaviorTag(this, '${field.id}')">
+                ${option}
+              </button>
             `).join('')}
+            <input type="hidden" name="${field.id}" id="hidden_${field.id}" value="">
           </div>
         `;
         break;
@@ -1459,6 +1511,18 @@ function formatDate(dateString) {
  */
 function clearForm() {
   document.getElementById('progressInputForm').reset();
+  
+  // 行動タグボタンの選択状態をリセット
+  const behaviorTagButtons = document.querySelectorAll('.behavior-tag-button.selected');
+  behaviorTagButtons.forEach(button => {
+    button.classList.remove('selected');
+  });
+  
+  // hidden inputの値もクリア
+  const hiddenInputs = document.querySelectorAll('input[id^="hidden_"]');
+  hiddenInputs.forEach(input => {
+    input.value = '';
+  });
 }
 
 /**
@@ -1602,7 +1666,20 @@ function handleProgressInput(event) {
       if (field.type === 'checkbox') {
         value = element.checked;
         hasData = true;
-      } else if (element.value.trim()) {
+      } else if (field.type === 'multiselect') {
+        // multiselectの場合、hidden inputから値を取得
+        const hiddenInput = document.getElementById(`hidden_${field.id}`);
+        if (hiddenInput && hiddenInput.value) {
+          try {
+            value = JSON.parse(hiddenInput.value);
+            if (Array.isArray(value) && value.length > 0) {
+              hasData = true;
+            }
+          } catch (error) {
+            console.error('行動タグデータの解析エラー:', error);
+          }
+        }
+      } else if (element.value && element.value.trim()) {
         value = element.value.trim();
         hasData = true;
       }
@@ -1629,6 +1706,18 @@ function handleProgressInput(event) {
   
   // フォームリセット
   document.getElementById('progressInputForm').reset();
+  
+  // 行動タグボタンの選択状態をリセット
+  const behaviorTagButtons = document.querySelectorAll('.behavior-tag-button.selected');
+  behaviorTagButtons.forEach(button => {
+    button.classList.remove('selected');
+  });
+  
+  // hidden inputの値もクリア
+  const hiddenInputs = document.querySelectorAll('input[id^="hidden_"]');
+  hiddenInputs.forEach(input => {
+    input.value = '';
+  });
   
   updateUI();
   showAlert(`${student.name}さんの進捗を記録しました`, 'success');
@@ -2726,6 +2815,9 @@ function analyzeStudentLearning(data, studentName) {
         }
       } else if (field.type === 'text' && value.trim()) {
         analyses.push(`- **${field.name}**: "${value}" - 具体的な内容が記録されています`);
+      } else if (field.type === 'multiselect' && Array.isArray(value) && value.length > 0) {
+        const behaviorAnalysis = analyzeBehaviorTags(value, studentName);
+        analyses.push(`- **${field.name}**: ${behaviorAnalysis}`);
       }
     }
   });
@@ -3858,6 +3950,9 @@ function generateClassParentReportContentForGrade(grade, targetStudents) {
 
   const stats = calculateLearningStats(recentData);
   
+  // 行動タグの統計を取得
+  const behaviorStats = calculateBehaviorTagStatsForClass(recentData);
+  
   // クラス別の詳細情報
   const classDetails = Array.from(classSummary.entries())
     .sort(([a], [b]) => a.localeCompare(b))
@@ -3905,6 +4000,9 @@ ${recentData.length > 0 ? `
 ・**学習への意欲**: 学年平均 **${stats.avgMotivation.toFixed(1)}点**（5点満点）
 ・**宿題への取り組み**: **${Math.round((stats.homeworkSubmissionRate || 0) * 100)}%**のお子様が継続的に頑張っています。` : `
 ・現在、学習記録を蓄積中です。お子様たちの頑張りをしっかりと記録していきます。`}
+
+🌟 **${grade}年生の行動の特徴**
+${behaviorStats}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -4248,6 +4346,10 @@ function generateStudentStrengthsForParents(data, studentName) {
   const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
   const motivation = data.motivation ? parseInt(data.motivation) : 0;
   
+  // 行動タグから強みを抽出
+  const behaviorTags = data.behaviorTags || [];
+  const behaviorStrengths = extractBehaviorStrengthsForParents(behaviorTags, studentName);
+  
   if (learningStatus >= 4) {
     strengths.push(`📚 **学習への取り組みがとても素晴らしく**、集中して課題に向き合っています`);
   }
@@ -4259,6 +4361,9 @@ function generateStudentStrengthsForParents(data, studentName) {
   if (data.homework === '提出') {
     strengths.push(`📝 **宿題をきちんと提出し**、責任感を持って取り組んでいます`);
   }
+  
+  // 行動タグからの強みを追加
+  strengths.push(...behaviorStrengths);
   
   if (strengths.length === 0) {
     strengths.push(`🌱 **${studentName}さんなりのペース**で、一生懸命頑張っています`);
@@ -4299,6 +4404,12 @@ function analyzeStudentGrowthForParents(records, studentName) {
     growthMessage += `- 学習への意欲を**継続して保っています**\n`;
   }
   
+  // 行動タグの変化を分析
+  const behaviorGrowth = analyzeBehaviorTagsGrowthForParents(prev, current, studentName);
+  if (behaviorGrowth) {
+    growthMessage += behaviorGrowth;
+  }
+  
   if (growthMessage === `**📈 最近の成長**\n`) {
     growthMessage += `- **${studentName}さんなりのペース**で、着実に成長しています\n`;
   }
@@ -4312,6 +4423,10 @@ function analyzeStudentGrowthForParents(records, studentName) {
 function generateHomeSupport(data, studentName) {
   const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
   const motivation = data.motivation ? parseInt(data.motivation) : 0;
+  
+  // 行動タグに基づく個別サポート提案を取得
+  const behaviorTags = data.behaviorTags || [];
+  const behaviorSupport = generateBehaviorBasedSupportForParents(behaviorTags, studentName);
   
   let support = '';
   
@@ -4351,6 +4466,11 @@ function generateHomeSupport(data, studentName) {
 ・${studentName}さんが**学校に行けたこと自体**を、まず認めて褒めてあげてください`;
   }
   
+  // 行動タグに基づく個別サポートを追加
+  if (behaviorSupport) {
+    support += `\n\n🎯 **${studentName}さんの特性に合わせたサポート**\n\n${behaviorSupport}`;
+  }
+  
   return support;
 }
 
@@ -4360,9 +4480,15 @@ function generateHomeSupport(data, studentName) {
 function generateEncouragementMessage(data, studentName) {
   const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
   const motivation = data.motivation ? parseInt(data.motivation) : 0;
+  const behaviorTags = data.behaviorTags || [];
+  
+  // 行動タグに基づく個別の応援メッセージを取得
+  const behaviorEncouragement = generateBehaviorBasedEncouragement(behaviorTags, studentName);
+  
+  let baseMessage = '';
   
   if (learningStatus >= 4 && motivation >= 4) {
-    return `${studentName}さん、いつも本当によく頑張っていますね！
+    baseMessage = `${studentName}さん、いつも本当によく頑張っていますね！
 
 あなたの一生懸命な姿を見ていると、先生もとても嬉しくなります。
 
@@ -4370,7 +4496,7 @@ function generateEncouragementMessage(data, studentName) {
 
 みんなも${studentName}さんの頑張りを見て、刺激を受けています。`;
   } else if (learningStatus >= 3 || motivation >= 3) {
-    return `${studentName}さん、毎日お疲れさまです！
+    baseMessage = `${studentName}さん、毎日お疲れさまです！
 
 あなたの頑張りを、先生はいつも見ています。
 
@@ -4380,7 +4506,7 @@ function generateEncouragementMessage(data, studentName) {
 
 ${studentName}さんの成長を、先生も保護者の方も応援しています。`;
   } else {
-    return `${studentName}さん、学校に来てくれてありがとう！
+    baseMessage = `${studentName}さん、学校に来てくれてありがとう！
 
 あなたがクラスにいてくれることで、みんなが嬉しい気持ちになります。
 
@@ -4390,6 +4516,13 @@ ${studentName}さんの成長を、先生も保護者の方も応援していま
 
 ${studentName}さんのペースで、一歩ずつ進んでいきましょう。`;
   }
+  
+  // 行動タグに基づく応援メッセージを追加
+  if (behaviorEncouragement) {
+    baseMessage += `\n\n${behaviorEncouragement}`;
+  }
+  
+  return baseMessage;
 }
 
 /**
@@ -5257,4 +5390,339 @@ function deleteParentReport(reportId) {
 function viewAllParentReports() {
   // 実装は必要に応じて追加
   showAlert('全レポート表示機能は今後実装予定です', 'info');
+}/**
+ * 行動タグ分析
+ */
+function analyzeBehaviorTags(tags, studentName) {
+  // ポジティブ行動タグの定義
+  const positiveTags = [
+    '積極的に手を上げる', 'クラスでのリーダー役', '規則正しい生活習慣',
+    '一生懸命頑張っています', '宿題をしっかり提出', '学習への意欲が高い',
+    '友達に教える姿勢', 'いつも明るい', '集中力が続く', '細かいところに気づく',
+    '協力的な姿勢', '独創的なアイデアを出す', '整理整頓が上手', '時間を守って行動',
+    '困っている友達を手助け', '最後まであきらめない', '新しいことに挑戦する',
+    '丁寧な字で書く', '正直に報告する', '質問を積極的にする', '間違いを恐れず発言'
+  ];
+  
+  // 注意が必要な行動タグ
+  const attentionTags = ['黙っていた'];
+  
+  const positiveCount = tags.filter(tag => positiveTags.includes(tag)).length;
+  const attentionCount = tags.filter(tag => attentionTags.includes(tag)).length;
+  
+  let analysis = [];
+  
+  // タグ数による分析
+  if (tags.length >= 5) {
+    analysis.push('多様な行動特性が観察されています');
+  } else if (tags.length >= 3) {
+    analysis.push('いくつかの特徴的な行動が見られます');
+  } else {
+    analysis.push('注目すべき行動が記録されています');
+  }
+  
+  // ポジティブ行動の分析
+  if (positiveCount >= 3) {
+    analysis.push('多くの素晴らしい行動が確認できます');
+  } else if (positiveCount >= 1) {
+    analysis.push('良い行動特性が見られます');
+  }
+  
+  // 注意が必要な行動の分析
+  if (attentionCount > 0) {
+    analysis.push('さらなる支援や働きかけが有効かもしれません');
+  }
+  
+  // 具体的なタグの言及
+  const mentionTags = tags.slice(0, 3); // 最初の3つを言及
+  if (mentionTags.length > 0) {
+    analysis.push(`特に「${mentionTags.join('」「')}」などの行動が見られます`);
+  }
+  
+  return analysis.join('。') + '。';
+}
+
+/**
+ * 親御さん向けの行動タグから強みを抽出
+ */
+function extractBehaviorStrengthsForParents(behaviorTags, studentName) {
+  const strengths = [];
+  
+  // 行動タグを分類して親御さん向けの言葉で説明
+  const behaviorCategories = {
+    leadership: ['積極的に手を上げる', 'クラスでのリーダー役', '困っている友達を手助け'],
+    academic: ['学習への意欲が高い', '質問を積極的にする', '集中力が続く', '細かいところに気づく'],
+    character: ['いつも明るい', '正直に報告する', '最後まであきらめない', '新しいことに挑戦する'],
+    social: ['友達に教える姿勢', '協力的な姿勢', '間違いを恐れず発言'],
+    life: ['規則正しい生活習慣', '整理整頓が上手', '時間を守って行動', '丁寧な字で書く'],
+    responsibility: ['一生懸命頑張っています', '宿題をしっかり提出'],
+    creativity: ['独創的なアイデアを出す']
+  };
+  
+  // カテゴリーごとに強みを抽出
+  for (const [category, tags] of Object.entries(behaviorCategories)) {
+    const matchingTags = behaviorTags.filter(tag => tags.includes(tag));
+    if (matchingTags.length > 0) {
+      switch (category) {
+        case 'leadership':
+          strengths.push(`🌟 **リーダーシップ**: ${studentName}さんは${matchingTags.join('、')}など、クラスを引っ張る素晴らしい力を持っています`);
+          break;
+        case 'academic':
+          strengths.push(`📚 **学習面での輝き**: ${matchingTags.join('、')}など、学びに向かう姿勢が本当に素晴らしいです`);
+          break;
+        case 'character':
+          strengths.push(`💎 **人格的な魅力**: ${matchingTags.join('、')}など、${studentName}さんの心の美しさが表れています`);
+          break;
+        case 'social':
+          strengths.push(`🤝 **思いやりの心**: ${matchingTags.join('、')}など、周りを思いやる気持ちが育っています`);
+          break;
+        case 'life':
+          strengths.push(`✨ **生活習慣の素晴らしさ**: ${matchingTags.join('、')}など、日常生活での良い習慣が身についています`);
+          break;
+        case 'responsibility':
+          strengths.push(`💪 **責任感**: ${matchingTags.join('、')}など、自分のやるべきことをしっかり理解して行動しています`);
+          break;
+        case 'creativity':
+          strengths.push(`🎨 **創造性**: ${matchingTags.join('、')}など、豊かな発想力を持っています`);
+          break;
+      }
+    }
+  }
+  
+  return strengths;
+}
+
+/**
+ * 行動タグに基づく家庭でのサポート提案
+ */
+function generateBehaviorBasedSupportForParents(behaviorTags, studentName) {
+  const suggestions = [];
+  
+  // ポジティブな行動タグに対するサポート
+  if (behaviorTags.includes('積極的に手を上げる') || behaviorTags.includes('質問を積極的にする')) {
+    suggestions.push(`・${studentName}さんの「質問する力」を伸ばすために、家庭でも疑問に思ったことを自由に話せる雰囲気を大切にしてください`);
+  }
+  
+  if (behaviorTags.includes('クラスでのリーダー役') || behaviorTags.includes('困っている友達を手助け')) {
+    suggestions.push(`・${studentName}さんのリーダーシップを育むために、家庭でも年下のきょうだいや近所の子との関わりを大切にしてあげてください`);
+  }
+  
+  if (behaviorTags.includes('学習への意欲が高い') || behaviorTags.includes('集中力が続く')) {
+    suggestions.push(`・${studentName}さんの学習意欲を維持するために、興味を持ったことには十分に時間をかけられる環境を整えてあげてください`);
+  }
+  
+  if (behaviorTags.includes('いつも明るい') || behaviorTags.includes('友達に教える姿勢')) {
+    suggestions.push(`・${studentName}さんの明るい性格を活かして、家族での楽しい会話の時間を増やしてみてください`);
+  }
+  
+  if (behaviorTags.includes('規則正しい生活習慣') || behaviorTags.includes('時間を守って行動')) {
+    suggestions.push(`・${studentName}さんの良い生活習慣を褒めて、さらに伸ばしていけるよう応援してあげてください`);
+  }
+  
+  if (behaviorTags.includes('独創的なアイデアを出す')) {
+    suggestions.push(`・${studentName}さんの創造性を大切にして、自由な発想を表現できる機会（絵を描く、工作するなど）を提供してあげてください`);
+  }
+  
+  if (behaviorTags.includes('最後まであきらめない')) {
+    suggestions.push(`・${studentName}さんの粘り強さを認めて、困難な場面でも「必ずできるようになる」という信念を伝えてあげてください`);
+  }
+  
+  // 注意が必要な行動への対応
+  if (behaviorTags.includes('黙っていた')) {
+    suggestions.push(`・${studentName}さんが自分の気持ちを表現しやすいよう、家庭では安心して話せる時間を作ってあげてください`);
+    suggestions.push(`・無理に話させようとせず、${studentName}さんのペースを大切にしながら、少しずつコミュニケーションを増やしていきましょう`);
+  }
+  
+  return suggestions.join('\n');
+}
+
+/**
+ * 行動タグの成長分析（親御さん向け）
+ */
+function analyzeBehaviorTagsGrowthForParents(prevData, currentData, studentName) {
+  const prevTags = prevData.behaviorTags || [];
+  const currentTags = currentData.behaviorTags || [];
+  
+  if (prevTags.length === 0 && currentTags.length === 0) {
+    return '';
+  }
+  
+  let growthMessage = '';
+  
+  // 新しく現れたポジティブな行動
+  const newPositiveTags = currentTags.filter(tag => 
+    !prevTags.includes(tag) && 
+    !['黙っていた'].includes(tag)
+  );
+  
+  if (newPositiveTags.length > 0) {
+    growthMessage += `- **新しい素晴らしい行動**: 「${newPositiveTags.join('」「')}」という新しい良い面が見られるようになりました\n`;
+  }
+  
+  // 継続している良い行動
+  const continuedPositiveTags = currentTags.filter(tag => 
+    prevTags.includes(tag) && 
+    !['黙っていた'].includes(tag)
+  );
+  
+  if (continuedPositiveTags.length >= 2) {
+    growthMessage += `- **継続する良さ**: ${studentName}さんの良い行動が安定して続いています\n`;
+  }
+  
+  // 改善された行動（注意が必要だった行動の減少）
+  const improvedBehavior = prevTags.includes('黙っていた') && !currentTags.includes('黙っていた');
+  if (improvedBehavior) {
+    growthMessage += `- **コミュニケーション面での成長**: 以前より積極的に関わろうとする姿勢が見られます\n`;
+  }
+  
+  return growthMessage;
+}
+
+/**
+ * クラス全体の行動タグ統計計算（親御さん向け）
+ */
+function calculateBehaviorTagStatsForClass(recentData) {
+  if (recentData.length === 0) {
+    return '現在、お子様たちの行動データを蓄積中です。これから素晴らしい成長の様子をお伝えしていきます。';
+  }
+  
+  // 全ての行動タグを収集
+  const allBehaviorTags = [];
+  recentData.forEach(entry => {
+    if (entry.data.behaviorTags && Array.isArray(entry.data.behaviorTags)) {
+      allBehaviorTags.push(...entry.data.behaviorTags);
+    }
+  });
+  
+  if (allBehaviorTags.length === 0) {
+    return '今期の行動記録をこれから詳しく記録していきます。お子様たちの素晴らしい姿をお伝えできるよう努めます。';
+  }
+  
+  // タグの出現回数をカウント
+  const tagCounts = {};
+  allBehaviorTags.forEach(tag => {
+    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+  });
+  
+  // 上位のポジティブタグを取得
+  const positiveTags = [
+    '積極的に手を上げる', 'クラスでのリーダー役', '規則正しい生活習慣',
+    '一生懸命頑張っています', '宿題をしっかり提出', '学習への意欲が高い',
+    '友達に教える姿勢', 'いつも明るい', '集中力が続く', '細かいところに気づく',
+    '協力的な姿勢', '独創的なアイデアを出す', '整理整頓が上手', '時間を守って行動',
+    '困っている友達を手助け', '最後まであきらめない', '新しいことに挑戦する',
+    '丁寧な字で書く', '正直に報告する', '質問を積極的にする', '間違いを恐れず発言'
+  ];
+  
+  const positiveTagCounts = Object.entries(tagCounts)
+    .filter(([tag]) => positiveTags.includes(tag))
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 5);
+  
+  let result = '';
+  
+  if (positiveTagCounts.length > 0) {
+    result += `
+**よく見られる素晴らしい行動**：
+`;
+    positiveTagCounts.forEach(([tag, count], index) => {
+      const percentage = Math.round((count / recentData.length) * 100);
+      result += `${index + 1}. **${tag}** - ${count}名（${percentage}%のお子様）\n`;
+    });
+    
+    result += `
+**学年全体の傾向**：
+・${recentData.length}名のお子様の中で、多くの子が前向きで協力的な行動を見せています
+・特に「${positiveTagCounts[0][0]}」の行動が多く見られ、学年全体の良い雰囲気につながっています
+・一人ひとりが個性を活かしながら、クラス全体の成長に貢献しています`;
+  } else {
+    result = 'お子様たちの行動の記録を詳しく蓄積中です。これから素晴らしい成長の様子をお伝えしていきます。';
+  }
+  
+  return result;
+}
+
+/**
+ * 行動タグに基づく応援メッセージ生成
+ */
+function generateBehaviorBasedEncouragement(behaviorTags, studentName) {
+  if (!behaviorTags || behaviorTags.length === 0) {
+    return '';
+  }
+  
+  const encouragements = [];
+  
+  // ポジティブな行動タグに対する応援メッセージ
+  if (behaviorTags.includes('積極的に手を上げる')) {
+    encouragements.push(`${studentName}さんの積極的に手を上げる姿勢、本当に素晴らしいです！`);
+  }
+  
+  if (behaviorTags.includes('クラスでのリーダー役')) {
+    encouragements.push(`${studentName}さんのリーダーシップで、クラス全体が明るくなっています。`);
+  }
+  
+  if (behaviorTags.includes('困っている友達を手助け')) {
+    encouragements.push(`${studentName}さんの優しい心遣いが、多くの友達を救っています。`);
+  }
+  
+  if (behaviorTags.includes('学習への意欲が高い')) {
+    encouragements.push(`${studentName}さんの学習への情熱、とても輝いて見えます！`);
+  }
+  
+  if (behaviorTags.includes('いつも明るい')) {
+    encouragements.push(`${studentName}さんの明るい笑顔が、教室を温かい雰囲気にしてくれています。`);
+  }
+  
+  if (behaviorTags.includes('最後まであきらめない')) {
+    encouragements.push(`${studentName}さんの粘り強さ、本当に立派です。きっと大きな力になります。`);
+  }
+  
+  if (behaviorTags.includes('新しいことに挑戦する')) {
+    encouragements.push(`${studentName}さんのチャレンジ精神、とても素敵です！`);
+  }
+  
+  if (behaviorTags.includes('友達に教える姿勢')) {
+    encouragements.push(`${studentName}さんが友達に教えてくれる姿、とても心温まります。`);
+  }
+  
+  if (behaviorTags.includes('協力的な姿勢')) {
+    encouragements.push(`${studentName}さんの協力的な態度が、クラスの団結につながっています。`);
+  }
+  
+  if (behaviorTags.includes('独創的なアイデアを出す')) {
+    encouragements.push(`${studentName}さんのユニークなアイデア、いつも感心しています！`);
+  }
+  
+  // 注意が必要な行動への温かい励まし
+  if (behaviorTags.includes('黙っていた')) {
+    encouragements.push(`${studentName}さんのペースを大切にしています。少しずつ、自分らしく表現していきましょう。`);
+  }
+  
+  // 応援メッセージを組み合わせて返す
+  if (encouragements.length > 0) {
+    const selectedEncouragements = encouragements.slice(0, 2); // 最大2つ選択
+    return `**${studentName}さんへの特別メッセージ**: ${selectedEncouragements.join(' ')}`;
+  }
+  
+  return '';
+}
+/**
+ * 行動タグボタンの選択切り替え
+ */
+function toggleBehaviorTag(button, fieldId) {
+  // ボタンの選択状態を切り替え
+  button.classList.toggle('selected');
+  
+  // 選択されているタグの値を取得
+  const container = document.getElementById(`input_${fieldId}`);
+  const selectedButtons = container.querySelectorAll('.behavior-tag-button.selected');
+  const selectedValues = Array.from(selectedButtons).map(btn => btn.dataset.value);
+  
+  // hidden inputに選択された値を設定
+  const hiddenInput = document.getElementById(`hidden_${fieldId}`);
+  if (hiddenInput) {
+    hiddenInput.value = JSON.stringify(selectedValues);
+  }
+  
+  console.log(`選択されたタグ:`, selectedValues);
 }
