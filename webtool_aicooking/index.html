@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AI料理提案システム｜冷蔵庫の具材からメニューを提案</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <style>
@@ -26,12 +26,25 @@
       padding: 0;
       background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
       min-height: 100vh;
+      overflow-x: hidden; /* 横スクロール防止 */
+      -webkit-text-size-adjust: 100%; /* iOS Safari フォントサイズ調整防止 */
     }
     
     .container {
       max-width: 1400px;
       margin: 0 auto;
       padding: 2rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    
+    /* スマホでのコンテナ最適化 */
+    @media (max-width: 768px) {
+      .container {
+        max-width: 100% !important;
+        padding: 1rem !important;
+        margin: 0 !important;
+      }
     }
     
     .header {
@@ -64,6 +77,14 @@
       gap: 2rem;
       margin-bottom: 2rem;
       align-items: start;
+    }
+    
+    /* デスクトップ専用 - スマホでは無効化 */
+    @media (min-width: 769px) {
+      .main-content {
+        grid-template-columns: 50% 50%;
+        gap: 2rem;
+      }
     }
     
     /* タブレットサイズでも50%:50%レイアウト維持 */
@@ -107,9 +128,11 @@
       margin-top: auto;
     }
     
+    /* スマホ・タブレット縦向け専用レイアウト */
     @media (max-width: 768px) {
       .main-content {
-        grid-template-columns: 1fr;
+        display: flex !important;
+        flex-direction: column !important;
         gap: 1.5rem;
       }
       
@@ -411,76 +434,109 @@
       }
     }
     
-    /* 小さなスマホ画面での追加最適化 */
-    @media (max-width: 375px) {
+    /* 小型スマホ専用最適化 */
+    @media (max-width: 480px) {
       .container {
-        padding: 0.75rem;
+        padding: 0.75rem !important;
       }
       
       h1 {
-        font-size: 1.6rem;
+        font-size: 1.8rem !important;
+        text-align: center;
       }
       
       .description {
-        font-size: 1rem;
+        font-size: 0.95rem !important;
+        text-align: center;
+        padding: 0 0.5rem;
       }
       
       .ingredients-section, .settings-section {
-        padding: 1rem;
+        padding: 1rem !important;
+        margin-bottom: 1rem;
+        width: 100%;
+        box-sizing: border-box;
       }
       
       .section-title {
-        font-size: 1.1rem;
+        font-size: 1.2rem !important;
+        text-align: center;
+        margin-bottom: 1rem;
+      }
+      
+      .ingredient-search-input {
+        font-size: 1rem !important;
+        padding: 0.75rem 1rem !important;
+        width: 100% !important;
+        box-sizing: border-box;
       }
       
       .ingredient-tab {
-        font-size: 0.6rem;
-        padding: 0.5rem 0.2rem;
-        min-width: 105px;
-        line-height: 1.0;
-        flex: none;
+        font-size: 0.8rem !important;
+        padding: 0.6rem 0.3rem !important;
+        min-width: 110px !important;
+        text-align: center;
       }
       
-      .ingredient-tabs {
-        gap: 1px;
-        padding: 2px;
+      .ingredient-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 0.5rem !important;
+        padding: 0.5rem;
       }
       
-      .recipe-content .ingredients-list, 
-      .recipe-content .steps-list {
-        padding: 1rem;
+      .ingredient-item {
+        padding: 0.6rem 0.3rem !important;
+        font-size: 0.85rem !important;
+        min-height: 45px !important;
       }
       
-      .ingredients-list h3, .steps-list h3 {
-        font-size: 1rem;
+      .setting-option-label {
+        padding: 0.6rem 0.8rem !important;
+        font-size: 0.85rem !important;
+        text-align: center;
       }
       
-      .step-item {
-        padding: 0.75rem 0.5rem;
-        gap: 0.75rem;
+      .generate-btn {
+        font-size: 1rem !important;
+        padding: 0.9rem 1.5rem !important;
+        width: 100% !important;
+      }
+    }
+    
+    /* 極小スマホ専用最適化 */
+    @media (max-width: 375px) {
+      .container {
+        padding: 0.5rem !important;
       }
       
-      .step-number {
-        width: 26px;
-        height: 26px;
-        font-size: 0.85rem;
+      h1 {
+        font-size: 1.6rem !important;
       }
       
-      .step-text {
-        font-size: 0.9rem;
+      .ingredient-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.75rem !important;
       }
       
-      .ingredient-item-result {
-        padding: 0.6rem 0;
-        font-size: 0.9rem;
+      .ingredient-item {
+        padding: 0.75rem 0.4rem !important;
+        font-size: 0.9rem !important;
+        min-height: 50px !important;
       }
       
-      .recipe-tips {
-        padding: 1rem;
+      .ingredient-tab {
+        font-size: 0.75rem !important;
+        padding: 0.65rem 0.25rem !important;
+        min-width: 100px !important;
       }
       
-      .tips-title {
-        font-size: 1rem;
+      .section-title {
+        font-size: 1.1rem !important;
+      }
+      
+      .setting-option-label {
+        font-size: 0.8rem !important;
+        padding: 0.5rem 0.6rem !important;
       }
     }
     
@@ -1629,35 +1685,73 @@
       box-shadow: 0 6px 16px rgba(255, 107, 53, 0.5);
     }
     
-    /* タッチデバイス用の最適化 */
+    /* タッチデバイス専用の最適化 */
     @media (pointer: coarse) {
-      .ingredient-item {
-        min-height: 44px;
+      * {
+        -webkit-tap-highlight-color: rgba(255, 126, 95, 0.3);
         touch-action: manipulation;
-        -webkit-tap-highlight-color: rgba(255, 126, 95, 0.2);
+      }
+      
+      .ingredient-item {
+        min-height: 48px !important;
+        padding: 0.8rem 0.6rem !important;
+        font-size: 1rem !important;
+        border-width: 3px;
       }
       
       .ingredient-tab {
-        min-height: 44px;
-        touch-action: manipulation;
+        min-height: 48px !important;
+        padding: 0.8rem 0.6rem !important;
+        font-size: 0.9rem !important;
       }
       
       .setting-option-label {
-        min-height: 44px;
+        min-height: 48px !important;
+        padding: 0.8rem 1rem !important;
+        font-size: 0.95rem !important;
         display: flex;
         align-items: center;
         justify-content: center;
-        touch-action: manipulation;
       }
       
       .generate-btn {
-        min-height: 48px;
-        touch-action: manipulation;
+        min-height: 56px !important;
+        padding: 1.2rem 2rem !important;
+        font-size: 1.1rem !important;
       }
       
       .random-select-btn, .clear-all-btn, .all-ingredients-btn {
-        min-height: 44px;
-        touch-action: manipulation;
+        min-height: 48px !important;
+        padding: 0.8rem 1.2rem !important;
+        font-size: 1rem !important;
+      }
+      
+      .ingredient-search-input {
+        min-height: 48px !important;
+        padding: 0.8rem 1rem !important;
+        font-size: 1rem !important;
+      }
+    }
+    
+    /* スマホ横向き対応 */
+    @media (max-width: 896px) and (orientation: landscape) {
+      .main-content {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 1rem;
+      }
+      
+      .ingredients-section, .settings-section {
+        padding: 1rem !important;
+        min-height: auto !important;
+      }
+      
+      .ingredient-grid {
+        max-height: 250px !important;
+      }
+      
+      .container {
+        padding: 0.75rem !important;
       }
     }
     

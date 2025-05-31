@@ -252,7 +252,31 @@ function initializeDefaultData() {
       { id: 'taskContent', name: '実施課題', type: 'text', options: [], required: true },
       { id: 'learningStatus', name: '学習状況', type: 'select', options: ['1', '2', '3', '4', '5'], required: false },
       { id: 'motivation', name: '学習意欲', type: 'select', options: ['1', '2', '3', '4', '5'], required: false },
-      { id: 'homework', name: '宿題提出', type: 'checkbox', options: [], required: false }
+      { id: 'homework', name: '宿題提出', type: 'checkbox', options: [], required: false },
+      { id: 'behaviorTags', name: '児童の行動タグ', type: 'multiselect', options: [
+        '積極的に手を上げる',
+        '黙っていた',
+        'クラスでのリーダー役',
+        '規則正しい生活習慣',
+        '一生懸命頑張っています',
+        '宿題をしっかり提出',
+        '学習への意欲が高い',
+        '友達に教える姿勢',
+        'いつも明るい',
+        '集中力が続く',
+        '細かいところに気づく',
+        '協力的な姿勢',
+        '独創的なアイデアを出す',
+        '整理整頓が上手',
+        '時間を守って行動',
+        '困っている友達を手助け',
+        '最後まであきらめない',
+        '新しいことに挑戦する',
+        '丁寧な字で書く',
+        '正直に報告する',
+        '質問を積極的にする',
+        '間違いを恐れず発言'
+      ], required: false }
     ]
   };
   saveData();
@@ -948,6 +972,18 @@ function updateInputFields() {
       case 'checkbox':
         fieldInput = `
           <input type="checkbox" id="input_${field.id}" ${field.required ? 'required' : ''}>
+        `;
+        break;
+      case 'multiselect':
+        fieldInput = `
+          <div class="behavior-tags-container" id="input_${field.id}">
+            ${field.options.map((option, index) => `
+              <label class="behavior-tag-item">
+                <input type="checkbox" name="${field.id}" value="${option}" class="behavior-tag-checkbox">
+                <span class="behavior-tag-label">${option}</span>
+              </label>
+            `).join('')}
+          </div>
         `;
         break;
     }
