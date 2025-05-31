@@ -899,6 +899,17 @@ let analysisOptions = {
   'trend-analysis': true
 };
 
+// 統合分析用変数
+let currentAnalysisResults = null;
+let currentOptimizedKeywords = null;
+let currentHighlightedProduct = null;
+let currentIntegratedAnalysis = null;
+
+// 分析結果の保存用
+let basicAnalysisResult = null;
+let manufacturerDetectionResult = null;
+let keywordClassificationResult = null;
+
 // サンプルデータ（性能テスト用 - 重複キーワード・ダミー商品名含む）
 const sampleData = {
   keywords: {
@@ -939,10 +950,12 @@ function initializeDOMElements() {
   // アクションボタン要素
   const copyKeywordsBtn = document.getElementById('copyKeywordsBtn');
   const replaceKeywordsBtn = document.getElementById('replaceKeywordsBtn');
+  const detailedAnalysisBtn = document.getElementById('detailedAnalysisBtn');
   
   // ボタン要素をグローバルに保存（他の関数からアクセスするため）
   window.copyKeywordsBtn = copyKeywordsBtn;
   window.replaceKeywordsBtn = replaceKeywordsBtn;
+  window.detailedAnalysisBtn = detailedAnalysisBtn;
   
   // スコア表示要素
   scoresSection = document.getElementById('scoresSection');
@@ -952,6 +965,13 @@ function initializeDOMElements() {
   trendScoreValue = document.getElementById('trendScoreValue');
   trendScoreDetail = document.getElementById('trendScoreDetail');
   trendScoreBreakdown = document.getElementById('trendScoreBreakdown');
+
+  // 統合分析関連要素
+  window.integratedAnalysisSection = document.getElementById('integratedAnalysisSection');
+  window.basicAnalysisSummary = document.getElementById('basicAnalysisSummary');
+  window.manufacturerSummary = document.getElementById('manufacturerSummary');
+  window.classificationSummary = document.getElementById('classificationSummary');
+  window.integratedInsightsContent = document.getElementById('integratedInsightsContent');
   
   // 重要な要素の存在確認
   const criticalElements = [
@@ -1018,6 +1038,11 @@ function setupEventListeners() {
   // キーワードアクションボタン
   if (copyKeywordsBtn) copyKeywordsBtn.addEventListener('click', copyOptimizedKeywords);
   if (replaceKeywordsBtn) replaceKeywordsBtn.addEventListener('click', replaceKeywordsInput);
+  
+  // 詳細解析ボタン
+  if (window.detailedAnalysisBtn) {
+    window.detailedAnalysisBtn.addEventListener('click', handleDetailedAnalysis);
+  }
   
   // 入力フィールドの変更を監視してローカルストレージに保存
   if (keywordInput) keywordInput.addEventListener('input', saveInputData);
