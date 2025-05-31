@@ -220,19 +220,27 @@ ${text}
 - 文章構造、句読点、助詞、改行なども含めて一切変更しないでください
 - マークアップタグのみを追加し、元のテキストは絶対に変更・削除しないでください
 
-**ハイライト分類指示（4つの異なる色分け）**：
-1. **最適化されたキーワードと一致したキーワード**: <mark>タグでマークアップ（黄色ハイライト用）
-   - 検索キーワードと商品概要で一致する語句
-   - 部分一致、同義語、類似語も含む
-2. **検出されたブランド名、型番、商品名**: <strike>タグでマークアップ（グレーハイライト用）
-   - メーカー名、ブランド名、商品名、型番
-   - Amazon検索で固有名詞として扱われる語句
-3. **禁止ワード**: <del>タグでマークアップ（グレーハイライト用）
+**ハイライト分類指示（優先順位順）**：
+
+**重要**: 同一語句が複数の分類に該当する場合は、以下の優先順位に従ってハイライトしてください：
+
+1. **【最優先】禁止ワード**: <del>タグでマークアップ（薄赤色ハイライト用）
    - Amazon規約違反・非推奨語
    - 誇大表現、断定的表現
-4. **キーワードチェックされた商品概要でのみ検出されるキーワード**: <em>タグでマークアップ（薄赤色ハイライト用）
+   - 例：「最高」「最強」「世界一」「業界No.1」「業界最高クラス」「激安」「格安」「破格」「限定」「特別」「保証」「確実」「絶対」
+
+2. **【第2優先】検出されたブランド名、型番、商品名**: <strike>タグでマークアップ（グレーハイライト用）
+   - メーカー名、ブランド名、商品名、型番
+   - Amazon検索で固有名詞として扱われる語句
+
+3. **【第3優先】最適化されたキーワードと一致したキーワード**: <mark>タグでマークアップ（黄色ハイライト用）
+   - 検索キーワードと商品概要で一致する語句
+   - 部分一致、同義語、類似語も含む
+
+4. **【第4優先】キーワードチェックされた商品概要でのみ検出されるキーワード**: <em>タグでマークアップ（薄緑色ハイライト用）
    - 商品概要に含まれるが検索キーワードリストにない価値ある語句
    - 検索流入拡大に寄与する独自語句
+   - ただし、禁止ワードに該当する語句は除外してください
 
 **キーワード検出の徹底指示**：
 - 商品概要内で各キーワードを徹底的に検索
@@ -285,8 +293,8 @@ ${text}
   "highlight_analysis": {
     "search_terms": ["検索キーワードとして検出された語（黄色ハイライト）"],
     "brand_terms": ["メーカー・ブランド・型番として検出された語（グレーハイライト）"],
-    "forbidden_terms": ["Amazon検索で禁止・非推奨の語（グレーハイライト）"],
-    "unique_value_terms": ["商品概要独自の価値キーワード（薄赤色ハイライト）"]
+    "forbidden_terms": ["Amazon検索で禁止・非推奨の語（薄赤色ハイライト）"],
+    "unique_value_terms": ["商品概要独自の価値キーワード（薄緑色ハイライト）"]
   },
   "analysis_details": {
     "high_value_keywords": ["高価値検索キーワード"],
@@ -319,16 +327,19 @@ ${productText}
 
 【重要指示】
 1. 商品概要・仕様の入力テキストを必ずそのまま維持してください
-2. highlighted_productでは以下の4つの分類で正確にマークアップしてください：
-   - **最適化されたキーワードと一致したキーワード**: <mark>タグ（黄色ハイライト）
-   - **検出されたブランド名、型番、商品名**: <strike>タグ（グレーハイライト）
-   - **禁止ワード**: <del>タグ（グレーハイライト）
-   - **キーワードチェックされた商品概要でのみ検出されるキーワード**: <em>タグ（薄赤色ハイライト）
 
-3. キーワードチェックされた商品概要でのみ検出されるキーワードは、キーワード分析でも分析するために analysis_details.unique_product_keywords に必ず含めてください
+2. highlighted_productでは以下の優先順位でマークアップしてください：
+   **優先順位1（最優先）**: **禁止ワード** → <del>タグ（薄赤色ハイライト）
+   **優先順位2**: **検出されたブランド名、型番、商品名** → <strike>タグ（グレーハイライト）
+   **優先順位3**: **最適化されたキーワードと一致したキーワード** → <mark>タグ（黄色ハイライト）
+   **優先順位4**: **キーワードチェックされた商品概要でのみ検出されるキーワード** → <em>タグ（薄緑色ハイライト）
 
-4. 禁止ワード例：
-   - 「最高」「最強」「世界一」「業界No.1」（誇大表現）
+3. **同一語句が複数カテゴリに該当する場合は必ず上位優先順位を適用してください**
+
+4. キーワードチェックされた商品概要でのみ検出されるキーワードは、禁止ワードでない場合のみ analysis_details.unique_product_keywords に含めてください
+
+5. 禁止ワード例（必ず<del>タグでマークアップしてください）：
+   - 「最高」「最強」「世界一」「業界No.1」「業界最高クラス」「業界最高」（誇大表現）
    - 「激安」「格安」「破格」（価格関連の誇大表現）
    - 「限定」「特別」「プレミアム」（限定性を強調する語）
    - 「保証」「確実」「絶対」（断定的表現）
@@ -555,7 +566,7 @@ ${productText}
   }
 
   /**
-   * JSON レスポンスのパース
+   * JSON レスポンスのパース（統合分析用に拡張）
    * @param {string} text - レスポンステキスト
    * @returns {Object} - パースされたオブジェクト
    */
@@ -571,6 +582,11 @@ ${productText}
       jsonText = jsonMatch[1];
       console.log('JSONブロック抽出:', jsonText);
     } else {
+      // 統合分析の場合、Markdownレスポンスから構造化データを抽出
+      if (text.includes('overall_assessment') || text.includes('competitive_analysis')) {
+        return this.parseMarkdownAnalysisResponse(text);
+      }
+      
       // { で始まり } で終わる部分を抽出
       const startIndex = text.indexOf('{');
       const lastIndex = text.lastIndexOf('}');
@@ -590,6 +606,201 @@ ${productText}
       console.error('抽出したJSON:', jsonText);
       throw new Error('レスポンスのJSON解析に失敗しました');
     }
+  }
+
+  /**
+   * Markdown形式の統合分析レスポンスを構造化データに変換
+   * @param {string} text - Markdownテキスト
+   * @returns {Object} - 構造化された統合分析データ
+   */
+  parseMarkdownAnalysisResponse(text) {
+    console.log('Markdown統合分析レスポンスをパース中...');
+    
+    const result = {
+      overall_assessment: {
+        strengths: [],
+        weaknesses: [],
+        opportunities: [],
+        threats: []
+      },
+      competitive_analysis: {
+        brand_positioning: "",
+        differentiation_points: [],
+        competitive_advantages: []
+      },
+      keyword_strategy: {
+        search_intent_analysis: "",
+        longtail_opportunities: [],
+        seo_optimization_tips: []
+      },
+      customer_insights: {
+        target_personas: [],
+        purchase_motivations: [],
+        pain_points: []
+      },
+      value_proposition: {
+        emotional_appeals: [],
+        functional_benefits: [],
+        unique_selling_points: []
+      },
+      marketing_recommendations: {
+        immediate_actions: [],
+        medium_term_strategy: [],
+        long_term_vision: []
+      },
+      performance_metrics: {
+        key_indicators: [],
+        measurement_methods: []
+      },
+      confidence_score: 0.95,
+      analysis_summary: ""
+    };
+
+    // セクションごとにデータを抽出
+    const sections = text.split(/##\s+/);
+    
+    sections.forEach(section => {
+      if (section.includes('overall_assessment')) {
+        const strengthsMatch = section.match(/"strengths":\s*\[([\s\S]*?)\]/);
+        if (strengthsMatch) {
+          result.overall_assessment.strengths = this.extractArrayFromMatch(strengthsMatch[1]);
+        }
+        
+        const weaknessesMatch = section.match(/"weaknesses":\s*\[([\s\S]*?)\]/);
+        if (weaknessesMatch) {
+          result.overall_assessment.weaknesses = this.extractArrayFromMatch(weaknessesMatch[1]);
+        }
+        
+        const opportunitiesMatch = section.match(/"opportunities":\s*\[([\s\S]*?)\]/);
+        if (opportunitiesMatch) {
+          result.overall_assessment.opportunities = this.extractArrayFromMatch(opportunitiesMatch[1]);
+        }
+        
+        const threatsMatch = section.match(/"threats":\s*\[([\s\S]*?)\]/);
+        if (threatsMatch) {
+          result.overall_assessment.threats = this.extractArrayFromMatch(threatsMatch[1]);
+        }
+      }
+      
+      if (section.includes('competitive_analysis')) {
+        const positioningMatch = section.match(/"brand_positioning":\s*"([^"]+)"/);
+        if (positioningMatch) {
+          result.competitive_analysis.brand_positioning = positioningMatch[1];
+        }
+        
+        const diffPointsMatch = section.match(/"differentiation_points":\s*\[([\s\S]*?)\]/);
+        if (diffPointsMatch) {
+          result.competitive_analysis.differentiation_points = this.extractArrayFromMatch(diffPointsMatch[1]);
+        }
+        
+        const compAdvMatch = section.match(/"competitive_advantages":\s*\[([\s\S]*?)\]/);
+        if (compAdvMatch) {
+          result.competitive_analysis.competitive_advantages = this.extractArrayFromMatch(compAdvMatch[1]);
+        }
+      }
+      
+      if (section.includes('keyword_strategy')) {
+        const searchIntentMatch = section.match(/"search_intent_analysis":\s*"([^"]+)"/);
+        if (searchIntentMatch) {
+          result.keyword_strategy.search_intent_analysis = searchIntentMatch[1];
+        }
+        
+        const longtailMatch = section.match(/"longtail_opportunities":\s*\[([\s\S]*?)\]/);
+        if (longtailMatch) {
+          result.keyword_strategy.longtail_opportunities = this.extractArrayFromMatch(longtailMatch[1]);
+        }
+        
+        const seoTipsMatch = section.match(/"seo_optimization_tips":\s*\[([\s\S]*?)\]/);
+        if (seoTipsMatch) {
+          result.keyword_strategy.seo_optimization_tips = this.extractArrayFromMatch(seoTipsMatch[1]);
+        }
+      }
+      
+      if (section.includes('customer_insights')) {
+        const personasMatch = section.match(/"target_personas":\s*\[([\s\S]*?)\]/);
+        if (personasMatch) {
+          result.customer_insights.target_personas = this.extractArrayFromMatch(personasMatch[1]);
+        }
+        
+        const motivationsMatch = section.match(/"purchase_motivations":\s*\[([\s\S]*?)\]/);
+        if (motivationsMatch) {
+          result.customer_insights.purchase_motivations = this.extractArrayFromMatch(motivationsMatch[1]);
+        }
+        
+        const painPointsMatch = section.match(/"pain_points":\s*\[([\s\S]*?)\]/);
+        if (painPointsMatch) {
+          result.customer_insights.pain_points = this.extractArrayFromMatch(painPointsMatch[1]);
+        }
+      }
+      
+      if (section.includes('value_proposition')) {
+        const emotionalMatch = section.match(/"emotional_appeals":\s*\[([\s\S]*?)\]/);
+        if (emotionalMatch) {
+          result.value_proposition.emotional_appeals = this.extractArrayFromMatch(emotionalMatch[1]);
+        }
+        
+        const functionalMatch = section.match(/"functional_benefits":\s*\[([\s\S]*?)\]/);
+        if (functionalMatch) {
+          result.value_proposition.functional_benefits = this.extractArrayFromMatch(functionalMatch[1]);
+        }
+        
+        const uspMatch = section.match(/"unique_selling_points":\s*\[([\s\S]*?)\]/);
+        if (uspMatch) {
+          result.value_proposition.unique_selling_points = this.extractArrayFromMatch(uspMatch[1]);
+        }
+      }
+      
+      if (section.includes('marketing_recommendations')) {
+        const immediateMatch = section.match(/"immediate_actions":\s*\[([\s\S]*?)\]/);
+        if (immediateMatch) {
+          result.marketing_recommendations.immediate_actions = this.extractArrayFromMatch(immediateMatch[1]);
+        }
+        
+        const mediumMatch = section.match(/"medium_term_strategy":\s*\[([\s\S]*?)\]/);
+        if (mediumMatch) {
+          result.marketing_recommendations.medium_term_strategy = this.extractArrayFromMatch(mediumMatch[1]);
+        }
+        
+        const longTermMatch = section.match(/"long_term_vision":\s*\[([\s\S]*?)\]/);
+        if (longTermMatch) {
+          result.marketing_recommendations.long_term_vision = this.extractArrayFromMatch(longTermMatch[1]);
+        }
+      }
+      
+      if (section.includes('performance_metrics')) {
+        const indicatorsMatch = section.match(/"key_indicators":\s*\[([\s\S]*?)\]/);
+        if (indicatorsMatch) {
+          result.performance_metrics.key_indicators = this.extractArrayFromMatch(indicatorsMatch[1]);
+        }
+        
+        const methodsMatch = section.match(/"measurement_methods":\s*\[([\s\S]*?)\]/);
+        if (methodsMatch) {
+          result.performance_metrics.measurement_methods = this.extractArrayFromMatch(methodsMatch[1]);
+        }
+      }
+    });
+
+    // 分析の要約を抽出
+    const summaryMatch = text.match(/##\s*分析の要約\s*([\s\S]*?)$/);
+    if (summaryMatch) {
+      result.analysis_summary = summaryMatch[1].trim();
+    }
+
+    console.log('Markdown統合分析パース完了:', result);
+    return result;
+  }
+
+  /**
+   * 配列文字列から配列を抽出
+   * @param {string} arrayString - 配列文字列
+   * @returns {Array} - 抽出された配列
+   */
+  extractArrayFromMatch(arrayString) {
+    const items = arrayString.split('\n')
+      .map(line => line.replace(/^\s*"([^"]*)"[,\s]*$/, '$1').trim())
+      .filter(item => item && !item.match(/^\s*[\[\]]\s*$/));
+    
+    return items.length > 0 ? items : [];
   }
 
   /**
@@ -643,6 +854,8 @@ ${productText}
         role: "system", 
         content: `あなたは高度なマーケティング分析専門家です。基本分析、メーカー検出、キーワード分類の結果を統合して、より深い洞察と戦略的提案を行ってください。
 
+**重要**: レスポンスは必ずJSON形式で出力してください。
+
 **分析フレームワーク**:
 
 1. **競合優位性分析**
@@ -670,10 +883,11 @@ ${productText}
    - 季節性・トレンドを考慮した施策
    - 効果測定指標の設定
 
-**出力形式**:
+**必須出力形式（JSON）**:
+\`\`\`json
 {
   "overall_assessment": {
-    "strengths": ["強み1", "強み2"],
+    "strengths": ["強み1", "強み2", "強み3"],
     "weaknesses": ["課題1", "課題2"],
     "opportunities": ["機会1", "機会2"],
     "threats": ["脅威1", "脅威2"]
@@ -709,7 +923,10 @@ ${productText}
   },
   "confidence_score": 0.95,
   "analysis_summary": "分析結果の要約（2-3文）"
-}`
+}
+\`\`\`
+
+**絶対に遵守**: レスポンスはJSON形式のみで、余計な説明文は含めないでください。`
       },
       {
         role: "user",
@@ -735,8 +952,8 @@ ${productDescription}
     ];
 
     try {
-      const response = await this.callAPI(messages, 'integrated_analysis');
-      return this.parseJSONResponse(response);
+      const response = await this.callLLMAPI(messages);
+      return response;
     } catch (error) {
       console.error('統合分析エラー:', error);
       return this.generateFallbackIntegratedAnalysis(basicAnalysisResult, manufacturerDetectionResult, keywordClassificationResult);
@@ -1061,15 +1278,24 @@ function setupEventListeners() {
   });
 }
 
-// サンプルデータ挿入関数
+// サンプルデータ挿入関数（DOM要素の初期化を確実に行う）
 function insertSampleKeywords(category) {
-  if (!keywordInput) return;
+  // DOM要素を確実に取得
+  const keywordInput = document.getElementById('keywordInput');
+  if (!keywordInput) {
+    console.error('keywordInput要素が見つかりません');
+    return;
+  }
   
   if (category === 'clear') {
     keywordInput.value = '';
-  } else {
+  } else if (sampleData.keywords[category]) {
     keywordInput.value = sampleData.keywords[category];
+  } else {
+    console.error(`サンプルキーワードが見つかりません: ${category}`);
+    return;
   }
+  
   keywordInput.classList.add('highlight-input');
   setTimeout(() => {
     keywordInput.classList.remove('highlight-input');
@@ -1077,13 +1303,22 @@ function insertSampleKeywords(category) {
 }
 
 function insertSampleProduct(category) {
-  if (!productInput) return;
+  // DOM要素を確実に取得
+  const productInput = document.getElementById('productInput');
+  if (!productInput) {
+    console.error('productInput要素が見つかりません');
+    return;
+  }
   
   if (category === 'clear') {
     productInput.value = '';
-  } else {
+  } else if (sampleData.products[category]) {
     productInput.value = sampleData.products[category];
+  } else {
+    console.error(`サンプル商品情報が見つかりません: ${category}`);
+    return;
   }
+  
   productInput.classList.add('highlight-input');
   setTimeout(() => {
     productInput.classList.remove('highlight-input');
@@ -1137,17 +1372,28 @@ function restoreActiveTab() {
 
 // 分析実行メイン処理
 async function handleAnalysisExecution() {
-  if (!keywordInput || !productInput) {
+  // DOM要素を確実に取得
+  const keywordInputEl = document.getElementById('keywordInput');
+  const productInputEl = document.getElementById('productInput');
+  const executeBtnEl = document.getElementById('executeBtn');
+  
+  if (!keywordInputEl || !productInputEl) {
     alert('入力エリアが見つかりません。ページを再読み込みしてください。');
     return;
   }
   
-  const keywords = keywordInput.value.trim();
-  const product = productInput.value.trim();
+  const keywords = keywordInputEl.value.trim();
+  const product = productInputEl.value.trim();
 
   if (!keywords || !product) {
     alert('キーワード入力と商品概要の両方を入力してください。');
     return;
+  }
+
+  // ボタンを無効化
+  if (executeBtnEl) {
+    executeBtnEl.disabled = true;
+    executeBtnEl.style.opacity = '0.6';
   }
 
   try {
@@ -1190,6 +1436,13 @@ async function handleAnalysisExecution() {
     }
   } finally {
     stopLoadingIndicator();
+    
+    // ボタンを有効化
+    const executeBtnEl = document.getElementById('executeBtn');
+    if (executeBtnEl) {
+      executeBtnEl.disabled = false;
+      executeBtnEl.style.opacity = '1';
+    }
   }
 }
 
@@ -1300,6 +1553,19 @@ function displayResults(results) {
   
   // グローバルに分析結果を保存（メーカー名ハイライト用）
   window.currentAnalysisResults = data;
+  
+  // 統合分析用に個別の分析結果を保存
+  basicAnalysisResult = data.comprehensive || data;
+  manufacturerDetectionResult = data.manufacturers;
+  keywordClassificationResult = data.keywordTypes;
+  
+  // 詳細解析ボタンを有効化（全ての分析結果が揃った場合）
+  if (basicAnalysisResult && manufacturerDetectionResult && keywordClassificationResult) {
+    if (window.detailedAnalysisBtn) {
+      window.detailedAnalysisBtn.disabled = false;
+      console.log('詳細解析ボタンが有効化されました');
+    }
+  }
   
   // 新しいスコアセクションを表示
   displayMainScores(data);
@@ -1491,11 +1757,14 @@ function displayBasicResults(data) {
     // LLMからの4つの異なるハイライトタグを正確に適用
     highlightedText = highlightedText.replace(/<mark>(.*?)<\/mark>/g, '<span class="highlight-yellow">$1</span>'); // 最適化されたキーワードと一致（黄色）
     highlightedText = highlightedText.replace(/<strike>(.*?)<\/strike>/g, '<span class="highlight-gray">$1</span>'); // ブランド名・型番・商品名（グレー）
-    highlightedText = highlightedText.replace(/<del>(.*?)<\/del>/g, '<span class="highlight-forbidden">$1</span>'); // 禁止ワード（グレー）
-    highlightedText = highlightedText.replace(/<em>(.*?)<\/em>/g, '<span class="highlight-red">$1</span>'); // 商品概要でのみ検出されるキーワード（薄赤色）
+    highlightedText = highlightedText.replace(/<del>(.*?)<\/del>/g, '<span class="highlight-light-red">$1</span>'); // 禁止ワード（薄赤色）
+    highlightedText = highlightedText.replace(/<em>(.*?)<\/em>/g, '<span class="highlight-light-green">$1</span>'); // 商品概要でのみ検出されるキーワード（薄緑色）
     
     // 追加でキーワードハイライト処理を実行（LLMで検出されなかった場合のフォールバック）
     highlightedText = enhanceAdvancedHighlighting(highlightedText, data);
+    
+    // 整合性チェック: 禁止ワードが他の色でハイライトされている場合は修正
+    highlightedText = fixHighlightConsistency(highlightedText, data);
     
     highlightedProduct.innerHTML = highlightedText;
   } else {
@@ -1524,14 +1793,14 @@ function displayBasicResults(data) {
       if (highlight.forbidden_terms && highlight.forbidden_terms.length > 0) {
         const li = document.createElement('li');
         li.className = 'critical';
-        li.innerHTML = `<strong>🚫 禁止ワード検出:</strong> <span class="tip-keyword-list">${highlight.forbidden_terms.join(' ')}</span> - <span class="tip-highlight">Amazon規約に注意が必要です</span>`;
+        li.innerHTML = `<strong>🚫 禁止ワード検出:</strong> <span class="tip-keyword-list">${highlight.forbidden_terms.join(' ')}</span> - Amazon規約に注意が必要です`;
         overviewImprovementTips.appendChild(li);
       }
       
       if (highlight.unique_value_terms && highlight.unique_value_terms.length > 0) {
         const li = document.createElement('li');
         li.className = 'success';
-        li.innerHTML = `<strong>💡 商品概要独自キーワード:</strong> <span class="tip-keyword-list">${highlight.unique_value_terms.join(' ')}</span> - <span class="tip-action">キーワード分析に追加されました</span>`;
+        li.innerHTML = `<strong>💡 商品概要独自キーワード:</strong> <span class="tip-keyword-list">${highlight.unique_value_terms.join(' ')}</span> - キーワード分析に追加されました`;
         overviewImprovementTips.appendChild(li);
       }
       
@@ -1545,7 +1814,7 @@ function displayBasicResults(data) {
       if (highlight.brand_terms && highlight.brand_terms.length > 0) {
         const li = document.createElement('li');
         li.className = 'info';
-        li.innerHTML = `<strong>🏷️ ブランド・型番検出:</strong> <span class="tip-keyword-list">${highlight.brand_terms.join(' ')}</span> - <span class="tip-highlight">グレーでハイライトされています</span>`;
+        li.innerHTML = `<strong>🏷️ ブランド・型番検出:</strong> <span class="tip-keyword-list">${highlight.brand_terms.join(' ')}</span> - グレーでハイライトされています`;
         overviewImprovementTips.appendChild(li);
       }
     }
@@ -1556,7 +1825,7 @@ function displayBasicResults(data) {
       if (matches.missing_keywords && matches.missing_keywords.length > 0) {
         const li = document.createElement('li');
         li.className = 'critical';
-        li.innerHTML = `<strong>⚠️ 未検出キーワード:</strong> <span class="tip-keyword-list">${matches.missing_keywords.join(' ')}</span> - <span class="tip-action">商品概要での表現を確認してください</span>`;
+        li.innerHTML = `<strong>⚠️ 未検出キーワード:</strong> <span class="tip-keyword-list">${matches.missing_keywords.join(' ')}</span> - 商品概要での表現を確認してください`;
         overviewImprovementTips.appendChild(li);
       }
       if (matches.found_keywords && matches.found_keywords.length > 0) {
@@ -1574,7 +1843,7 @@ function displayBasicResults(data) {
       if (coverage.unique_product_terms && coverage.unique_product_terms.length > 0) {
         const li = document.createElement('li');
         li.className = 'success';
-        li.innerHTML = `<strong>🌟 商品概要独自語句:</strong> <span class="tip-number">${coverage.unique_product_terms.length}個</span>の独自語句が検索網拡大に貢献 - <span class="tip-highlight">薄赤色でハイライトされています</span>`;
+        li.innerHTML = `<strong>🌟 商品概要独自語句:</strong> <span class="tip-number">${coverage.unique_product_terms.length}個</span>の独自語句が検索網拡大に貢献 - 薄緑色でハイライトされています`;
         overviewImprovementTips.appendChild(li);
       }
       
@@ -1583,7 +1852,7 @@ function displayBasicResults(data) {
         const li = document.createElement('li');
         li.className = expansionRate >= 50 ? 'success' : expansionRate >= 30 ? 'info' : 'critical';
         const icon = expansionRate >= 50 ? '🚀' : expansionRate >= 30 ? '📈' : '📊';
-        li.innerHTML = `<strong>${icon} 検索カバレッジ拡大:</strong> <span class="tip-number">${coverage.search_coverage_expansion}</span> - ${expansionRate >= 50 ? '<span class="tip-highlight">優秀な検索網拡大</span>' : expansionRate >= 30 ? '<span class="tip-action">良好な検索網拡大</span>' : '<span class="tip-highlight">検索網拡大の改善余地あり</span>'}`;
+        li.innerHTML = `<strong>${icon} 検索カバレッジ拡大:</strong> <span class="tip-number">${coverage.search_coverage_expansion}</span> - ${expansionRate >= 50 ? '優秀な検索網拡大' : expansionRate >= 30 ? '良好な検索網拡大' : '検索網拡大の改善余地あり'}`;
         overviewImprovementTips.appendChild(li);
       }
     }
@@ -1618,17 +1887,8 @@ function displayBasicResults(data) {
           return `<span class="tip-keyword-list">${cleanKeywords}</span>`;
         });
         
-        // アクション語をハイライト
-        enhancedTip = enhancedTip.replace(/(追加|削除|改善|最適化|強化|確認|検討|注意|推奨|必要)/g, '<span class="tip-action">$1</span>');
-        
-        // 重要な警告語をハイライト
-        enhancedTip = enhancedTip.replace(/(禁止|注意が必要|規約違反|非推奨|危険|問題)/g, '<span class="tip-highlight">$1</span>');
-        
-        // 効果的な語句をハイライト
-        enhancedTip = enhancedTip.replace(/(効果的|良好|適切|優秀|向上|改善|最適)/g, '<span class="tip-success">$1</span>');
-        
-        // 価値のある語句をハイライト
-        enhancedTip = enhancedTip.replace(/(価値|重要|有効|貢献|拡大|強化)/g, '<span class="tip-value">$1</span>');
+        // 最重要な警告語のみハイライト
+        enhancedTip = enhancedTip.replace(/(禁止|規約違反)/g, '<span class="tip-highlight">$1</span>');
         
         li.innerHTML = `<strong>${icon}</strong> ${enhancedTip}`;
         overviewImprovementTips.appendChild(li);
@@ -1851,6 +2111,191 @@ function getCleanKeywords(htmlString) {
   // 残ったテキストを取得して整形
   const cleanText = tempDiv.textContent || tempDiv.innerText || '';
   return cleanText.replace(/\s+/g, ' ').trim();
+}
+
+// 詳細解析処理
+async function handleDetailedAnalysis() {
+  console.log('詳細解析開始');
+  
+  // 必要なデータが揃っているかチェック
+  if (!basicAnalysisResult || !manufacturerDetectionResult || !keywordClassificationResult) {
+    alert('分析結果が不足しています。まず基本分析を実行してください。');
+    return;
+  }
+  
+  // ボタンを無効化
+  const detailedBtn = window.detailedAnalysisBtn;
+  if (detailedBtn) {
+    detailedBtn.disabled = true;
+    detailedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 統合分析中...';
+  }
+  
+  try {
+    // 統合分析実行
+    const integratedResult = await analyzer.performIntegratedAnalysis(
+      basicAnalysisResult,
+      manufacturerDetectionResult,
+      keywordClassificationResult,
+      keywordInput.value,
+      productInput.value
+    );
+    
+    // 結果を保存
+    currentIntegratedAnalysis = integratedResult;
+    
+    // 統合分析結果を表示
+    displayIntegratedAnalysisResults(integratedResult);
+    
+    // 統合分析セクションを表示
+    if (window.integratedAnalysisSection) {
+      window.integratedAnalysisSection.classList.add('active');
+    }
+    
+    console.log('詳細解析完了:', integratedResult);
+    
+  } catch (error) {
+    console.error('詳細解析エラー:', error);
+    alert('詳細解析中にエラーが発生しました: ' + error.message);
+  } finally {
+    // ボタンを元に戻す
+    if (detailedBtn) {
+      detailedBtn.disabled = false;
+      detailedBtn.innerHTML = '<i class="fas fa-microscope"></i> 詳細解析実行<span class="analysis-subtitle">基本分析・メーカー検出・分類結果を統合分析</span>';
+    }
+  }
+}
+
+// 統合分析結果表示
+function displayIntegratedAnalysisResults(data) {
+  // 基本分析サマリー
+  if (window.basicAnalysisSummary) {
+    window.basicAnalysisSummary.innerHTML = createAnalysisSummary(basicAnalysisResult, '基本分析');
+  }
+  
+  // メーカー検出サマリー
+  if (window.manufacturerSummary) {
+    window.manufacturerSummary.innerHTML = createManufacturerSummary(manufacturerDetectionResult);
+  }
+  
+  // キーワード分類サマリー
+  if (window.classificationSummary) {
+    window.classificationSummary.innerHTML = createClassificationSummary(keywordClassificationResult);
+  }
+  
+  // 統合インサイト
+  if (window.integratedInsightsContent && data) {
+    window.integratedInsightsContent.innerHTML = createIntegratedInsights(data);
+  }
+}
+
+// 分析サマリー作成
+function createAnalysisSummary(data, type) {
+  if (!data) return '<p>データがありません</p>';
+  
+  let html = '<div class="summary-content">';
+  
+  if (type === '基本分析') {
+    html += `<p><strong>スコア:</strong> ${data.score || data.optimization_score || 0}点</p>`;
+    html += `<p><strong>重複キーワード:</strong> ${data.duplicate_count || 0}個</p>`;
+    html += `<p><strong>最適化候補:</strong> ${data.optimization_count || 0}個</p>`;
+  }
+  
+  html += '</div>';
+  return html;
+}
+
+// メーカー検出サマリー作成
+function createManufacturerSummary(data) {
+  if (!data) return '<p>データがありません</p>';
+  
+  let html = '<div class="summary-content">';
+  html += `<p><strong>検出ブランド:</strong> ${(data.brands || []).length}個</p>`;
+  html += `<p><strong>検出メーカー:</strong> ${(data.manufacturers || []).length}個</p>`;
+  html += `<p><strong>商品名:</strong> ${(data.products || []).length}個</p>`;
+  html += '</div>';
+  return html;
+}
+
+// キーワード分類サマリー作成
+function createClassificationSummary(data) {
+  if (!data) return '<p>データがありません</p>';
+  
+  let html = '<div class="summary-content">';
+  
+  // analysis配列からデータを取得
+  if (data.analysis && Array.isArray(data.analysis)) {
+    const highValue = data.analysis.filter(item => item.search_value === 'high').length;
+    const mediumValue = data.analysis.filter(item => item.search_value === 'medium').length;
+    const uniqueValue = data.analysis.filter(item => item.is_unique_product_keyword === true).length;
+    
+    html += `<p><strong>高価値キーワード:</strong> ${highValue}個</p>`;
+    html += `<p><strong>中価値キーワード:</strong> ${mediumValue}個</p>`;
+    html += `<p><strong>独自価値キーワード:</strong> ${uniqueValue}個</p>`;
+  } else {
+    // フォールバック
+    html += `<p><strong>高価値キーワード:</strong> ${(data.high_value_keywords || []).length}個</p>`;
+    html += `<p><strong>中価値キーワード:</strong> ${(data.medium_value_keywords || []).length}個</p>`;
+    html += `<p><strong>独自価値キーワード:</strong> ${(data.unique_product_keywords || data.unique_value_keywords || []).length}個</p>`;
+  }
+  
+  html += '</div>';
+  return html;
+}
+
+// 統合インサイト作成
+function createIntegratedInsights(data) {
+  if (!data) return '<p>統合分析データがありません</p>';
+  
+  let html = '<div class="insights-content">';
+  
+  // 全体評価
+  if (data.overall_assessment) {
+    html += '<div class="insight-section">';
+    html += '<h5>📊 全体評価</h5>';
+    html += '<div class="assessment-grid">';
+    
+    if (data.overall_assessment.strengths) {
+      html += '<div class="assessment-item">';
+      html += '<strong>💪 強み:</strong>';
+      html += '<ul>' + data.overall_assessment.strengths.map(s => `<li>${s}</li>`).join('') + '</ul>';
+      html += '</div>';
+    }
+    
+    if (data.overall_assessment.opportunities) {
+      html += '<div class="assessment-item">';
+      html += '<strong>🚀 機会:</strong>';
+      html += '<ul>' + data.overall_assessment.opportunities.map(o => `<li>${o}</li>`).join('') + '</ul>';
+      html += '</div>';
+    }
+    
+    html += '</div></div>';
+  }
+  
+  // マーケティング推奨事項
+  if (data.marketing_recommendations) {
+    html += '<div class="insight-section">';
+    html += '<h5>🎯 マーケティング推奨事項</h5>';
+    
+    if (data.marketing_recommendations.immediate_actions) {
+      html += '<div class="rec-item">';
+      html += '<strong>即座の施策:</strong>';
+      html += '<ul>' + data.marketing_recommendations.immediate_actions.map(a => `<li>${a}</li>`).join('') + '</ul>';
+      html += '</div>';
+    }
+    
+    html += '</div>';
+  }
+  
+  // サマリー
+  if (data.analysis_summary) {
+    html += '<div class="insight-section">';
+    html += '<h5>📝 分析サマリー</h5>';
+    html += `<p>${data.analysis_summary}</p>`;
+    html += '</div>';
+  }
+  
+  html += '</div>';
+  return html;
 }
 
 // 最適化されたキーワード表示
@@ -2702,13 +3147,19 @@ function loadSavedData() {
 }
 
 function clearAllData() {
+  // DOM要素を確実に取得してクリア
+  const keywordInputEl = document.getElementById('keywordInput');
+  const productInputEl = document.getElementById('productInput');
+  const scoresSectionEl = document.getElementById('scoresSection');
+  const resultsSectionEl = document.getElementById('resultsSection');
+  
   // 入力フィールドをクリア
-  if (keywordInput) keywordInput.value = '';
-  if (productInput) productInput.value = '';
+  if (keywordInputEl) keywordInputEl.value = '';
+  if (productInputEl) productInputEl.value = '';
   
   // スコアセクションと結果セクションを非表示
-  if (scoresSection) scoresSection.classList.remove('active');
-  if (resultsSection) resultsSection.classList.remove('active');
+  if (scoresSectionEl) scoresSectionEl.classList.remove('active');
+  if (resultsSectionEl) resultsSectionEl.classList.remove('active');
   
   // ローカルストレージをクリア（入力データ、結果データ、タブ情報）
   localStorage.removeItem('keywordCheckerData');
@@ -2735,6 +3186,16 @@ function clearAllData() {
   
   // 概要タブに戻る
   switchTab('overview');
+  
+  // 詳細解析ボタンを無効化
+  if (window.detailedAnalysisBtn) {
+    window.detailedAnalysisBtn.disabled = true;
+  }
+  
+  // 統合分析セクションを非表示
+  if (window.integratedAnalysisSection) {
+    window.integratedAnalysisSection.classList.remove('active');
+  }
   
   // 入力データの保存を停止するため、イベントリスナーを一時的に無効化
   if (keywordInput) keywordInput.removeEventListener('input', saveInputData);
@@ -2827,6 +3288,80 @@ function replaceKeywordsInput() {
   saveInputData();
   
   console.log('キーワードを入力欄に反映しました:', cleanKeywords);
+}
+
+// ヘルプセクションの切り替え
+function toggleHelp() {
+  const helpContent = document.getElementById('helpContent');
+  const helpArrow = document.querySelector('.help-arrow');
+  
+  if (helpContent && helpArrow) {
+    helpContent.classList.toggle('active');
+    helpArrow.classList.toggle('rotated');
+  }
+}
+
+// グローバル関数をwindowオブジェクトに即座に追加
+window.insertSampleKeywords = insertSampleKeywords;
+window.insertSampleProduct = insertSampleProduct;
+window.toggleHelp = toggleHelp;
+window.switchTab = switchTab;
+
+console.log('グローバル関数が登録されました');
+
+/**
+ * ハイライトの整合性チェック関数
+ * 禁止ワードが他の色でハイライトされている場合は薄赤色に修正
+ * @param {string} highlightedText - ハイライト済みテキスト
+ * @param {Object} data - 分析結果データ
+ * @returns {string} - 整合性修正済みテキスト
+ */
+function fixHighlightConsistency(highlightedText, data) {
+  // 禁止ワード一覧（プロンプトと同じ）
+  const forbiddenWords = [
+    '最高', '最強', '世界一', '業界No.1', '業界最高クラス', '業界最高',
+    '激安', '格安', '破格', '超安', '最安',
+    '限定', '特別', 'プレミアム', 'エクスクルーシブ',
+    '保証', '確実', '絶対', '必ず', '間違いなく'
+  ];
+  
+  // データから禁止ワードを取得
+  const detectedForbiddenWords = [];
+  if (data.highlight_analysis && data.highlight_analysis.forbidden_terms) {
+    detectedForbiddenWords.push(...data.highlight_analysis.forbidden_terms);
+  }
+  
+  // 全ての禁止ワードを統合
+  const allForbiddenWords = [...new Set([...forbiddenWords, ...detectedForbiddenWords])];
+  
+  let fixedText = highlightedText;
+  
+  // 各禁止ワードに対して整合性チェック
+  allForbiddenWords.forEach(word => {
+    if (word && word.trim()) {
+      const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      // 他の色でハイライトされている禁止ワードを薄赤色に修正
+      // 黄色ハイライトされた禁止ワードを修正
+      const yellowRegex = new RegExp(`<span class="highlight-yellow">(.*?${escapedWord}.*?)</span>`, 'gi');
+      fixedText = fixedText.replace(yellowRegex, '<span class="highlight-light-red">$1</span>');
+      
+      // 薄緑ハイライトされた禁止ワードを修正
+      const greenRegex = new RegExp(`<span class="highlight-light-green">(.*?${escapedWord}.*?)</span>`, 'gi');
+      fixedText = fixedText.replace(greenRegex, '<span class="highlight-light-red">$1</span>');
+      
+      // グレーハイライトされた禁止ワード（ブランド名でない場合）を修正
+      const grayRegex = new RegExp(`<span class="highlight-gray">(.*?${escapedWord}.*?)</span>`, 'gi');
+      // ブランド名でない場合のみ修正（TechBrand、Sony等のブランド名は除外）
+      const brandWords = ['TechBrand', 'Sony', 'Apple', 'Samsung', 'Nike', 'Adidas', 'FashionCorp', 'CoffeeMaster'];
+      const isBrand = brandWords.some(brand => word.includes(brand) || brand.includes(word));
+      if (!isBrand) {
+        fixedText = fixedText.replace(grayRegex, '<span class="highlight-light-red">$1</span>');
+      }
+    }
+  });
+  
+  return fixedText;
 }
 
 // エクスポート（モジュール対応）
