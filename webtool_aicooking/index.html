@@ -835,6 +835,15 @@
       box-shadow: 0 5px 15px rgba(33, 150, 243, 0.4);
     }
     
+    .clear-btn {
+      background: linear-gradient(135deg, #FF9800, #F57C00);
+      box-shadow: 0 3px 10px rgba(255, 152, 0, 0.3);
+    }
+    
+    .clear-btn:hover {
+      box-shadow: 0 5px 15px rgba(255, 152, 0, 0.4);
+    }
+    
     /* ローディング */
     .loading-indicator {
       display: none;
@@ -1823,6 +1832,10 @@
         <button class="data-btn import-btn" id="importDataBtn">
           <i class="fas fa-upload"></i>
           インポート
+        </button>
+        <button class="data-btn clear-btn" id="clearRecipeBtn">
+          <i class="fas fa-eraser"></i>
+          クリア
         </button>
         <input type="file" id="importFileInput" accept=".json" style="display: none;">
       </div>

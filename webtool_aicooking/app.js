@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const exportDataBtn = document.getElementById('exportDataBtn');
   const importDataBtn = document.getElementById('importDataBtn');
   const importFileInput = document.getElementById('importFileInput');
+  const clearRecipeBtn = document.getElementById('clearRecipeBtn');
   const clearAllBtn = document.getElementById('clearAllBtn');
   const loadingIndicator = document.getElementById('loadingIndicator');
   const menuSelectionSection = document.getElementById('menuSelectionSection');
@@ -105,7 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // メニューとレシピの状態も保存
       proposedMenus: proposedMenus,
       selectedMenuIndex: selectedMenuIndex,
-      currentRecipe: currentRecipe
+      currentRecipe: currentRecipe,
+      // 詳細表示状態も保存
+      isDetailedStepsDisplayed: currentRecipe && document.querySelector('#stepsList .detailed-step') ? true : false
     };
     localStorage.setItem('aiCookingState', JSON.stringify(state));
     console.log('状態を保存しました:', {
@@ -196,6 +199,21 @@ document.addEventListener('DOMContentLoaded', () => {
           currentRecipe = state.currentRecipe;
           const validationResult = validateRecipeIngredients(currentRecipe);
           displayRecipe(validationResult.validatedRecipe);
+          
+          // 詳細表示状態の復元
+          if (state.isDetailedStepsDisplayed && currentRecipe.cookingSteps) {
+            setTimeout(() => {
+              updateStepsSection(currentRecipe.cookingSteps);
+              
+              // 詳細表示ボタンの状態も復元
+              const detailBtn = document.getElementById('detailRecipeBtn');
+              if (detailBtn) {
+                detailBtn.innerHTML = '<i class="fas fa-check"></i> 詳細表示済み';
+                detailBtn.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
+                detailBtn.disabled = true;
+              }
+            }, 100);
+          }
           
           // レシピ表示領域を表示
           const recipeResult = document.getElementById('recipeResult');
@@ -658,6 +676,11 @@ document.addEventListener('DOMContentLoaded', () => {
           e.target.value = '';
         }
       });
+    }
+    
+    // クリアボタンのイベントリスナー
+    if (clearRecipeBtn) {
+      clearRecipeBtn.addEventListener('click', clearRecipeState);
     }
     
 
@@ -2035,6 +2058,13 @@ ${settings.ingredients.join('、')}
         // 作り方セクションのみを更新
         updateStepsSection(detailedSteps);
         
+        // currentRecipeの作り方も更新（PDF出力で詳細版が使われるように）
+        if (currentRecipe) {
+          currentRecipe.cookingSteps = detailedSteps;
+          // 状態を保存
+          saveState();
+        }
+        
         // ボタンの文言を変更
         if (detailBtn) {
           detailBtn.innerHTML = '<i class="fas fa-check"></i> 詳細表示済み';
@@ -2431,6 +2461,77 @@ ${currentSteps}
     };
     
     reader.readAsText(file);
+  }
+  
+  // メニュー・レシピ状態クリア機能
+  function clearRecipeState() {
+    try {
+      // 確認ダイアログを表示
+      const confirmClear = confirm(
+        'メニュー選択とレシピ表示をクリアします。\n' +
+        '現在表示中のメニューやレシピが削除されますが、よろしいですか？\n\n' +
+        '※ 選択された食材や設定は保持されます。'
+      );
+      
+      if (!confirmClear) {
+        return;
+      }
+      
+      // メニュー選択画面を非表示
+      if (menuSelectionSection) {
+        menuSelectionSection.style.display = 'none';
+      }
+      
+      // レシピ表示画面を非表示
+      if (resultsSection) {
+        resultsSection.style.display = 'none';
+      }
+      
+      // 戻るボタンを非表示
+      if (backToMenuBtn) {
+        backToMenuBtn.style.display = 'none';
+      }
+      
+      // 提案されたメニューをクリア
+      proposedMenus = [];
+      selectedMenuIndex = -1;
+      currentRecipe = null;
+      
+      // メニューグリッドをクリア
+      if (menuGrid) {
+        menuGrid.innerHTML = '';
+      }
+      
+      // 決定ボタンを無効状態にリセット
+      updateDecisionButton();
+      
+      // レシピ生成ボタンの状態を復元
+      if (generateRecipeBtn) {
+        generateRecipeBtn.disabled = false;
+        generateRecipeBtn.innerHTML = '<i class="fas fa-magic"></i> メニューを提案してもらう';
+      }
+      
+      // 状態を保存
+      saveState();
+      
+      // ユーザーフィードバック
+      if (clearRecipeBtn) {
+        const originalText = clearRecipeBtn.innerHTML;
+        clearRecipeBtn.innerHTML = '<i class="fas fa-check"></i> クリア完了！';
+        clearRecipeBtn.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
+        
+        setTimeout(() => {
+          clearRecipeBtn.innerHTML = originalText;
+          clearRecipeBtn.style.background = 'linear-gradient(135deg, #FF9800, #F57C00)';
+        }, 2000);
+      }
+      
+      console.log('メニュー・レシピ状態をクリアしました');
+      
+    } catch (error) {
+      console.error('クリア処理エラー:', error);
+      alert('クリア処理中にエラーが発生しました。');
+    }
   }
   
   // レシピPDF出力機能（ブラウザネイティブPrint API使用）
