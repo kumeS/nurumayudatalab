@@ -65,6 +65,16 @@
       margin-bottom: 2rem;
     }
     
+    /* タブ文字はみ出し対策（中サイズ画面） */
+    @media (max-width: 950px) {
+      .ingredient-tab {
+        font-size: 0.75rem;
+        padding: 0.65rem 0.4rem;
+        min-width: 130px;
+        line-height: 1.1;
+      }
+    }
+    
     @media (max-width: 768px) {
       .main-content {
         grid-template-columns: 1fr;
@@ -102,15 +112,38 @@
         align-self: center;
       }
     
-      .ingredient-tabs {
-        flex-wrap: wrap;
-    }
+            .ingredient-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      .ingredient-tabs::-webkit-scrollbar {
+        height: 4px;
+      }
+      
+      .ingredient-tabs::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 2px;
+      }
+      
+      .ingredient-tabs::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 2px;
+      }
+      
+      .ingredient-tabs::-webkit-scrollbar-thumb:hover {
+        background: #a1a1a1;
+      }
     
-      .ingredient-tab {
-        font-size: 0.8rem;
-        padding: 0.5rem 0.25rem;
-        min-width: 60px;
-    }
+            .ingredient-tab {
+        font-size: 0.7rem;
+        padding: 0.6rem 0.25rem;
+        min-width: 125px;
+        flex: none;
+        line-height: 1.1;
+      }
     
       .ingredient-grid {
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -211,6 +244,19 @@
       
       .section-title {
         font-size: 1.1rem;
+      }
+      
+      .ingredient-tab {
+        font-size: 0.6rem;
+        padding: 0.5rem 0.2rem;
+        min-width: 105px;
+        line-height: 1.0;
+        flex: none;
+      }
+      
+      .ingredient-tabs {
+        gap: 1px;
+        padding: 2px;
       }
       
       .recipe-content .ingredients-list, 
@@ -328,6 +374,10 @@
       border-radius: 8px;
       margin-bottom: 1rem;
       overflow: hidden;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      gap: 2px;
+      padding: 3px;
     }
     
     .ingredient-tab {
@@ -338,19 +388,29 @@
       color: var(--text-secondary);
       cursor: pointer;
       transition: all var(--transition-speed);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       border: none;
+      white-space: nowrap;
+      min-width: 140px;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      line-height: 1.2;
     }
     
     .ingredient-tab:hover {
       background-color: #fff;
       color: var(--primary);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     
     .ingredient-tab.active {
       background: linear-gradient(135deg, var(--primary), var(--secondary));
       color: white;
       font-weight: bold;
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(255, 126, 95, 0.3);
     }
     
     .ingredient-grid {
@@ -1117,6 +1177,76 @@
     }
     
     .usage-note p {
+      margin: 0.25rem 0;
+      font-style: italic;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+    
+    /* 矛盾チェック警告セクション */
+    .contradiction-warning-section {
+      padding: 1.5rem;
+      background: linear-gradient(135deg, #fff5f0, #ffebee);
+      border-radius: 8px;
+      border-left: 4px solid #f44336;
+      box-shadow: 0 2px 8px rgba(244, 67, 54, 0.15);
+    }
+    
+    .contradiction-title {
+      font-weight: bold;
+      background: linear-gradient(135deg, #f44336, #d32f2f);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.1rem;
+    }
+    
+    .contradiction-content p {
+      margin: 0.5rem 0;
+      line-height: 1.6;
+      color: var(--text-primary);
+    }
+    
+    .contradiction-content p:first-child {
+      margin-top: 0;
+    }
+    
+    .contradiction-content strong {
+      color: #c62828;
+      font-weight: 600;
+    }
+    
+    .contradiction-item {
+      background: rgba(244, 67, 54, 0.05);
+      border: 1px solid rgba(244, 67, 54, 0.1);
+      border-radius: 4px;
+      padding: 0.75rem;
+      margin: 0.5rem 0;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    
+    .contradiction-item i {
+      color: #f44336;
+      margin-top: 0.1rem;
+      flex-shrink: 0;
+    }
+    
+    .contradiction-note {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: rgba(244, 67, 54, 0.03);
+      border-radius: 4px;
+      border: 1px solid rgba(244, 67, 54, 0.08);
+    }
+    
+    .contradiction-note p {
       margin: 0.25rem 0;
       font-style: italic;
       color: var(--text-secondary);

@@ -414,15 +414,19 @@ document.addEventListener('DOMContentLoaded', () => {
           { id: "sausage", name: "ソーセージ", season: ["春", "夏", "秋", "冬"] },
           { id: "cheese", name: "チーズ", season: ["春", "夏", "秋", "冬"] },
           { id: "mozzarella", name: "モッツァレラチーズ", season: ["春", "夏", "秋", "冬"] },
+          { id: "cheddar", name: "チェダーチーズ", season: ["春", "夏", "秋", "冬"] },
+          { id: "parmesan", name: "パルメザンチーズ", season: ["春", "夏", "秋", "冬"] },
           { id: "egg", name: "卵", season: ["春", "夏", "秋", "冬"] },
           { id: "tofu", name: "豆腐", season: ["春", "夏", "秋", "冬"] },
           { id: "natto", name: "納豆", season: ["春", "夏", "秋", "冬"] },
           { id: "yogurt", name: "ヨーグルト", season: ["春", "夏", "秋", "冬"] },
           { id: "butter", name: "バター", season: ["春", "夏", "秋", "冬"] },
-          { id: "milk", name: "牛乳", season: ["春", "夏", "秋", "冬"] }
+          { id: "milk", name: "牛乳", season: ["春", "夏", "秋", "冬"] },
+          { id: "bread", name: "パン", season: ["春", "夏", "秋", "冬"] },
+          { id: "shokupan", name: "食パン", season: ["春", "夏", "秋", "冬"] }
         ],
         grains: [
-          { id: "bread", name: "パン", season: ["春", "夏", "秋", "冬"] },
+          { id: "wheatFlour", name: "小麦粉", season: ["春", "夏", "秋", "冬"] },
           { id: "pasta", name: "パスタ", season: ["春", "夏", "秋", "冬"] },
           { id: "rice", name: "米", season: ["春", "夏", "秋", "冬"] },
           { id: "noodles", name: "うどん", season: ["春", "夏", "秋", "冬"] },
@@ -567,13 +571,55 @@ document.addEventListener('DOMContentLoaded', () => {
     if (existingIndex >= 0) {
       // 選択解除
       selectedIngredients.splice(existingIndex, 1);
-          } else {
-      // 選択追加（カテゴリー情報も保存）
-      const ingredientWithCategory = {
-        ...ingredient,
-        category: currentCategory
-      };
-      selectedIngredients.push(ingredientWithCategory);
+    } else {
+      // チーズ選択時のランダム処理
+      if (ingredient.id === 'cheese') {
+        const randomCheese = getRandomCheeseType();
+        if (randomCheese) {
+          // ランダムに選ばれたチーズを追加
+          const cheeseIngredient = {
+            ...randomCheese,
+            category: currentCategory,
+            originalSelection: 'cheese' // 元の選択がチーズだったことを記録
+          };
+          selectedIngredients.push(cheeseIngredient);
+          
+          // ユーザーに選ばれたチーズを通知
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+            z-index: 1000;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          `;
+          notification.innerHTML = `
+            <i class="fas fa-cheese" style="font-size: 1.2rem;"></i>
+            <span>「${randomCheese.name}」が選ばれました！</span>
+          `;
+          document.body.appendChild(notification);
+          
+          // 3秒後に通知を削除
+          setTimeout(() => {
+            notification.remove();
+          }, 3000);
+        }
+      } else {
+        // 通常の食材選択処理
+        const ingredientWithCategory = {
+          ...ingredient,
+          category: currentCategory
+        };
+        selectedIngredients.push(ingredientWithCategory);
+      }
     }
     
     renderSelectedIngredients();
@@ -581,6 +627,47 @@ document.addEventListener('DOMContentLoaded', () => {
     renderIngredients(searchValue);
     saveState();
     updateClearButtonState();
+  }
+  
+  // ランダムなチーズタイプを選択
+  function getRandomCheeseType() {
+    const cheeseTypes = [
+      { id: "mozzarella", name: "モッツァレラチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "cheddar", name: "チェダーチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "parmesan", name: "パルメザンチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "camembert", name: "カマンベールチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "gouda", name: "ゴーダチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "blueCheeseNew", name: "ブルーチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "ricotta", name: "リコッタチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "mascarpone", name: "マスカルポーネチーズ", season: ["春", "夏", "秋", "冬"] }
+    ];
+    
+    // ingredientsDataから利用可能なチーズタイプを取得
+    let availableCheeseTypes = [];
+    if (ingredientsData && ingredientsData.processed) {
+      availableCheeseTypes = ingredientsData.processed.filter(item => 
+        cheeseTypes.some(cheese => cheese.id === item.id)
+      );
+    }
+    
+    // フォールバック: ingredientsDataが利用できない場合はデフォルトリストを使用
+    if (availableCheeseTypes.length === 0) {
+      availableCheeseTypes = cheeseTypes;
+    }
+    
+    // 既に選択されていないチーズタイプを選択
+    const unselectedCheeseTypes = availableCheeseTypes.filter(cheese => 
+      !selectedIngredients.some(selected => selected.id === cheese.id)
+    );
+    
+    if (unselectedCheeseTypes.length === 0) {
+      // すべてのチーズタイプが既に選択されている場合は、最初のものを返す
+      return availableCheeseTypes[0] || cheeseTypes[0];
+    }
+    
+    // ランダムに選択
+    const randomIndex = Math.floor(Math.random() * unselectedCheeseTypes.length);
+    return unselectedCheeseTypes[randomIndex];
   }
   
   // 選択済み食材の表示
@@ -794,10 +881,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const randomIndex = Math.floor(Math.random() * categoryIngredients.length);
             const selectedIngredient = categoryIngredients.splice(randomIndex, 1)[0];
             
-            selectedIngredients.push({
-              ...selectedIngredient,
-              category: category
-            });
+            // チーズが選ばれた場合はランダムなチーズタイプに変換
+            if (selectedIngredient.id === 'cheese') {
+              const randomCheese = getRandomCheeseType();
+              if (randomCheese) {
+                selectedIngredients.push({
+                  ...randomCheese,
+                  category: category,
+                  originalSelection: 'cheese'
+                });
+              }
+            } else {
+              selectedIngredients.push({
+                ...selectedIngredient,
+                category: category
+              });
+            }
           }
         }
       }
@@ -833,8 +932,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const regenerateInstruction = isRegenerate ? 
       '\n【重要】前回とは異なる、全く新しいメニューを6つ提案してください。同じ料理名や似たような調理法は避けてください。' : '';
 
+    // 料理ジャンルの分散指示を作成
+    const cuisineDistributionInstruction = Array.isArray(settings.cuisine) && settings.cuisine.length > 1 ? 
+      `\n【料理ジャンル分散について】\n選択された料理ジャンル（${settings.cuisine.join('、')}）を6つのメニューにできるだけ均等に分散させてください。例：\n- 2ジャンル選択時：各ジャンルから3つずつ\n- 3ジャンル選択時：各ジャンルから2つずつ\n- 4ジャンル選択時：各ジャンルから1〜2つずつ\n**和食だけに偏らず、選択されたすべてのジャンルから提案すること**` : '';
+
     const prompt = `
-あなたは優秀な料理研究家です。以下の条件に基づいて、美味しいメニューを6つ提案してください。${regenerateInstruction}
+あなたは優秀な料理研究家です。以下の条件に基づいて、美味しいメニューを6つ提案してください。${regenerateInstruction}${cuisineDistributionInstruction}
 
 【利用可能な食材】
 ${settings.ingredients.join('、')}
@@ -859,6 +962,7 @@ ${settings.ingredients.join('、')}
       "cookingTime": "調理時間（例：30分）",
       "difficulty": "難易度（簡単/普通/難しい）",
       "servings": "人数（例：2人分）",
+      "cuisine": "料理ジャンル（和食/洋食/中華/イタリアン/その他のいずれか1つ）",
       "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
       "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
     },
@@ -868,6 +972,7 @@ ${settings.ingredients.join('、')}
       "cookingTime": "調理時間（例：20分）",
       "difficulty": "難易度（簡単/普通/難しい）",
       "servings": "人数（例：2人分）",
+      "cuisine": "料理ジャンル（和食/洋食/中華/イタリアン/その他のいずれか1つ）",
       "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
       "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
     },
@@ -877,6 +982,7 @@ ${settings.ingredients.join('、')}
       "cookingTime": "調理時間（例：45分）",
       "difficulty": "難易度（簡単/普通/難しい）",
       "servings": "人数（例：2人分）",
+      "cuisine": "料理ジャンル（和食/洋食/中華/イタリアン/その他のいずれか1つ）",
       "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
       "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
     },
@@ -886,6 +992,7 @@ ${settings.ingredients.join('、')}
       "cookingTime": "調理時間（例：25分）",
       "difficulty": "難易度（簡単/普通/難しい）",
       "servings": "人数（例：2人分）",
+      "cuisine": "料理ジャンル（和食/洋食/中華/イタリアン/その他のいずれか1つ）",
       "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
       "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
     },
@@ -895,6 +1002,7 @@ ${settings.ingredients.join('、')}
       "cookingTime": "調理時間（例：35分）",
       "difficulty": "難易度（簡単/普通/難しい）",
       "servings": "人数（例：2人分）",
+      "cuisine": "料理ジャンル（和食/洋食/中華/イタリアン/その他のいずれか1つ）",
       "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
       "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
     },
@@ -904,6 +1012,7 @@ ${settings.ingredients.join('、')}
       "cookingTime": "調理時間（例：40分）",
       "difficulty": "難易度（簡単/普通/難しい）",
       "servings": "人数（例：2人分）",
+      "cuisine": "料理ジャンル（和食/洋食/中華/イタリアン/その他のいずれか1つ）",
       "category": "料理カテゴリー（例：炒め物、煮物、パスタ、ラーメン、うどん、そば等）",
       "mainIngredients": ["主要食材1", "主要食材2", "主要食材3"]
     }
@@ -917,14 +1026,16 @@ ${settings.ingredients.join('、')}
 3. **料理ジャンルが複数指定されている場合：各メニューごとに1つの料理ジャンルを選択して使用すること**
 4. **調理法が複数指定されている場合：各メニューごとに1つの調理法を選択して使用すること**
 5. **6つのメニューで指定された料理ジャンルと調理法をバランス良く使い分けること**
-6. 麺料理の場合は、categoryフィールドに具体的な麺の種類（パスタ、ラーメン、うどん、そば、焼きそば等）を記載すること
-7. 指定された条件（季節、時間、ジャンル、調理法など）を考慮すること
-8. 調理法が「ランダム」以外の場合は、指定された調理法を優先的に使用すること（例：「炒め物」指定の場合は炒め料理を中心に提案）
-9. 実際に作れる現実的なメニューにすること
-10. mainIngredientsには利用可能な食材から主要なものを3つ程度選んで記載すること
-11. 調理時間は指定された条件内に収めること
-12. 各メニューの説明は簡潔で魅力的にすること
-13. categoryには料理の種類を明確に記載すること（炒め物、煮物、焼き物、パスタ、ラーメン、うどん、そば、カレー、サラダ等）
+6. **【超重要】複数の料理ジャンルが選択されている場合は、6つのメニューを各ジャンルに可能な限り均等に分散させること。和食に偏らせてはいけません**
+7. **各メニューのcuisineフィールドには、そのメニューで使用した料理ジャンルを明記すること**
+8. 麺料理の場合は、categoryフィールドに具体的な麺の種類（パスタ、ラーメン、うどん、そば、焼きそば等）を記載すること
+9. 指定された条件（季節、時間、ジャンル、調理法など）を考慮すること
+10. 調理法が「ランダム」以外の場合は、指定された調理法を優先的に使用すること（例：「炒め物」指定の場合は炒め料理を中心に提案）
+11. 実際に作れる現実的なメニューにすること
+12. mainIngredientsには利用可能な食材から主要なものを3つ程度選んで記載すること
+13. 調理時間は指定された条件内に収めること
+14. 各メニューの説明は簡潔で魅力的にすること
+15. categoryには料理の種類を明確に記載すること（炒め物、煮物、焼き物、パスタ、ラーメン、うどん、そば、カレー、サラダ等）
 `;
 
     return [
@@ -1192,16 +1303,21 @@ ${settings.ingredients.join('、')}
       
       const categoryIcon = categoryIconMap[menu.category] || 'fas fa-utensils';
       
-      // 料理ジャンルの判定（設定から取得）
-      const settings = getSelectedValues();
+      // 料理ジャンルの判定（AIレスポンスから取得）
       let cuisineType = '';
       let cuisineIcon = '';
       
-      // 複数選択された料理ジャンルから推測
-      if (settings.cuisine && Array.isArray(settings.cuisine)) {
-        // 最初の料理ジャンルを表示用に使用
-        cuisineType = settings.cuisine[0];
+      // AIが返した料理ジャンル情報を使用
+      if (menu.cuisine) {
+        cuisineType = menu.cuisine;
         cuisineIcon = categoryIconMap[cuisineType] || 'fas fa-globe';
+      } else {
+        // フォールバック：設定から取得
+        const settings = getSelectedValues();
+        if (settings.cuisine && Array.isArray(settings.cuisine)) {
+          cuisineType = settings.cuisine[0];
+          cuisineIcon = categoryIconMap[cuisineType] || 'fas fa-globe';
+        }
       }
       
       const categoryHtml = menu.category ? `
@@ -1725,16 +1841,153 @@ ${settings.ingredients.join('、')}
     }, 5000);
   }
 
+  // 矛盾チェック機能
+  function checkRecipeContradictions(recipe) {
+    const contradictions = [];
+    
+    // 材料リストから食材名を抽出
+    const ingredientNames = [];
+    if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
+      ingredientNames.push(...recipe.ingredients.map(ing => ing.name));
+    }
+    if (recipe.seasonings && Array.isArray(recipe.seasonings)) {
+      ingredientNames.push(...recipe.seasonings.map(ing => ing.name));
+    }
+    
+    // 説明文とコツ・ポイントを検査対象とする
+    const descriptionTexts = [
+      recipe.description || '',
+      recipe.tips || '',
+      (recipe.ingredientUsage && recipe.ingredientUsage.reason) || '',
+      (recipe.unusedIngredients && recipe.unusedIngredients.reason) || ''
+    ].join(' ');
+    
+    // 否定的な表現パターン
+    const negativePatterns = [
+      '使用しません',
+      '使いません', 
+      '使わない',
+      '使っていない',
+      '使用していない',
+      '入れない',
+      '入れません',
+      '含まない',
+      '含まれていない',
+      '不要',
+      '必要ない',
+      '省略',
+      '除外'
+    ];
+    
+    // 各食材について矛盾をチェック
+    ingredientNames.forEach(ingredient => {
+      // 食材名を正規化（調味料ラベルや余分な文字を除去）
+      let cleanIngredientName = ingredient
+        .replace(/チーズ$/, '')
+        .replace(/（.*?）/, '')
+        .replace(/\(.*?\)/, '')
+        .replace(/\s*大さじ.*/, '')
+        .replace(/\s*小さじ.*/, '')
+        .replace(/\s*\d+.*/, '')
+        .trim();
+      
+      // 短すぎる名前はスキップ（誤検出を避ける）
+      if (cleanIngredientName.length < 2) {
+        return;
+      }
+      
+      // 食材の別名・略称も検索対象に含める
+      const ingredientVariations = [cleanIngredientName];
+      
+      // 一般的な略称・別名のマッピング
+      const nameVariations = {
+        'ケチャップ': ['トマトケチャップ'],
+        'マヨネーズ': ['マヨ'],
+        'オリーブオイル': ['オリーブ油'],
+        'サラダ油': ['植物油'],
+        '醤油': ['しょうゆ'],
+        '味噌': ['みそ'],
+        '砂糖': ['お砂糖'],
+        'こしょう': ['胡椒', 'ペッパー']
+      };
+      
+      // 別名があれば追加
+      if (nameVariations[cleanIngredientName]) {
+        ingredientVariations.push(...nameVariations[cleanIngredientName]);
+      }
+      
+      // 逆引きもチェック
+      Object.keys(nameVariations).forEach(key => {
+        if (nameVariations[key].includes(cleanIngredientName)) {
+          ingredientVariations.push(key);
+        }
+      });
+      
+      // すべての否定パターンを統合
+      const allNegativePatterns = [
+        ...negativePatterns,
+        '使用しなかった',
+        '使わなかった',
+        '使っていません',
+        '入れていない',
+        '含まれていません'
+      ];
+      
+      // 各否定パターンで矛盾をチェック
+      allNegativePatterns.forEach(pattern => {
+        // より柔軟な正規表現パターンを使用
+        const variations = [
+          new RegExp(`${cleanIngredientName}[^。]*?${pattern}`, 'gi'),
+          new RegExp(`${pattern}[^。]*?${cleanIngredientName}`, 'gi'),
+          new RegExp(`${cleanIngredientName}.*?は.*?${pattern}`, 'gi'),
+          new RegExp(`${cleanIngredientName}.*?を.*?${pattern}`, 'gi')
+        ];
+        
+        variations.forEach(regex => {
+          const matches = descriptionTexts.match(regex);
+          if (matches) {
+            // 重複チェック（同じ食材・パターンの組み合わせは一度だけ）
+            const existingContradiction = contradictions.find(c => 
+              c.ingredient === ingredient && 
+              c.pattern === pattern
+            );
+            
+            if (!existingContradiction) {
+              contradictions.push({
+                type: 'ingredient_contradiction',
+                ingredient: ingredient,
+                pattern: pattern,
+                context: matches[0],
+                message: `材料リストに「${ingredient}」が含まれていますが、説明では「${matches[0]}」と記載されており矛盾しています。`
+              });
+            }
+          }
+        });
+      });
+    });
+    
+    return contradictions;
+  }
+
   // レシピ表示
   function displayRecipe(recipe) {
     // レシピのバリデーションを実行
     const validationResult = validateRecipeIngredients(recipe);
     const validatedRecipe = validationResult.validatedRecipe;
     
+    // 矛盾チェックを実行
+    const contradictions = checkRecipeContradictions(validatedRecipe);
+    
     // 違反があった場合はコンソールにログ出力のみ
     if (validationResult.violations.length > 0) {
       const violationMessages = validationResult.violations.map(v => v.message).join('\n');
       console.error('レシピに問題が検出されました:\n' + violationMessages);
+    }
+    
+    // 矛盾があった場合はコンソールにログ出力
+    if (contradictions.length > 0) {
+      const contradictionMessages = contradictions.map(c => c.message).join('\n');
+      console.warn('レシピ内容の矛盾が検出されました:\n' + contradictionMessages);
     }
     
     // タイトルと説明
@@ -1958,6 +2211,33 @@ ${settings.ingredients.join('、')}
       </div>
     `;
       recipeTipsSection.appendChild(usageDiv);
+      
+      // 矛盾チェックの結果を表示
+      if (contradictions.length > 0) {
+        const contradictionDiv = document.createElement('div');
+        contradictionDiv.className = 'contradiction-warning-section';
+        contradictionDiv.style.marginTop = '1.5rem';
+        
+        const contradictionMessages = contradictions.map(contradiction => 
+          `<p class="contradiction-item"><i class="fas fa-exclamation-triangle"></i> ${contradiction.message}</p>`
+        ).join('');
+        
+        contradictionDiv.innerHTML = `
+          <div class="contradiction-title">
+            <i class="fas fa-exclamation-triangle"></i>
+            レシピ内容の矛盾点
+          </div>
+          <div class="contradiction-content">
+            <p><strong>以下の矛盾点が検出されました:</strong></p>
+            ${contradictionMessages}
+            <div class="contradiction-note">
+              <p><em>※ この矛盾は、AIが生成したレシピの材料リストと説明文の間に不整合があることを示しています。</em></p>
+              <p><em>※ より正確なレシピが必要な場合は、「違うメニューを考える」ボタンで再生成することをお勧めします。</em></p>
+            </div>
+          </div>
+        `;
+        recipeTipsSection.appendChild(contradictionDiv);
+      }
     } else {
       // 従来の方法（フォールバック）
       tipsContent.textContent = validatedRecipe.tips || '美味しく作るコツをお楽しみください！';
