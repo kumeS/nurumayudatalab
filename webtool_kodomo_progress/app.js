@@ -4487,7 +4487,7 @@ function updateParentReportHistory() {
           <button class="btn" onclick="exportParentReportPDFById('${report.id}')" style="background: #dc2626; color: white; font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="印刷用ページを開いてPDF保存します">
             <i class="fas fa-print"></i> PDF保存
           </button>
-          <button class="btn btn-warning" onclick="regenerateParentReport('${report.type}', '${report.studentId || ''}', '${report.id}')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
+          <button class="btn btn-warning" onclick="regenerateParentReport('${report.type}', '${report.studentId || ''}', '${report.id}')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="このレポートを最新の情報で再生成します">
             <i class="fas fa-sync-alt"></i> 更新
           </button>
           <button class="btn" onclick="deleteParentReport('${report.id}')" style="background: #ef4444; color: white; font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="このレポートを削除します">
@@ -4969,6 +4969,22 @@ function convertMarkdownToHTML(markdown) {
  * 親御さん向けレポートの再生成
  */
 function regenerateParentReport(reportType, studentId = '', reportId = '') {
+  // 重複クリック防止
+  if (window.isRegeneratingReport) {
+    showAlert('レポート再生成中です。しばらくお待ちください。', 'warning');
+    return;
+  }
+  
+  // パラメータ検証
+  if (!reportType) {
+    showAlert('レポートの種類が指定されていません', 'error');
+    return;
+  }
+  
+  // 処理中フラグ設定
+  window.isRegeneratingReport = true;
+  
+  try {
   if (reportType === 'class_parent') {
     // 既存レポートから学年・クラス情報を取得
     let parentReportHistory = [];
@@ -5022,7 +5038,12 @@ function regenerateParentReport(reportType, studentId = '', reportId = '') {
     updateParentReportHistory();
     showParentReportDetail(newReport);
     showAlert('クラス全体レポートを更新しました！', 'success');
-  } else if (reportType === 'individual_parent' && studentId) {
+  } else if (reportType === 'individual_parent') {
+    // 個別レポートの場合はstudentIdが必要
+    if (!studentId) {
+      showAlert('対象児童のIDが指定されていません', 'error');
+      return;
+    }
     // 個別レポートの再生成
     const student = studentsData.students.find(s => s.id === studentId);
     if (student) {
@@ -5039,6 +5060,13 @@ function regenerateParentReport(reportType, studentId = '', reportId = '') {
     }
   } else {
     showAlert('レポートの種類が不明です', 'error');
+  }
+  } catch (error) {
+    console.error('レポート再生成エラー:', error);
+    showAlert('レポート再生成中にエラーが発生しました', 'error');
+  } finally {
+    // 処理中フラグをリセット
+    window.isRegeneratingReport = false;
   }
 }
 

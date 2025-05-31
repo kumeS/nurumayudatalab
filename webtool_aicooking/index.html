@@ -118,6 +118,25 @@
         min-height: auto;
         height: auto;
       }
+      
+      .search-section {
+        margin: 0.75rem 0 1rem 0;
+      }
+      
+      .search-container {
+        max-width: 100%;
+      }
+      
+      .ingredient-search-input {
+        font-size: 0.9rem;
+        padding: 0.6rem 0.8rem;
+        padding-right: 2.2rem;
+      }
+      
+      .search-icon {
+        right: 0.8rem;
+        font-size: 0.9rem;
+      }
     
       .container {
         padding: 1rem;
@@ -372,30 +391,51 @@
       gap: 0.5rem;
     }
     
-    .header-search {
-      flex: 0 0 auto;
-      margin: 0 1rem;
+    /* 検索セクションのスタイル */
+    .search-section {
+      margin: 1rem 0 1.5rem 0;
+      display: flex;
+      justify-content: center;
     }
     
-    .header-search-input {
-      width: 150px;
-      padding: 0.5rem 0.75rem;
+    .search-container {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+    }
+    
+    .ingredient-search-input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      padding-right: 2.5rem;
       border: 2px solid #e0e0e0;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      transition: border-color var(--transition-speed);
-      background: #f8f9fa;
-    }
-    
-    .header-search-input:focus {
+      border-radius: 30px;
       outline: none;
-      border-color: var(--primary);
-      background: white;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #fafafa;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    .header-search-input::placeholder {
-      color: #999;
-      font-size: 0.8rem;
+    .ingredient-search-input:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+      background: white;
+      transform: translateY(-1px);
+    }
+    
+    .search-icon {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #666;
+      pointer-events: none;
+      transition: color 0.3s ease;
+    }
+    
+    .ingredient-search-input:focus + .search-icon {
+      color: var(--primary-color);
     }
     
     .random-select-btn {
@@ -1753,15 +1793,19 @@
             <i class="fas fa-carrot"></i>
             食材を選択
           </h2>
-          <!-- 小さな検索窓を追加 -->
-          <div class="header-search">
-            <input type="text" class="header-search-input" id="headerIngredientSearch" placeholder="食材名で検索...">
-      </div>
           <button class="random-select-btn" id="randomSelectBtn">
             <i class="fas fa-dice"></i>
             おまかせで選ぶ
           </button>
+        </div>
+        
+        <!-- 検索窓セクション -->
+        <div class="search-section">
+          <div class="search-container">
+            <input type="text" class="ingredient-search-input" id="headerIngredientSearch" placeholder="食材名で検索...">
+            <i class="fas fa-search search-icon"></i>
           </div>
+        </div>
         
         <!-- すべての食材表示ボタン -->
         <div class="all-ingredients-section">
