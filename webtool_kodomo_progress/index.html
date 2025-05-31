@@ -1116,6 +1116,9 @@
       <button class="tab" data-tab="settings" onclick="switchTab('settings')">
         <i class="fas fa-cog"></i> 設定
       </button>
+      <button class="tab" data-tab="system-overview" onclick="switchTab('system-overview')">
+        <i class="fas fa-info-circle"></i> システム概要
+      </button>
     </div>
 
     <!-- メインコンテンツ -->
@@ -1164,9 +1167,6 @@
           </button>
           <button class="btn btn-secondary" style="width: 100%; margin-bottom: 0.5rem;" onclick="openBulkInputModal()">
             <i class="fas fa-edit"></i> 一括入力
-          </button>
-          <button class="btn btn-success" style="width: 100%; margin-bottom: 0.5rem;" onclick="exportData()">
-            <i class="fas fa-download"></i> データ出力
           </button>
         </div>
 
@@ -1310,9 +1310,6 @@
               <button class="btn btn-secondary" onclick="refreshTable()">
                 <i class="fas fa-sync-alt"></i> 更新
               </button>
-              <button class="btn btn-success" onclick="exportData()">
-                <i class="fas fa-download"></i> エクスポート
-              </button>
             </div>
           </div>
           
@@ -1373,8 +1370,11 @@
           <!-- AI分析実行オプション -->
           <div class="card">
             <div style="text-align: center; margin-bottom: 2rem;">
-              <h2 style="color: var(--primary); font-size: 2rem; font-weight: 800; margin: 0; text-shadow: 0 2px 4px rgba(79, 70, 229, 0.1);">
+              <h2 style="color: var(--primary); font-size: 2rem; font-weight: 800; margin: 0; text-shadow: 0 2px 4px rgba(79, 70, 229, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                 🚀 AI分析実行
+                <button onclick="showAnalysisTips()" style="background: var(--primary); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3); transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="分析実行のコツを表示">
+                  i
+                </button>
               </h2>
               <p style="color: var(--text-secondary); font-size: 1.1rem; margin: 0.5rem 0 0 0;">
                 児童の学習状況をAIが分析し、具体的な指導提案を提供します
@@ -1446,19 +1446,7 @@
               </div>
             </div>
             
-            <!-- 分析実行のポイント -->
-            <div style="background: rgba(79, 70, 229, 0.05); border: 1px solid rgba(79, 70, 229, 0.2); border-radius: 8px; padding: 1rem;">
-              <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                <i class="fas fa-lightbulb" style="color: var(--primary); margin-right: 0.5rem;"></i>
-                <strong style="color: var(--primary);">分析実行のコツ</strong>
-              </div>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; font-size: 0.9rem; color: var(--text-primary);">
-                <span>• <strong>初回:</strong> クラス全体分析から開始</span>
-                <span>• <strong>定期:</strong> 全員個別分析で成長追跡</span>
-                <span>• <strong>課題:</strong> 特定児童分析で深掘り</span>
-                <span>• <strong>面談前:</strong> 個別分析で準備万全</span>
-              </div>
-            </div>
+
           </div>
           
           <!-- AI分析結果テーブル -->
@@ -1466,15 +1454,8 @@
             <h3 class="card-title">🧠 AI分析結果</h3>
             <div id="analysisResultsTable">
               <div class="alert alert-info">
-              <i class="fas fa-info-circle"></i>
+                <i class="fas fa-info-circle"></i>
                 まだ分析結果がありません。上記のボタンからAI分析を実行してください。分析結果は以下のテーブルに表示されます。
-                <br><br>
-                <strong>期待される分析内容：</strong>
-                <ul style="margin-top: 0.5rem;">
-                  <li>「○○さんは最近理解度が落ちているので復習を増やしましょう」</li>
-                  <li>「学習意欲が向上しており、発展的な内容に挑戦する時期です」</li>
-                  <li>「宿題提出率が下がっているため、家庭との連携が必要です」</li>
-                </ul>
               </div>
             </div>
           </div>
@@ -1532,19 +1513,6 @@
                   </button>
                 </div>
               </div>
-              
-              <div style="background: rgba(124, 58, 237, 0.05); border: 1px solid rgba(124, 58, 237, 0.2); border-radius: 8px; padding: 1rem;">
-                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                  <i class="fas fa-lightbulb" style="color: var(--secondary); margin-right: 0.5rem;"></i>
-                  <strong style="color: var(--secondary);">親御さん向けレポートの特徴</strong>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; font-size: 0.9rem; color: var(--text-primary);">
-                  <span>• <strong>わかりやすい表現:</strong> 専門用語を避けた親しみやすい文章</span>
-                  <span>• <strong>具体的なアドバイス:</strong> 家庭でできる支援方法を提案</span>
-                  <span>• <strong>成長の可視化:</strong> お子様の良い点を積極的に紹介</span>
-                  <span>• <strong>連携のポイント:</strong> 学校と家庭の協力方法を明示</span>
-                </div>
-              </div>
             </div>
             
             <!-- 親御さん向けレポート履歴 -->
@@ -1555,20 +1523,20 @@
               <div id="parentReportHistory">
                 <div class="alert alert-info">
                   <i class="fas fa-info-circle"></i>
-                  まだ親御さん向けレポートが作成されていません。上記のボタンからレポートを作成すると、ここに履歴が表示されます。
-                  <br><br>
-                  <strong>活用例：</strong>
-                  <ul style="margin-top: 0.5rem;">
-                    <li>保護者面談での資料として活用</li>
-                    <li>家庭訪問時の話題提供</li>
-                    <li>学級通信への内容反映</li>
-                    <li>個別の成長記録として保管</li>
-                  </ul>
+                  まだ分析結果がありません。上記のボタンからAI分析を実行してください。
                 </div>
               </div>
             </div>
           </div>
           
+
+        </div>
+
+        <!-- システム概要タブ -->
+        <div id="system-overview-tab" class="tab-content hidden">
+          <h2 class="card-title">システム概要</h2>
+          
+          <!-- 教育現場での活用方法 -->
           <div class="card">
             <h3 class="card-title">🎯 教育現場での活用方法</h3>
             <div style="margin-bottom: 1rem;">
@@ -1624,6 +1592,54 @@
               </div>
             </div>
             
+            <!-- 親御さん向けレポートの特徴説明 -->
+            <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding: 1.5rem; border-radius: 12px; margin: 1.5rem 0; border: 1px solid rgba(79, 70, 229, 0.1);">
+              <h5 style="color: var(--primary); margin-bottom: 1rem; font-size: 1rem; font-weight: 600; display: flex; align-items: center;">
+                <i class="fas fa-heart" style="margin-right: 0.5rem;"></i>
+                親御さん向けレポートの特徴
+              </h5>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+                <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 3px solid var(--primary);">
+                  <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <i class="fas fa-comment" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                    <strong style="color: var(--primary); font-size: 0.9rem;">わかりやすい表現</strong>
+                  </div>
+                  <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">専門用語を避けた親しみやすい文章</p>
+                </div>
+                
+                <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 3px solid var(--success);">
+                  <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <i class="fas fa-lightbulb" style="color: var(--success); margin-right: 0.5rem;"></i>
+                    <strong style="color: var(--success); font-size: 0.9rem;">具体的なアドバイス</strong>
+                  </div>
+                  <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">家庭でできる支援方法を提案</p>
+                </div>
+                
+                <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 3px solid var(--warning);">
+                  <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <i class="fas fa-chart-line" style="color: var(--warning); margin-right: 0.5rem;"></i>
+                    <strong style="color: var(--warning); font-size: 0.9rem;">成長の可視化</strong>
+                  </div>
+                  <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">お子様の良い点を積極的に紹介</p>
+                </div>
+                
+                <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 3px solid var(--secondary);">
+                  <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <i class="fas fa-handshake" style="color: var(--secondary); margin-right: 0.5rem;"></i>
+                    <strong style="color: var(--secondary); font-size: 0.9rem;">連携のポイント</strong>
+                  </div>
+                  <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">学校と家庭の協力方法を明示</p>
+                </div>
+              </div>
+            </div>
+            
+            <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(79, 70, 229, 0.05); border-radius: 8px; border: 1px solid rgba(79, 70, 229, 0.1);">
+              <p style="margin: 0; text-align: center; color: var(--primary); font-weight: 500;">
+                <i class="fas fa-lightbulb" style="margin-right: 0.5rem;"></i>
+                データを活用した<strong>エビデンス・ベースド教育</strong>の実現
+              </p>
+            </div>
+            
             <!-- レスポンシブ対応用のモバイル表示 -->
             <style>
               @media (max-width: 768px) {
@@ -1632,236 +1648,10 @@
                   grid-template-rows: auto !important;
                 }
               }
-              
-              /* 親御さんレポート専用スタイル */
-              .parent-report-modal {
-                width: 95vw !important;
-                max-width: min(1000px, 95vw) !important;
-              }
-              
-              .parent-report-divider {
-                border-top: 2px solid var(--border, #e2e8f0);
-                margin: 1.5rem 0;
-                opacity: 0.6;
-              }
-              
-              .parent-report-h3 {
-                color: var(--primary, #4f46e5) !important;
-                font-size: 1.3rem !important;
-                font-weight: 700 !important;
-                margin: 1.5rem 0 0.75rem 0 !important;
-                padding: 0.5rem 0 0.5rem 0.75rem !important;
-                border-left: 4px solid var(--primary, #4f46e5) !important;
-                background: rgba(79, 70, 229, 0.05) !important;
-                border-radius: 4px !important;
-              }
-              
-              .parent-report-h4 {
-                color: var(--secondary, #7c3aed) !important;
-                font-size: 1.1rem !important;
-                font-weight: 600 !important;
-                margin: 1rem 0 0.5rem 0 !important;
-                padding: 0.25rem 0.5rem !important;
-                border-left: 3px solid var(--secondary, #7c3aed) !important;
-                background: rgba(124, 58, 237, 0.05) !important;
-                border-radius: 0 4px 4px 0 !important;
-              }
-              
-              .parent-report-h5 {
-                color: var(--accent, #06b6d4) !important;
-                font-size: 1rem !important;
-                font-weight: 600 !important;
-                margin: 0.75rem 0 0.25rem 0 !important;
-                padding: 0.2rem 0.4rem !important;
-                background: rgba(6, 182, 212, 0.1) !important;
-                border-radius: 3px !important;
-                display: inline-block !important;
-              }
-              
-              .parent-report-strong {
-                color: var(--accent, #06b6d4) !important;
-                font-weight: 600 !important;
-                background: rgba(6, 182, 212, 0.15) !important;
-                padding: 0.15rem 0.4rem !important;
-                border-radius: 4px !important;
-              }
-              
-              .parent-report-paragraph {
-                margin-bottom: 0.75rem !important;
-                line-height: 1.7 !important;
-                color: var(--text-primary, #1f2937) !important;
-              }
-              
-              .parent-report-list {
-                margin: 0.75rem 0 !important;
-                padding-left: 1.5rem !important;
-              }
-              
-              .parent-report-list-item {
-                margin-bottom: 0.5rem !important;
-                padding: 0.2rem 0 !important;
-                color: var(--text-primary, #1f2937) !important;
-                line-height: 1.6 !important;
-              }
-              
-              .parent-report-hr {
-                border: none !important;
-                border-top: 1px solid var(--border, #e2e8f0) !important;
-                margin: 1.5rem 0 !important;
-                opacity: 0.6 !important;
-              }
-              
-              .parent-report-note {
-                font-style: italic !important;
-                color: var(--text-secondary, #6b7280) !important;
-                font-size: 0.9rem !important;
-                margin: 0.5rem 0 !important;
-              }
-              
-              .parent-report-content {
-                font-size: 1rem !important;
-                word-break: break-word !important;
-                overflow-wrap: break-word !important;
-              }
-              
-              @media (max-width: 768px) {
-                .parent-report-modal {
-                  width: 98vw !important;
-                  max-width: 98vw !important;
-                  margin: 1vh auto !important;
-                  max-height: 96vh !important;
-                }
-                
-                .parent-report-header {
-                  flex-direction: column !important;
-                  align-items: flex-start !important;
-                  gap: 0.75rem !important;
-                }
-                
-                .parent-report-meta-item {
-                  font-size: 0.9rem !important;
-                }
-                
-                .parent-report-h3 {
-                  font-size: 1.2rem !important;
-                  padding: 0.4rem 0 0.4rem 0.5rem !important;
-                }
-                
-                .parent-report-h4 {
-                  font-size: 1rem !important;
-                  padding: 0.2rem 0.4rem !important;
-                }
-                
-                .parent-report-content {
-                  padding: 1rem !important;
-                  font-size: 0.95rem !important;
-                }
-              }\n            </style>
-            
-            <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(79, 70, 229, 0.05); border-radius: 8px; border: 1px solid rgba(79, 70, 229, 0.1);">
-              <p style="margin: 0; text-align: center; color: var(--primary); font-weight: 500;">
-                <i class="fas fa-lightbulb" style="margin-right: 0.5rem;"></i>
-                データを活用した<strong>エビデンス・ベースド教育</strong>の実現
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 設定タブ -->
-        <div id="settings-tab" class="tab-content hidden">
-          <h2 class="card-title">設定</h2>
-          
-          <!-- 項目設定 -->
-          <div class="card">
-            <h3 class="card-title">入力項目設定</h3>
-            
-            <!-- 組み込み項目選択セクション -->
-            <div style="margin-bottom: 2rem;">
-              <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                <h4 style="margin: 0; color: var(--primary); font-size: 1.1rem; font-weight: 600;">
-                  <i class="fas fa-star"></i> 組み込み項目から選択
-                </h4>
-                <span style="background: rgba(79, 70, 229, 0.1); color: var(--primary); padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 500;">
-                  よく使われる項目
-                </span>
-              </div>
-              <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">
-                教育現場でよく使われる項目を簡単に追加できます。カテゴリから選択して「追加」ボタンをクリックしてください。
-              </p>
-              
-              <div id="builtInFieldsContainer">
-                <!-- 動的に生成される組み込み項目 -->
-              </div>
-            </div>
-            
-            <!-- 既存項目表示 -->
-            <div style="border-top: 1px solid var(--border); padding-top: 1.5rem;">
-              <h4 style="margin: 0 0 1rem 0; color: var(--text-primary); font-size: 1.1rem; font-weight: 600;">
-                <i class="fas fa-list"></i> 現在の設定項目
-              </h4>
-              <div id="fieldSettings">
-                <!-- 動的に生成 -->
-              </div>
-              <button class="btn btn-primary" onclick="openAddFieldModal()" style="margin-top: 1rem;">
-                <i class="fas fa-plus"></i> カスタム項目を追加
-              </button>
-            </div>
+            </style>
           </div>
           
-          <!-- 児童管理 -->
-          <div class="card">
-            <h3 class="card-title">児童管理</h3>
-            <div id="studentManagementSettings">
-              <!-- 動的に生成される児童削除リスト -->
-            </div>
-            <div style="background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 2px solid #ef4444; border-radius: 12px; padding: 1.5rem; margin-top: 1rem; box-shadow: 0 4px 8px rgba(239, 68, 68, 0.15);">
-              <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
-                <div style="background: #ef4444; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);">
-                  <i class="fas fa-exclamation-triangle"></i>
-                </div>
-                <h4 style="margin: 0; color: #dc2626; font-weight: 700; font-size: 1.1rem;">重要な注意事項</h4>
-              </div>
-              <p style="margin: 0; color: #7f1d1d; font-weight: 600; line-height: 1.6; font-size: 1rem;">
-                <i class="fas fa-trash-alt" style="margin-right: 0.5rem; color: #ef4444;"></i>
-                児童を削除すると、その児童のすべての進捗記録も削除されます。
-                <br>
-                <strong style="color: #ef4444;">この操作は取り消すことができません。</strong>
-              </p>
-              <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid #ef4444;">
-                <small style="color: #7f1d1d; font-weight: 500;">
-                  <i class="fas fa-lightbulb" style="margin-right: 0.5rem; color: #f59e0b;"></i>
-                  重要なデータは事前にエクスポート機能でバックアップを取ることをお勧めします。
-                </small>
-              </div>
-            </div>
-          </div>
-          
-          <!-- データ管理 -->
-          <div class="card">
-            <h3 class="card-title">データ管理</h3>
-            <div class="flex gap-2" style="flex-wrap: wrap;">
-              <button class="btn btn-success" onclick="exportData()">
-                <i class="fas fa-download"></i> データエクスポート
-              </button>
-              <button class="btn btn-warning" onclick="importData()">
-                <i class="fas fa-upload"></i> データインポート
-              </button>
-              <button class="btn btn-secondary" onclick="viewAnalysisHistory()">
-                <i class="fas fa-history"></i> 全体のAI分析履歴
-              </button>
-              <button class="btn btn-warning" onclick="clearAnalysisHistory()">
-                <i class="fas fa-trash"></i> AI分析履歴クリア
-              </button>
-              <button class="btn btn-error" onclick="confirmClearAllData()">
-                <i class="fas fa-trash"></i> 全データ削除
-              </button>
-              <button class="btn btn-primary" onclick="ensureDataCompatibility()">
-                <i class="fas fa-tags"></i> 行動タグ機能を追加
-              </button>
-            </div>
-          </div>
-          
-          <!-- AI分析設定 -->
+          <!-- AI分析システム設定 -->
           <div class="card">
             <div style="text-align: center; margin-bottom: 2rem;">
               <h2 style="color: var(--primary); font-size: 1.8rem; font-weight: 700; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
@@ -2005,40 +1795,199 @@
             
             <!-- AIの特長説明 -->
             <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(79, 70, 229, 0.05); border: 2px solid rgba(79, 70, 229, 0.1); border-radius: 12px;">
-              <div style="text-align: center; margin-bottom: 1rem;">
+              <div style="text-align: center; margin-bottom: 2rem;">
                 <h4 style="color: var(--primary); margin: 0; font-size: 1.2rem; font-weight: 600;">
                   <i class="fas fa-magic" style="margin-right: 0.5rem;"></i>
                   このAI分析システムの特長
                 </h4>
               </div>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
-                <div style="display: flex; align-items: center;">
-                  <i class="fas fa-graduation-cap" style="color: var(--primary); margin-right: 0.75rem; font-size: 1.2rem;"></i>
-                  <span style="color: var(--text-primary); font-size: 0.9rem; line-height: 1.4;">
-                    <strong>教育現場専用:</strong> 小学校教育に特化した分析ロジック
-                  </span>
+              
+              <!-- 2x2グリッドレイアウト -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1.5rem; max-width: 1000px; margin: 0 auto;">
+                
+                <!-- 左上: 教育現場専用 -->
+                <div style="background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--primary); min-height: 160px; display: flex; flex-direction: column;">
+                  <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                    <i class="fas fa-graduation-cap" style="color: var(--primary); font-size: 1.8rem; margin-right: 1rem;"></i>
+                    <h5 style="margin: 0; color: var(--primary); font-weight: 700; font-size: 1.1rem;">教育現場専用</h5>
+                  </div>
+                  <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                    <p style="margin: 0 0 0.75rem 0; color: var(--text-primary); line-height: 1.6; font-size: 0.95rem;">
+                      <strong>小学校教育に特化した分析ロジック</strong>
+                    </p>
+                    <p style="margin: 0; color: var(--text-secondary); line-height: 1.5; font-size: 0.9rem;">
+                      児童の発達段階を考慮し、学年に応じた適切な評価基準で分析を実行。教育現場の実情に合わせた実用的な提案を生成します。
+                    </p>
+                  </div>
                 </div>
-                <div style="display: flex; align-items: center;">
-                  <i class="fas fa-eye" style="color: var(--primary); margin-right: 0.75rem; font-size: 1.2rem;"></i>
-                  <span style="color: var(--text-primary); font-size: 0.9rem; line-height: 1.4;">
-                    <strong>変化の可視化:</strong> 小さな成長や変化も見逃さない
-                  </span>
+                
+                <!-- 右上: 変化の可視化 -->
+                <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--success); min-height: 160px; display: flex; flex-direction: column;">
+                  <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                    <i class="fas fa-eye" style="color: var(--success); font-size: 1.8rem; margin-right: 1rem;"></i>
+                    <h5 style="margin: 0; color: var(--success); font-weight: 700; font-size: 1.1rem;">変化の可視化</h5>
+                  </div>
+                  <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                    <p style="margin: 0 0 0.75rem 0; color: var(--text-primary); line-height: 1.6; font-size: 0.95rem;">
+                      <strong>小さな成長や変化も見逃さない</strong>
+                    </p>
+                    <p style="margin: 0; color: var(--text-secondary); line-height: 1.5; font-size: 0.9rem;">
+                      時系列データから微細な変化パターンを検出し、気づきにくい成長の兆しや注意すべき変化を早期に発見します。
+                    </p>
+                  </div>
                 </div>
-                <div style="display: flex; align-items: center;">
-                  <i class="fas fa-tools" style="color: var(--primary); margin-right: 0.75rem; font-size: 1.2rem;"></i>
-                  <span style="color: var(--text-primary); font-size: 0.9rem; line-height: 1.4;">
-                    <strong>実践的提案:</strong> 明日から使える具体的な指導案
-                  </span>
+                
+                <!-- 左下: 実践的提案 -->
+                <div style="background: linear-gradient(135deg, #fef3e2 0%, #fef7ed 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--warning); min-height: 160px; display: flex; flex-direction: column;">
+                  <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                    <i class="fas fa-tools" style="color: var(--warning); font-size: 1.8rem; margin-right: 1rem;"></i>
+                    <h5 style="margin: 0; color: var(--warning); font-weight: 700; font-size: 1.1rem;">実践的提案</h5>
+                  </div>
+                  <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                    <p style="margin: 0 0 0.75rem 0; color: var(--text-primary); line-height: 1.6; font-size: 0.95rem;">
+                      <strong>明日から使える具体的な指導案</strong>
+                    </p>
+                    <p style="margin: 0; color: var(--text-secondary); line-height: 1.5; font-size: 0.9rem;">
+                      抽象的なアドバイスではなく、授業や個別指導ですぐに活用できる具体的な手法やアプローチを提案します。
+                    </p>
+                  </div>
                 </div>
-                <div style="display: flex; align-items: center;">
-                  <i class="fas fa-handshake" style="color: var(--primary); margin-right: 0.75rem; font-size: 1.2rem;"></i>
-                  <span style="color: var(--text-primary); font-size: 0.9rem; line-height: 1.4;">
-                    <strong>家庭連携:</strong> 保護者との協力ポイントも提案
-                  </span>
+                
+                <!-- 右下: 家庭連携 -->
+                <div style="background: linear-gradient(135deg, #fdf2f8 0%, #fef7f7 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--secondary); min-height: 160px; display: flex; flex-direction: column;">
+                  <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                    <i class="fas fa-handshake" style="color: var(--secondary); font-size: 1.8rem; margin-right: 1rem;"></i>
+                    <h5 style="margin: 0; color: var(--secondary); font-weight: 700; font-size: 1.1rem;">家庭連携</h5>
+                  </div>
+                  <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                    <p style="margin: 0 0 0.75rem 0; color: var(--text-primary); line-height: 1.6; font-size: 0.95rem;">
+                      <strong>保護者との協力ポイントも提案</strong>
+                    </p>
+                    <p style="margin: 0; color: var(--text-secondary); line-height: 1.5; font-size: 0.9rem;">
+                      学校での取り組みと連動した家庭でのサポート方法を提案し、学校と家庭が一体となった支援体制を構築します。
+                    </p>
+                  </div>
                 </div>
+              </div>
+              
+              <!-- レスポンシブ対応のスタイル -->
+              <style>
+                @media (max-width: 768px) {
+                  .grid-2x2-features {
+                    grid-template-columns: 1fr !important;
+                    grid-template-rows: auto !important;
+                  }
+                }
+              </style>
+              <script>
+                // レスポンシブ対応のためのクラス追加
+                document.addEventListener('DOMContentLoaded', function() {
+                  const grid = document.querySelector('[style*="grid-template-columns: 1fr 1fr"]');
+                  if (grid) {
+                    grid.classList.add('grid-2x2-features');
+                  }
+                });
+              </script>
+            </div>
           </div>
+        </div>
+
+        <!-- 設定タブ -->
+        <div id="settings-tab" class="tab-content hidden">
+          <h2 class="card-title">設定</h2>
+          
+          <!-- 項目設定 -->
+          <div class="card">
+            <h3 class="card-title">入力項目設定</h3>
+            
+            <!-- 組み込み項目選択セクション -->
+            <div style="margin-bottom: 2rem;">
+              <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <h4 style="margin: 0; color: var(--primary); font-size: 1.1rem; font-weight: 600;">
+                  <i class="fas fa-star"></i> 組み込み項目から選択
+                </h4>
+                <span style="background: rgba(79, 70, 229, 0.1); color: var(--primary); padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 500;">
+                  よく使われる項目
+                </span>
+              </div>
+              <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">
+                教育現場でよく使われる項目を簡単に追加できます。カテゴリから選択して「追加」ボタンをクリックしてください。
+              </p>
+              
+              <div id="builtInFieldsContainer">
+                <!-- 動的に生成される組み込み項目 -->
               </div>
             </div>
+            
+            <!-- 既存項目表示 -->
+            <div style="border-top: 1px solid var(--border); padding-top: 1.5rem;">
+              <h4 style="margin: 0 0 1rem 0; color: var(--text-primary); font-size: 1.1rem; font-weight: 600;">
+                <i class="fas fa-list"></i> 現在の設定項目
+              </h4>
+              <div id="fieldSettings">
+                <!-- 動的に生成 -->
+              </div>
+              <button class="btn btn-primary" onclick="openAddFieldModal()" style="margin-top: 1rem;">
+                <i class="fas fa-plus"></i> カスタム項目を追加
+              </button>
+            </div>
+          </div>
+          
+          <!-- 児童管理 -->
+          <div class="card">
+            <h3 class="card-title">児童管理</h3>
+            <div id="studentManagementSettings">
+              <!-- 動的に生成される児童削除リスト -->
+            </div>
+            <div style="background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 2px solid #ef4444; border-radius: 12px; padding: 1.5rem; margin-top: 1rem; box-shadow: 0 4px 8px rgba(239, 68, 68, 0.15);">
+              <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+                <div style="background: #ef4444; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);">
+                  <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h4 style="margin: 0; color: #dc2626; font-weight: 700; font-size: 1.1rem;">重要な注意事項</h4>
+              </div>
+              <p style="margin: 0; color: #7f1d1d; font-weight: 600; line-height: 1.6; font-size: 1rem;">
+                <i class="fas fa-trash-alt" style="margin-right: 0.5rem; color: #ef4444;"></i>
+                児童を削除すると、その児童のすべての進捗記録も削除されます。
+                <br>
+                <strong style="color: #ef4444;">この操作は取り消すことができません。</strong>
+              </p>
+              <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid #ef4444;">
+                <small style="color: #7f1d1d; font-weight: 500;">
+                  <i class="fas fa-lightbulb" style="margin-right: 0.5rem; color: #f59e0b;"></i>
+                  重要なデータは事前にエクスポート機能でバックアップを取ることをお勧めします。
+                </small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- データ管理 -->
+          <div class="card">
+            <h3 class="card-title">データ管理</h3>
+            <div class="flex gap-2" style="flex-wrap: wrap;">
+              <button class="btn btn-success" onclick="exportData()">
+                <i class="fas fa-download"></i> データエクスポート
+              </button>
+              <button class="btn btn-warning" onclick="importData()">
+                <i class="fas fa-upload"></i> データインポート
+              </button>
+              <button class="btn btn-secondary" onclick="viewAnalysisHistory()">
+                <i class="fas fa-history"></i> 全体のAI分析履歴
+              </button>
+              <button class="btn btn-warning" onclick="clearAnalysisHistory()">
+                <i class="fas fa-trash"></i> AI分析履歴クリア
+              </button>
+              <button class="btn btn-error" onclick="confirmClearAllData()">
+                <i class="fas fa-trash"></i> 全データ削除
+              </button>
+              <button class="btn btn-primary" onclick="ensureDataCompatibility()">
+                <i class="fas fa-tags"></i> 行動タグ機能を追加
+              </button>
+            </div>
+          </div>
+
+
+
         </div>
       </main>
     </div>
@@ -2265,6 +2214,61 @@
     </div>
   </div>
 
+  <!-- 児童編集モーダル -->
+  <div id="editStudentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">児童情報編集</h3>
+        <button class="modal-close" onclick="closeModal('editStudentModal')">&times;</button>
+      </div>
+      <form id="editStudentForm">
+        <div class="form-group">
+          <label class="form-label">氏名 *</label>
+          <input type="text" id="editStudentName" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">在籍番号 *</label>
+          <input type="text" id="editStudentNumber" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">学年 *</label>
+          <select id="editStudentGrade" class="form-select" required>
+            <option value="">選択してください</option>
+            <option value="1">1年生</option>
+            <option value="2">2年生</option>
+            <option value="3">3年生</option>
+            <option value="4">4年生</option>
+            <option value="5">5年生</option>
+            <option value="6">6年生</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">性別 *</label>
+          <select id="editStudentGender" class="form-select" required>
+            <option value="">選択してください</option>
+            <option value="male">男子</option>
+            <option value="female">女子</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">クラス</label>
+          <input type="text" id="editStudentClass" class="form-input" placeholder="例: A組">
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> 保存
+          </button>
+          <button type="button" class="btn btn-danger" onclick="confirmDeleteStudent()">
+            <i class="fas fa-trash"></i> 削除
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('editStudentModal')">
+            キャンセル
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- 項目追加モーダル -->
   <div id="addFieldModal" class="modal">
     <div class="modal-content">
@@ -2300,6 +2304,84 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- 分析実行のコツモーダル -->
+  <div id="analysisTipsModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: var(--primary); display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fas fa-lightbulb"></i>
+          分析実行のコツ
+        </h3>
+        <button class="modal-close" onclick="closeModal('analysisTipsModal')">&times;</button>
+      </div>
+      <div style="padding: 0;">
+        <div style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(79, 70, 229, 0.02) 100%); padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem;">
+          <p style="margin: 0 0 1rem 0; color: var(--text-primary); font-size: 1rem; line-height: 1.6;">
+            効果的なAI分析を行うための段階的なアプローチをご紹介します。
+          </p>
+          <div style="display: grid; gap: 1rem;">
+            <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid var(--primary); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">
+              <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                <span style="background: var(--primary); color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; margin-right: 0.75rem;">1</span>
+                <strong style="color: var(--primary); font-size: 1rem;">初回: クラス全体分析から開始</strong>
+              </div>
+              <p style="margin: 0; color: var(--text-primary); font-size: 0.9rem; line-height: 1.5; padding-left: 2rem;">
+                まずは学級全体の傾向を把握し、指導の方向性を決めましょう
+              </p>
+            </div>
+            
+            <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid var(--success); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">
+              <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                <span style="background: var(--success); color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; margin-right: 0.75rem;">2</span>
+                <strong style="color: var(--success); font-size: 1rem;">定期: 全員個別分析で成長追跡</strong>
+              </div>
+              <p style="margin: 0; color: var(--text-primary); font-size: 0.9rem; line-height: 1.5; padding-left: 2rem;">
+                定期的に全児童の個別分析を行い、成長の変化を継続的に追跡します
+              </p>
+            </div>
+            
+            <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid var(--warning); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">
+              <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                <span style="background: var(--warning); color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; margin-right: 0.75rem;">3</span>
+                <strong style="color: var(--warning); font-size: 1rem;">課題: 特定児童分析で深掘り</strong>
+              </div>
+              <p style="margin: 0; color: var(--text-primary); font-size: 0.9rem; line-height: 1.5; padding-left: 2rem;">
+                気になる変化がある児童について、詳細な個別分析で課題を深掘りします
+              </p>
+            </div>
+            
+            <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid var(--secondary); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">
+              <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                <span style="background: var(--secondary); color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; margin-right: 0.75rem;">4</span>
+                <strong style="color: var(--secondary); font-size: 1rem;">面談前: 個別分析で準備万全</strong>
+              </div>
+              <p style="margin: 0; color: var(--text-primary); font-size: 0.9rem; line-height: 1.5; padding-left: 2rem;">
+                保護者面談や個別相談の前に分析を実行し、具体的なデータで説明準備を整えます
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div style="background: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 8px; padding: 1rem;">
+          <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+            <i class="fas fa-star" style="color: var(--accent); margin-right: 0.5rem;"></i>
+            <strong style="color: var(--accent);">効果的な活用のポイント</strong>
+          </div>
+          <ul style="margin: 0; color: var(--text-primary); font-size: 0.9rem; line-height: 1.6; padding-left: 1.2rem;">
+            <li>分析結果は<strong>指導の参考材料</strong>として活用する</li>
+            <li>継続的にデータを蓄積することで<strong>変化の傾向</strong>が見えてくる</li>
+            <li>保護者や同僚との<strong>情報共有</strong>に具体的なデータを活用する</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top: 1.5rem; text-align: center;">
+        <button class="btn btn-primary" onclick="closeModal('analysisTipsModal')">
+          <i class="fas fa-check"></i> 理解しました
+        </button>
+      </div>
     </div>
   </div>
 

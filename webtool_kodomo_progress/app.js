@@ -207,6 +207,7 @@ function setupEventListeners() {
 
   // フォーム送信
   document.getElementById('addStudentForm').addEventListener('submit', handleAddStudent);
+  document.getElementById('editStudentForm').addEventListener('submit', handleEditStudent);
   document.getElementById('addFieldForm').addEventListener('submit', handleAddField);
   document.getElementById('progressInputForm').addEventListener('submit', handleProgressInput);
 
@@ -330,7 +331,7 @@ function ensureDataCompatibility() {
         '集中力が続く',
         '細かいところに気づく',
         '協力的な姿勢',
-        '独创的なアイデアを出す',
+        '独創的なアイデアを出す',
         '整理整頓が上手',
         '時間を守って行動',
         '困っている友達を手助け',
@@ -349,6 +350,9 @@ function ensureDataCompatibility() {
     console.log('行動タグフィールドを追加しました');
     showAlert('行動タグ機能が追加されました！', 'success');
   }
+  
+  // 入力フィールドの更新（行動タグが常に表示されるようになる）
+  updateInputFields();
 }
 
 /**
@@ -711,16 +715,24 @@ function updateFieldSettings() {
     const fieldCard = document.createElement('div');
     fieldCard.className = 'card';
     fieldCard.style.marginBottom = '0.5rem';
+    
+    // 行動タグかどうかをチェック
+    const isBehaviorTag = field.id === 'behaviorTags';
+    
     fieldCard.innerHTML = `
       <div class="flex justify-between items-center">
         <div>
           <strong>${field.name}</strong>
           <span class="text-secondary">(${getFieldTypeLabel(field.type)})</span>
           ${field.required ? '<span class="text-error">*必須</span>' : ''}
+          ${isBehaviorTag ? '<span style="color: var(--accent); font-size: 0.8rem; margin-left: 0.5rem; background: rgba(6, 182, 212, 0.1); padding: 0.2rem 0.4rem; border-radius: 3px;">システム項目</span>' : ''}
         </div>
-        <button class="btn btn-error" onclick="removeField(${index})" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
-          <i class="fas fa-trash"></i> 削除
-        </button>
+        ${isBehaviorTag ? 
+          '<span style="color: var(--text-secondary); font-size: 0.8rem; font-style: italic;">削除不可</span>' :
+          `<button class="btn btn-error" onclick="removeField(${index})" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+            <i class="fas fa-trash"></i> 削除
+          </button>`
+        }
       </div>
     `;
     container.appendChild(fieldCard);
@@ -848,6 +860,7 @@ function getFieldTypeLabel(type) {
     case 'text': return '自由記述';
     case 'number': return '数値入力';
     case 'checkbox': return 'チェックボックス';
+    case 'multiselect': return '行動タグ選択';
     default: return type;
   }
 }
@@ -856,6 +869,14 @@ function getFieldTypeLabel(type) {
  * フィールド削除
  */
 function removeField(index) {
+  const field = studentsData.fieldDefinitions[index];
+  
+  // 行動タグの削除を防ぐ
+  if (field.id === 'behaviorTags') {
+    showAlert('行動タグはシステム項目のため削除できません', 'warning');
+    return;
+  }
+  
   if (!confirm('この項目を削除しますか？')) return;
   
   const removedField = studentsData.fieldDefinitions[index];
@@ -987,7 +1008,51 @@ function updateInputFields() {
 
   container.innerHTML = '';
 
-  if (!studentsData.fieldDefinitions || studentsData.fieldDefinitions.length === 0) {
+  // 行動タグを含む全ての項目を表示
+  const allFields = [];
+  
+  // 通常の項目を追加
+  if (studentsData.fieldDefinitions && studentsData.fieldDefinitions.length > 0) {
+    allFields.push(...studentsData.fieldDefinitions);
+  }
+  
+  // 行動タグが存在しない場合は追加
+  const behaviorTagExists = allFields.some(field => field.id === 'behaviorTags');
+  if (!behaviorTagExists) {
+    const behaviorTagField = {
+      id: 'behaviorTags',
+      name: '児童の行動タグ',
+      type: 'multiselect',
+      options: [
+        '積極的に手を上げる',
+        '黙っていた',
+        'クラスでのリーダー役',
+        '規則正しい生活習慣',
+        '一生懸命頑張っています',
+        '宿題をしっかり提出',
+        '学習への意欲が高い',
+        '友達に教える姿勢',
+        'いつも明るい',
+        '集中力が続く',
+        '細かいところに気づく',
+        '協力的な姿勢',
+        '独創的なアイデアを出す',
+        '整理整頓が上手',
+        '時間を守って行動',
+        '困っている友達を手助け',
+        '最後まであきらめない',
+        '新しいことに挑戦する',
+        '丁寧な字で書く',
+        '正直に報告する',
+        '質問を積極的にする',
+        '間違いを恐れず発言'
+      ],
+      required: false
+    };
+    allFields.push(behaviorTagField);
+  }
+
+  if (allFields.length === 0) {
     container.innerHTML = `
       <div class="alert alert-warning">
         <i class="fas fa-exclamation-triangle"></i>
@@ -997,7 +1062,7 @@ function updateInputFields() {
     return;
   }
 
-  studentsData.fieldDefinitions.forEach(field => {
+  allFields.forEach(field => {
     const fieldGroup = document.createElement('div');
     fieldGroup.className = 'form-group';
     
@@ -1043,6 +1108,7 @@ function updateInputFields() {
     fieldGroup.innerHTML = `
       <label class="form-label">
         ${field.name}${field.required ? ' *' : ''}
+        ${field.id === 'behaviorTags' ? '<span style="color: var(--accent); font-size: 0.8rem; margin-left: 0.5rem;">(常時表示)</span>' : ''}
       </label>
       ${fieldInput}
     `;
@@ -1752,7 +1818,124 @@ function deleteStudent(studentId) {
  * 児童編集（簡易実装）
  */
 function editStudent(studentId) {
-  showAlert('編集機能は今後実装予定です', 'info');
+  const student = studentsData.students.find(s => s.id === studentId);
+  if (!student) {
+    showAlert('該当する児童が見つかりません', 'error');
+    return;
+  }
+
+  // フォームに既存データを設定
+  document.getElementById('editStudentName').value = student.name;
+  document.getElementById('editStudentNumber').value = student.studentNumber;
+  document.getElementById('editStudentGrade').value = student.grade;
+  document.getElementById('editStudentGender').value = student.gender;
+  document.getElementById('editStudentClass').value = student.class || '';
+
+  // 現在編集中の学生IDを保存
+  window.currentEditingStudentId = studentId;
+
+  // モーダル表示
+  document.getElementById('editStudentModal').classList.add('show');
+}
+
+/**
+ * 児童編集フォーム処理
+ */
+function handleEditStudent(event) {
+  event.preventDefault();
+  
+  const studentId = window.currentEditingStudentId;
+  if (!studentId) {
+    showAlert('編集対象の児童が特定できません', 'error');
+    return;
+  }
+  
+  const name = document.getElementById('editStudentName').value.trim();
+  const studentNumber = document.getElementById('editStudentNumber').value.trim();
+  const grade = document.getElementById('editStudentGrade').value;
+  const gender = document.getElementById('editStudentGender').value;
+  const studentClass = document.getElementById('editStudentClass').value.trim();
+  
+  if (!name || !studentNumber || !grade || !gender) {
+    showAlert('必須項目を入力してください', 'error');
+    return;
+  }
+  
+  // 在籍番号の重複チェック（自分以外で）
+  if (studentsData.students.some(s => s.id !== studentId && s.studentNumber === studentNumber)) {
+    showAlert('この在籍番号は既に使用されています', 'error');
+    return;
+  }
+  
+  try {
+    const student = studentsData.students.find(s => s.id === studentId);
+    if (!student) {
+      showAlert('該当する児童が見つかりません', 'error');
+      return;
+    }
+    
+    // 児童データ更新
+    student.name = name;
+    student.studentNumber = studentNumber;
+    student.grade = parseInt(grade);
+    student.gender = gender;
+    student.class = studentClass || null;
+    student.updatedAt = new Date().toISOString();
+    
+    saveData();
+    
+    // フォームリセットとモーダルを閉じる
+    document.getElementById('editStudentForm').reset();
+    closeModal('editStudentModal');
+    window.currentEditingStudentId = null;
+    
+    updateUI();
+    showAlert(`${name}さんの情報を更新しました`, 'success');
+  } catch (error) {
+    console.error('児童編集エラー:', error);
+    showAlert('児童情報の更新に失敗しました', 'error');
+  }
+}
+
+/**
+ * 削除確認
+ */
+function confirmDeleteStudent() {
+  const studentId = window.currentEditingStudentId;
+  if (!studentId) {
+    showAlert('削除対象の児童が特定できません', 'error');
+    return;
+  }
+  
+  const student = studentsData.students.find(s => s.id === studentId);
+  if (!student) {
+    showAlert('該当する児童が見つかりません', 'error');
+    return;
+  }
+  
+  const recordsCount = student.records ? student.records.length : 0;
+  const message = recordsCount > 0 
+    ? `${student.name}さんを削除しますか？\n\n※記録された進捗データ（${recordsCount}件）も同時に削除されます。\nこの操作は取り消すことができません。`
+    : `${student.name}さんを削除しますか？\nこの操作は取り消すことができません。`;
+  
+  if (!confirm(message)) {
+    return;
+  }
+  
+  try {
+    studentsData.students = studentsData.students.filter(s => s.id !== studentId);
+    saveData();
+    
+    // モーダルを閉じる
+    closeModal('editStudentModal');
+    window.currentEditingStudentId = null;
+    
+    updateUI();
+    showAlert(`${student.name}さんを削除しました`, 'success');
+  } catch (error) {
+    console.error('児童削除エラー:', error);
+    showAlert('児童の削除に失敗しました', 'error');
+  }
 }
 
 /**
@@ -2360,9 +2543,9 @@ function filterStudents() {
  */
 
 /**
- * クラス全体分析実行
+ * クラス全体分析実行（LLMベース）
  */
-function runAIAnalysis() {
+async function runAIAnalysis() {
   if (!studentsData.students || studentsData.students.length === 0) {
     showAlert('分析対象の児童データがありません', 'warning');
     return;
@@ -2371,19 +2554,35 @@ function runAIAnalysis() {
   // 分析中の表示
   showAnalysisLoading('クラス全体分析を実行中...');
 
-  // AI分析のシミュレーション（実際のAI APIに置き換え可能）
-  setTimeout(() => {
-    const analysisResult = generateClassAnalysis();
+  try {
+    // LLMベースの分析実行
+    const analysisResult = await generateLLMClassAnalysis();
     displayAnalysisResults([analysisResult]);
     saveAnalysisToHistory(analysisResult);
     showAlert('クラス全体分析が完了しました', 'success');
-  }, 2000);
+  } catch (error) {
+    console.error('クラス全体分析エラー:', error);
+    
+    // フォールバック: テンプレートベースの分析
+    try {
+      const fallbackResult = generateClassAnalysis();
+      fallbackResult.title = '📊 クラス全体分析レポート（テンプレート版）';
+      fallbackResult.content = '⚠️ 動的分析に失敗したため、テンプレートベースの分析を実行しました。\n\n' + fallbackResult.content;
+      
+      displayAnalysisResults([fallbackResult]);
+      saveAnalysisToHistory(fallbackResult);
+      showAlert('クラス全体分析が完了しました（フォールバック版）', 'warning');
+    } catch (fallbackError) {
+      console.error('フォールバック分析エラー:', fallbackError);
+      showAlert('分析処理でエラーが発生しました。', 'error');
+    }
+  }
 }
 
 /**
- * 全員個別分析実行
+ * 全員個別分析実行（LLMベース）
  */
-function runAllIndividualAnalysis() {
+async function runAllIndividualAnalysis() {
   if (!studentsData.students || studentsData.students.length === 0) {
     showAlert('分析対象の児童データがありません', 'warning');
     return;
@@ -2392,11 +2591,25 @@ function runAllIndividualAnalysis() {
   // 分析中の表示
   showAnalysisLoading('全員個別分析を実行中...');
 
-  // AI分析のシミュレーション
-  setTimeout(() => {
-    const analysisResults = studentsData.students.map(student => 
-      generateIndividualAnalysis(student)
-    );
+  try {
+    // 各児童のLLMベース分析を並行実行
+    const analysisPromises = studentsData.students.map(async (student) => {
+      try {
+        return await generateLLMIndividualAnalysis(student);
+      } catch (error) {
+        console.error(`${student.name}さんのLLM分析エラー:`, error);
+        
+        // 個別のフォールバック
+        const fallbackResult = generateIndividualAnalysis(student);
+        fallbackResult.title = `👤 ${student.name}さんの個別分析（テンプレート版）`;
+        fallbackResult.content = '⚠️ 動的分析に失敗したため、テンプレートベースの分析を実行しました。\n\n' + fallbackResult.content;
+        return fallbackResult;
+      }
+    });
+
+    // 全ての分析が完了するまで待機
+    const analysisResults = await Promise.all(analysisPromises);
+    
     displayAnalysisResults(analysisResults);
     
     // 個別分析結果を各児童のレコードにも保存
@@ -2415,8 +2628,52 @@ function runAllIndividualAnalysis() {
       updateProgressTable();
     }
     
-    showAlert('全員個別分析が完了しました', 'success');
-  }, 3000);
+    // 成功したLLM分析と失敗した分析を集計
+    const llmCount = analysisResults.filter(r => r.generatedBy === 'LLM').length;
+    const fallbackCount = analysisResults.length - llmCount;
+    
+    if (fallbackCount === 0) {
+      showAlert('全員個別分析が完了しました', 'success');
+    } else {
+      showAlert(`全員個別分析が完了しました（AI生成:${llmCount}件、テンプレート:${fallbackCount}件）`, 'warning');
+    }
+    
+  } catch (error) {
+    console.error('全員個別分析エラー:', error);
+    
+    // 完全フォールバック: テンプレートベースの分析
+    try {
+      const analysisResults = studentsData.students.map(student => {
+        const result = generateIndividualAnalysis(student);
+        result.title = `👤 ${student.name}さんの個別分析（テンプレート版）`;
+        result.content = '⚠️ 動的分析システムに問題が発生したため、テンプレートベースの分析を実行しました。\n\n' + result.content;
+        return result;
+      });
+      
+      displayAnalysisResults(analysisResults);
+      
+      // 個別分析結果を各児童のレコードにも保存
+      analysisResults.forEach(result => {
+        if (result.type === 'individual' && result.studentId) {
+          addIndividualAnalysisToStudent(result.studentId, result.content);
+        }
+      });
+      
+      analysisResults.forEach(result => saveAnalysisToHistory(result));
+      saveData();
+      updateUI();
+      
+      // 進捗一覧の更新
+      if (currentTab === 'overview') {
+        updateProgressTable();
+      }
+      
+      showAlert('全員個別分析が完了しました（フォールバック版）', 'warning');
+    } catch (fallbackError) {
+      console.error('フォールバック全員個別分析エラー:', fallbackError);
+      showAlert('全員個別分析処理でエラーが発生しました。', 'error');
+    }
+  }
 }
 
 /**
@@ -2449,9 +2706,9 @@ function updateIndividualAnalysisModal() {
 }
 
 /**
- * 個別分析実行
+ * 個別分析実行（LLMベース）
  */
-function executeIndividualAnalysis() {
+async function executeIndividualAnalysis() {
   const studentId = document.getElementById('individualAnalysisStudentSelect').value;
   
   if (!studentId) {
@@ -2471,9 +2728,9 @@ function executeIndividualAnalysis() {
   // 分析中の表示
   showAnalysisLoading(`${student.name}さんの個別分析を実行中...`);
 
-  // AI分析のシミュレーション
-  setTimeout(() => {
-    const analysisResult = generateIndividualAnalysis(student);
+  try {
+    // LLMベースの分析実行
+    const analysisResult = await generateLLMIndividualAnalysis(student);
     displayAnalysisResults([analysisResult]);
     saveAnalysisToHistory(analysisResult);
     
@@ -2488,7 +2745,34 @@ function executeIndividualAnalysis() {
     }
     
     showAlert(`${student.name}さんの個別分析が完了しました`, 'success');
-  }, 2000);
+  } catch (error) {
+    console.error('個別分析エラー:', error);
+    
+    // フォールバック: テンプレートベースの分析
+    try {
+      const fallbackResult = generateIndividualAnalysis(student);
+      fallbackResult.title = `👤 ${student.name}さんの個別分析（テンプレート版）`;
+      fallbackResult.content = '⚠️ 動的分析に失敗したため、テンプレートベースの分析を実行しました。\n\n' + fallbackResult.content;
+      
+      displayAnalysisResults([fallbackResult]);
+      saveAnalysisToHistory(fallbackResult);
+      
+      // 個別分析結果を児童のレコードにも保存
+      addIndividualAnalysisToStudent(student.id, fallbackResult.content);
+      saveData();
+      updateUI();
+      
+      // 進捗一覧の更新
+      if (currentTab === 'overview') {
+        updateProgressTable();
+      }
+      
+      showAlert(`${student.name}さんの個別分析が完了しました（フォールバック版）`, 'warning');
+    } catch (fallbackError) {
+      console.error('フォールバック個別分析エラー:', fallbackError);
+      showAlert('個別分析処理でエラーが発生しました。', 'error');
+    }
+  }
 }
 
 /**
@@ -2554,6 +2838,96 @@ ${generateActionPlan(learningStats, totalStudents)}
     studentCount: totalStudents,
     recordCount: recordCount
   };
+}
+
+/**
+ * LLMベースのクラス全体分析生成
+ */
+async function generateLLMClassAnalysis() {
+  const totalStudents = studentsData.students.length;
+  const studentsWithRecords = studentsData.students.filter(s => s.records && s.records.length > 0);
+  const recordCount = studentsWithRecords.reduce((sum, student) => sum + student.records.length, 0);
+
+  // 最新データから傾向を分析
+  const recentData = [];
+  studentsWithRecords.forEach(student => {
+    if (student.records.length > 0) {
+      const latestRecord = student.records[student.records.length - 1];
+      if (latestRecord.data) {
+        recentData.push({
+          student: student.name,
+          studentInfo: {
+            name: student.name,
+            grade: student.grade,
+            gender: student.gender,
+            class: student.class
+          },
+          data: latestRecord.data,
+          timestamp: latestRecord.timestamp
+        });
+      }
+    }
+  });
+
+  // LLM用のプロンプト作成
+  const prompt = `あなたは経験豊富な小学校教師です。クラス全体の学習進捗データを分析し、保護者と教師双方に有用な総合的なレポートを作成してください。
+
+## クラス情報
+- 総児童数: ${totalStudents}名
+- 進捗記録がある児童: ${studentsWithRecords.length}名
+- 総記録数: ${recordCount}件
+- 分析日時: ${new Date().toLocaleDateString('ja-JP')}
+
+## 個別児童の最新データ
+${recentData.map(entry => {
+  const data = entry.data;
+  const learningStatus = data.learningStatus || '未記録';
+  const motivation = data.motivation || '未記録';
+  const homeworkSubmission = data.homeworkSubmission || '未記録';
+  const behaviorTags = Array.isArray(data.behaviorTags) ? data.behaviorTags.join(', ') : '未記録';
+  
+  return `### ${entry.student}さん（${entry.studentInfo.grade || '未記録'}年${entry.studentInfo.gender === 'male' ? '男子' : entry.studentInfo.gender === 'female' ? '女子' : ''}）
+- 学習状況: ${learningStatus}/5段階
+- 学習意欲: ${motivation}/5段階  
+- 宿題提出: ${homeworkSubmission}
+- 行動タグ: ${behaviorTags}
+- 記録日: ${formatDate(entry.timestamp)}`;
+}).join('\n\n')}
+
+## 作成要件
+1. **全体の傾向分析**: 学習状況、意欲、行動面での傾向
+2. **成長のポイント**: クラス全体の良い点と成長点
+3. **指導方針の提案**: 具体的で実践的な指導アプローチ
+4. **保護者との連携**: 家庭でのサポート方法
+5. **今後のアクションプラン**: 短期・中期の具体的な取り組み
+
+## 出力形式
+マークダウン形式で、読みやすく構造化されたレポートを作成してください。
+各セクションには適切な絵文字を使用し、建設的で前向きな内容にしてください。
+文字数は1000-1500文字程度を目安にしてください。`;
+
+  try {
+    // LLM APIを呼び出し
+    const llmResponse = await callLLMAPI(prompt);
+    
+    if (!llmResponse || llmResponse.trim().length === 0) {
+      throw new Error('LLMから空のレスポンスが返されました');
+    }
+
+    return {
+      id: `llm_class_analysis_${Date.now()}`,
+      type: 'class',
+      title: '📊 クラス全体分析レポート（AI生成）',
+      content: llmResponse,
+      timestamp: new Date().toISOString(),
+      studentCount: totalStudents,
+      recordCount: recordCount,
+      generatedBy: 'LLM'
+    };
+  } catch (error) {
+    console.error('LLMクラス分析生成エラー:', error);
+    throw error; // 上位レベルでフォールバック処理
+  }
 }
 
 /**
@@ -2638,6 +3012,161 @@ ${generateFocusAreas(data, student.name)}
 ---
 *分析基準日: ${formatDate(latestRecord.timestamp)}*
 *この分析は最新の進捗データを基に生成されています。*`;
+}
+
+/**
+ * LLMベースの個別分析生成
+ */
+async function generateLLMIndividualAnalysis(student) {
+  const records = student.records || [];
+  const latestRecord = records.length > 0 ? records[records.length - 1] : null;
+  
+  if (!latestRecord || !latestRecord.data) {
+    // データ不足の場合もLLMで生成
+    const prompt = `あなたは経験豊富な小学校教師です。進捗データが不足している児童について、今後のデータ蓄積と観察の重要性を説明し、建設的なアドバイスを提供してください。
+
+## 児童情報
+- 名前: ${student.name}さん
+- 学年: ${student.grade || '未記録'}年生
+- 性別: ${student.gender === 'male' ? '男子' : student.gender === 'female' ? '女子' : '未記録'}
+- クラス: ${student.class || '未記録'}
+- 進捗記録数: ${records.length}件
+
+## 作成要件
+1. データ不足の現状説明
+2. 今後の観察ポイント
+3. データ蓄積の重要性
+4. 保護者との連携方法
+5. 具体的な次のステップ
+
+マークダウン形式で、温かく建設的な内容にしてください。`;
+
+    try {
+      const llmResponse = await callLLMAPI(prompt);
+      
+      return {
+        id: `llm_individual_analysis_${student.id}_${Date.now()}`,
+        type: 'individual',
+        studentId: student.id,
+        studentName: student.name,
+        title: `👤 ${student.name}さんの個別分析（AI生成）`,
+        content: llmResponse || `### ⚠️ 分析データ不足\n\n${student.name}さんについては、分析に十分なデータが蓄積されていません。\n\n継続的なデータ記録により、より精度の高い分析が可能になります。`,
+        timestamp: new Date().toISOString(),
+        generatedBy: 'LLM'
+      };
+    } catch (error) {
+      console.error('LLM個別分析（データ不足）生成エラー:', error);
+      throw error;
+    }
+  }
+
+  // 進捗データの分析
+  const data = latestRecord.data;
+  const allRecordsData = records.map(record => record.data).filter(d => d);
+  
+  // 成長傾向の分析
+  const progressTrend = analyzeProgressTrend(allRecordsData);
+  
+  // LLM用のプロンプト作成
+  const prompt = `あなたは経験豊富で温かい小学校教師です。児童の詳細な進捗データを分析し、保護者と教師の両方に有用な個別レポートを作成してください。
+
+## 児童情報
+- 名前: ${student.name}さん
+- 学年: ${student.grade || '未記録'}年生
+- 性別: ${student.gender === 'male' ? '男子' : student.gender === 'female' ? '女子' : '未記録'}
+- クラス: ${student.class || '未記録'}
+
+## 最新の進捗データ（${formatDate(latestRecord.timestamp)}）
+- 学習状況: ${data.learningStatus || '未記録'}/5段階
+- 学習意欲: ${data.motivation || '未記録'}/5段階
+- 宿題提出: ${data.homeworkSubmission || '未記録'}
+- 授業参加: ${data.classParticipation || '未記録'}
+- 学習理解度: ${data.learningComprehension || '未記録'}
+- 行動タグ: ${Array.isArray(data.behaviorTags) ? data.behaviorTags.join(', ') : '未記録'}
+- 先生からのコメント: ${data.teacherComment || '未記録'}
+
+## 進捗の変化（直近${records.length}件の記録から）
+${progressTrend}
+
+## 作成要件
+1. **現在の状況分析**: 学習面、意欲、行動面の総合的な分析
+2. **成長のポイント**: この子の素晴らしい点や成長している部分
+3. **個別支援提案**: この子に最適な学習アプローチや支援方法
+4. **保護者連携**: 家庭でのサポート方法と連携ポイント
+5. **今後の重点項目**: 短期・中期の具体的な目標設定
+
+## 出力形式
+- マークダウン形式で構造化
+- 温かく前向きな表現を使用
+- 具体的で実行可能な提案を含める
+- その子の個性と可能性を重視した内容
+- 文字数は800-1200文字程度`;
+
+  try {
+    // LLM APIを呼び出し
+    const llmResponse = await callLLMAPI(prompt);
+    
+    if (!llmResponse || llmResponse.trim().length === 0) {
+      throw new Error('LLMから空のレスポンスが返されました');
+    }
+
+    return {
+      id: `llm_individual_analysis_${student.id}_${Date.now()}`,
+      type: 'individual',
+      studentId: student.id,
+      studentName: student.name,
+      title: `👤 ${student.name}さんの個別分析（AI生成）`,
+      content: llmResponse,
+      timestamp: new Date().toISOString(),
+      generatedBy: 'LLM'
+    };
+  } catch (error) {
+    console.error('LLM個別分析生成エラー:', error);
+    throw error; // 上位レベルでフォールバック処理
+  }
+}
+
+/**
+ * 進捗傾向の分析
+ */
+function analyzeProgressTrend(allRecordsData) {
+  if (allRecordsData.length < 2) {
+    return '記録数が少ないため、傾向分析は行えません。';
+  }
+  
+  const trends = [];
+  
+  // 学習状況の変化
+  const learningStatuses = allRecordsData.map(d => parseInt(d.learningStatus)).filter(v => !isNaN(v));
+  if (learningStatuses.length >= 2) {
+    const recent = learningStatuses.slice(-3).reduce((a, b) => a + b, 0) / Math.min(3, learningStatuses.length);
+    const older = learningStatuses.slice(0, -1).reduce((a, b) => a + b, 0) / Math.max(1, learningStatuses.length - 1);
+    
+    if (recent > older) {
+      trends.push('学習状況が向上傾向');
+    } else if (recent < older) {
+      trends.push('学習状況に注意が必要');
+    } else {
+      trends.push('学習状況は安定');
+    }
+  }
+  
+  // 学習意欲の変化
+  const motivations = allRecordsData.map(d => parseInt(d.motivation)).filter(v => !isNaN(v));
+  if (motivations.length >= 2) {
+    const recent = motivations.slice(-3).reduce((a, b) => a + b, 0) / Math.min(3, motivations.length);
+    const older = motivations.slice(0, -1).reduce((a, b) => a + b, 0) / Math.max(1, motivations.length - 1);
+    
+    if (recent > older) {
+      trends.push('学習意欲が向上傾向');
+    } else if (recent < older) {
+      trends.push('学習意欲の向上が課題');
+    } else {
+      trends.push('学習意欲は安定');
+    }
+  }
+  
+  return trends.length > 0 ? trends.join('、') : '十分なデータがありません';
 }
 
 /**
@@ -3131,9 +3660,14 @@ function updateAnalysisHistoryPreview() {
               ${analysis.studentName ? `${analysis.studentName}さんの` : ''}${analysis.title.replace(/📊|👤|🧠/g, '').trim()}
             </div>
           </div>
-          <button class="btn btn-secondary" onclick="viewAnalysisDetail('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-left: 1rem;">
-            <i class="fas fa-eye"></i> 詳細
-          </button>
+          <div style="display: flex; gap: 0.5rem; margin-left: 1rem;">
+            <button class="btn btn-secondary" onclick="viewAnalysisDetail('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+              <i class="fas fa-eye"></i> 詳細
+            </button>
+            <button class="btn btn-error" onclick="deleteIndividualAnalysis('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="この分析結果を削除">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -3253,9 +3787,14 @@ function viewAnalysisHistory() {
         <td>${target}</td>
         <td>${formatDate(analysis.timestamp)}</td>
         <td>
-          <button class="btn btn-secondary" onclick="viewAnalysisDetail('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
-            <i class="fas fa-eye"></i> 詳細
-          </button>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary" onclick="viewAnalysisDetail('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+              <i class="fas fa-eye"></i> 詳細
+            </button>
+            <button class="btn btn-error" onclick="deleteIndividualAnalysis('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="この分析結果を削除">
+              <i class="fas fa-trash"></i> 削除
+            </button>
+          </div>
         </td>
       </tr>
     `;
@@ -3302,6 +3841,49 @@ function clearAnalysisHistory() {
   }
 
   showAlert('分析履歴を削除しました', 'success');
+}
+
+/**
+ * 個別分析結果削除
+ */
+function deleteIndividualAnalysis(analysisId) {
+  if (!analysisId) {
+    showAlert('削除対象の分析結果が特定できません', 'error');
+    return;
+  }
+
+  // 削除対象の分析結果を取得
+  const analysisIndex = analysisHistory.findIndex(analysis => analysis.id === analysisId);
+  if (analysisIndex === -1) {
+    showAlert('削除対象の分析結果が見つかりません', 'error');
+    return;
+  }
+
+  const analysis = analysisHistory[analysisIndex];
+  const typeLabel = analysis.type === 'overall' ? 'クラス全体' : '個別分析';
+  const targetInfo = analysis.studentName ? `${analysis.studentName}さんの` : '';
+  
+  // 削除確認ダイアログ
+  if (!confirm(`以下の分析結果を削除しますか？この操作は取り消せません。\n\n種類: ${typeLabel}\n対象: ${targetInfo}${analysis.title.replace(/📊|👤|🧠/g, '').trim()}\n実行日時: ${formatDate(analysis.timestamp)}`)) {
+    return;
+  }
+
+  // 分析履歴から削除
+  analysisHistory.splice(analysisIndex, 1);
+  
+  // ローカルストレージに保存
+  localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+  
+  // UIを更新
+  updateAnalysisHistoryPreview();
+  
+  // モーダルが開いている場合は履歴表示も更新
+  const modal = document.getElementById('analysisHistoryModal');
+  if (modal && modal.classList.contains('show')) {
+    viewAnalysisHistory();
+  }
+  
+  showAlert('分析結果を削除しました', 'success');
 }
 
 /**
@@ -4185,9 +4767,9 @@ ${grade}年${className}のお子様たちの成長を、一緒に見守らせて
 }
 
 /**
- * 個別の親御さん向けレポート生成
+ * 個別の親御さん向けレポート生成（LLM対応版）
  */
-function generateIndividualParentReport(student) {
+async function generateIndividualParentReport(student) {
   const records = student.records || [];
   const latestRecord = records.length > 0 ? records[records.length - 1] : null;
   
@@ -4200,10 +4782,19 @@ function generateIndividualParentReport(student) {
   const motivation = data.motivation ? parseInt(data.motivation) : 0;
   const homework = data.homework || '';
   
-  // 成長の傾向を分析
-  const growthTrend = analyzeStudentGrowthForParents(records, student.name);
-  
-  const content = `💝 **${student.name}さんの成長の様子**
+  try {
+    // LLMを使って個別化されたコンテンツを生成
+    const studentStrengths = await generatePersonalizedStudentStrengths(data, student.name, student);
+    const homeSupport = await generatePersonalizedHomeSupport(data, student.name, student);
+    const encouragementMessage = await generatePersonalizedEncouragementMessage(data, student.name, student);
+    const collaborationMessage = await generatePersonalizedCollaborationMessage(data, student.name, student);
+    const learningStatusMsg = await generatePersonalizedLearningStatusMessage(learningStatus, student.name);
+    const motivationMsg = await generatePersonalizedMotivationMessage(motivation, student.name);
+    
+    // 成長の傾向を分析
+    const growthTrend = analyzeStudentGrowthForParents(records, student.name);
+    
+    const content = `💝 **${student.name}さんの成長の様子**
 
 ${student.name}さんの保護者様、いつも温かいご支援をいただき、ありがとうございます。
 ${student.name}さんの最近の学校での様子を、愛情を込めてお伝えさせていただきます。
@@ -4212,15 +4803,15 @@ ${student.name}さんの最近の学校での様子を、愛情を込めてお�
 
 🌟 **${student.name}さんの素晴らしいところ**
 
-${generateStudentStrengthsForParents(data, student.name)}
+${studentStrengths}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📚 **学習面での成長**
 
 **現在の様子**
-・**学習への取り組み**: **${learningStatus}/5点** - ${getLearningStatusMessageForParents(learningStatus)}
-・**学習への意欲**: **${motivation}/5点** - ${getMotivationMessageForParents(motivation)}
+・**学習への取り組み**: **${learningStatus}/5点** - ${learningStatusMsg}
+・**学習への意欲**: **${motivation}/5点** - ${motivationMsg}
 ・**宿題への取り組み**: ${getHomeworkMessageForParents(homework)}
 
 **成長の様子**
@@ -4230,34 +4821,39 @@ ${growthTrend}
 
 🏠 **ご家庭でのサポートのご提案**
 
-${generateHomeSupport(data, student.name)}
+${homeSupport}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 💌 **${student.name}さんへの応援メッセージ**
 
-${generateEncouragementMessage(data, student.name)}
+${encouragementMessage}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📞 **今後の連携について**
 
-${generateCollaborationMessage(data, student.name)}
+${collaborationMessage}
 
 ---
 ${student.name}さんの成長を、一緒に見守らせていただけることを心より嬉しく思っています。
 
 **作成日**: ${new Date().toLocaleDateString('ja-JP')}`;
 
-  return {
-    id: `individual_parent_report_${student.id}_${Date.now()}`,
-    type: 'individual_parent',
-    studentId: student.id,
-    studentName: student.name,
-    title: `💝 ${student.name}さんの成長レポート（保護者向け）`,
-    content: content,
-    timestamp: new Date().toISOString()
-  };
+    return {
+      id: `individual_parent_report_${student.id}_${Date.now()}`,
+      type: 'individual_parent',
+      studentId: student.id,
+      studentName: student.name,
+      title: `💝 ${student.name}さんの成長レポート（保護者向け）`,
+      content: content,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('LLM個別レポート生成エラー:', error);
+    // フォールバック：従来の方式
+    return generateIndividualParentReportFallback(student);
+  }
 }
 
 /**
@@ -4307,25 +4903,17 @@ ${student.name}さんの素晴らしい成長を、一緒に支えていきま�
 }
 
 /**
- * 親御さん向けの学習状況メッセージ
+ * 親御さん向けの学習状況メッセージ（維持用）
  */
 function getLearningStatusMessageForParents(status) {
-  if (status >= 5) return '本当に素晴らしい取り組みです！この調子で頑張っています';
-  if (status >= 4) return 'とても良く頑張っています！';
-  if (status >= 3) return '着実に取り組んでいます。';
-  if (status >= 2) return '一生懸命頑張っています。少しずつ成長しています';
-  return 'これから一緒に頑張っていきましょう。';
+  return getLearningStatusMessageForParentsFallback(status);
 }
 
 /**
- * 親御さん向けの学習意欲メッセージ
+ * 親御さん向けの学習意欲メッセージ（維持用）
  */
 function getMotivationMessageForParents(motivation) {
-  if (motivation >= 5) return '学習への意欲がとても高く、積極的に取り組んでいます！';
-  if (motivation >= 4) return '意欲的に学習に取り組んでいます！';
-  if (motivation >= 3) return '安定して学習に向き合っています。';
-  if (motivation >= 2) return '少しずつ学習への興味が育っています。';
-  return 'これから一緒に学習の楽しさを見つけていきましょう。';
+  return getMotivationMessageForParentsFallback(motivation);
 }
 
 /**
@@ -4338,39 +4926,10 @@ function getHomeworkMessageForParents(homework) {
 }
 
 /**
- * 親御さん向けの児童の強み生成
+ * 親御さん向けの児童の強み生成（維持用）
  */
 function generateStudentStrengthsForParents(data, studentName) {
-  const strengths = [];
-  
-  const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
-  const motivation = data.motivation ? parseInt(data.motivation) : 0;
-  
-  // 行動タグから強みを抽出
-  const behaviorTags = data.behaviorTags || [];
-  const behaviorStrengths = extractBehaviorStrengthsForParents(behaviorTags, studentName);
-  
-  if (learningStatus >= 4) {
-    strengths.push(`📚 **学習への取り組みがとても素晴らしく**、集中して課題に向き合っています`);
-  }
-  
-  if (motivation >= 4) {
-    strengths.push(`✨ **新しいことを学ぶことに意欲的で**、積極的に手を挙げて発言しています`);
-  }
-  
-  if (data.homework === '提出') {
-    strengths.push(`📝 **宿題をきちんと提出し**、責任感を持って取り組んでいます`);
-  }
-  
-  // 行動タグからの強みを追加
-  strengths.push(...behaviorStrengths);
-  
-  if (strengths.length === 0) {
-    strengths.push(`🌱 **${studentName}さんなりのペース**で、一生懸命頑張っています`);
-    strengths.push(`💪 **毎日学校に来て**、クラスの一員として大切な存在です`);
-  }
-  
-  return strengths.map(strength => `- ${strength}`).join('\n');
+  return generateFallbackStudentStrengths(data, studentName);
 }
 
 /**
@@ -4418,15 +4977,398 @@ function analyzeStudentGrowthForParents(records, studentName) {
 }
 
 /**
- * 親御さん向けの家庭サポート提案
+ * ======================
+ * LLMを使用した個別化された親御さん向け文章生成システム
+ * ======================
  */
-function generateHomeSupport(data, studentName) {
+
+/**
+ * LLMを使った家庭サポート提案生成
+ */
+async function generatePersonalizedHomeSupport(data, studentName, studentInfo = {}) {
+  try {
+    const prompt = `あなたは小学校の担任教師です。児童の保護者に向けて、家庭でのサポート方法を提案する文章を作成してください。
+
+## 児童情報
+- 名前: ${studentName}さん
+- 学年: ${studentInfo.grade ? `${studentInfo.grade}年生` : '不明'}
+- 性別: ${studentInfo.gender === 'male' ? '男子' : studentInfo.gender === 'female' ? '女子' : '不明'}
+- クラス: ${studentInfo.class || '不明'}
+
+## 最新の学習データ
+- 学習状況: ${data.learningStatus || '記録なし'}/5段階
+- 学習意欲: ${data.motivation || '記録なし'}/5段階
+- 宿題提出状況: ${data.homework || '記録なし'}
+- 行動タグ: ${data.behaviorTags && data.behaviorTags.length > 0 ? data.behaviorTags.join('、') : 'なし'}
+- その他のメモ: ${data.notes || 'なし'}
+
+## 作成要件
+1. 温かみのある親しみやすい文章で書いてください
+2. その子の特性や現在の状況に合わせた具体的なアドバイスを含めてください
+3. 家庭で実践可能な具体的な方法を提案してください
+4. その子の良い点を見つけて伸ばす視点を大切にしてください
+5. 無理のない範囲での取り組みを推奨してください
+6. 文字数は200-350文字程度でお願いします
+
+以下の形式で出力してください：
+🏠 **${studentName}さんの成長をサポートするために**
+
+・（具体的なアドバイス1）
+・（具体的なアドバイス2）
+・（具体的なアドバイス3）
+・（その子の特性に合わせたアドバイス）
+・（励ましの言葉）`;
+
+    const response = await callLLMAPI(prompt);
+    return response || generateFallbackHomeSupport(data, studentName);
+  } catch (error) {
+    console.error('LLM家庭サポート生成エラー:', error);
+    return generateFallbackHomeSupport(data, studentName);
+  }
+}
+
+/**
+ * LLMを使った応援メッセージ生成
+ */
+async function generatePersonalizedEncouragementMessage(data, studentName, studentInfo = {}) {
+  try {
+    const prompt = `あなたは小学校の担任教師です。児童に向けて温かい応援メッセージを作成してください。
+
+## 児童情報
+- 名前: ${studentName}さん
+- 学年: ${studentInfo.grade ? `${studentInfo.grade}年生` : '不明'}
+- 性別: ${studentInfo.gender === 'male' ? '男子' : studentInfo.gender === 'female' ? '女子' : '不明'}
+- クラス: ${studentInfo.class || '不明'}
+
+## 最新の学習データ
+- 学習状況: ${data.learningStatus || '記録なし'}/5段階
+- 学習意欲: ${data.motivation || '記録なし'}/5段階
+- 宿題提出状況: ${data.homework || '記録なし'}
+- 行動タグ: ${data.behaviorTags && data.behaviorTags.length > 0 ? data.behaviorTags.join('、') : 'なし'}
+- その他のメモ: ${data.notes || 'なし'}
+
+## 作成要件
+1. 児童に直接語りかける温かい文章で書いてください
+2. その子の頑張りや良い点を具体的に褒めてください
+3. 成長への期待と励ましを込めてください
+4. その子の個性や特性を認める内容を含めてください
+5. 先生からの愛情が伝わる文章にしてください
+6. 文字数は150-250文字程度でお願いします
+
+以下の形式で出力してください：
+${studentName}さん、（具体的な褒め言葉や励ましのメッセージ）
+
+（その子の良い点や成長についての言及）
+
+（今後への期待と応援のメッセージ）
+
+（締めくくりの温かい言葉）`;
+
+    const response = await callLLMAPI(prompt);
+    return response || await generateFallbackEncouragementMessage(data, studentName);
+  } catch (error) {
+    console.error('LLM応援メッセージ生成エラー:', error);
+    return await generateFallbackEncouragementMessage(data, studentName);
+  }
+}
+
+/**
+ * LLMを使った連携メッセージ生成
+ */
+async function generatePersonalizedCollaborationMessage(data, studentName, studentInfo = {}) {
+  try {
+    const prompt = `あなたは小学校の担任教師です。児童の保護者に向けて、学校と家庭の連携についてのメッセージを作成してください。
+
+## 児童情報
+- 名前: ${studentName}さん
+- 学年: ${studentInfo.grade ? `${studentInfo.grade}年生` : '不明'}
+- 性別: ${studentInfo.gender === 'male' ? '男子' : studentInfo.gender === 'female' ? '女子' : '不明'}
+- クラス: ${studentInfo.class || '不明'}
+
+## 最新の学習データ
+- 学習状況: ${data.learningStatus || '記録なし'}/5段階
+- 学習意欲: ${data.motivation || '記録なし'}/5段階
+- 宿題提出状況: ${data.homework || '記録なし'}
+- 行動タグ: ${data.behaviorTags && data.behaviorTags.length > 0 ? data.behaviorTags.join('、') : 'なし'}
+- その他のメモ: ${data.notes || 'なし'}
+
+## 作成要件
+1. 保護者との協力関係を重視した温かい文章で書いてください
+2. その子の成長をともに見守る気持ちを表現してください
+3. 具体的な連携方法を提案してください
+4. 困ったときの相談しやすい環境作りを伝えてください
+5. その子の個性や特性に合わせた連携ポイントを含めてください
+6. 文字数は200-300文字程度でお願いします
+
+以下の形式で出力してください：
+**学校と家庭で連携して**、${studentName}さんの成長を支えていきたいと思います。
+
+**📞 いつでもご相談ください**
+・（具体的な相談方法や内容）
+・（その子に関する情報共有の重要性）
+
+**🤝 一緒に見守りましょう**
+・（具体的な連携方法）
+・（その子の成長を共有する喜び）
+・（協力して取り組むポイント）`;
+
+    const response = await callLLMAPI(prompt);
+    return response || generateFallbackCollaborationMessage(data, studentName);
+  } catch (error) {
+    console.error('LLM連携メッセージ生成エラー:', error);
+    return generateFallbackCollaborationMessage(data, studentName);
+  }
+}
+
+/**
+ * LLMを使った児童の強み紹介文生成
+ */
+async function generatePersonalizedStudentStrengths(data, studentName, studentInfo = {}) {
+  try {
+    const prompt = `あなたは小学校の担任教師です。児童の保護者に向けて、その子の素晴らしい点や強みを紹介する文章を作成してください。
+
+## 児童情報
+- 名前: ${studentName}さん
+- 学年: ${studentInfo.grade ? `${studentInfo.grade}年生` : '不明'}
+- 性別: ${studentInfo.gender === 'male' ? '男子' : studentInfo.gender === 'female' ? '女子' : '不明'}
+- クラス: ${studentInfo.class || '不明'}
+
+## 最新の学習データ
+- 学習状況: ${data.learningStatus || '記録なし'}/5段階
+- 学習意欲: ${data.motivation || '記録なし'}/5段階
+- 宿題提出状況: ${data.homework || '記録なし'}
+- 行動タグ: ${data.behaviorTags && data.behaviorTags.length > 0 ? data.behaviorTags.join('、') : 'なし'}
+- その他のメモ: ${data.notes || 'なし'}
+
+## 作成要件
+1. その子の良い点や強みを具体的に見つけて紹介してください
+2. 温かい目線でその子らしさを表現してください
+3. 保護者が我が子を誇らしく思えるような内容にしてください
+4. 学習面だけでなく、人格面や行動面の良い点も含めてください
+5. 具体的なエピソードや観察した様子を含めてください
+6. 文字数は150-250文字程度でお願いします
+
+以下の形式で出力してください：
+- 📚 **（学習面での強み）**
+- ✨ **（性格や行動面での強み）**
+- 💎 **（その子らしい魅力）**
+- 🌟 **（クラスでの様子や貢献）**`;
+
+    const response = await callLLMAPI(prompt);
+    return response || generateFallbackStudentStrengths(data, studentName);
+  } catch (error) {
+    console.error('LLM児童強み生成エラー:', error);
+    return generateFallbackStudentStrengths(data, studentName);
+  }
+}
+
+/**
+ * LLMを使った学習状況メッセージ生成
+ */
+async function generatePersonalizedLearningStatusMessage(status, studentName, additionalContext = '') {
+  try {
+    const prompt = `あなたは小学校の担任教師です。児童の保護者に向けて、学習状況についてのメッセージを作成してください。
+
+## 情報
+- 児童名: ${studentName}さん
+- 学習状況評価: ${status}/5段階
+- 追加情報: ${additionalContext || 'なし'}
+
+## 作成要件
+1. 5段階評価に基づいて適切な評価メッセージを作成してください
+2. その子の頑張りを認める温かい文章にしてください
+3. 保護者が安心できるような表現を心がけてください
+4. 具体的で建設的な内容にしてください
+5. 1文で簡潔にまとめてください
+
+評価基準の参考：
+- 5点: 非常に優秀な取り組み
+- 4点: とても良い取り組み
+- 3点: 安定した取り組み
+- 2点: 努力している、成長中
+- 1点: これから一緒に頑張っていく段階`;
+
+    const response = await callLLMAPI(prompt);
+    return response || getLearningStatusMessageForParentsFallback(status);
+  } catch (error) {
+    console.error('LLM学習状況メッセージ生成エラー:', error);
+    return getLearningStatusMessageForParentsFallback(status);
+  }
+}
+
+/**
+ * LLMを使った学習意欲メッセージ生成
+ */
+async function generatePersonalizedMotivationMessage(motivation, studentName, additionalContext = '') {
+  try {
+    const prompt = `あなたは小学校の担任教師です。児童の保護者に向けて、学習意欲についてのメッセージを作成してください。
+
+## 情報
+- 児童名: ${studentName}さん
+- 学習意欲評価: ${motivation}/5段階
+- 追加情報: ${additionalContext || 'なし'}
+
+## 作成要件
+1. 5段階評価に基づいて適切な評価メッセージを作成してください
+2. その子の学習への取り組み姿勢を認める表現にしてください
+3. 意欲面での成長や可能性を感じられる内容にしてください
+4. 前向きで希望の持てる表現を心がけてください
+5. 1文で簡潔にまとめてください
+
+評価基準の参考：
+- 5点: 非常に意欲的で積極的
+- 4点: 意欲的に取り組んでいる
+- 3点: 安定した意欲を保っている
+- 2点: 意欲が芽生えてきている
+- 1点: これから一緒に意欲を育てていく段階`;
+
+    const response = await callLLMAPI(prompt);
+    return response || getMotivationMessageForParentsFallback(motivation);
+  } catch (error) {
+    console.error('LLM学習意欲メッセージ生成エラー:', error);
+    return getMotivationMessageForParentsFallback(motivation);
+  }
+}
+
+/**
+ * LLM API呼び出し関数
+ */
+async function callLLMAPI(prompt) {
+  try {
+    const response = await fetch('https://api.hyperbolic.xyz/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + getLLMAPIKey()
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/Llama-3.1-405B-Instruct',
+        messages: [
+          {
+            role: 'system',
+            content: 'あなたは経験豊富で温かい小学校教師です。児童一人一人の個性を大切にし、保護者との良好な関係を築くことを重視しています。常に建設的で前向きな視点から文章を作成し、その子の可能性を信じて接しています。'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
+        top_p: 0.9
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`LLM API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content?.trim() || null;
+  } catch (error) {
+    console.error('LLM API call failed:', error);
+    return null;
+  }
+}
+
+/**
+ * LLM API キーの取得
+ */
+function getLLMAPIKey() {
+  // 環境変数またはローカルストレージからAPIキーを取得
+  // 本番環境では適切なキー管理を実装してください
+  const apiKey = localStorage.getItem('llm_api_key') || 'demo_key';
+  if (apiKey === 'demo_key') {
+    console.warn('LLM API キーが設定されていません。デモモードで動作します。');
+  }
+  return apiKey;
+}
+
+/**
+ * LLM API キーの保存
+ */
+function saveLLMAPIKey() {
+  const apiKeyInput = document.getElementById('llm-api-key');
+  if (apiKeyInput) {
+    const apiKey = apiKeyInput.value.trim();
+    if (apiKey) {
+      localStorage.setItem('llm_api_key', apiKey);
+      console.log('LLM API キーが保存されました。');
+      alert('APIキーが保存されました。');
+    } else {
+      alert('APIキーを入力してください。');
+    }
+  } else {
+    console.error('APIキー入力フィールドが見つかりません。');
+    alert('APIキー入力フィールドが見つかりません。');
+  }
+}
+
+/**
+ * LLM API 接続テスト
+ */
+async function testLLMConnection() {
+  try {
+    const apiKey = getLLMAPIKey();
+    if (apiKey === 'demo_key') {
+      alert('APIキーが設定されていません。デモモードです。');
+      return;
+    }
+    
+    // テスト用のシンプルなメッセージ
+    const testMessage = 'こんにちは';
+    
+    alert('API接続をテストしています...');
+    
+    const response = await callLLMAPI(testMessage, '接続テスト');
+    
+    if (response && response.trim()) {
+      alert('API接続テストが成功しました！\n\nレスポンス: ' + response.substring(0, 100) + (response.length > 100 ? '...' : ''));
+    } else {
+      alert('API接続テストは完了しましたが、空のレスポンスが返されました。');
+    }
+  } catch (error) {
+    console.error('API接続テストでエラーが発生しました:', error);
+    alert('API接続テストでエラーが発生しました: ' + error.message);
+  }
+}
+
+/**
+ * APIキー表示切り替え
+ */
+function toggleAPIKeyVisibility() {
+  const apiKeyInput = document.getElementById('llm-api-key');
+  if (apiKeyInput) {
+    if (apiKeyInput.type === 'password') {
+      apiKeyInput.type = 'text';
+    } else {
+      apiKeyInput.type = 'password';
+    }
+  } else {
+    console.error('APIキー入力フィールドが見つかりません。');
+  }
+}
+
+/**
+ * フォールバック用の家庭サポート提案（LLM失敗時）
+ */
+async function generateFallbackHomeSupport(data, studentName) {
   const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
   const motivation = data.motivation ? parseInt(data.motivation) : 0;
   
+  // まずLLMベースの動的生成を試行
+  try {
+    const dynamicSupport = await generatePersonalizedHomeSupportMessage(data, studentName);
+    if (dynamicSupport) {
+      return dynamicSupport;
+    }
+  } catch (error) {
+    console.error('動的家庭サポート生成エラー:', error);
+  }
+  
   // 行動タグに基づく個別サポート提案を取得
   const behaviorTags = data.behaviorTags || [];
-  const behaviorSupport = generateBehaviorBasedSupportForParents(behaviorTags, studentName);
+  const behaviorSupport = await generateBehaviorBasedSupportForParents(behaviorTags, studentName, data);
   
   let support = '';
   
@@ -4475,14 +5417,117 @@ function generateHomeSupport(data, studentName) {
 }
 
 /**
- * 親御さん向けの応援メッセージ
+ * 動的応援メッセージ生成（LLMベース）
  */
-function generateEncouragementMessage(data, studentName) {
+async function generateDynamicEncouragementMessage(data, studentName, level = 'good') {
+  try {
+    const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
+    const motivation = data.motivation ? parseInt(data.motivation) : 0;
+    const behaviorTags = data.behaviorTags || [];
+    
+    let levelDescription = '';
+    if (level === 'excellent') {
+      levelDescription = '非常に優秀な成績で、学習意欲も高い';
+    } else if (level === 'good') {
+      levelDescription = '頑張って取り組んでいるが、さらなる向上の余地がある';
+    } else {
+      levelDescription = 'サポートが必要で、励ましと支援が重要';
+    }
+    
+    const prompt = `あなたは温かい小学校の担任教師です。児童に向けて心のこもった応援メッセージを作成してください。
+
+## 児童情報
+- 名前: ${studentName}さん
+- 学習状況レベル: ${learningStatus}/5 (${levelDescription})
+- 学習意欲: ${motivation}/5
+- 行動の特徴: ${behaviorTags.length > 0 ? behaviorTags.join('、') : '記録なし'}
+- その他のメモ: ${data.notes || 'なし'}
+
+## 作成要件
+1. 児童に直接語りかける親しみやすい文章で書いてください
+2. その子の良い点や頑張りを具体的に褒めてください
+3. 個性や努力を認める温かい言葉を使ってください
+4. 今後への期待と励ましを込めてください
+5. 先生からの愛情と信頼が伝わる内容にしてください
+6. 文字数は120-200文字程度でお願いします
+7. 必ず「${studentName}さん」という呼びかけから始めてください
+
+文章は自然で温かく、その子の個性に合わせてパーソナライズしてください。`;
+
+    const response = await callLLMAPI(prompt);
+    return response;
+  } catch (error) {
+    console.error('動的応援メッセージ生成エラー:', error);
+    return null;
+  }
+}
+
+/**
+ * 動的行動応援メッセージ生成（LLMベース）
+ */
+async function generateDynamicBehaviorEncouragement(behaviorTags, studentName) {
+  if (!behaviorTags || behaviorTags.length === 0) {
+    return null;
+  }
+  
+  try {
+    const prompt = `あなたは温かい小学校の担任教師です。児童の具体的な行動に基づいて、その子の良い点を褒める応援メッセージを作成してください。
+
+## 児童情報
+- 名前: ${studentName}さん
+- 観察された行動: ${behaviorTags.join('、')}
+
+## 作成要件
+1. 観察された行動の中から特に素晴らしい点を2-3個選んで具体的に褒めてください
+2. その行動が他の子たちや教室にどのような良い影響を与えているかを含めてください
+3. 温かく親しみやすい文章で書いてください
+4. その子の個性や努力を認める内容にしてください
+5. 文字数は80-150文字程度でお願いします
+6. 冒頭に「【${studentName}さんの素晴らしいところ】」を付けてください
+
+例：【田中さんの素晴らしいところ】積極的に手を上げる姿勢が本当に素晴らしいです！クラス全体の学習意欲を高めてくれています。
+
+自然で温かく、その子の行動の価値を認める内容にしてください。`;
+
+    const response = await callLLMAPI(prompt);
+    return response;
+  } catch (error) {
+    console.error('動的行動応援メッセージ生成エラー:', error);
+    return null;
+  }
+}
+
+/**
+ * フォールバック用の応援メッセージ（LLM失敗時）
+ */
+async function generateFallbackEncouragementMessage(data, studentName) {
   const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
   const motivation = data.motivation ? parseInt(data.motivation) : 0;
   const behaviorTags = data.behaviorTags || [];
   
-  // 行動タグに基づく個別の応援メッセージを取得
+  // まずLLMベースの動的生成を試行
+  try {
+    let level = 'support';
+    if (learningStatus >= 4 && motivation >= 4) {
+      level = 'excellent';
+    } else if (learningStatus >= 3 || motivation >= 3) {
+      level = 'good';
+    }
+    
+    const dynamicMessage = await generateDynamicEncouragementMessage(data, studentName, level);
+    if (dynamicMessage) {
+      // 行動タグに基づく個別応援メッセージを追加
+      const behaviorEncouragement = await generateDynamicBehaviorEncouragement(behaviorTags, studentName);
+      if (behaviorEncouragement) {
+        return `${dynamicMessage}\n\n${behaviorEncouragement}`;
+      }
+      return dynamicMessage;
+    }
+  } catch (error) {
+    console.error('動的応援メッセージ生成エラー:', error);
+  }
+  
+  // LLMが失敗した場合の従来のフォールバック
   const behaviorEncouragement = generateBehaviorBasedEncouragement(behaviorTags, studentName);
   
   let baseMessage = '';
@@ -4526,9 +5571,9 @@ ${studentName}さんのペースで、一歩ずつ進んでいきましょう。
 }
 
 /**
- * 親御さん向けの連携メッセージ
+ * フォールバック用の連携メッセージ（LLM失敗時）
  */
-function generateCollaborationMessage(data, studentName) {
+function generateFallbackCollaborationMessage(data, studentName) {
   return `**学校と家庭で連携して**、${studentName}さんの成長を支えていきたいと思います。
 
 **📞 いつでもご相談ください**
@@ -4550,6 +5595,161 @@ function generateCollaborationMessage(data, studentName) {
 ・${studentName}さんが**安心して成長できる環境**を、一緒に作っていきましょう
 
 ・${studentName}さんの**個性と可能性**を大切に育んでいきましょう`;
+}
+
+/**
+ * フォールバック用の児童強み（LLM失敗時）
+ */
+function generateFallbackStudentStrengths(data, studentName) {
+  const strengths = [];
+  
+  const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
+  const motivation = data.motivation ? parseInt(data.motivation) : 0;
+  
+  // 行動タグから強みを抽出
+  const behaviorTags = data.behaviorTags || [];
+  const behaviorStrengths = extractBehaviorStrengthsForParents(behaviorTags, studentName);
+  
+  if (learningStatus >= 4) {
+    strengths.push(`📚 **学習への取り組みがとても素晴らしく**、集中して課題に向き合っています`);
+  }
+  
+  if (motivation >= 4) {
+    strengths.push(`✨ **新しいことを学ぶことに意欲的で**、積極的に手を挙げて発言しています`);
+  }
+  
+  if (data.homework === '提出') {
+    strengths.push(`📝 **宿題をきちんと提出し**、責任感を持って取り組んでいます`);
+  }
+  
+  // 行動タグからの強みを追加
+  strengths.push(...behaviorStrengths);
+  
+  if (strengths.length === 0) {
+    strengths.push(`🌱 **${studentName}さんなりのペース**で、一生懸命頑張っています`);
+    strengths.push(`💪 **毎日学校に来て**、クラスの一員として大切な存在です`);
+  }
+  
+  return strengths.map(strength => `- ${strength}`).join('\n');
+}
+
+/**
+ * フォールバック用の学習状況メッセージ
+ */
+function getLearningStatusMessageForParentsFallback(status) {
+  if (status >= 5) return '本当に素晴らしい取り組みです！この調子で頑張っています';
+  if (status >= 4) return 'とても良く頑張っています！';
+  if (status >= 3) return '着実に取り組んでいます。';
+  if (status >= 2) return '一生懸命頑張っています。少しずつ成長しています';
+  return 'これから一緒に頑張っていきましょう。';
+}
+
+/**
+ * フォールバック用の学習意欲メッセージ
+ */
+function getMotivationMessageForParentsFallback(motivation) {
+  if (motivation >= 5) return '学習への意欲がとても高く、積極的に取り組んでいます！';
+  if (motivation >= 4) return '意欲的に学習に取り組んでいます！';
+  if (motivation >= 3) return '安定して学習に向き合っています。';
+  if (motivation >= 2) return '少しずつ学習への興味が育っています。';
+  return 'これから一緒に学習の楽しさを見つけていきましょう。';
+}
+
+/**
+ * 個別レポート生成のフォールバック関数（従来の方式）
+ */
+async function generateIndividualParentReportFallback(student) {
+  const records = student.records || [];
+  const latestRecord = records.length > 0 ? records[records.length - 1] : null;
+  
+  if (!latestRecord || !latestRecord.data) {
+    return generateNoDataParentReport(student);
+  }
+
+  const data = latestRecord.data;
+  const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
+  const motivation = data.motivation ? parseInt(data.motivation) : 0;
+  const homework = data.homework || '';
+  
+  // 成長の傾向を分析
+  const growthTrend = analyzeStudentGrowthForParents(records, student.name);
+  
+  const content = `💝 **${student.name}さんの成長の様子**
+
+${student.name}さんの保護者様、いつも温かいご支援をいただき、ありがとうございます。
+${student.name}さんの最近の学校での様子を、愛情を込めてお伝えさせていただきます。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌟 **${student.name}さんの素晴らしいところ**
+
+${generateFallbackStudentStrengths(data, student.name)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 **学習面での成長**
+
+**現在の様子**
+・**学習への取り組み**: **${learningStatus}/5点** - ${getLearningStatusMessageForParentsFallback(learningStatus)}
+・**学習への意欲**: **${motivation}/5点** - ${getMotivationMessageForParentsFallback(motivation)}
+・**宿題への取り組み**: ${getHomeworkMessageForParents(homework)}
+
+**成長の様子**
+${growthTrend}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🏠 **ご家庭でのサポートのご提案**
+
+${await generateFallbackHomeSupport(data, student.name)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💌 **${student.name}さんへの応援メッセージ**
+
+${await generateFallbackEncouragementMessage(data, student.name)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📞 **今後の連携について**
+
+${generateFallbackCollaborationMessage(data, student.name)}
+
+---
+${student.name}さんの成長を、一緒に見守らせていただけることを心より嬉しく思っています。
+
+**作成日**: ${new Date().toLocaleDateString('ja-JP')}`;
+
+  return {
+    id: `individual_parent_report_${student.id}_${Date.now()}`,
+    type: 'individual_parent',
+    studentId: student.id,
+    studentName: student.name,
+    title: `💝 ${student.name}さんの成長レポート（保護者向け）`,
+    content: content,
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * 親御さん向けの家庭サポート提案（維持用）
+ */
+function generateHomeSupport(data, studentName) {
+  return generateFallbackHomeSupport(data, studentName);
+}
+
+/**
+ * 親御さん向けの応援メッセージ（維持用）
+ */
+async function generateEncouragementMessage(data, studentName) {
+  return await generateFallbackEncouragementMessage(data, studentName);
+}
+
+/**
+ * 親御さん向けの連携メッセージ（維持用）
+ */
+function generateCollaborationMessage(data, studentName) {
+  return generateFallbackCollaborationMessage(data, studentName);
 }
 
 /**
@@ -4597,15 +5797,7 @@ function updateParentReportHistory() {
     container.innerHTML = `
       <div class="alert alert-info">
         <i class="fas fa-info-circle"></i>
-        まだ親御さん向けレポートが作成されていません。上記のボタンからレポートを作成すると、ここに履歴が表示されます。
-        <br><br>
-        <strong>活用例：</strong>
-        <ul style="margin-top: 0.5rem;">
-          <li>保護者面談での資料として活用</li>
-          <li>家庭訪問時の話題提供</li>
-          <li>学級通信への内容反映</li>
-          <li>個別の成長記録として保管</li>
-        </ul>
+        まだ分析結果がありません。上記のボタンからAI分析を実行してください。
       </div>
     `;
     return;
@@ -5244,9 +6436,9 @@ function regenerateParentReport(reportType, studentId = '', reportId = '') {
     const student = studentsData.students.find(s => s.id === studentId);
     if (student) {
       showAnalysisLoading(`${student.name}さんのレポートを再生成中...`);
-      setTimeout(() => {
+      setTimeout(async () => {
         try {
-          const newReport = generateIndividualParentReport(student);
+          const newReport = await generateIndividualParentReport(student);
           
           // 既存の同じ児童のレポートを探して置き換える
           replaceOrAddParentReport(newReport, 'individual_parent', studentId);
@@ -5493,9 +6685,59 @@ function extractBehaviorStrengthsForParents(behaviorTags, studentName) {
 }
 
 /**
+ * 動的保護者向けサポート提案生成（LLMベース）
+ */
+async function generateDynamicParentSupport(behaviorTags, studentName, data) {
+  if (!behaviorTags || behaviorTags.length === 0) {
+    return null;
+  }
+  
+  try {
+    const learningStatus = data.learningStatus ? parseInt(data.learningStatus) : 0;
+    const motivation = data.motivation ? parseInt(data.motivation) : 0;
+    
+    const prompt = `あなたは経験豊富な小学校の担任教師です。保護者の方に向けて、お子様の個性に合わせた具体的な家庭サポート提案を作成してください。
+
+## 児童情報
+- 名前: ${studentName}さん
+- 学習状況: ${learningStatus}/5
+- 学習意欲: ${motivation}/5
+- 観察された行動: ${behaviorTags.join('、')}
+
+## 作成要件
+1. 観察された行動の特徴を活かす具体的なサポート方法を提案してください
+2. 保護者が実践しやすい具体的なアドバイスを含めてください
+3. その子の良い点を伸ばすための家庭での取り組みを示してください
+4. 注意が必要な行動がある場合は、温かい対応方法を提案してください
+5. 親子関係の向上につながる内容を含めてください
+6. 冒頭に「🎯 **${studentName}さんの個性を活かす家庭サポート**」を付けてください
+7. 各提案は「・」で始まる箇条書きで3-5項目程度にしてください
+
+保護者が無理なく実践でき、子どもの成長を支える温かい提案にしてください。`;
+
+    const response = await callLLMAPI(prompt);
+    return response;
+  } catch (error) {
+    console.error('動的保護者サポート生成エラー:', error);
+    return null;
+  }
+}
+
+/**
  * 行動タグに基づく家庭でのサポート提案
  */
-function generateBehaviorBasedSupportForParents(behaviorTags, studentName) {
+async function generateBehaviorBasedSupportForParents(behaviorTags, studentName, data = {}) {
+  // まずLLMベースの動的生成を試行
+  try {
+    const dynamicSupport = await generateDynamicParentSupport(behaviorTags, studentName, data);
+    if (dynamicSupport) {
+      return dynamicSupport;
+    }
+  } catch (error) {
+    console.error('動的保護者サポート生成エラー:', error);
+  }
+  
+  // LLMが失敗した場合の従来のフォールバック
   const suggestions = [];
   
   // ポジティブな行動タグに対するサポート
@@ -5579,6 +6821,67 @@ function analyzeBehaviorTagsGrowthForParents(prevData, currentData, studentName)
 }
 
 /**
+ * 動的クラス全体統計メッセージ生成（LLMベース）
+ */
+async function generateDynamicClassBehaviorStats(recentData) {
+  if (recentData.length === 0) {
+    return '現在、お子様たちの行動データを蓄積中です。これから素晴らしい成長の様子をお伝えしていきます。';
+  }
+  
+  // 全ての行動タグを収集
+  const allBehaviorTags = [];
+  recentData.forEach(entry => {
+    if (entry.data.behaviorTags && Array.isArray(entry.data.behaviorTags)) {
+      allBehaviorTags.push(...entry.data.behaviorTags);
+    }
+  });
+  
+  if (allBehaviorTags.length === 0) {
+    return '今期の行動記録をこれから詳しく記録していきます。お子様たちの素晴らしい姿をお伝えできるよう努めます。';
+  }
+  
+  try {
+    // タグの出現回数をカウント
+    const tagCounts = {};
+    allBehaviorTags.forEach(tag => {
+      tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+    });
+    
+    // 上位のタグを取得
+    const topTags = Object.entries(tagCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5);
+    
+    const prompt = `あなたは小学校の担任教師です。保護者の皆様に向けて、クラス全体の行動傾向について温かく前向きなレポートを作成してください。
+
+## クラス情報
+- 全体の児童数: ${recentData.length}名
+- 観察された行動の合計: ${allBehaviorTags.length}回
+- よく見られる行動トップ5:
+${topTags.map(([tag, count], index) => {
+  const percentage = Math.round((count / recentData.length) * 100);
+  return `  ${index + 1}. 「${tag}」- ${count}名（全体の${percentage}%）`;
+}).join('\n')}
+
+## 作成要件
+1. クラス全体の良い傾向を保護者に分かりやすく伝えてください
+2. 具体的な数字を使って説得力のある内容にしてください
+3. 子どもたちの成長への期待を込めた前向きな表現を使ってください
+4. 保護者の方が安心できるような温かい文章にしてください
+5. 200-300文字程度でお願いします
+6. 「**クラス全体の素晴らしい様子**」で始めてください
+
+クラス全体の協調性や成長への意欲について、具体的で温かい内容にしてください。`;
+
+    const response = await callLLMAPI(prompt);
+    return response || calculateBehaviorTagStatsForClass(recentData);
+  } catch (error) {
+    console.error('動的クラス統計メッセージ生成エラー:', error);
+    return calculateBehaviorTagStatsForClass(recentData);
+  }
+}
+
+/**
  * クラス全体の行動タグ統計計算（親御さん向け）
  */
 function calculateBehaviorTagStatsForClass(recentData) {
@@ -5645,11 +6948,22 @@ function calculateBehaviorTagStatsForClass(recentData) {
 /**
  * 行動タグに基づく応援メッセージ生成
  */
-function generateBehaviorBasedEncouragement(behaviorTags, studentName) {
+async function generateBehaviorBasedEncouragement(behaviorTags, studentName) {
   if (!behaviorTags || behaviorTags.length === 0) {
     return '';
   }
   
+  // まずLLMベースの動的生成を試行
+  try {
+    const dynamicEncouragement = await generateDynamicBehaviorEncouragement(behaviorTags, studentName);
+    if (dynamicEncouragement) {
+      return dynamicEncouragement;
+    }
+  } catch (error) {
+    console.error('動的行動応援メッセージ生成エラー:', error);
+  }
+  
+  // LLMが失敗した場合の従来のフォールバック
   const encouragements = [];
   
   // ポジティブな行動タグに対する応援メッセージ
@@ -5725,4 +7039,14 @@ function toggleBehaviorTag(button, fieldId) {
   }
   
   console.log(`選択されたタグ:`, selectedValues);
+}
+
+/**
+ * 分析実行のコツモーダルを表示
+ */
+function showAnalysisTips() {
+  const modal = document.getElementById('analysisTipsModal');
+  if (modal) {
+    modal.classList.add('show');
+  }
 }
