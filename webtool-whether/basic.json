@@ -1,0 +1,282 @@
+[
+  {
+    "name": "北海道 宗谷地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/011000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/011000.json"
+  },
+  {
+    "name": "北海道 上川・留萌地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/012000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/012000.json"
+  },
+  {
+    "name": "北海道 石狩・空知・後志地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/016000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/016000.json"
+  },
+  {
+    "name": "北海道 網走・北見・紋別地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/013000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/013000.json"
+  },
+  {
+    "name": "北海道 釧路・根室地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/014100.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/014100.json"
+  },
+  {
+    "name": "北海道 胆振・日高地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/015000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/015000.json"
+  },
+  {
+    "name": "北海道 渡島・檜山地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/017000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/017000.json"
+  },
+  {
+    "name": "青森県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/020000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/020000.json"
+  },
+  {
+    "name": "秋田県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/050000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/050000.json"
+  },
+  {
+    "name": "岩手県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/030000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/030000.json"
+  },
+  {
+    "name": "宮城県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/040000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/040000.json"
+  },
+  {
+    "name": "山形県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/060000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/060000.json"
+  },
+  {
+    "name": "福島県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/070000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/070000.json"
+  },
+  {
+    "name": "茨城県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/080000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/080000.json"
+  },
+  {
+    "name": "栃木県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/090000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/090000.json"
+  },
+  {
+    "name": "群馬県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/100000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/100000.json"
+  },
+  {
+    "name": "埼玉県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/110000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/110000.json"
+  },
+  {
+    "name": "東京都",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/130000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/130000.json"
+  },
+  {
+    "name": "千葉県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/120000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/120000.json"
+  },
+  {
+    "name": "神奈川県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/140000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/140000.json"
+  },
+  {
+    "name": "長野県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/200000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/200000.json"
+  },
+  {
+    "name": "山梨県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/190000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/190000.json"
+  },
+  {
+    "name": "静岡県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/220000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/220000.json"
+  },
+  {
+    "name": "愛知県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/230000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/230000.json"
+  },
+  {
+    "name": "岐阜県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/210000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/210000.json"
+  },
+  {
+    "name": "三重県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/240000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/240000.json"
+  },
+  {
+    "name": "新潟県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/150000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/150000.json"
+  },
+  {
+    "name": "富山県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/160000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/160000.json"
+  },
+  {
+    "name": "石川県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/170000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/170000.json"
+  },
+  {
+    "name": "福井県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/180000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/180000.json"
+  },
+  {
+    "name": "滋賀県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/250000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/250000.json"
+  },
+  {
+    "name": "京都府",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/260000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/260000.json"
+  },
+  {
+    "name": "大阪府",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/270000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json"
+  },
+  {
+    "name": "兵庫県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/280000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/280000.json"
+  },
+  {
+    "name": "奈良県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/290000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/290000.json"
+  },
+  {
+    "name": "和歌山県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/300000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/300000.json"
+  },
+  {
+    "name": "岡山県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/330000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/330000.json"
+  },
+  {
+    "name": "広島県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/340000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/340000.json"
+  },
+  {
+    "name": "島根県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/320000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/320000.json"
+  },
+  {
+    "name": "鳥取県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/310000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/310000.json"
+  },
+  {
+    "name": "徳島県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/360000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/360000.json"
+  },
+  {
+    "name": "香川県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/370000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/370000.json"
+  },
+  {
+    "name": "愛媛県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/380000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/380000.json"
+  },
+  {
+    "name": "高知県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/390000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/390000.json"
+  },
+  {
+    "name": "山口県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/350000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/350000.json"
+  },
+  {
+    "name": "福岡県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/400000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/400000.json"
+  },
+  {
+    "name": "大分県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/440000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/440000.json"
+  },
+  {
+    "name": "長崎県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/420000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/420000.json"
+  },
+  {
+    "name": "佐賀県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/410000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/410000.json"
+  },
+  {
+    "name": "熊本県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/430000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/430000.json"
+  },
+  {
+    "name": "宮崎県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/450000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/450000.json"
+  },
+  {
+    "name": "鹿児島県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/460100.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/460100.json"
+  },
+  {
+    "name": "沖縄本島地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/471000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/471000.json"
+  },
+  {
+    "name": "大東島地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/472000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/472000.json"
+  },
+  {
+    "name": "宮古島地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/473000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/473000.json"
+  },
+  {
+    "name": "八重山地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/474000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/474000.json"
+  }
+]

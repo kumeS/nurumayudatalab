@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLMと天気予報ウェブツール｜気象庁API活用天気予報システム</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #4a90e2;
+      --secondary: #7bb3f0;
+      --accent: #50c878;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+      --weather-sunny: #ffa500;
+      --weather-cloudy: #808080;
+      --weather-rainy: #4169e1;
+      --weather-snowy: #e6e6fa;
+    }
+    
+    body { 
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+    }
+    
+    h1 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+    
+    .description {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+    
+    .tabs {
+      display: flex;
+      background-color: #fff;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+      margin-bottom: 0;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 1rem;
+      text-align: center;
+      background-color: #f8f9fa;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      border: none;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+    
+    .tab:hover {
+      background-color: #fff;
+      color: var(--primary);
+    }
+    
+    .tab.active {
+      background-color: #fff;
+      color: var(--primary);
+      font-weight: bold;
+      border-bottom: 3px solid var(--primary);
+      box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .tab-content {
+      background: white;
+      border-radius: 0 0 12px 12px;
+      box-shadow: var(--card-shadow);
+      min-height: 600px;
+      padding: 2rem;
+    }
+    
+    .tab-pane {
+      display: none;
+    }
+    
+    .tab-pane.active {
+      display: block;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    
+    .loading i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .weather-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .weather-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      transition: all var(--transition-speed);
+      cursor: pointer;
+      border-left: 4px solid var(--primary);
+    }
+    
+    .weather-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+    }
+    
+    .weather-card.sunny {
+      border-left-color: var(--weather-sunny);
+    }
+    
+    .weather-card.cloudy {
+      border-left-color: var(--weather-cloudy);
+    }
+    
+    .weather-card.rainy {
+      border-left-color: var(--weather-rainy);
+    }
+    
+    .weather-card.snowy {
+      border-left-color: var(--weather-snowy);
+    }
+    
+    .weather-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    
+    .weather-location {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+    
+    .weather-icon {
+      font-size: 2rem;
+    }
+    
+    .weather-info {
+      margin: 0.5rem 0;
+    }
+    
+    .weather-temp {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--primary);
+      margin: 0.5rem 0;
+    }
+    
+    .weather-description {
+      color: var(--text-secondary);
+      margin: 0.5rem 0;
+    }
+    
+    .weather-details {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-top: 1rem;
+    }
+    
+    .map-container {
+      background: linear-gradient(135deg, #f8f8f8 0%, #e8e8e8 100%);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+      border: 1px solid #d0d0d0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 和紙テクスチャ風装飾 */
+    .map-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        radial-gradient(circle at 20% 30%, rgba(0,0,0,0.02) 1px, transparent 1px),
+        radial-gradient(circle at 80% 70%, rgba(0,0,0,0.015) 1px, transparent 1px),
+        radial-gradient(circle at 40% 90%, rgba(0,0,0,0.01) 1px, transparent 1px);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .map-container h3 {
+      color: #444;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+      position: relative;
+      z-index: 2;
+    }
+
+    /* インタラクティブマップのスタイリング（水墨画風） */
+    .interactive-map {
+      position: relative;
+      z-index: 2;
+      background: rgba(254,254,254,0.95);
+      border-radius: 15px;
+      padding: 1rem;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
+      border: 1px solid #e0e0e0;
+    }
+
+    /* 都市マーカーのスタイリング（水墨画風） */
+    .city-marker {
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    .city-marker:hover {
+      transform: scale(1.4);
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+    }
+
+    /* 主要都市の上品なパルス効果 */
+    .city-marker.major-city {
+      animation: inkCityPulse 4s ease-in-out infinite;
+    }
+
+    @keyframes inkCityPulse {
+      0%, 100% { 
+        transform: scale(1); 
+        opacity: 1;
+      }
+      50% { 
+        transform: scale(1.08); 
+        opacity: 0.85;
+      }
+    }
+
+    /* 国土の輪郭線用の上品なホバー効果 */
+    path[stroke="#777"]:hover {
+      stroke: #555;
+      stroke-width: 3.5;
+      transition: all 0.3s ease;
+    }
+    
+    .map-placeholder {
+      height: 400px;
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+    }
+    
+    .llm-section {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+      margin-top: 2rem;
+    }
+    
+    .llm-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      gap: 1rem;
+    }
+    
+    .llm-title {
+      color: var(--primary);
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    
+    .button {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.8rem 1.5rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: all var(--transition-speed);
+      box-shadow: var(--card-shadow);
+      text-decoration: none;
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .button:disabled {
+      background: linear-gradient(135deg, #ccc, #ddd);
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .button i {
+      margin-right: 0.5rem;
+    }
+    
+    .button.secondary {
+      background: linear-gradient(135deg, var(--accent) 0%, #5fd1a5 100%);
+    }
+    
+    .button.speak-active {
+      background: linear-gradient(135deg, #ff6b35, #f7931e);
+    }
+    
+    .llm-output {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+      min-height: 150px;
+      white-space: pre-wrap;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--text-primary);
+    }
+    
+    .status-bar {
+      background: white;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .status-info {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+    
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-secondary);
+    }
+    
+    .error-message {
+      background: #ffebee;
+      border: 1px solid #ffcdd2;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      color: #d32f2f;
+    }
+    
+    .success-message {
+      background: #e8f5e8;
+      border: 1px solid #c8e6c9;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      color: #2e7d32;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 0.5rem;
+      }
+      
+      h1 {
+        font-size: 2rem;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+      .weather-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .button-group {
+        flex-direction: column;
+      }
+      
+      .button {
+        width: 100%;
+        justify-content: center;
+    }
+    
+      .status-info {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+      }
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-content {
+      background-color: white;
+      margin: 5% auto;
+      padding: 2rem;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .modal-title {
+      color: var(--primary);
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    
+    .close {
+      color: #aaa;
+      font-size: 2rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: color var(--transition-speed);
+    }
+    
+    .close:hover {
+      color: var(--primary);
+    }
+    
+        .modal-body {
+      line-height: 1.6;
+    }
+
+    /* 地図のインタラクティブスタイル */
+    .map-prefecture {
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    
+    .map-prefecture:hover {
+      transform: scale(1.02);
+      filter: brightness(1.2) drop-shadow(4px 4px 8px rgba(0,0,0,0.4)) !important;
+      }
+    
+    .kansai-pref:hover {
+      filter: brightness(1.3) drop-shadow(4px 4px 12px rgba(27,94,32,0.5)) !important;
+    }
+    
+    .hokkaido:hover { filter: brightness(1.2) drop-shadow(4px 4px 8px rgba(13,71,161,0.5)) !important; }
+    .kanto:hover { filter: brightness(1.2) drop-shadow(4px 4px 8px rgba(13,71,161,0.5)) !important; }
+    .tohoku:hover { filter: brightness(1.2) drop-shadow(4px 4px 8px rgba(13,71,161,0.5)) !important; }
+    .chubu:hover { filter: brightness(1.2) drop-shadow(4px 4px 8px rgba(13,71,161,0.5)) !important; }
+    .kansai:hover { filter: brightness(1.3) drop-shadow(4px 4px 12px rgba(27,94,32,0.5)) !important; }
+    .chugoku:hover { filter: brightness(1.2) drop-shadow(4px 4px 8px rgba(13,71,161,0.5)) !important; }
+    .shikoku:hover { filter: brightness(1.2) drop-shadow(4px 4px 8px rgba(13,71,161,0.5)) !important; }
+    .kyushu:hover { filter: brightness(1.2) drop-shadow(4px 4px 8px rgba(13,71,161,0.5)) !important; }
+    .okinawa:hover { filter: brightness(1.2) drop-shadow(4px 4px 8px rgba(13,71,161,0.5)) !important; }
+    
+    .interactive-map svg {
+      background: radial-gradient(ellipse at center, #f0f8ff 0%, #e1f5fe 70%, #b3e5fc 100%);
+      border-radius: 15px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* 都市マーカーのスタイル */
+    .city-marker {
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    
+    .city-marker:hover {
+      transform: scale(1.3);
+      filter: brightness(1.2) drop-shadow(2px 2px 6px rgba(0,0,0,0.4));
+    }
+    
+    .major-city {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.7; }
+      100% { opacity: 1; }
+    }
+    
+    /* 天気ポップアップのスタイル */
+    .weather-popup {
+      position: absolute;
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+      border: none;
+      border-radius: 15px;
+      padding: 1rem;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+      min-width: 200px;
+      display: none;
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .weather-popup::before {
+      content: '';
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 8px solid white;
+    }
+    
+    .popup-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .popup-weather {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .popup-temp {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--primary);
+    }
+    
+    .popup-weather-icon {
+      font-size: 2rem;
+    }
+    
+    .popup-details {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    
+    .popup-close {
+      position: absolute;
+      top: 5px;
+      right: 8px;
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--text-secondary);
+      padding: 0;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .popup-close:hover {
+      color: var(--primary);
+    }
+
+    .weather-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .weather-detail-item {
+      background: #f8f9fa;
+        padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+      }
+      
+    .weather-detail-label {
+        font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      }
+      
+    .weather-detail-value {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--primary);
+    }
+
+    /* ドットアート日本地図のスタイル */
+    .japan-dot-map {
+      position: relative;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border: 1px solid #dee2e6;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+    }
+    
+    .japan-dot-map iframe {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transition: transform 0.3s ease;
+    }
+    
+    .japan-dot-map iframe:hover {
+      transform: scale(1.02);
+    }
+    
+    /* 地図コンテナの装飾 */
+    .japan-dot-map::before {
+      content: '🗾 位置情報付きドットマップ';
+      position: absolute;
+      top: 10px;
+      left: 20px;
+      background: rgba(255,255,255,0.9);
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      color: #666;
+      z-index: 10;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>
+        <i class="fas fa-cloud-sun"></i>
+        LLMと天気予報ウェブツール
+      </h1>
+      <p class="description">気象庁APIを活用した全国・関西地方の天気予報システム</p>
+    </div>
+    
+    <div class="tabs">
+      <button class="tab active" id="tab-national">
+        <i class="fas fa-map"></i> 全国版
+      </button>
+      <button class="tab" id="tab-kansai">
+        <i class="fas fa-map-marked-alt"></i> 関西版
+      </button>
+      </div>
+
+    <div class="tab-content">
+      <!-- 全国版タブ -->
+      <div id="national" class="tab-pane active">
+        <div class="status-bar">
+          <div class="status-info">
+            <div class="status-item">
+              <i class="fas fa-clock"></i>
+              <span id="lastUpdated">データ取得中...</span>
+          </div>
+            <div class="status-item">
+              <i class="fas fa-database"></i>
+              <span id="dataCount">0/0 件取得済み</span>
+        </div>
+          </div>
+          <button class="button" id="refreshNational">
+            <i class="fas fa-sync-alt"></i> 更新
+          </button>
+        </div>
+
+        <div class="map-container">
+          <h3><i class="fas fa-map"></i> 全国天気マップ</h3>
+          <div class="japan-dot-map" style="height: 450px; overflow: auto; background: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+            <div id="japanDotMapContainer" style="transform: scale(0.6); transform-origin: center;">
+              <iframe src="japan_dot_map_optimized.html" 
+                      style="width: 800px; height: 600px; border: none; border-radius: 8px; background: white;"
+                      title="日本ドットマップ">
+              </iframe>
+            </div>
+          </div>
+        </div>
+
+        <div id="nationalWeather" class="weather-grid">
+          <div class="loading">
+            <i class="fas fa-spinner"></i>
+            <p>天気データを取得中...</p>
+          </div>
+        </div>
+
+        <!-- LLM機能セクション -->
+        <div class="llm-section">
+          <div class="llm-header">
+            <i class="fas fa-robot"></i>
+            <span class="llm-title">AI天気予報要約</span>
+      </div>
+          <div class="button-group">
+            <button class="button" id="generateSummaryNational">
+              <i class="fas fa-magic"></i> 全国天気を要約
+            </button>
+            <button class="button secondary" id="speakSummaryNational">
+              <i class="fas fa-volume-up"></i> 音声読み上げ
+            </button>
+    </div>
+          <div id="summaryOutputNational" class="llm-output">
+            天気予報要約を生成するには、上記ボタンをクリックしてください。
+          </div>
+        </div>
+    </div>
+    
+      <!-- 関西版タブ -->
+      <div id="kansai" class="tab-pane">
+        <div class="status-bar">
+          <div class="status-info">
+            <div class="status-item">
+              <i class="fas fa-clock"></i>
+              <span id="lastUpdatedKansai">データ取得中...</span>
+      </div>
+            <div class="status-item">
+              <i class="fas fa-database"></i>
+              <span id="dataCountKansai">0/0 件取得済み</span>
+            </div>
+          </div>
+          <button class="button" id="refreshKansai">
+            <i class="fas fa-sync-alt"></i> 更新
+          </button>
+    </div>
+    
+        <div class="map-container">
+          <h3><i class="fas fa-map-marked-alt"></i> 関西地方天気マップ</h3>
+          <div class="map-placeholder" style="height: 400px; background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #6c757d;">
+            <div style="text-align: center;">
+              <i class="fas fa-map-marked-alt" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+              <p style="font-size: 1.2rem; margin: 0;">関西地図エリア（準備中）</p>
+            </div>
+          </div>
+        </div>
+    
+        <div id="kansaiWeather" class="weather-grid">
+          <div class="loading">
+            <i class="fas fa-spinner"></i>
+            <p>関西地方の天気データを取得中...</p>
+      </div>
+        </div>
+
+        <!-- LLM機能セクション -->
+        <div class="llm-section">
+          <div class="llm-header">
+            <i class="fas fa-robot"></i>
+            <span class="llm-title">AI天気予報要約（関西版）</span>
+          </div>
+        <div class="button-group">
+            <button class="button" id="generateSummaryKansai">
+              <i class="fas fa-magic"></i> 関西天気を要約
+            </button>
+            <button class="button secondary" id="speakSummaryKansai">
+              <i class="fas fa-volume-up"></i> 音声読み上げ
+            </button>
+          </div>
+          <div id="summaryOutputKansai" class="llm-output">
+            関西地方の天気予報要約を生成するには、上記ボタンをクリックしてください。
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+    
+  <!-- 詳細天気情報モーダル -->
+  <div id="weatherModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle">詳細天気情報</h2>
+        <span class="close" id="closeModal">&times;</span>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- 詳細情報がここに表示されます -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 天気ポップアップ -->
+  <div id="weatherPopup" class="weather-popup">
+    <button class="popup-close" id="popupClose">&times;</button>
+    <div class="popup-title" id="popupTitle">
+      <span id="popupCityName">都市名</span>
+    </div>
+    <div class="popup-weather">
+      <div class="popup-weather-icon" id="popupWeatherIcon">☀️</div>
+      <div>
+        <div class="popup-temp" id="popupTemp">--°C</div>
+        <div id="popupWeatherText">--</div>
+      </div>
+    </div>
+    <div class="popup-details" id="popupDetails">
+      降水確率: --% | 風: --
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html> 
