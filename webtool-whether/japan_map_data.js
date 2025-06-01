@@ -1,0 +1,2209 @@
+/**
+ * 日本地図ドットデータ
+ * jpn_dot_plot.htmlから抽出されたSVGドットデータ
+ * CORS問題を回避するためにJavaScriptファイルに埋め込み
+ */
+
+/**
+ * 基本データ（basic.json相当）
+ * CORS問題を回避するためにJavaScriptファイルに埋め込み
+ */
+window.BASIC_DATA = [
+  {
+    "name": "北海道 宗谷地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/011000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/011000.json"
+  },
+  {
+    "name": "北海道 上川・留萌地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/012000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/012000.json"
+  },
+  {
+    "name": "北海道 石狩・空知・後志地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/016000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/016000.json"
+  },
+  {
+    "name": "北海道 網走・北見・紋別地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/013000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/013000.json"
+  },
+  {
+    "name": "北海道 釧路・根室地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/014100.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/014100.json"
+  },
+  {
+    "name": "北海道 胆振・日高地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/015000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/015000.json"
+  },
+  {
+    "name": "北海道 渡島・檜山地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/017000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/017000.json"
+  },
+  {
+    "name": "青森県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/020000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/020000.json"
+  },
+  {
+    "name": "秋田県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/050000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/050000.json"
+  },
+  {
+    "name": "岩手県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/030000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/030000.json"
+  },
+  {
+    "name": "宮城県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/040000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/040000.json"
+  },
+  {
+    "name": "山形県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/060000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/060000.json"
+  },
+  {
+    "name": "福島県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/070000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/070000.json"
+  },
+  {
+    "name": "茨城県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/080000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/080000.json"
+  },
+  {
+    "name": "栃木県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/090000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/090000.json"
+  },
+  {
+    "name": "群馬県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/100000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/100000.json"
+  },
+  {
+    "name": "埼玉県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/110000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/110000.json"
+  },
+  {
+    "name": "東京都",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/130000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/130000.json"
+  },
+  {
+    "name": "千葉県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/120000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/120000.json"
+  },
+  {
+    "name": "神奈川県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/140000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/140000.json"
+  },
+  {
+    "name": "長野県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/200000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/200000.json"
+  },
+  {
+    "name": "山梨県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/190000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/190000.json"
+  },
+  {
+    "name": "静岡県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/220000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/220000.json"
+  },
+  {
+    "name": "愛知県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/230000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/230000.json"
+  },
+  {
+    "name": "岐阜県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/210000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/210000.json"
+  },
+  {
+    "name": "三重県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/240000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/240000.json"
+  },
+  {
+    "name": "新潟県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/150000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/150000.json"
+  },
+  {
+    "name": "富山県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/160000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/160000.json"
+  },
+  {
+    "name": "石川県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/170000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/170000.json"
+  },
+  {
+    "name": "福井県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/180000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/180000.json"
+  },
+  {
+    "name": "滋賀県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/250000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/250000.json"
+  },
+  {
+    "name": "京都府",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/260000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/260000.json"
+  },
+  {
+    "name": "大阪府",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/270000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json"
+  },
+  {
+    "name": "兵庫県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/280000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/280000.json"
+  },
+  {
+    "name": "奈良県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/290000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/290000.json"
+  },
+  {
+    "name": "和歌山県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/300000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/300000.json"
+  },
+  {
+    "name": "岡山県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/330000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/330000.json"
+  },
+  {
+    "name": "広島県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/340000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/340000.json"
+  },
+  {
+    "name": "島根県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/320000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/320000.json"
+  },
+  {
+    "name": "鳥取県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/310000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/310000.json"
+  },
+  {
+    "name": "徳島県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/360000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/360000.json"
+  },
+  {
+    "name": "香川県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/370000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/370000.json"
+  },
+  {
+    "name": "愛媛県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/380000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/380000.json"
+  },
+  {
+    "name": "高知県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/390000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/390000.json"
+  },
+  {
+    "name": "山口県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/350000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/350000.json"
+  },
+  {
+    "name": "福岡県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/400000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/400000.json"
+  },
+  {
+    "name": "大分県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/440000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/440000.json"
+  },
+  {
+    "name": "長崎県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/420000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/420000.json"
+  },
+  {
+    "name": "佐賀県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/410000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/410000.json"
+  },
+  {
+    "name": "熊本県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/430000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/430000.json"
+  },
+  {
+    "name": "宮崎県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/450000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/450000.json"
+  },
+  {
+    "name": "鹿児島県",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/460100.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/460100.json"
+  },
+  {
+    "name": "沖縄本島地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/471000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/471000.json"
+  },
+  {
+    "name": "大東島地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/472000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/472000.json"
+  },
+  {
+    "name": "宮古島地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/473000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/473000.json"
+  },
+  {
+    "name": "八重山地方",
+    "overview_url": "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/474000.json",
+    "forecast_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/474000.json"
+  }
+];
+window.JAPAN_MAP_DATA = {
+  "width": 480,
+  "height": 490,
+  "dots": [
+    {
+      "cx": 395.0,
+      "cy": 25.0,
+      "r": 4.0,
+      "fill": "#93cca3"
+    },
+    {
+      "cx": 405.0,
+      "cy": 25.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 405.0,
+      "cy": 35.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 415.0,
+      "cy": 35.0,
+      "r": 4.0,
+      "fill": "#ceead6"
+    },
+    {
+      "cx": 405.0,
+      "cy": 45.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 415.0,
+      "cy": 45.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 395.0,
+      "cy": 55.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 405.0,
+      "cy": 55.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 415.0,
+      "cy": 55.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 425.0,
+      "cy": 55.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 395.0,
+      "cy": 65.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 405.0,
+      "cy": 65.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 415.0,
+      "cy": 65.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 425.0,
+      "cy": 65.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 435.0,
+      "cy": 65.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 465.0,
+      "cy": 65.0,
+      "r": 4.0,
+      "fill": "#e9f5ec"
+    },
+    {
+      "cx": 385.0,
+      "cy": 75.0,
+      "r": 4.0,
+      "fill": "#d9f5e0"
+    },
+    {
+      "cx": 395.0,
+      "cy": 75.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 405.0,
+      "cy": 75.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 415.0,
+      "cy": 75.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 425.0,
+      "cy": 75.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 435.0,
+      "cy": 75.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 445.0,
+      "cy": 75.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 455.0,
+      "cy": 75.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 465.0,
+      "cy": 75.0,
+      "r": 4.0,
+      "fill": "#cde7d4"
+    },
+    {
+      "cx": 475.0,
+      "cy": 75.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 85.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 395.0,
+      "cy": 85.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 405.0,
+      "cy": 85.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 415.0,
+      "cy": 85.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 425.0,
+      "cy": 85.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 435.0,
+      "cy": 85.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 445.0,
+      "cy": 85.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 455.0,
+      "cy": 85.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 465.0,
+      "cy": 85.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#cbe6d2"
+    },
+    {
+      "cx": 375.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 385.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 395.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 405.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 415.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 425.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 435.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 445.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 455.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 465.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 475.0,
+      "cy": 95.0,
+      "r": 4.0,
+      "fill": "#e7f4ea"
+    },
+    {
+      "cx": 355.0,
+      "cy": 105.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 105.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 375.0,
+      "cy": 105.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 385.0,
+      "cy": 105.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 395.0,
+      "cy": 105.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 405.0,
+      "cy": 105.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 415.0,
+      "cy": 105.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 425.0,
+      "cy": 105.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 435.0,
+      "cy": 105.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 455.0,
+      "cy": 105.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 115.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 375.0,
+      "cy": 115.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 405.0,
+      "cy": 115.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 415.0,
+      "cy": 115.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 425.0,
+      "cy": 115.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 125.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 125.0,
+      "r": 4.0,
+      "fill": "#e5f7ea"
+    },
+    {
+      "cx": 415.0,
+      "cy": 125.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 135.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 135.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 375.0,
+      "cy": 135.0,
+      "r": 4.0,
+      "fill": "#acd7b7"
+    },
+    {
+      "cx": 355.0,
+      "cy": 145.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 375.0,
+      "cy": 155.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 165.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 375.0,
+      "cy": 165.0,
+      "r": 4.0,
+      "fill": "#90caa1"
+    },
+    {
+      "cx": 345.0,
+      "cy": 175.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 175.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 175.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 375.0,
+      "cy": 175.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 185.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 185.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 375.0,
+      "cy": 185.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 345.0,
+      "cy": 195.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 195.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 195.0,
+      "r": 4.0,
+      "fill": "#d8ecde"
+    },
+    {
+      "cx": 375.0,
+      "cy": 195.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 385.0,
+      "cy": 195.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 345.0,
+      "cy": 205.0,
+      "r": 4.0,
+      "fill": "#c0e1ca"
+    },
+    {
+      "cx": 355.0,
+      "cy": 205.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 205.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 375.0,
+      "cy": 205.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 385.0,
+      "cy": 205.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 345.0,
+      "cy": 215.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 215.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 215.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 375.0,
+      "cy": 215.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 385.0,
+      "cy": 215.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 345.0,
+      "cy": 225.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 225.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 225.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 375.0,
+      "cy": 225.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 385.0,
+      "cy": 225.0,
+      "r": 4.0,
+      "fill": "#95cda4"
+    },
+    {
+      "cx": 345.0,
+      "cy": 235.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 235.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 235.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 375.0,
+      "cy": 235.0,
+      "r": 4.0,
+      "fill": "#fafcfa"
+    },
+    {
+      "cx": 335.0,
+      "cy": 245.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 345.0,
+      "cy": 245.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 245.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 245.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 325.0,
+      "cy": 255.0,
+      "r": 4.0,
+      "fill": "#eceff2"
+    },
+    {
+      "cx": 335.0,
+      "cy": 255.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 345.0,
+      "cy": 255.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 255.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 365.0,
+      "cy": 255.0,
+      "r": 4.0,
+      "fill": "#93cca2"
+    },
+    {
+      "cx": 315.0,
+      "cy": 265.0,
+      "r": 4.0,
+      "fill": "#a8b7bf"
+    },
+    {
+      "cx": 325.0,
+      "cy": 265.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 335.0,
+      "cy": 265.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 345.0,
+      "cy": 265.0,
+      "r": 4.0,
+      "fill": "#edf6ef"
+    },
+    {
+      "cx": 355.0,
+      "cy": 265.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 265.0,
+      "cy": 275.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 315.0,
+      "cy": 275.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 325.0,
+      "cy": 275.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 335.0,
+      "cy": 275.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 345.0,
+      "cy": 275.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 275.0,
+      "r": 4.0,
+      "fill": "#8fc99f"
+    },
+    {
+      "cx": 305.0,
+      "cy": 285.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 315.0,
+      "cy": 285.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 325.0,
+      "cy": 285.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 335.0,
+      "cy": 285.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 345.0,
+      "cy": 285.0,
+      "r": 4.0,
+      "fill": "#93cca2"
+    },
+    {
+      "cx": 355.0,
+      "cy": 285.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 165.0,
+      "cy": 295.0,
+      "r": 4.0,
+      "fill": "#ea88a8"
+    },
+    {
+      "cx": 265.0,
+      "cy": 295.0,
+      "r": 4.0,
+      "fill": "#c8d2d8"
+    },
+    {
+      "cx": 275.0,
+      "cy": 295.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 285.0,
+      "cy": 295.0,
+      "r": 4.0,
+      "fill": "#9fb0b9"
+    },
+    {
+      "cx": 295.0,
+      "cy": 295.0,
+      "r": 4.0,
+      "fill": "#a6b6bf"
+    },
+    {
+      "cx": 305.0,
+      "cy": 295.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 315.0,
+      "cy": 295.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 325.0,
+      "cy": 295.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 335.0,
+      "cy": 295.0,
+      "r": 4.0,
+      "fill": "#eff8f3"
+    },
+    {
+      "cx": 345.0,
+      "cy": 295.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 355.0,
+      "cy": 295.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 155.0,
+      "cy": 305.0,
+      "r": 4.0,
+      "fill": "#feffff"
+    },
+    {
+      "cx": 255.0,
+      "cy": 305.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 265.0,
+      "cy": 305.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 275.0,
+      "cy": 305.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 285.0,
+      "cy": 305.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 295.0,
+      "cy": 305.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 305.0,
+      "cy": 305.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 315.0,
+      "cy": 305.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 325.0,
+      "cy": 305.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 335.0,
+      "cy": 305.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 345.0,
+      "cy": 305.0,
+      "r": 4.0,
+      "fill": "#96cda5"
+    },
+    {
+      "cx": 245.0,
+      "cy": 315.0,
+      "r": 4.0,
+      "fill": "#a3b4bd"
+    },
+    {
+      "cx": 255.0,
+      "cy": 315.0,
+      "r": 4.0,
+      "fill": "#a6b6bf"
+    },
+    {
+      "cx": 265.0,
+      "cy": 315.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 275.0,
+      "cy": 315.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 285.0,
+      "cy": 315.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 295.0,
+      "cy": 315.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 305.0,
+      "cy": 315.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 315.0,
+      "cy": 315.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 325.0,
+      "cy": 315.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 335.0,
+      "cy": 315.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 345.0,
+      "cy": 315.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 155.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 165.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 175.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 195.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#e981a3"
+    },
+    {
+      "cx": 205.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#80bee8"
+    },
+    {
+      "cx": 215.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 245.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 255.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#e7eced"
+    },
+    {
+      "cx": 265.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 275.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#a2b3bc"
+    },
+    {
+      "cx": 285.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 295.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 305.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 315.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 325.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#fefbfa"
+    },
+    {
+      "cx": 335.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 345.0,
+      "cy": 325.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 145.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 155.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#e980a3"
+    },
+    {
+      "cx": 165.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#ea8aaa"
+    },
+    {
+      "cx": 175.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 185.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#ea88a8"
+    },
+    {
+      "cx": 195.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 205.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 215.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 225.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#a3b3bc"
+    },
+    {
+      "cx": 235.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#9eafb8"
+    },
+    {
+      "cx": 245.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 255.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 265.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 275.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 285.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 295.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 305.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#fef3f0"
+    },
+    {
+      "cx": 315.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 325.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 335.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 345.0,
+      "cy": 335.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 125.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 135.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 145.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 155.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 165.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 175.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 185.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 195.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 205.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 215.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#b6d9f1"
+    },
+    {
+      "cx": 225.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 235.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#d7e9f7"
+    },
+    {
+      "cx": 245.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 255.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 265.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 275.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 285.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#b2bfc6"
+    },
+    {
+      "cx": 295.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 305.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 315.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#feffff"
+    },
+    {
+      "cx": 325.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#fad1c8"
+    },
+    {
+      "cx": 335.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 345.0,
+      "cy": 345.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 105.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#e985a6"
+    },
+    {
+      "cx": 115.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 125.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 135.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 145.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 155.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 165.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 175.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 185.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#ea89a9"
+    },
+    {
+      "cx": 205.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 215.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 225.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 235.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 245.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 255.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 265.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 275.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#cfd7dc"
+    },
+    {
+      "cx": 285.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 295.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 305.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#f8c2b5"
+    },
+    {
+      "cx": 315.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#f6a795"
+    },
+    {
+      "cx": 325.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#fbd9d0"
+    },
+    {
+      "cx": 335.0,
+      "cy": 355.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 95.0,
+      "cy": 365.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 135.0,
+      "cy": 365.0,
+      "r": 4.0,
+      "fill": "#ec9ab6"
+    },
+    {
+      "cx": 155.0,
+      "cy": 365.0,
+      "r": 4.0,
+      "fill": "#fae5ec"
+    },
+    {
+      "cx": 225.0,
+      "cy": 365.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 235.0,
+      "cy": 365.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 255.0,
+      "cy": 365.0,
+      "r": 4.0,
+      "fill": "#fdfdfd"
+    },
+    {
+      "cx": 265.0,
+      "cy": 365.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 275.0,
+      "cy": 365.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 285.0,
+      "cy": 365.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 305.0,
+      "cy": 365.0,
+      "r": 4.0,
+      "fill": "#a4b4bd"
+    },
+    {
+      "cx": 325.0,
+      "cy": 365.0,
+      "r": 4.0,
+      "fill": "#f6a18d"
+    },
+    {
+      "cx": 65.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#d7e299"
+    },
+    {
+      "cx": 75.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#d7e299"
+    },
+    {
+      "cx": 85.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 95.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 105.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 155.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#b78cc0"
+    },
+    {
+      "cx": 165.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#ecdaf0"
+    },
+    {
+      "cx": 175.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#b78cc0"
+    },
+    {
+      "cx": 185.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#b78cc0"
+    },
+    {
+      "cx": 215.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 225.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 235.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 245.0,
+      "cy": 375.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 85.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#d5e194"
+    },
+    {
+      "cx": 95.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 105.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 115.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 135.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#edd8f2"
+    },
+    {
+      "cx": 145.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#b78cc0"
+    },
+    {
+      "cx": 155.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#b78cc0"
+    },
+    {
+      "cx": 165.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#b78cc0"
+    },
+    {
+      "cx": 175.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#b386bc"
+    },
+    {
+      "cx": 185.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#b78cc0"
+    },
+    {
+      "cx": 205.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#84c1ec"
+    },
+    {
+      "cx": 215.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 225.0,
+      "cy": 385.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 75.0,
+      "cy": 395.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 95.0,
+      "cy": 395.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 105.0,
+      "cy": 395.0,
+      "r": 4.0,
+      "fill": "#d7e298"
+    },
+    {
+      "cx": 115.0,
+      "cy": 395.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 145.0,
+      "cy": 395.0,
+      "r": 4.0,
+      "fill": "#b68bbf"
+    },
+    {
+      "cx": 155.0,
+      "cy": 395.0,
+      "r": 4.0,
+      "fill": "#b78cc0"
+    },
+    {
+      "cx": 175.0,
+      "cy": 395.0,
+      "r": 4.0,
+      "fill": "#b78bc0"
+    },
+    {
+      "cx": 215.0,
+      "cy": 395.0,
+      "r": 4.0,
+      "fill": "#81bee8"
+    },
+    {
+      "cx": 75.0,
+      "cy": 405.0,
+      "r": 4.0,
+      "fill": "#f3f7e2"
+    },
+    {
+      "cx": 85.0,
+      "cy": 405.0,
+      "r": 4.0,
+      "fill": "#d7e298"
+    },
+    {
+      "cx": 95.0,
+      "cy": 405.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 105.0,
+      "cy": 405.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 115.0,
+      "cy": 405.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 145.0,
+      "cy": 405.0,
+      "r": 4.0,
+      "fill": "#b78cc0"
+    },
+    {
+      "cx": 85.0,
+      "cy": 415.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 95.0,
+      "cy": 415.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 105.0,
+      "cy": 415.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 75.0,
+      "cy": 425.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 85.0,
+      "cy": 425.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 95.0,
+      "cy": 425.0,
+      "r": 4.0,
+      "fill": "#d5e194"
+    },
+    {
+      "cx": 105.0,
+      "cy": 425.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 75.0,
+      "cy": 435.0,
+      "r": 4.0,
+      "fill": "#edf2cf"
+    },
+    {
+      "cx": 85.0,
+      "cy": 435.0,
+      "r": 4.0,
+      "fill": "#d8e39a"
+    },
+    {
+      "cx": 95.0,
+      "cy": 435.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 105.0,
+      "cy": 435.0,
+      "r": 4.0,
+      "fill": "#d6e297"
+    },
+    {
+      "cx": 75.0,
+      "cy": 445.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 85.0,
+      "cy": 445.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 95.0,
+      "cy": 445.0,
+      "r": 4.0,
+      "fill": "#d7e39a"
+    },
+    {
+      "cx": 35.0,
+      "cy": 455.0,
+      "r": 4.0,
+      "fill": "#dae39e"
+    },
+    {
+      "cx": 85.0,
+      "cy": 455.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 35.0,
+      "cy": 465.0,
+      "r": 4.0,
+      "fill": "#d8e39d"
+    },
+    {
+      "cx": 45.0,
+      "cy": 465.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 25.0,
+      "cy": 475.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 85.0,
+      "cy": 475.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    },
+    {
+      "cx": 25.0,
+      "cy": 485.0,
+      "r": 4.0,
+      "fill": "#d8e39b"
+    }
+  ]
+};
+
+// データ読み込み確認用
+console.log('日本地図データが読み込まれました:', window.JAPAN_MAP_DATA.dots.length, '個のドット');
