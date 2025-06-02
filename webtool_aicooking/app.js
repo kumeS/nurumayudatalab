@@ -2,7 +2,167 @@
  * AI料理提案システム JavaScript
  * LLMを活用した料理レシピ提案ツール
  */
+
+// ログイン管理クラス
+class AuthManager {
+  constructor() {
+    this.credentials = {
+      username: 'nurumayu',
+      password: 'mokumoku'
+    };
+    this.sessionDuration = 30 * 60 * 1000; // 30分（ミリ秒）
+    this.sessionTimer = null;
+  }
+
+  // ログイン処理
+  login(username, password) {
+    if (username === this.credentials.username && password === this.credentials.password) {
+      const loginTime = Date.now();
+      const sessionData = {
+        username: username,
+        loginTime: loginTime,
+        expiresAt: loginTime + this.sessionDuration
+      };
+      
+      localStorage.setItem('aiCookingSession', JSON.stringify(sessionData));
+      this.startSessionTimer();
+      return true;
+    }
+    return false;
+  }
+
+  // ログアウト処理
+  logout() {
+    localStorage.removeItem('aiCookingSession');
+    this.clearSessionTimer();
+    this.showLogin();
+  }
+
+  // セッション確認
+  checkSession() {
+    const sessionData = JSON.parse(localStorage.getItem('aiCookingSession'));
+    if (!sessionData) {
+      return false;
+    }
+
+    const now = Date.now();
+    if (now > sessionData.expiresAt) {
+      this.logout();
+      return false;
+    }
+
+    // セッション延長
+    sessionData.expiresAt = now + this.sessionDuration;
+    localStorage.setItem('aiCookingSession', JSON.stringify(sessionData));
+    this.startSessionTimer();
+    return sessionData;
+  }
+
+  // セッション自動タイムアウト設定
+  startSessionTimer() {
+    this.clearSessionTimer();
+    this.sessionTimer = setTimeout(() => {
+      alert('セッションがタイムアウトしました。再度ログインしてください。');
+      this.logout();
+    }, this.sessionDuration);
+  }
+
+  // タイマークリア
+  clearSessionTimer() {
+    if (this.sessionTimer) {
+      clearTimeout(this.sessionTimer);
+      this.sessionTimer = null;
+    }
+  }
+
+  // ログイン画面表示
+  showLogin() {
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
+    document.getElementById('sessionInfo').style.display = 'none';
+  }
+
+  // メインアプリ表示
+  showMainApp(sessionData) {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    document.getElementById('sessionInfo').style.display = 'block';
+    document.getElementById('sessionUser').textContent = `ようこそ、${sessionData.username}さん`;
+  }
+}
+
+// グローバルな認証マネージャー
+const authManager = new AuthManager();
+
 document.addEventListener('DOMContentLoaded', () => {
+  // 最初にログイン状態をチェック
+  const sessionData = authManager.checkSession();
+  if (sessionData) {
+    authManager.showMainApp(sessionData);
+    initializeApp();
+  } else {
+    authManager.showLogin();
+  }
+
+  // ログインフォーム処理
+  const loginForm = document.getElementById('loginForm');
+  const loginError = document.getElementById('loginError');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (authManager.login(username, password)) {
+      loginError.style.display = 'none';
+      const sessionData = authManager.checkSession();
+      authManager.showMainApp(sessionData);
+      initializeApp();
+      
+      // フォームをリセット
+      loginForm.reset();
+    } else {
+      loginError.style.display = 'block';
+      // パスワードフィールドをクリア
+      document.getElementById('password').value = '';
+    }
+  });
+
+  logoutBtn.addEventListener('click', () => {
+    if (confirm('ログアウトしますか？')) {
+      authManager.logout();
+    }
+  });
+
+  // ページのフォーカス時にセッションチェック
+  window.addEventListener('focus', () => {
+    const sessionData = authManager.checkSession();
+    if (!sessionData) {
+      authManager.showLogin();
+    }
+  });
+
+function initializeApp() {
+  // ユーザーアクティビティによるセッション延長
+  const activityEvents = ['click', 'keypress', 'scroll', 'mousemove'];
+  let lastActivityTime = Date.now();
+  
+  activityEvents.forEach(eventType => {
+    document.addEventListener(eventType, () => {
+      const now = Date.now();
+      // 5分間隔でセッションチェック・延長
+      if (now - lastActivityTime > 5 * 60 * 1000) {
+        const sessionData = authManager.checkSession();
+        if (!sessionData) {
+          authManager.showLogin();
+          return;
+        }
+        lastActivityTime = now;
+      }
+    }, { passive: true });
+  });
+
   // 要素の参照を取得
   const headerIngredientSearch = document.getElementById('headerIngredientSearch');
   const allIngredientsBtn = document.getElementById('allIngredientsBtn');
@@ -17,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const exportDataBtn = document.getElementById('exportDataBtn');
   const importDataBtn = document.getElementById('importDataBtn');
   const importFileInput = document.getElementById('importFileInput');
-  const clearRecipeBtn = document.getElementById('clearRecipeBtn');
+  const clearAllDataBtn = document.getElementById('clearAllDataBtn');
   const clearAllBtn = document.getElementById('clearAllBtn');
   const loadingIndicator = document.getElementById('loadingIndicator');
   const menuSelectionSection = document.getElementById('menuSelectionSection');
@@ -354,129 +514,210 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   
+  // 食材データ（ingredients.jsonの内容を組み込み）
+  const INGREDIENTS_DATA = {
+    vegetables: [
+      { id: "onion", name: "たまねぎ", season: ["春", "夏", "秋", "冬"] },
+      { id: "greenOnion", name: "ネギ", season: ["秋", "冬"] },
+      { id: "cabbage", name: "キャベツ", season: ["春", "秋", "冬"] },
+      { id: "lettuce", name: "レタス", season: ["春", "夏"] },
+      { id: "tomato", name: "トマト", season: ["夏"] },
+      { id: "carrot", name: "にんじん", season: ["秋", "冬"] },
+      { id: "potato", name: "じゃがいも", season: ["春", "秋"] },
+      { id: "pepper", name: "ピーマン", season: ["夏"] },
+      { id: "eggplant", name: "なす", season: ["夏"] },
+      { id: "cucumber", name: "きゅうり", season: ["夏"] },
+      { id: "spinach", name: "ほうれん草", season: ["冬"] },
+      { id: "beanSprouts", name: "もやし", season: ["春", "夏", "秋", "冬"] },
+      { id: "whiteCabbage", name: "白菜", season: ["冬"] },
+      { id: "broccoli", name: "ブロッコリー", season: ["冬"] },
+      { id: "corn", name: "とうもろこし", season: ["夏"] },
+      { id: "daikon", name: "大根", season: ["冬"] },
+      { id: "mushroom", name: "きのこ", season: ["秋"] },
+      { id: "okra", name: "オクラ", season: ["夏"] },
+      { id: "zucchini", name: "ズッキーニ", season: ["夏"] },
+      { id: "asparagus", name: "アスパラガス", season: ["春"] },
+      { id: "redPepper", name: "赤ピーマン", season: ["夏"] },
+      { id: "yellowPepper", name: "黄ピーマン", season: ["夏"] },
+      { id: "sweetPotato", name: "さつまいも", season: ["秋"] },
+      { id: "lotus", name: "れんこん", season: ["秋", "冬"] },
+      { id: "bambooShoot", name: "たけのこ", season: ["春"] },
+      { id: "ginger", name: "しょうが", season: ["春", "夏", "秋", "冬"] },
+      { id: "garlic", name: "にんにく", season: ["春", "夏", "秋", "冬"] },
+      { id: "greenBeans", name: "いんげん", season: ["夏"] },
+      { id: "pumpkin", name: "かぼちゃ", season: ["秋"] },
+      { id: "celery", name: "セロリ", season: ["春", "冬"] },
+      { id: "parsley", name: "パセリ", season: ["春", "夏", "秋", "冬"] },
+      { id: "shiso", name: "しそ", season: ["夏"] },
+      { id: "mizuna", name: "水菜", season: ["冬"] },
+      { id: "komatsuna", name: "小松菜", season: ["冬"] },
+      { id: "radish", name: "ラディッシュ", season: ["春"] }
+    ],
+    meat: [
+      { id: "beef", name: "牛肉", season: ["春", "夏", "秋", "冬"] },
+      { id: "beefSteak", name: "牛ステーキ肉", season: ["春", "夏", "秋", "冬"] },
+      { id: "beefRoast", name: "牛ロース", season: ["春", "夏", "秋", "冬"] },
+      { id: "pork", name: "豚肉", season: ["春", "夏", "秋", "冬"] },
+      { id: "porkBelly", name: "豚バラ肉", season: ["春", "夏", "秋", "冬"] },
+      { id: "porkShoulder", name: "豚肩肉", season: ["春", "夏", "秋", "冬"] },
+      { id: "porkLoin", name: "豚ロース", season: ["春", "夏", "秋", "冬"] },
+      { id: "chickenThigh", name: "鶏もも肉", season: ["春", "夏", "秋", "冬"] },
+      { id: "chickenBreast", name: "鶏むね肉", season: ["春", "夏", "秋", "冬"] },
+      { id: "chickenWing", name: "手羽先", season: ["春", "夏", "秋", "冬"] },
+      { id: "chickenWingette", name: "手羽元", season: ["春", "夏", "秋", "冬"] },
+      { id: "groundBeef", name: "牛ひき肉", season: ["春", "夏", "秋", "冬"] },
+      { id: "groundPork", name: "豚ひき肉", season: ["春", "夏", "秋", "冬"] },
+      { id: "groundChicken", name: "鶏ひき肉", season: ["春", "夏", "秋", "冬"] },
+      { id: "groundMixed", name: "合いびき肉", season: ["春", "夏", "秋", "冬"] },
+      { id: "lamb", name: "ラム肉", season: ["春", "夏", "秋", "冬"] }
+    ],
+    seafood: [
+      { id: "salmon", name: "鮭", season: ["秋", "冬"] },
+      { id: "tuna", name: "まぐろ", season: ["春", "夏", "秋", "冬"] },
+      { id: "shrimp", name: "えび", season: ["春", "夏", "秋", "冬"] },
+      { id: "squid", name: "いか", season: ["春", "夏", "秋", "冬"] },
+      { id: "mackerel", name: "さば", season: ["秋", "冬"] },
+      { id: "yellowtail", name: "あじ", season: ["夏"] },
+      { id: "cod", name: "たら", season: ["冬"] },
+      { id: "sardine", name: "いわし", season: ["秋", "冬"] },
+      { id: "seaBream", name: "たい", season: ["春"] },
+      { id: "flounder", name: "ひらめ", season: ["冬"] },
+      { id: "octopus", name: "たこ", season: ["夏"] },
+      { id: "scallop", name: "ホタテ", season: ["冬"] },
+      { id: "clam", name: "あさり", season: ["春"] },
+      { id: "oyster", name: "牡蠣", season: ["冬"] },
+      { id: "mussel", name: "ムール貝", season: ["秋", "冬"] },
+      { id: "abalone", name: "アワビ", season: ["夏"] },
+      { id: "turbanShell", name: "サザエ", season: ["夏"] },
+      { id: "ark", name: "ハマグリ", season: ["春"] },
+      { id: "cockle", name: "赤貝", season: ["春"] },
+      { id: "whelk", name: "つぶ貝", season: ["秋", "冬"] },
+      { id: "crab", name: "カニ", season: ["冬"] },
+      { id: "lobster", name: "エビ（大）", season: ["春", "夏", "秋", "冬"] },
+      { id: "eel", name: "うなぎ", season: ["夏"] },
+      { id: "seaweed", name: "わかめ", season: ["春", "夏", "秋", "冬"] },
+      { id: "nori", name: "のり", season: ["春", "夏", "秋", "冬"] }
+    ],
+    processed: [
+      { id: "ham", name: "ハム", season: ["春", "夏", "秋", "冬"] },
+      { id: "bacon", name: "ベーコン", season: ["春", "夏", "秋", "冬"] },
+      { id: "sausage", name: "ソーセージ", season: ["春", "夏", "秋", "冬"] },
+      { id: "salami", name: "サラミ", season: ["春", "夏", "秋", "冬"] },
+      { id: "cheese", name: "チーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "mozzarella", name: "モッツァレラチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "cheddar", name: "チェダーチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "parmesan", name: "パルメザンチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "camembert", name: "カマンベールチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "gouda", name: "ゴーダチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "blueCheeseNew", name: "ブルーチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "ricotta", name: "リコッタチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "mascarpone", name: "マスカルポーネチーズ", season: ["春", "夏", "秋", "冬"] },
+      { id: "egg", name: "卵", season: ["春", "夏", "秋", "冬"] },
+      { id: "tofu", name: "豆腐", season: ["春", "夏", "秋", "冬"] },
+      { id: "silkTofu", name: "絹ごし豆腐", season: ["春", "夏", "秋", "冬"] },
+      { id: "firmTofu", name: "木綿豆腐", season: ["春", "夏", "秋", "冬"] },
+      { id: "natto", name: "納豆", season: ["春", "夏", "秋", "冬"] },
+      { id: "yogurt", name: "ヨーグルト", season: ["春", "夏", "秋", "冬"] },
+      { id: "butter", name: "バター", season: ["春", "夏", "秋", "冬"] },
+      { id: "margarine", name: "マーガリン", season: ["春", "夏", "秋", "冬"] },
+      { id: "cream", name: "生クリーム", season: ["春", "夏", "秋", "冬"] },
+      { id: "milk", name: "牛乳", season: ["春", "夏", "秋", "冬"] },
+      { id: "cannedTomato", name: "トマト缶", season: ["春", "夏", "秋", "冬"] },
+      { id: "coconutMilk", name: "ココナッツミルク", season: ["春", "夏", "秋", "冬"] }
+    ],
+    grains: [
+      { id: "rice", name: "米", season: ["春", "夏", "秋", "冬"] },
+      { id: "bread", name: "パン", season: ["春", "夏", "秋", "冬"] },
+      { id: "shokupan", name: "食パン", season: ["春", "夏", "秋", "冬"] },
+      { id: "wheatFlour", name: "小麦粉", season: ["春", "夏", "秋", "冬"] },
+      { id: "cornStarch", name: "片栗粉", season: ["春", "夏", "秋", "冬"] },
+      { id: "noodles", name: "麺類", season: ["春", "夏", "秋", "冬"] },
+      { id: "udon", name: "うどん", season: ["春", "夏", "秋", "冬"] },
+      { id: "soba", name: "そば", season: ["春", "夏", "秋", "冬"] },
+      { id: "pasta", name: "パスタ", season: ["春", "夏", "秋", "冬"] }
+    ],
+    seasonings: [
+      { id: "soySauce", name: "醤油", season: ["春", "夏", "秋", "冬"] },
+      { id: "lightSoySauce", name: "薄口醤油", season: ["春", "夏", "秋", "冬"] },
+      { id: "darkSoySauce", name: "濃口醤油", season: ["春", "夏", "秋", "冬"] },
+      { id: "miso", name: "味噌", season: ["春", "夏", "秋", "冬"] },
+      { id: "redMiso", name: "赤味噌", season: ["春", "夏", "秋", "冬"] },
+      { id: "whiteMiso", name: "白味噌", season: ["春", "夏", "秋", "冬"] },
+      { id: "salt", name: "塩", season: ["春", "夏", "秋", "冬"] },
+      { id: "sugar", name: "砂糖", season: ["春", "夏", "秋", "冬"] },
+      { id: "brownSugar", name: "黒糖", season: ["春", "夏", "秋", "冬"] },
+      { id: "vinegar", name: "酢", season: ["春", "夏", "秋", "冬"] },
+      { id: "riceVinegar", name: "米酢", season: ["春", "夏", "秋", "冬"] },
+      { id: "balsamicVinegar", name: "バルサミコ酢", season: ["春", "夏", "秋", "冬"] },
+      { id: "mirin", name: "みりん", season: ["春", "夏", "秋", "冬"] },
+      { id: "sake", name: "酒", season: ["春", "夏", "秋", "冬"] },
+      { id: "oil", name: "サラダ油", season: ["春", "夏", "秋", "冬"] },
+      { id: "oliveOil", name: "オリーブオイル", season: ["春", "夏", "秋", "冬"] },
+      { id: "sesameOil", name: "ごま油", season: ["春", "夏", "秋", "冬"] },
+      { id: "coconutOil", name: "ココナッツオイル", season: ["春", "夏", "秋", "冬"] },
+      { id: "dashi", name: "だしの素", season: ["春", "夏", "秋", "冬"] },
+      { id: "konbuDashi", name: "昆布だし", season: ["春", "夏", "秋", "冬"] },
+      { id: "katsuoDashi", name: "かつおだし", season: ["春", "夏", "秋", "冬"] },
+      { id: "consomme", name: "コンソメ", season: ["春", "夏", "秋", "冬"] },
+      { id: "chickenStock", name: "鶏がらスープの素", season: ["春", "夏", "秋", "冬"] },
+      { id: "pepper", name: "こしょう", season: ["春", "夏", "秋", "冬"] },
+      { id: "blackPepper", name: "黒こしょう", season: ["春", "夏", "秋", "冬"] },
+      { id: "whitePepper", name: "白こしょう", season: ["春", "夏", "秋", "冬"] },
+      { id: "paprika", name: "パプリカパウダー", season: ["春", "夏", "秋", "冬"] },
+      { id: "cayenne", name: "カイエンペッパー", season: ["春", "夏", "秋", "冬"] },
+      { id: "cumin", name: "クミン", season: ["春", "夏", "秋", "冬"] },
+      { id: "coriander", name: "コリアンダー", season: ["春", "夏", "秋", "冬"] },
+      { id: "oregano", name: "オレガノ", season: ["春", "夏", "秋", "冬"] },
+      { id: "basil", name: "バジル", season: ["夏"] },
+      { id: "thyme", name: "タイム", season: ["春", "夏", "秋", "冬"] },
+      { id: "rosemary", name: "ローズマリー", season: ["春", "夏", "秋", "冬"] },
+      { id: "curry", name: "カレー粉", season: ["春", "夏", "秋", "冬"] },
+      { id: "garam", name: "ガラムマサラ", season: ["春", "夏", "秋", "冬"] },
+      { id: "sansho", name: "山椒", season: ["春", "夏", "秋", "冬"] },
+      { id: "wasabi", name: "わさび", season: ["春", "夏", "秋", "冬"] },
+      { id: "mustard", name: "からし", season: ["春", "夏", "秋", "冬"] },
+      { id: "ketchup", name: "ケチャップ", season: ["春", "夏", "秋", "冬"] },
+      { id: "worcestershire", name: "ウスターソース", season: ["春", "夏", "秋", "冬"] },
+      { id: "tonkatsu", name: "とんかつソース", season: ["春", "夏", "秋", "冬"] },
+      { id: "oysterSauce", name: "オイスターソース", season: ["春", "夏", "秋", "冬"] },
+      { id: "fishSauce", name: "ナンプラー", season: ["春", "夏", "秋", "冬"] },
+      { id: "tabasco", name: "タバスコ", season: ["春", "夏", "秋", "冬"] },
+      { id: "honey", name: "はちみつ", season: ["春", "夏", "秋", "冬"] },
+      { id: "maplesyrup", name: "メープルシロップ", season: ["春", "夏", "秋", "冬"] },
+      { id: "chocolate", name: "チョコレート", season: ["春", "夏", "秋", "冬"] },
+      { id: "walnut", name: "くるみ", season: ["秋", "冬"] },
+      { id: "almond", name: "アーモンド", season: ["春", "夏", "秋", "冬"] },
+      { id: "cocoaPowder", name: "ココアパウダー", season: ["春", "夏", "秋", "冬"] },
+      { id: "vanillaEssence", name: "バニラエッセンス", season: ["春", "夏", "秋", "冬"] }
+    ],
+    fruits: [
+      { id: "apple", name: "りんご", season: ["秋", "冬"] },
+      { id: "banana", name: "バナナ", season: ["春", "夏", "秋", "冬"] },
+      { id: "orange", name: "みかん", season: ["冬"] },
+      { id: "strawberry", name: "いちご", season: ["春"] },
+      { id: "grape", name: "ぶどう", season: ["秋"] },
+      { id: "peach", name: "桃", season: ["夏"] },
+      { id: "lemon", name: "レモン", season: ["冬"] },
+      { id: "kiwi", name: "キウイ", season: ["春"] },
+      { id: "lime", name: "ライム", season: ["春", "夏", "秋", "冬"] },
+      { id: "pineapple", name: "パイナップル", season: ["夏"] },
+      { id: "mango", name: "マンゴー", season: ["夏"] },
+      { id: "avocado", name: "アボカド", season: ["春", "夏", "秋", "冬"] },
+      { id: "coconut", name: "ココナッツ", season: ["春", "夏", "秋", "冬"] },
+      { id: "grapefruit", name: "グレープフルーツ", season: ["冬"] },
+      { id: "watermelon", name: "すいか", season: ["夏"] },
+      { id: "melon", name: "メロン", season: ["夏"] },
+      { id: "cherry", name: "さくらんぼ", season: ["夏"] },
+      { id: "blueberry", name: "ブルーベリー", season: ["夏"] },
+      { id: "blackberry", name: "ブラックベリー", season: ["夏"] },
+      { id: "raspberry", name: "ラズベリー", season: ["夏"] }
+    ]
+  };
+
   // 食材データを読み込み
-  async function loadIngredientsData() {
-    try {
-      const response = await fetch('ingredients.json');
-      ingredientsData = await response.json();
-    } catch (error) {
-      console.error('食材データの読み込みに失敗しました:', error);
-      // フォールバックデータ
-      ingredientsData = {
-        vegetables: [
-          { id: "onion", name: "たまねぎ", season: ["春", "夏", "秋", "冬"] },
-          { id: "carrot", name: "にんじん", season: ["秋", "冬"] },
-          { id: "potato", name: "じゃがいも", season: ["春", "秋"] },
-          { id: "cabbage", name: "キャベツ", season: ["春", "秋", "冬"] },
-          { id: "tomato", name: "トマト", season: ["夏"] },
-          { id: "pepper", name: "ピーマン", season: ["夏"] },
-          { id: "eggplant", name: "なす", season: ["夏"] },
-          { id: "cucumber", name: "きゅうり", season: ["夏"] },
-          { id: "spinach", name: "ほうれん草", season: ["冬"] },
-          { id: "beanSprouts", name: "もやし", season: ["春", "夏", "秋", "冬"] },
-          { id: "lettuce", name: "レタス", season: ["春", "夏"] },
-          { id: "broccoli", name: "ブロッコリー", season: ["冬"] },
-          { id: "whiteCabbage", name: "白菜", season: ["冬"] },
-          { id: "corn", name: "とうもろこし", season: ["夏"] },
-          { id: "daikon", name: "大根", season: ["冬"] },
-          { id: "mushroom", name: "きのこ", season: ["秋"] },
-          { id: "asparagus", name: "アスパラガス", season: ["春"] },
-          { id: "sweetPotato", name: "さつまいも", season: ["秋"] },
-          { id: "pumpkin", name: "かぼちゃ", season: ["秋"] },
-          { id: "ginger", name: "しょうが", season: ["春", "夏", "秋", "冬"] }
-        ],
-        meat: [
-          { id: "pork", name: "豚肉", season: ["春", "夏", "秋", "冬"] },
-          { id: "porkBelly", name: "豚バラ肉", season: ["春", "夏", "秋", "冬"] },
-          { id: "chickenThigh", name: "鶏もも肉", season: ["春", "夏", "秋", "冬"] },
-          { id: "chickenBreast", name: "鶏むね肉", season: ["春", "夏", "秋", "冬"] },
-          { id: "beef", name: "牛肉", season: ["春", "夏", "秋", "冬"] },
-          { id: "groundPork", name: "豚ひき肉", season: ["春", "夏", "秋", "冬"] },
-          { id: "groundBeef", name: "牛ひき肉", season: ["春", "夏", "秋", "冬"] },
-          { id: "groundMixed", name: "合いびき肉", season: ["春", "夏", "秋", "冬"] },
-          { id: "chickenWing", name: "手羽先", season: ["春", "夏", "秋", "冬"] }
-        ],
-        seafood: [
-          { id: "salmon", name: "鮭", season: ["秋", "冬"] },
-          { id: "tuna", name: "まぐろ", season: ["春", "夏", "秋", "冬"] },
-          { id: "shrimp", name: "えび", season: ["春", "夏", "秋", "冬"] },
-          { id: "squid", name: "いか", season: ["春", "夏", "秋", "冬"] },
-          { id: "mackerel", name: "さば", season: ["秋", "冬"] },
-          { id: "yellowtail", name: "あじ", season: ["夏"] },
-          { id: "cod", name: "たら", season: ["冬"] },
-          { id: "octopus", name: "たこ", season: ["夏"] },
-          { id: "scallop", name: "ホタテ", season: ["冬"] },
-          { id: "clam", name: "あさり", season: ["春"] },
-          { id: "oyster", name: "牡蠣", season: ["冬"] },
-          { id: "mussel", name: "ムール貝", season: ["秋", "冬"] },
-          { id: "abalone", name: "アワビ", season: ["夏"] },
-          { id: "turbanShell", name: "サザエ", season: ["夏"] },
-          { id: "ark", name: "ハマグリ", season: ["春"] },
-          { id: "cockle", name: "赤貝", season: ["春"] },
-          { id: "whelk", name: "つぶ貝", season: ["秋", "冬"] }
-        ],
-        processed: [
-          { id: "ham", name: "ハム", season: ["春", "夏", "秋", "冬"] },
-          { id: "bacon", name: "ベーコン", season: ["春", "夏", "秋", "冬"] },
-          { id: "sausage", name: "ソーセージ", season: ["春", "夏", "秋", "冬"] },
-          { id: "cheese", name: "チーズ", season: ["春", "夏", "秋", "冬"] },
-          { id: "mozzarella", name: "モッツァレラチーズ", season: ["春", "夏", "秋", "冬"] },
-          { id: "cheddar", name: "チェダーチーズ", season: ["春", "夏", "秋", "冬"] },
-          { id: "parmesan", name: "パルメザンチーズ", season: ["春", "夏", "秋", "冬"] },
-          { id: "egg", name: "卵", season: ["春", "夏", "秋", "冬"] },
-          { id: "tofu", name: "豆腐", season: ["春", "夏", "秋", "冬"] },
-          { id: "natto", name: "納豆", season: ["春", "夏", "秋", "冬"] },
-          { id: "yogurt", name: "ヨーグルト", season: ["春", "夏", "秋", "冬"] },
-          { id: "butter", name: "バター", season: ["春", "夏", "秋", "冬"] },
-          { id: "milk", name: "牛乳", season: ["春", "夏", "秋", "冬"] },
-          { id: "bread", name: "パン", season: ["春", "夏", "秋", "冬"] },
-          { id: "shokupan", name: "食パン", season: ["春", "夏", "秋", "冬"] }
-        ],
-        grains: [
-          { id: "wheatFlour", name: "小麦粉", season: ["春", "夏", "秋", "冬"] },
-          { id: "pasta", name: "パスタ", season: ["春", "夏", "秋", "冬"] },
-          { id: "rice", name: "米", season: ["春", "夏", "秋", "冬"] },
-          { id: "noodles", name: "うどん", season: ["春", "夏", "秋", "冬"] },
-          { id: "soba", name: "そば", season: ["春", "夏", "秋", "冬"] },
-          { id: "ramen", name: "ラーメン", season: ["春", "夏", "秋", "冬"] }
-        ],
-        seasonings: [
-          { id: "soySauce", name: "醤油", season: ["春", "夏", "秋", "冬"] },
-          { id: "miso", name: "味噌", season: ["春", "夏", "秋", "冬"] },
-          { id: "salt", name: "塩", season: ["春", "夏", "秋", "冬"] },
-          { id: "sugar", name: "砂糖", season: ["春", "夏", "秋", "冬"] },
-          { id: "oil", name: "サラダ油", season: ["春", "夏", "秋", "冬"] },
-          { id: "oliveOil", name: "オリーブオイル", season: ["春", "夏", "秋", "冬"] },
-          { id: "sesameOil", name: "ごま油", season: ["春", "夏", "秋", "冬"] },
-          { id: "vinegar", name: "酢", season: ["春", "夏", "秋", "冬"] },
-          { id: "mirin", name: "みりん", season: ["春", "夏", "秋", "冬"] },
-          { id: "dashi", name: "だしの素", season: ["春", "夏", "秋", "冬"] },
-          { id: "consomme", name: "コンソメ", season: ["春", "夏", "秋", "冬"] },
-          { id: "pepper", name: "こしょう", season: ["春", "夏", "秋", "冬"] },
-          { id: "garlic", name: "にんにく", season: ["春", "夏", "秋", "冬"] },
-          { id: "ketchup", name: "ケチャップ", season: ["春", "夏", "秋", "冬"] },
-          { id: "oysterSauce", name: "オイスターソース", season: ["春", "夏", "秋", "冬"] },
-          { id: "curry", name: "カレー粉", season: ["春", "夏", "秋", "冬"] },
-          { id: "chocolate", name: "チョコレート", season: ["春", "夏", "秋", "冬"] },
-          { id: "walnut", name: "くるみ", season: ["秋", "冬"] },
-          { id: "almond", name: "アーモンド", season: ["春", "夏", "秋", "冬"] },
-          { id: "cocoaPowder", name: "ココアパウダー", season: ["春", "夏", "秋", "冬"] },
-          { id: "vanillaEssence", name: "バニラエッセンス", season: ["春", "夏", "秋", "冬"] }
-        ],
-        fruits: [
-          { id: "apple", name: "りんご", season: ["秋", "冬"] },
-          { id: "banana", name: "バナナ", season: ["春", "夏", "秋", "冬"] },
-          { id: "orange", name: "みかん", season: ["冬"] },
-          { id: "strawberry", name: "いちご", season: ["春"] },
-          { id: "grape", name: "ぶどう", season: ["秋"] },
-          { id: "peach", name: "桃", season: ["夏"] },
-          { id: "lemon", name: "レモン", season: ["冬"] },
-          { id: "avocado", name: "アボカド", season: ["春", "夏", "秋", "冬"] },
-          { id: "pineapple", name: "パイナップル", season: ["夏"] },
-          { id: "mango", name: "マンゴー", season: ["夏"] }
-        ]
-      };
-    }
+  function loadIngredientsData() {
+    // 組み込まれたデータを直接使用
+    ingredientsData = INGREDIENTS_DATA;
     
     // 食材データ読み込み完了後に状態復元と初期表示を実行
     loadState();
@@ -777,9 +1018,9 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
     
-    // クリアボタンのイベントリスナー
-    if (clearRecipeBtn) {
-      clearRecipeBtn.addEventListener('click', clearRecipeState);
+    // 全データクリアボタンのイベントリスナー
+    if (clearAllDataBtn) {
+      clearAllDataBtn.addEventListener('click', clearAllData);
     }
     
 
@@ -2759,6 +3000,119 @@ ${currentSteps}
     reader.readAsText(file);
   }
   
+  // すべてのデータをクリアする機能
+  function clearAllData() {
+    try {
+      // 確認ダイアログを表示
+      const confirmClear = confirm(
+        'すべてのデータをクリアします。\n' +
+        '選択した食材、設定、メニュー、レシピがすべて削除されますが、よろしいですか？\n\n' +
+        '※ この操作は元に戻せません。'
+      );
+      
+      if (!confirmClear) {
+        return;
+      }
+      
+      // 選択済み食材をクリア
+      selectedIngredients = [];
+      
+      // カテゴリーを初期状態にリセット
+      currentCategory = 'vegetables';
+      
+      // メニュー選択画面を非表示
+      if (menuSelectionSection) {
+        menuSelectionSection.style.display = 'none';
+      }
+      
+      // レシピ表示画面を非表示
+      if (resultsSection) {
+        resultsSection.style.display = 'none';
+      }
+      
+      // 戻るボタンを非表示
+      if (backToMenuBtn) {
+        backToMenuBtn.style.display = 'none';
+      }
+      
+      // 提案されたメニューをクリア
+      proposedMenus = [];
+      selectedMenuIndex = -1;
+      currentRecipe = null;
+      
+      // メニューグリッドをクリア
+      if (menuGrid) {
+        menuGrid.innerHTML = '';
+      }
+      
+      // 設定を初期状態にリセット
+      // 季節を春にリセット
+      const springRadio = document.querySelector('input[name="season"][value="春"]');
+      if (springRadio) springRadio.checked = true;
+      
+      // 食事タイプを昼食にリセット
+      const lunchRadio = document.querySelector('input[name="mealType"][value="昼食"]');
+      if (lunchRadio) lunchRadio.checked = true;
+      
+      // 調理時間を30分以内にリセット
+      const time30Radio = document.querySelector('input[name="cookingTime"][value="30分以内"]');
+      if (time30Radio) time30Radio.checked = true;
+      
+      // 料理ジャンルを和食のみにリセット
+      document.querySelectorAll('input[name="cuisine"]').forEach(input => {
+        input.checked = input.value === '和食';
+      });
+      
+      // 調理法をランダムのみにリセット
+      document.querySelectorAll('input[name="cookingMethod"]').forEach(input => {
+        input.checked = input.value === 'ランダム';
+      });
+      
+      // 人数を2人分にリセット
+      const serving2Radio = document.querySelector('input[name="servings"][value="2人分"]');
+      if (serving2Radio) serving2Radio.checked = true;
+      
+      // 検索窓をクリア
+      if (headerIngredientSearch) {
+        headerIngredientSearch.value = '';
+      }
+      
+      // UIを更新
+      updateCategoryTab();
+      renderSelectedIngredients();
+      renderIngredients();
+      updateClearButtonState();
+      updateDecisionButton();
+      
+      // レシピ生成ボタンの状態を復元
+      if (generateRecipeBtn) {
+        generateRecipeBtn.disabled = false;
+        generateRecipeBtn.innerHTML = '<i class="fas fa-magic"></i> メニューを提案してもらう';
+      }
+      
+      // 状態を保存
+      saveState();
+      
+      // ユーザーフィードバック
+      if (clearAllDataBtn) {
+        const originalText = clearAllDataBtn.innerHTML;
+        clearAllDataBtn.innerHTML = '<i class="fas fa-check"></i> クリア完了！';
+        clearAllDataBtn.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
+        
+        setTimeout(() => {
+          clearAllDataBtn.innerHTML = originalText;
+          clearAllDataBtn.style.background = 'linear-gradient(135deg, #FF9800, #F57C00)';
+        }, 2000);
+      }
+      
+      console.log('すべてのデータをクリアしました');
+      
+    } catch (error) {
+      console.error('全データクリア処理エラー:', error);
+      alert('クリア処理中にエラーが発生しました。');
+    }
+  }
+
   // メニュー・レシピ状態クリア機能
   function clearRecipeState() {
     try {
@@ -3267,4 +3621,6 @@ ${currentSteps}
   
   // 初期化実行
   initialize();
-}); 
+}
+
+}); // 外側のDOMContentLoadedイベントリスナー 
