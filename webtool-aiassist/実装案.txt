@@ -1,0 +1,201 @@
+## あなたのお手軽アシスタントのためのウェブツール
+
+### 概要
+
+LLMを活用した、あなたのお手軽アシスタントを目指すウェブツールです。
+
+ToDo内容（やることや受信メール）+ 情報統合 = あなたのお手軽アシスタント
+
+LLMを最大限活用して、ToDo内容と情報を統合して、あなたの業務をサポートする。
+業務内容に合わせて、カスタマイズも可能です。
+
+### ツール導入のポイント
+
+人的リソースが少ない施設でもお手軽にAI導入を支援します。
+
+業務の自動化や顧客対応の自動化をアシストする。
+
+### UI 
+
+課題ウインド: 問い合わせ内容や実施したい内容、メールやり取りの内容をインプットする
+
+情報ウインド: この対応に必要な情報を入力するウインド。以前に使用した情報は履歴で利用可能。
+情報は、json形式で、インポートとエクスポートが可能。
+
+出力ウインド: LLMで生成された、文章が出力されます。
+LLMは出力をjsonで出して、それをパースして、UIに表示します。
+タグも生成されて、どういう仕事でどういう対応がされるかが、自動タグ付けされます。
+出力は、json形式で、インポートとエクスポートが可能。
+
+### 機能(1): クリックでタスク内容を選択
+
+メール文章作成
+ドキュメント作成
+スケジュール作成
+アジェンダ作成
+
+10個くらいのタスクを実装します。
+
+### 機能(2): 自動タグ付け、クリックでタスク内容を追加編集できます。
+
+メール作成
+クレーム対応
+バグ修正依頼
+仕事依頼
+求人依頼
+
+20個くらいの自動タグ付けを実装します。
+
+
+### 機能(3): 文章のスタイル
+
+文章のスタイルを調整できます。
+カジュアル、ビジネス、初対面、顧客対応などから選択できます。
+5〜10個くらいのスタイルを実装します。
+
+### 機能(4): 多言語対応
+
+出力は多言語対応します。言語を選んで出力します。
+自動で、機能で入力後に合わせて出力言語を切り替えます。
+
+言語対応: 言語指定して、文書作成が可能
+自動、日本語、英語、中国語
+
+### 情報統合
+
+インポートした情報は保存され、その情報をクリックで選択して、RAG的にインプットとして利用可能
+
+### その他仕様
+
+ページ更新しても、同じページやタグに留まるようにします。
+
+## 実装
+
+index.html、app.jsを参考にして、デザインやUIを実装します。
+
+スマホで開いて使用するときに、ユーザー体験を損なわないような配置になるよう配慮してください。
+
+### LLMのプロンプト
+
+各入力項目やデータを含めて、出力結果を制御するために、プロンプトを強化します。
+
+### LLM APIの情報
+
+  /**
+   * LLM APIを呼び出してJSON形式で要約とひらがな版を取得
+   * 
+   * 【設計方針】
+   * この関数は必ずJSON形式のレスポンスを期待し、以下の構造で返します：
+   * {
+   *   summary: "通常の要約文",
+   *   hiragana: "ひらがな版要約文"
+   * }
+   * 
+   * 【重要】JavaScriptでの後処理変換は行いません！
+   * - LLMの自然言語処理能力を最大限活用
+   * - 一度のAPI呼び出しで両方のフォーマットを取得
+   * - 内容の完全一致を保証
+   */
+  async callLLMAPI(prompt) {
+    const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+    
+    const systemContent = "あなたは親しみやすい気象予報士です。天気情報を分かりやすく、聞き取りやすい形で要約してください。必ず指定されたJSON形式で回答してください。";
+
+    const messages = [
+      {
+        role: "system",
+        content: systemContent
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ];
+    
+    const requestData = {
+      model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+      temperature: 0.3, // JSON出力の安定性のため少し低めに設定
+      stream: false,
+      max_completion_tokens: 2000,
+      messages: messages
+    };
+
+    try {
+      console.log('LLM API呼び出し開始（JSON形式）');
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("LLMレスポンス:", data);
+      
+      let content = '';
+      
+      if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+        content = data.choices[0].message.content;
+      } else if (data.answer) {
+        content = data.answer;
+      } else {
+        throw new Error('レスポンスに期待されるフィールドがありません');
+      }
+
+      if (!content || !content.trim()) {
+        throw new Error('レスポンス内容が空です');
+      }
+
+      // JSONパースを試行
+      try {
+        // JSONの前後の余分なテキストを除去
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error('JSONフォーマットが見つかりません');
+        }
+        
+        const jsonString = jsonMatch[0];
+        const parsedJson = JSON.parse(jsonString);
+        
+        // 必要なフィールドの存在確認
+        if (!parsedJson.summary || !parsedJson.hiragana) {
+          throw new Error('必要なフィールド（summary、hiragana）が不足しています');
+        }
+        
+        console.log('LLM API呼び出し成功（JSON解析完了）');
+        return {
+          summary: parsedJson.summary.trim(),
+          hiragana: parsedJson.hiragana.trim()
+        };
+        
+      } catch (parseError) {
+        console.warn('JSON解析エラー:', parseError.message);
+        console.warn('生レスポンス:', content);
+        
+        // JSON解析に失敗した場合、生テキストから簡易的に抽出
+        const summary = content.trim();
+        const hiragana = this.createSimpleHiraganaErrorMessage(summary);
+        
+        return {
+          summary: summary,
+          hiragana: hiragana
+        };
+      }
+
+    } catch (error) {
+      console.error('LLM API呼び出しエラー:', error);
+      
+      // エラー時はローカルフォールバック要約を生成
+      console.log('ローカルフォールバック要約を生成します');
+      return this.generateLocalSummary(prompt);
+    }
+  }
+
+
+

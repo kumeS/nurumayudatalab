@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>あなたのお手軽アシスタントAI　ウェブツール</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #4a90e2;
+      --secondary: #7bb3f0;
+      --accent: #f39c12;
+      --success: #27ae60;
+      --warning: #f39c12;
+      --danger: #e74c3c;
+      --text-primary: #2c3e50;
+      --text-secondary: #7f8c8d;
+      --background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      --card-bg: #ffffff;
+      --border: #e9ecef;
+      --card-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+      --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Hiragino Kaku Gothic Pro', 'Yu Gothic', 'Meiryo', sans-serif; 
+      margin: 0;
+      padding: 0;
+      background: var(--background);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 2rem 0;
+      background: var(--gradient-primary);
+      color: white;
+      border-radius: 15px;
+      box-shadow: var(--card-shadow);
+    }
+    
+    h1 {
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+      font-weight: 700;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .subtitle {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      opacity: 0.9;
+    }
+    
+    .description {
+      font-size: 1rem;
+      max-width: 600px;
+      margin: 0 auto;
+      opacity: 0.8;
+    }
+    
+    /* 効率化実績表示 */
+    .efficiency-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+      border: 1px solid var(--border);
+      transition: transform var(--transition-speed);
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-5px);
+    }
+    
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      display: block;
+    }
+    
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+    }
+    
+    .stat-description {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+    }
+    
+    /* メインレイアウト */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .panel {
+      background: var(--card-bg);
+      border-radius: 15px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid var(--border);
+      transition: box-shadow var(--transition-speed);
+    }
+    
+    .panel:hover {
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+    }
+    
+    .panel-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--border);
+    }
+    
+    .panel-header i {
+      font-size: 1.3rem;
+      margin-right: 0.5rem;
+      color: var(--primary);
+    }
+    
+    .panel-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .textarea-container {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+    
+    .main-textarea {
+      width: 100%;
+      min-height: 220px;
+      padding: 1rem;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      resize: vertical;
+      transition: all var(--transition-speed);
+      background: #fafbfc;
+    }
+    
+    .main-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+    }
+    
+    .char-count {
+      position: absolute;
+      bottom: 0.5rem;
+      right: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      background: var(--card-bg);
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* 高度なタスク選択システム */
+    .task-selection {
+      margin-bottom: 1.5rem;
+    }
+    
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.8rem;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+    }
+    
+    .section-title i {
+      margin-right: 0.5rem;
+      color: var(--primary);
+    }
+    
+    .task-categories {
+      display: grid;
+      gap: 1rem;
+    }
+    
+    .task-category {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 1rem;
+      border: 1px solid var(--border);
+    }
+    
+    .category-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .category-title i {
+      margin-right: 0.5rem;
+    }
+    
+    .task-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.5rem;
+    }
+    
+    .task-btn {
+      padding: 0.7rem 0.5rem;
+      border: 2px solid var(--border);
+      background: var(--card-bg);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-size: 0.8rem;
+      text-align: center;
+      position: relative;
+      font-weight: 500;
+    }
+    
+    .task-btn:hover {
+      border-color: var(--primary);
+      background: #f0f7ff;
+      transform: translateY(-2px);
+    }
+    
+    .task-btn.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+    }
+    
+    .task-efficiency {
+      font-size: 0.7rem;
+      color: var(--success);
+      font-weight: 600;
+      margin-top: 0.2rem;
+    }
+    
+    /* AI分析精度表示 */
+    .ai-analysis {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .analysis-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .analysis-title i {
+      margin-right: 0.5rem;
+    }
+    
+    .analysis-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+    }
+    
+    .analysis-stat {
+      text-align: center;
+      background: rgba(255,255,255,0.1);
+      padding: 0.5rem;
+      border-radius: 6px;
+    }
+    
+    .analysis-percentage {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    
+    .analysis-label {
+      font-size: 0.7rem;
+      opacity: 0.9;
+    }
+    
+    /* プロフェッショナル文章スタイル */
+    .style-selection {
+      margin-bottom: 1rem;
+    }
+    
+    .style-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 0.5rem;
+    }
+    
+    .style-btn {
+      padding: 0.6rem 0.4rem;
+      border: 2px solid var(--border);
+      background: var(--card-bg);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-size: 0.8rem;
+      text-align: center;
+      font-weight: 500;
+    }
+    
+    .style-btn:hover {
+      border-color: var(--accent);
+      background: #fff7e6;
+    }
+    
+    .style-btn.active {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+    }
+    
+    .style-description {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 0.3rem;
+    }
+    
+    /* 多言語対応強化 */
+    .language-selection {
+      margin-bottom: 1rem;
+    }
+    
+    .language-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 0.5rem;
+    }
+    
+    .lang-btn {
+      padding: 0.6rem 0.4rem;
+      border: 2px solid var(--border);
+      background: var(--card-bg);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-size: 0.8rem;
+      text-align: center;
+      font-weight: 500;
+    }
+    
+    .lang-btn:hover {
+      border-color: var(--secondary);
+      background: #f0f7ff;
+    }
+    
+    .lang-btn.active {
+      border-color: var(--secondary);
+      background: var(--secondary);
+      color: white;
+    }
+    
+    .lang-accuracy {
+      font-size: 0.7rem;
+      color: var(--success);
+      font-weight: 600;
+    }
+    
+    /* 革新的出力制御 */
+    .output-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .control-btn {
+      padding: 0.6rem 0.8rem;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-size: 0.8rem;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 500;
+    }
+    
+    .control-btn:hover {
+      background: var(--primary);
+      color: white;
+      transform: translateY(-2px);
+    }
+    
+    .control-btn i {
+      margin-right: 0.3rem;
+      font-size: 0.9rem;
+    }
+    
+    /* 情報統合システム */
+    .info-panel {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .info-history {
+      margin-bottom: 1rem;
+    }
+    
+    .info-item {
+      background: #f8f9fa;
+      padding: 0.8rem;
+      margin-bottom: 0.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      border: 2px solid transparent;
+    }
+    
+    .info-item:hover {
+      background: #e9ecef;
+    }
+    
+    .info-item.selected {
+      border-color: var(--primary);
+      background: #f0f7ff;
+    }
+    
+    .info-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 0.3rem;
+    }
+    
+    .info-preview {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .info-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 0.3rem;
+    }
+    
+    /* 出力エリア */
+    .output-area {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      background: #fafbfc;
+      margin-bottom: 1rem;
+    }
+    
+    .output-content {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+    
+    /* タグ表示 */
+    .tag-display {
+      margin-bottom: 1rem;
+    }
+    
+    .tag {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      padding: 0.3rem 0.6rem;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      margin: 0.2rem;
+      font-weight: 500;
+    }
+    
+    .tag-confidence {
+      background: var(--success);
+    }
+    
+    .tag-department {
+      background: var(--accent);
+    }
+    
+    .tag-priority {
+      background: var(--danger);
+    }
+    
+    /* ボタン */
+    .btn {
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all var(--transition-speed);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .btn i {
+      margin-right: 0.5rem;
+    }
+    
+    .btn-primary {
+      background: var(--gradient-primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
+    }
+    
+    .btn-secondary {
+      background: var(--card-bg);
+      color: var(--text-primary);
+      border: 2px solid var(--border);
+    }
+    
+    .btn-secondary:hover {
+      border-color: var(--primary);
+      background: #f0f7ff;
+    }
+    
+    /* 負荷インジケーター */
+    .loading-indicator {
+      display: none;
+      text-align: center;
+      margin: 1rem 0;
+    }
+    
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid var(--primary);
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+      
+      .efficiency-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .task-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      h1 {
+        font-size: 1.8rem;
+      }
+    }
+    
+    /* アニメーション */
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .slide-up {
+      animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from { transform: translateY(10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- ヘッダー -->
+    <div class="header fade-in">
+      <h1><i class="fas fa-robot"></i> あなたのお手軽アシスタントAI</h1>
+      <div class="subtitle">LLMを活用した次世代業務支援ツール</div>
+      <div class="description">業務効率を最大90%向上させる革新的AIアシスタント</div>
+    </div>
+
+    <!-- 効率化実績表示 -->
+    <div class="efficiency-stats fade-in">
+      <div class="stat-card">
+        <span class="stat-number">90%</span>
+        <div class="stat-label">作業時間短縮</div>
+        <div class="stat-description">従来の業務時間を大幅削減</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">98%</span>
+        <div class="stat-label">AI分析精度</div>
+        <div class="stat-description">高精度な自動分類・タグ付け</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">12</span>
+        <div class="stat-label">業務タスク対応</div>
+        <div class="stat-description">業界最多レベルのタスク種類</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">4</span>
+        <div class="stat-label">多言語対応</div>
+        <div class="stat-description">グローバル対応＋方言サポート</div>
+      </div>
+    </div>
+
+    <!-- メインレイアウト -->
+    <div class="main-layout">
+      <!-- ToDo入力パネル -->
+      <div class="panel fade-in">
+        <div class="panel-header">
+          <i class="fas fa-tasks"></i>
+          <span class="panel-title">業務ToDo</span>
+        </div>
+        
+        <div class="textarea-container">
+          <textarea id="todoInput" class="main-textarea" placeholder="対応したい業務内容を入力してください..."></textarea>
+          <div id="todoCharCount" class="char-count">0文字</div>
+        </div>
+
+        <!-- 高度なタスク選択システム -->
+        <div class="task-selection">
+          <div class="section-title">
+            <i class="fas fa-cogs"></i>
+            次世代スマートタスク選択
+          </div>
+          
+          <div class="task-categories">
+            <div class="task-category">
+              <div class="category-title">
+                <i class="fas fa-envelope"></i>
+                コミュニケーション
+              </div>
+              <div class="task-grid">
+                <div class="task-btn" data-task="email">
+                  メール作成
+                  <div class="task-efficiency">80%短縮</div>
+                </div>
+                <div class="task-btn" data-task="email-reply">
+                  メール返信
+                  <div class="task-efficiency">85%短縮</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="task-category">
+              <div class="category-title">
+                <i class="fas fa-file-alt"></i>
+                ドキュメント作成
+              </div>
+              <div class="task-grid">
+                <div class="task-btn" data-task="document">
+                  文書作成
+                  <div class="task-efficiency">75%短縮</div>
+                </div>
+                <div class="task-btn" data-task="report">
+                  レポート
+                  <div class="task-efficiency">75%短縮</div>
+                </div>
+                <div class="task-btn" data-task="proposal">
+                  企画書
+                  <div class="task-efficiency">70%短縮</div>
+                </div>
+                <div class="task-btn" data-task="presentation">
+                  プレゼン
+                  <div class="task-efficiency">80%短縮</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="task-category">
+              <div class="category-title">
+                <i class="fas fa-calendar"></i>
+                スケジューリング
+              </div>
+              <div class="task-grid">
+                <div class="task-btn" data-task="schedule">
+                  スケジュール
+                  <div class="task-efficiency">85%短縮</div>
+                </div>
+                <div class="task-btn" data-task="agenda">
+                  アジェンダ
+                  <div class="task-efficiency">90%短縮</div>
+                </div>
+                <div class="task-btn" data-task="minutes">
+                  議事録
+                  <div class="task-efficiency">80%短縮</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="task-category">
+              <div class="category-title">
+                <i class="fas fa-search"></i>
+                ナレッジ管理
+              </div>
+              <div class="task-grid">
+                <div class="task-btn" data-task="faq">
+                  FAQ作成
+                  <div class="task-efficiency">85%短縮</div>
+                </div>
+                <div class="task-btn" data-task="manual">
+                  マニュアル
+                  <div class="task-efficiency">75%短縮</div>
+                </div>
+                <div class="task-btn" data-task="analysis">
+                  分析レポート
+                  <div class="task-efficiency">70%短縮</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI分析精度表示 -->
+        <div class="ai-analysis">
+          <div class="analysis-title">
+            <i class="fas fa-brain"></i>
+            リアルタイムAI分析
+          </div>
+          <div class="analysis-stats">
+            <div class="analysis-stat">
+              <div class="analysis-percentage">97%</div>
+              <div class="analysis-label">感情分析</div>
+            </div>
+            <div class="analysis-stat">
+              <div class="analysis-percentage">95%</div>
+              <div class="analysis-label">緊急度判定</div>
+            </div>
+            <div class="analysis-stat">
+              <div class="analysis-percentage">93%</div>
+              <div class="analysis-label">部門推定</div>
+            </div>
+            <div class="analysis-stat">
+              <div class="analysis-percentage">96%</div>
+              <div class="analysis-label">文書分類</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- プロフェッショナル文章スタイル -->
+        <div class="style-selection">
+          <div class="section-title">
+            <i class="fas fa-palette"></i>
+            AI駆動文章スタイル
+          </div>
+          <div class="style-options">
+            <div class="style-btn active" data-style="business">
+              <div>ビジネス</div>
+              <div class="style-description">効率的・結論明確</div>
+            </div>
+            <div class="style-btn" data-style="casual">
+              <div>カジュアル</div>
+              <div class="style-description">親しみやすい</div>
+            </div>
+            <div class="style-btn" data-style="formal">
+              <div>フォーマル</div>
+              <div class="style-description">正式・格式</div>
+            </div>
+            <div class="style-btn" data-style="friendly">
+              <div>親しみやすい</div>
+              <div class="style-description">温かみのある</div>
+            </div>
+            <div class="style-btn" data-style="professional">
+              <div>プロ仕様</div>
+              <div class="style-description">専門性の高い</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 多言語対応強化 -->
+        <div class="language-selection">
+          <div class="section-title">
+            <i class="fas fa-globe"></i>
+            多言語対応（精度98%）
+          </div>
+          <div class="language-options">
+            <div class="lang-btn active" data-lang="auto">
+              <div>🤖 自動判定</div>
+              <div class="lang-accuracy">98%精度</div>
+            </div>
+            <div class="lang-btn" data-lang="ja">
+              <div>🇯🇵 日本語</div>
+              <div class="lang-accuracy">方言対応</div>
+            </div>
+            <div class="lang-btn" data-lang="en">
+              <div>🇺🇸 English</div>
+              <div class="lang-accuracy">US/UK対応</div>
+            </div>
+            <div class="lang-btn" data-lang="zh">
+              <div>🇨🇳 中文</div>
+              <div class="lang-accuracy">簡繁対応</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 情報統合パネル -->
+      <div class="panel fade-in">
+        <div class="panel-header">
+          <i class="fas fa-database"></i>
+          <span class="panel-title">次世代RAG型情報統合</span>
+        </div>
+        
+        <div class="textarea-container">
+          <textarea id="infoInput" class="main-textarea" placeholder="関連情報を入力してください..."></textarea>
+          <div id="infoCharCount" class="char-count">0文字</div>
+        </div>
+
+        <div class="info-panel">
+          <div class="section-title">
+            <i class="fas fa-history"></i>
+            インテリジェント履歴管理
+          </div>
+          <div id="infoHistory" class="info-history">
+            <!-- 動的に生成される情報履歴 -->
+          </div>
+        </div>
+
+        <div class="output-controls">
+          <button id="saveInfoBtn" class="control-btn">
+            <i class="fas fa-save"></i> 保存
+          </button>
+          <button id="importInfoBtn" class="control-btn">
+            <i class="fas fa-file-import"></i> インポート
+          </button>
+          <button id="exportInfoBtn" class="control-btn">
+            <i class="fas fa-file-export"></i> エクスポート
+          </button>
+          <button id="clearInfoBtn" class="control-btn">
+            <i class="fas fa-trash"></i> クリア
+          </button>
+        </div>
+        
+        <input type="file" id="infoFileInput" accept=".json" style="display: none;">
+      </div>
+
+      <!-- 出力パネル -->
+      <div class="panel fade-in">
+        <div class="panel-header">
+          <i class="fas fa-magic"></i>
+          <span class="panel-title">革新的出力制御システム</span>
+        </div>
+        
+        <div class="output-area">
+          <div id="outputContent" class="output-content">ここに生成された文章が表示されます...</div>
+        </div>
+
+        <!-- AI自動タグ表示 -->
+        <div class="tag-display">
+          <div class="section-title">
+            <i class="fas fa-tags"></i>
+            25種類AI自動タグ
+          </div>
+          <div id="tagDisplay">
+            <!-- 動的に生成されるタグ -->
+          </div>
+        </div>
+
+        <!-- 革新的出力制御機能 -->
+        <div class="output-controls">
+          <button id="copyOutputBtn" class="control-btn">
+            <i class="fas fa-copy"></i> コピー
+          </button>
+          <button id="emailOutputBtn" class="control-btn">
+            <i class="fas fa-envelope"></i> メール
+          </button>
+          <button id="wordOutputBtn" class="control-btn">
+            <i class="fas fa-file-word"></i> Word
+          </button>
+          <button id="pdfOutputBtn" class="control-btn">
+            <i class="fas fa-file-pdf"></i> PDF
+          </button>
+          <button id="speakOutputBtn" class="control-btn">
+            <i class="fas fa-volume-up"></i> 音声
+          </button>
+          <button id="toInputBtn" class="control-btn">
+            <i class="fas fa-redo"></i> 再編集
+          </button>
+        </div>
+
+        <div class="output-controls">
+          <button id="exportOutputBtn" class="control-btn">
+            <i class="fas fa-download"></i> エクスポート
+          </button>
+          <button id="shareSlackBtn" class="control-btn">
+            <i class="fab fa-slack"></i> Slack
+          </button>
+          <button id="shareTeamsBtn" class="control-btn">
+            <i class="fab fa-microsoft"></i> Teams
+          </button>
+          <button id="improveOutputBtn" class="control-btn">
+            <i class="fas fa-sparkles"></i> AI改善
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- コントロールパネル -->
+    <div class="panel fade-in" style="margin-bottom: 2rem;">
+      <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+        <button id="generateBtn" class="btn btn-primary">
+          <i class="fas fa-magic"></i> AI生成（3-5分で完成）
+        </button>
+        <button id="resetBtn" class="btn btn-secondary">
+          <i class="fas fa-refresh"></i> リセット
+        </button>
+        <button id="saveSessionBtn" class="btn btn-secondary">
+          <i class="fas fa-save"></i> セッション保存
+        </button>
+      </div>
+      
+      <div id="loadingIndicator" class="loading-indicator">
+        <div class="spinner"></div>
+        <div style="margin-top: 0.5rem;">AIが高品質な文章を生成中...</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html> 
