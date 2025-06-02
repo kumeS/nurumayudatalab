@@ -349,10 +349,166 @@
     transform: rotate(0deg) !important;
   }
 }
+/* ログイン関連のスタイル */
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(10, 77, 104, 0.95), rgba(8, 131, 149, 0.95));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(10px);
+}
+
+.login-container {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  animation: loginFadeIn 0.5s ease-out;
+}
+
+@keyframes loginFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.login-container h2 {
+  color: var(--primary);
+  margin-bottom: 30px;
+  font-size: 2em;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.login-input {
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.login-input:focus {
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 3px rgba(8, 131, 149, 0.1);
+}
+
+.login-button {
+  background: linear-gradient(135deg, var(--secondary), var(--accent));
+  color: white;
+  border: none;
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(8, 131, 149, 0.3);
+}
+
+.login-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(8, 131, 149, 0.4);
+}
+
+.login-error {
+  color: #d32f2f;
+  background: #ffebee;
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 15px;
+  display: none;
+}
+
+.logout-button {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, var(--warning), #ff9800);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(245, 124, 0, 0.3);
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.logout-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(245, 124, 0, 0.4);
+}
+
+.session-info {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px 15px;
+  border-radius: 15px;
+  font-size: 0.9em;
+  color: var(--text-secondary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
     </style>
 </head>
 <body>
-<div class='dashboard'>
+<!-- ログインオーバーレイ -->
+<div id="loginOverlay" class="login-overlay">
+  <div class="login-container">
+    <h2>🔐 ログイン</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 30px;">最適輸送解析ダッシュボードへのアクセス</p>
+    
+    <form class="login-form" onsubmit="handleLogin(event)">
+      <input type="text" id="username" class="login-input" placeholder="ログイン名" required autocomplete="username">
+      <input type="password" id="password" class="login-input" placeholder="パスワード" required autocomplete="current-password">
+      <button type="submit" class="login-button">ログイン</button>
+    </form>
+    
+    <div id="loginError" class="login-error">
+      ❌ ログイン名またはパスワードが正しくありません
+    </div>
+  </div>
+</div>
+
+<!-- セッション情報 -->
+<div id="sessionInfo" class="session-info" style="display: none;">
+  👤 <span id="currentUser"></span> | ⏱️ <span id="sessionTime"></span>
+</div>
+
+<!-- ログアウトボタン -->
+<button id="logoutButton" class="logout-button" onclick="handleLogout()" style="display: none;">
+  🚪 ログアウト
+</button>
+
+<div class='dashboard' id="mainDashboard" style="display: none;">
 <div class='header'>
 <h1>最適輸送解析ダッシュボード<br><span style="font-size: 0.7em; color: var(--text-secondary);">Optimal Transport Analysis Dashboard</span></h1>
 <h2>A状態→B状態→C状態 分岐パターン解析<br><span style="font-size: 0.8em; color: var(--text-secondary);">State A → State B → State C Branching Pattern Analysis</span></h2>
@@ -914,6 +1070,180 @@ cat("✅ Generated: transport_bc.png with ggplot2 (branching transport displayed
 </div>
 
 <script>
+// ログイン管理システム
+const AUTH_CONFIG = {
+  username: 'nurumayu',
+  password: 'mokumoku',
+  sessionDuration: 30 * 60 * 1000 // 30分（ミリ秒）
+};
+
+let sessionTimer = null;
+let sessionUpdateTimer = null;
+
+// ログイン処理
+function handleLogin(event) {
+  event.preventDefault();
+  
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const errorDiv = document.getElementById('loginError');
+  
+  // 認証チェック
+  if (username === AUTH_CONFIG.username && password === AUTH_CONFIG.password) {
+    // ログイン成功
+    const loginTime = new Date().getTime();
+    localStorage.setItem('loginTime', loginTime.toString());
+    localStorage.setItem('isLoggedIn', 'true');
+    localStorage.setItem('currentUser', username);
+    
+    // UI更新
+    showDashboard();
+    startSessionTimer();
+    
+    // フォームリセット
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    errorDiv.style.display = 'none';
+    
+  } else {
+    // ログイン失敗
+    errorDiv.style.display = 'block';
+    
+    // パスワードフィールドをクリア
+    document.getElementById('password').value = '';
+    
+    // エラーメッセージを3秒後に非表示
+    setTimeout(() => {
+      errorDiv.style.display = 'none';
+    }, 3000);
+  }
+}
+
+// ログアウト処理
+function handleLogout() {
+  // セッション情報をクリア
+  localStorage.removeItem('loginTime');
+  localStorage.removeItem('isLoggedIn');
+  localStorage.removeItem('currentUser');
+  
+  // タイマーをクリア
+  if (sessionTimer) {
+    clearTimeout(sessionTimer);
+    sessionTimer = null;
+  }
+  if (sessionUpdateTimer) {
+    clearInterval(sessionUpdateTimer);
+    sessionUpdateTimer = null;
+  }
+  
+  // UI更新
+  showLogin();
+}
+
+// ダッシュボード表示
+function showDashboard() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('mainDashboard').style.display = 'block';
+  document.getElementById('logoutButton').style.display = 'block';
+  document.getElementById('sessionInfo').style.display = 'block';
+  
+  // セッション情報更新
+  const currentUser = localStorage.getItem('currentUser');
+  document.getElementById('currentUser').textContent = currentUser;
+  
+  updateSessionDisplay();
+}
+
+// ログイン画面表示
+function showLogin() {
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('mainDashboard').style.display = 'none';
+  document.getElementById('logoutButton').style.display = 'none';
+  document.getElementById('sessionInfo').style.display = 'none';
+  
+  // フォーカスをユーザー名フィールドに
+  setTimeout(() => {
+    document.getElementById('username').focus();
+  }, 100);
+}
+
+// セッションタイマー開始
+function startSessionTimer() {
+  const loginTime = parseInt(localStorage.getItem('loginTime'));
+  const currentTime = new Date().getTime();
+  const elapsed = currentTime - loginTime;
+  const remaining = AUTH_CONFIG.sessionDuration - elapsed;
+  
+  if (remaining <= 0) {
+    // すでにセッション期限切れ
+    handleSessionTimeout();
+    return;
+  }
+  
+  // セッション期限タイマー
+  sessionTimer = setTimeout(() => {
+    handleSessionTimeout();
+  }, remaining);
+  
+  // セッション表示更新タイマー（1秒ごと）
+  sessionUpdateTimer = setInterval(() => {
+    updateSessionDisplay();
+  }, 1000);
+}
+
+// セッションタイムアウト処理
+function handleSessionTimeout() {
+  alert('⏰ セッションがタイムアウトしました。再度ログインしてください。');
+  handleLogout();
+}
+
+// セッション表示更新
+function updateSessionDisplay() {
+  const loginTime = parseInt(localStorage.getItem('loginTime'));
+  if (!loginTime) return;
+  
+  const currentTime = new Date().getTime();
+  const elapsed = currentTime - loginTime;
+  const remaining = Math.max(0, AUTH_CONFIG.sessionDuration - elapsed);
+  
+  if (remaining <= 0) {
+    handleSessionTimeout();
+    return;
+  }
+  
+  const minutes = Math.floor(remaining / 60000);
+  const seconds = Math.floor((remaining % 60000) / 1000);
+  
+  document.getElementById('sessionTime').textContent = 
+    `残り ${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// セッション状態チェック
+function checkSession() {
+  const isLoggedIn = localStorage.getItem('isLoggedIn');
+  const loginTime = localStorage.getItem('loginTime');
+  
+  if (isLoggedIn === 'true' && loginTime) {
+    const currentTime = new Date().getTime();
+    const elapsed = currentTime - parseInt(loginTime);
+    
+    if (elapsed < AUTH_CONFIG.sessionDuration) {
+      // 有効なセッション
+      showDashboard();
+      startSessionTimer();
+      return true;
+    } else {
+      // セッション期限切れ
+      handleLogout();
+      return false;
+    }
+  }
+  
+  // ログインが必要
+  showLogin();
+  return false;
+}
+
 function showTab(tabName) {
   document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
   document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
@@ -924,17 +1254,23 @@ function showTab(tabName) {
   localStorage.setItem('activeTab', tabName);
 }
 
-// ページ読み込み時に前回のタブ状態を復元
+// ページ読み込み時の処理
 document.addEventListener('DOMContentLoaded', function() {
-  const savedTab = localStorage.getItem('activeTab');
-  if (savedTab && document.getElementById(savedTab)) {
-    showTab(savedTab);
-  } else {
-    // デフォルトは概要タブ
-    showTab('overview');
-  }
+  // セッション状態をチェック
+  const isAuthenticated = checkSession();
   
-  console.log('All plots initialized successfully');
+  if (isAuthenticated) {
+    // ログイン済みの場合、前回のタブ状態を復元
+    const savedTab = localStorage.getItem('activeTab');
+    if (savedTab && document.getElementById(savedTab)) {
+      showTab(savedTab);
+    } else {
+      // デフォルトは概要タブ
+      showTab('overview');
+    }
+    
+    console.log('All plots initialized successfully');
+  }
 });
 
 function toggleEMDSection() {
