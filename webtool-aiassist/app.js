@@ -70,7 +70,9 @@ class NextGenAssistantAI {
     this.loadStoredData();
     this.setupAutoSave();
     this.initializeAdvancedFeatures();
-    this.initializeTimeReductionDisplay();
+
+    // 初期の時間削減計算表示
+    this.updateTimeReduction();
   }
 
   initializeElements() {
@@ -114,11 +116,6 @@ class NextGenAssistantAI {
     this.manualTimeElement = document.getElementById('manualTime');
     this.aiTimeElement = document.getElementById('aiTime');
     this.savedTimeElement = document.getElementById('savedTime');
-    this.efficiencyRateElement = document.getElementById('efficiencyRate');
-    this.dailySavingsElement = document.getElementById('dailySavings');
-    this.totalSavingsElement = document.getElementById('totalSavings');
-    this.monthlyProjectionElement = document.getElementById('monthlyProjection');
-    this.productivityGainElement = document.getElementById('productivityGain');
     this.typingSpeedInput = document.getElementById('typingSpeed');
     this.experienceLevelSelect = document.getElementById('experienceLevel');
   }
@@ -172,16 +169,16 @@ class NextGenAssistantAI {
     if (this.typingSpeedInput) {
       this.typingSpeedInput.addEventListener('input', () => {
         this.timeReductionCalculator.personalSettings.typingSpeed = parseInt(this.typingSpeedInput.value);
-        this.updateTimeCalculation();
         this.saveStoredData();
+        this.updateTimeReduction();
       });
     }
     
     if (this.experienceLevelSelect) {
       this.experienceLevelSelect.addEventListener('change', () => {
         this.timeReductionCalculator.personalSettings.experienceMultiplier = parseFloat(this.experienceLevelSelect.value);
-        this.updateTimeCalculation();
         this.saveStoredData();
+        this.updateTimeReduction();
       });
     }
   }
@@ -200,7 +197,7 @@ class NextGenAssistantAI {
     }
     
     // リアルタイム時間計算更新
-    this.updateTimeCalculation();
+    this.updateTimeReduction();
   }
 
   handleTaskSelection(e) {
@@ -213,13 +210,15 @@ class NextGenAssistantAI {
       // 新しい選択を適用
       taskBtn.classList.add('active');
       this.currentTask = taskBtn.getAttribute('data-task');
+
+      // タスク変更時の時間計算更新
+      this.updateTimeReduction();
       
       // タスク選択アニメーション
       taskBtn.classList.add('slide-up');
       setTimeout(() => taskBtn.classList.remove('slide-up'), 300);
       
       console.log('選択されたタスク:', this.currentTask);
-      this.updateTimeCalculation();
     }
   }
 
@@ -241,10 +240,20 @@ class NextGenAssistantAI {
   }
 
   handleInfoSelection(e) {
+    if (e.target.closest('.delete-btn')) {
+      const item = e.target.closest('.info-item');
+      const infoId = item.getAttribute('data-info');
+      this.informationHistory = this.informationHistory.filter(info => info.id !== infoId);
+      this.selectedInfo = this.selectedInfo.filter(id => id !== infoId);
+      this.updateInfoHistory();
+      this.saveStoredData();
+      return;
+    }
+
     if (e.target.closest('.info-item')) {
       const item = e.target.closest('.info-item');
       const isSelected = item.classList.contains('selected');
-      
+
       if (isSelected) {
         item.classList.remove('selected');
         const infoId = item.getAttribute('data-info');
@@ -259,6 +268,31 @@ class NextGenAssistantAI {
       
       console.log('選択された情報:', this.selectedInfo);
     }
+  }
+
+  // 作業時間削減計算を更新
+  updateTimeReduction() {
+    if (!this.manualTimeElement || !this.aiTimeElement || !this.savedTimeElement) return;
+
+    const textLength = this.todoInput.value.length;
+    const settings = this.timeReductionCalculator.personalSettings;
+
+    const task = this.timeReductionCalculator.taskComplexity[this.currentTask] || { complexity: 1.0, baseTime: 5 };
+    const typingMinutes = textLength / settings.typingSpeed;
+    const thinkingMinutes = (textLength * settings.thinkingTime) / 60;
+    const proofMinutes = textLength / settings.proofreadingSpeed;
+
+    let manual = task.baseTime + (typingMinutes + thinkingMinutes + proofMinutes) * task.complexity;
+    manual /= settings.experienceMultiplier;
+
+    const aiProc = this.timeReductionCalculator.aiProcessing;
+    const ai = aiProc.generationTime + (textLength * (aiProc.reviewTime + aiProc.editTime)) / 60;
+
+    const saved = Math.max(manual - ai, 0);
+
+    this.manualTimeElement.textContent = `${manual.toFixed(1)}分`;
+    this.aiTimeElement.textContent = `${ai.toFixed(1)}分`;
+    this.savedTimeElement.textContent = `${saved.toFixed(1)}分`;
   }
 
   async generateContent() {
@@ -286,8 +320,6 @@ class NextGenAssistantAI {
       // 25種類AI自動タグ生成
       this.generateAdvancedTags(todoText, this.currentTask, response);
       
-      // 時間削減を記録・表示
-      this.calculateAndRecordTimeSavings(response.content);
       
       // セッション保存
       this.saveToOutputHistory(response);
@@ -685,19 +717,7 @@ class NextGenAssistantAI {
   }
 
   getInfoById(infoId) {
-    // よく使用される情報のテンプレート
-    const templateData = {
-      sample1: {
-        title: '企業基本情報テンプレート',
-        content: '会社名: [会社名を入力]\n設立年: [設立年を入力]\n従業員数: [従業員数を入力]\n所在地: [所在地を入力]\n事業内容: [事業内容を入力]\n連絡先: [連絡先を入力]'
-      },
-      sample2: {
-        title: '製品・サービス情報テンプレート',
-        content: '製品名: [製品名を入力]\n価格: [価格を入力]\n主要機能:\n- [機能1を入力]\n- [機能2を入力]\n- [機能3を入力]\nターゲット: [ターゲットを入力]\n特徴: [特徴を入力]'
-      }
-    };
-    
-    return templateData[infoId] || this.informationHistory.find(info => info.id === infoId);
+    return this.informationHistory.find(info => info.id === infoId);
   }
 
   saveCurrentInfo() {
@@ -725,28 +745,20 @@ class NextGenAssistantAI {
   }
 
   updateInfoHistory() {
-    // テンプレートアイテムを保持
-    const templateItems = Array.from(this.infoHistory.children);
     this.infoHistory.innerHTML = '';
-    
-    // テンプレートアイテムを復元
-    templateItems.forEach(item => {
-      if (item.getAttribute('data-info').startsWith('sample')) {
-        this.infoHistory.appendChild(item);
-      }
-    });
-    
+
     // 保存された情報を追加
     this.informationHistory.forEach(info => {
       const item = document.createElement('div');
       item.className = 'info-item';
       item.setAttribute('data-info', info.id);
-      
+
       item.innerHTML = `
         <div class="info-item-title">${this.escapeHtml(info.title)}</div>
         <div class="info-item-preview">${this.escapeHtml(info.content.substring(0, 50))}...</div>
+        <button class="delete-btn" title="削除"><i class="fas fa-trash"></i></button>
       `;
-      
+
       this.infoHistory.appendChild(item);
     });
   }
@@ -1028,7 +1040,7 @@ class NextGenAssistantAI {
     // 定期的な自動保存
     setInterval(() => {
       this.saveStoredData();
-    }, 30000); // 30秒ごと
+    }, 5000); // 5秒ごと
     
     // ページ離脱時の保存
     window.addEventListener('beforeunload', () => {
@@ -1046,24 +1058,6 @@ class NextGenAssistantAI {
   initializeAdvancedFeatures() {
     // 初回利用時のテンプレート情報を表示
     if (this.informationHistory.length === 0) {
-      this.informationHistory = [
-        {
-          id: 'sample1',
-          title: '企業基本情報テンプレート',
-          content: '会社名: [会社名を入力]\n設立年: [設立年を入力]\n従業員数: [従業員数を入力]\n所在地: [所在地を入力]\n事業内容: [事業内容を入力]\n連絡先: [連絡先を入力]',
-          timestamp: new Date().toISOString(),
-          usage: 0,
-          category: 'テンプレート'
-        },
-        {
-          id: 'sample2',
-          title: '製品・サービス情報テンプレート',
-          content: '製品名: [製品名を入力]\n価格: [価格を入力]\n主要機能:\n- [機能1を入力]\n- [機能2を入力]\n- [機能3を入力]\nターゲット: [ターゲットを入力]\n特徴: [特徴を入力]',
-          timestamp: new Date().toISOString(),
-          usage: 0,
-          category: 'テンプレート'
-        }
-      ];
       this.updateInfoHistory();
     }
   }
@@ -1099,7 +1093,7 @@ class NextGenAssistantAI {
       tags.push(taskTags[taskType]);
     }
     
-    // 感情・緊急度分析（AI精度97%）
+    // 感情・緊急度分析
     const urgencyKeywords = ['緊急', '急ぎ', 'ASAP', '至急', 'すぐに', '早急'];
     const importantKeywords = ['重要', '大切', '必須', '必要不可欠', 'クリティカル'];
     const confirmKeywords = ['確認', 'チェック', '検討', '相談', '質問'];
@@ -1114,7 +1108,7 @@ class NextGenAssistantAI {
       tags.push('確認');
     }
     
-    // 部門推定（AI精度93%）
+    // 部門推定
     const departmentKeywords = {
       '営業': ['売上', '顧客', '契約', '提案', '営業'],
       '開発': ['開発', 'システム', 'バグ', 'プログラム', 'アプリ'],
@@ -1130,7 +1124,7 @@ class NextGenAssistantAI {
       }
     });
     
-    // 感情分析（AI精度97%）
+    // 感情分析
     const emotionKeywords = {
       'クレーム': ['苦情', 'クレーム', '問題', '不満', 'トラブル'],
       '感謝': ['ありがとう', '感謝', 'お礼', '助かり'],
@@ -1143,7 +1137,7 @@ class NextGenAssistantAI {
       }
     });
     
-    // 文書分類（AI精度96%）
+    // 文書分類
     const contentTypes = {
       '外部向け': ['お客様', '顧客', '取引先', '外部'],
       '内部向け': ['社内', 'チーム', '部署', '内部'],
@@ -1183,8 +1177,6 @@ class NextGenAssistantAI {
         tagElement.classList.add('tag-priority');
       } else if (['営業', '開発', '人事', '経理', '法務', '総務'].includes(tag)) {
         tagElement.classList.add('tag-department');
-      } else if (['97%', '95%', '93%', '96%'].includes(tag)) {
-        tagElement.classList.add('tag-confidence');
       }
       
       tagElement.textContent = tag;
@@ -1309,12 +1301,6 @@ class NextGenAssistantAI {
     
     this.displayOutput(fallbackResponse);
     this.generateAdvancedTags(todoText, this.currentTask, fallbackResponse);
-  }
-
-  initializeTimeReductionDisplay() {
-    // 作業時間削減表示の初期化
-    this.loadTimeReductionData();
-    this.resetTimeDisplay(); // デフォルト値で初期化
   }
 
 }
