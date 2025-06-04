@@ -70,6 +70,9 @@ class NextGenAssistantAI {
     this.loadStoredData();
     this.setupAutoSave();
     this.initializeAdvancedFeatures();
+
+    // 初期の時間削減計算表示
+    this.updateTimeReduction();
   }
 
   initializeElements() {
@@ -167,6 +170,7 @@ class NextGenAssistantAI {
       this.typingSpeedInput.addEventListener('input', () => {
         this.timeReductionCalculator.personalSettings.typingSpeed = parseInt(this.typingSpeedInput.value);
         this.saveStoredData();
+        this.updateTimeReduction();
       });
     }
     
@@ -174,6 +178,7 @@ class NextGenAssistantAI {
       this.experienceLevelSelect.addEventListener('change', () => {
         this.timeReductionCalculator.personalSettings.experienceMultiplier = parseFloat(this.experienceLevelSelect.value);
         this.saveStoredData();
+        this.updateTimeReduction();
       });
     }
   }
@@ -192,6 +197,7 @@ class NextGenAssistantAI {
     }
     
     // リアルタイム時間計算更新
+    this.updateTimeReduction();
   }
 
   handleTaskSelection(e) {
@@ -204,6 +210,9 @@ class NextGenAssistantAI {
       // 新しい選択を適用
       taskBtn.classList.add('active');
       this.currentTask = taskBtn.getAttribute('data-task');
+
+      // タスク変更時の時間計算更新
+      this.updateTimeReduction();
       
       // タスク選択アニメーション
       taskBtn.classList.add('slide-up');
@@ -249,6 +258,31 @@ class NextGenAssistantAI {
       
       console.log('選択された情報:', this.selectedInfo);
     }
+  }
+
+  // 作業時間削減計算を更新
+  updateTimeReduction() {
+    if (!this.manualTimeElement || !this.aiTimeElement || !this.savedTimeElement) return;
+
+    const textLength = this.todoInput.value.length;
+    const settings = this.timeReductionCalculator.personalSettings;
+
+    const task = this.timeReductionCalculator.taskComplexity[this.currentTask] || { complexity: 1.0, baseTime: 5 };
+    const typingMinutes = textLength / settings.typingSpeed;
+    const thinkingMinutes = (textLength * settings.thinkingTime) / 60;
+    const proofMinutes = textLength / settings.proofreadingSpeed;
+
+    let manual = task.baseTime + (typingMinutes + thinkingMinutes + proofMinutes) * task.complexity;
+    manual /= settings.experienceMultiplier;
+
+    const aiProc = this.timeReductionCalculator.aiProcessing;
+    const ai = aiProc.generationTime + (textLength * (aiProc.reviewTime + aiProc.editTime)) / 60;
+
+    const saved = Math.max(manual - ai, 0);
+
+    this.manualTimeElement.textContent = `${manual.toFixed(1)}分`;
+    this.aiTimeElement.textContent = `${ai.toFixed(1)}分`;
+    this.savedTimeElement.textContent = `${saved.toFixed(1)}分`;
   }
 
   async generateContent() {
@@ -1016,7 +1050,7 @@ class NextGenAssistantAI {
     // 定期的な自動保存
     setInterval(() => {
       this.saveStoredData();
-    }, 30000); // 30秒ごと
+    }, 5000); // 5秒ごと
     
     // ページ離脱時の保存
     window.addEventListener('beforeunload', () => {
