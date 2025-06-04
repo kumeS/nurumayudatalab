@@ -70,7 +70,6 @@ class NextGenAssistantAI {
     this.loadStoredData();
     this.setupAutoSave();
     this.initializeAdvancedFeatures();
-    this.initializeTimeReductionDisplay();
   }
 
   initializeElements() {
@@ -114,11 +113,6 @@ class NextGenAssistantAI {
     this.manualTimeElement = document.getElementById('manualTime');
     this.aiTimeElement = document.getElementById('aiTime');
     this.savedTimeElement = document.getElementById('savedTime');
-    this.efficiencyRateElement = document.getElementById('efficiencyRate');
-    this.dailySavingsElement = document.getElementById('dailySavings');
-    this.totalSavingsElement = document.getElementById('totalSavings');
-    this.monthlyProjectionElement = document.getElementById('monthlyProjection');
-    this.productivityGainElement = document.getElementById('productivityGain');
     this.typingSpeedInput = document.getElementById('typingSpeed');
     this.experienceLevelSelect = document.getElementById('experienceLevel');
   }
@@ -172,7 +166,6 @@ class NextGenAssistantAI {
     if (this.typingSpeedInput) {
       this.typingSpeedInput.addEventListener('input', () => {
         this.timeReductionCalculator.personalSettings.typingSpeed = parseInt(this.typingSpeedInput.value);
-        this.updateTimeCalculation();
         this.saveStoredData();
       });
     }
@@ -180,7 +173,6 @@ class NextGenAssistantAI {
     if (this.experienceLevelSelect) {
       this.experienceLevelSelect.addEventListener('change', () => {
         this.timeReductionCalculator.personalSettings.experienceMultiplier = parseFloat(this.experienceLevelSelect.value);
-        this.updateTimeCalculation();
         this.saveStoredData();
       });
     }
@@ -200,7 +192,6 @@ class NextGenAssistantAI {
     }
     
     // リアルタイム時間計算更新
-    this.updateTimeCalculation();
   }
 
   handleTaskSelection(e) {
@@ -219,7 +210,6 @@ class NextGenAssistantAI {
       setTimeout(() => taskBtn.classList.remove('slide-up'), 300);
       
       console.log('選択されたタスク:', this.currentTask);
-      this.updateTimeCalculation();
     }
   }
 
@@ -286,8 +276,6 @@ class NextGenAssistantAI {
       // 25種類AI自動タグ生成
       this.generateAdvancedTags(todoText, this.currentTask, response);
       
-      // 時間削減を記録・表示
-      this.calculateAndRecordTimeSavings(response.content);
       
       // セッション保存
       this.saveToOutputHistory(response);
@@ -1099,7 +1087,7 @@ class NextGenAssistantAI {
       tags.push(taskTags[taskType]);
     }
     
-    // 感情・緊急度分析（AI精度97%）
+    // 感情・緊急度分析
     const urgencyKeywords = ['緊急', '急ぎ', 'ASAP', '至急', 'すぐに', '早急'];
     const importantKeywords = ['重要', '大切', '必須', '必要不可欠', 'クリティカル'];
     const confirmKeywords = ['確認', 'チェック', '検討', '相談', '質問'];
@@ -1114,7 +1102,7 @@ class NextGenAssistantAI {
       tags.push('確認');
     }
     
-    // 部門推定（AI精度93%）
+    // 部門推定
     const departmentKeywords = {
       '営業': ['売上', '顧客', '契約', '提案', '営業'],
       '開発': ['開発', 'システム', 'バグ', 'プログラム', 'アプリ'],
@@ -1130,7 +1118,7 @@ class NextGenAssistantAI {
       }
     });
     
-    // 感情分析（AI精度97%）
+    // 感情分析
     const emotionKeywords = {
       'クレーム': ['苦情', 'クレーム', '問題', '不満', 'トラブル'],
       '感謝': ['ありがとう', '感謝', 'お礼', '助かり'],
@@ -1143,7 +1131,7 @@ class NextGenAssistantAI {
       }
     });
     
-    // 文書分類（AI精度96%）
+    // 文書分類
     const contentTypes = {
       '外部向け': ['お客様', '顧客', '取引先', '外部'],
       '内部向け': ['社内', 'チーム', '部署', '内部'],
@@ -1183,8 +1171,6 @@ class NextGenAssistantAI {
         tagElement.classList.add('tag-priority');
       } else if (['営業', '開発', '人事', '経理', '法務', '総務'].includes(tag)) {
         tagElement.classList.add('tag-department');
-      } else if (['97%', '95%', '93%', '96%'].includes(tag)) {
-        tagElement.classList.add('tag-confidence');
       }
       
       tagElement.textContent = tag;
@@ -1309,12 +1295,6 @@ class NextGenAssistantAI {
     
     this.displayOutput(fallbackResponse);
     this.generateAdvancedTags(todoText, this.currentTask, fallbackResponse);
-  }
-
-  initializeTimeReductionDisplay() {
-    // 作業時間削減表示の初期化
-    this.loadTimeReductionData();
-    this.resetTimeDisplay(); // デフォルト値で初期化
   }
 
 }
