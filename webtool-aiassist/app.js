@@ -240,10 +240,20 @@ class NextGenAssistantAI {
   }
 
   handleInfoSelection(e) {
+    if (e.target.closest('.delete-btn')) {
+      const item = e.target.closest('.info-item');
+      const infoId = item.getAttribute('data-info');
+      this.informationHistory = this.informationHistory.filter(info => info.id !== infoId);
+      this.selectedInfo = this.selectedInfo.filter(id => id !== infoId);
+      this.updateInfoHistory();
+      this.saveStoredData();
+      return;
+    }
+
     if (e.target.closest('.info-item')) {
       const item = e.target.closest('.info-item');
       const isSelected = item.classList.contains('selected');
-      
+
       if (isSelected) {
         item.classList.remove('selected');
         const infoId = item.getAttribute('data-info');
@@ -707,19 +717,7 @@ class NextGenAssistantAI {
   }
 
   getInfoById(infoId) {
-    // よく使用される情報のテンプレート
-    const templateData = {
-      sample1: {
-        title: '企業基本情報テンプレート',
-        content: '会社名: [会社名を入力]\n設立年: [設立年を入力]\n従業員数: [従業員数を入力]\n所在地: [所在地を入力]\n事業内容: [事業内容を入力]\n連絡先: [連絡先を入力]'
-      },
-      sample2: {
-        title: '製品・サービス情報テンプレート',
-        content: '製品名: [製品名を入力]\n価格: [価格を入力]\n主要機能:\n- [機能1を入力]\n- [機能2を入力]\n- [機能3を入力]\nターゲット: [ターゲットを入力]\n特徴: [特徴を入力]'
-      }
-    };
-    
-    return templateData[infoId] || this.informationHistory.find(info => info.id === infoId);
+    return this.informationHistory.find(info => info.id === infoId);
   }
 
   saveCurrentInfo() {
@@ -747,28 +745,20 @@ class NextGenAssistantAI {
   }
 
   updateInfoHistory() {
-    // テンプレートアイテムを保持
-    const templateItems = Array.from(this.infoHistory.children);
     this.infoHistory.innerHTML = '';
-    
-    // テンプレートアイテムを復元
-    templateItems.forEach(item => {
-      if (item.getAttribute('data-info').startsWith('sample')) {
-        this.infoHistory.appendChild(item);
-      }
-    });
-    
+
     // 保存された情報を追加
     this.informationHistory.forEach(info => {
       const item = document.createElement('div');
       item.className = 'info-item';
       item.setAttribute('data-info', info.id);
-      
+
       item.innerHTML = `
         <div class="info-item-title">${this.escapeHtml(info.title)}</div>
         <div class="info-item-preview">${this.escapeHtml(info.content.substring(0, 50))}...</div>
+        <button class="delete-btn" title="削除"><i class="fas fa-trash"></i></button>
       `;
-      
+
       this.infoHistory.appendChild(item);
     });
   }
@@ -1068,24 +1058,6 @@ class NextGenAssistantAI {
   initializeAdvancedFeatures() {
     // 初回利用時のテンプレート情報を表示
     if (this.informationHistory.length === 0) {
-      this.informationHistory = [
-        {
-          id: 'sample1',
-          title: '企業基本情報テンプレート',
-          content: '会社名: [会社名を入力]\n設立年: [設立年を入力]\n従業員数: [従業員数を入力]\n所在地: [所在地を入力]\n事業内容: [事業内容を入力]\n連絡先: [連絡先を入力]',
-          timestamp: new Date().toISOString(),
-          usage: 0,
-          category: 'テンプレート'
-        },
-        {
-          id: 'sample2',
-          title: '製品・サービス情報テンプレート',
-          content: '製品名: [製品名を入力]\n価格: [価格を入力]\n主要機能:\n- [機能1を入力]\n- [機能2を入力]\n- [機能3を入力]\nターゲット: [ターゲットを入力]\n特徴: [特徴を入力]',
-          timestamp: new Date().toISOString(),
-          usage: 0,
-          category: 'テンプレート'
-        }
-      ];
       this.updateInfoHistory();
     }
   }
