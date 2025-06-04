@@ -1,0 +1,20 @@
+プロンプトの構成: 植物名 + 特徴 + 画像スタイル
+
+植物名とその特徴を最初に英語で加える。
+
+A highly detailed botanical illustration of a flowering plant, in classical scientific style. The image features fine ink outlines combined with delicate watercolor shading using glazing techniques. Each leaf and bud is rendered with botanical accuracy, showing intricate vein patterns and subtle color gradients. The background is pure white, with no shadows or textures. The style is reminiscent of 18th to 19th century botanical field guides, with precise, academic aesthetics and clean composition.
+
+古典的な科学スタイルによる、非常に精密な開花植物の植物画。
+画像には繊細なインクの輪郭線と、グレージング技法を用いた柔らかな水彩の陰影が組み合わされている。
+各葉やつぼみは植物学的な正確さで描かれており、複雑な葉脈の模様や微妙な色のグラデーションが表現されている。
+背景は完全な白で、影やテクスチャは一切ない。
+このスタイルは18〜19世紀の植物図鑑を彷彿とさせるもので、精緻で学術的な美しさと整然とした構図が特徴である。
+
+A botanical watercolor illustration of a single wild herb, with soft gradients, natural green tones, and no outline. The plant is drawn in a realistic but delicate style, showing leaves and tiny flower buds in fine detail. The watercolor paint gently bleeds at the edges, with subtle variations in tone. Background is completely white, no shadows or textures. The painting resembles a page from a 19th-century botanical field guide. High-resolution, traditional watercolor paper texture, minimalist composition.
+
+柔らかなグラデーションと自然な緑色のトーンを用い、輪郭線を使わずに描かれた、野草一種の水彩植物画。
+植物はリアルながら繊細なスタイルで描かれ、葉や小さなつぼみまで細部まで丁寧に表現されている。
+水彩絵具はエッジでやさしくにじみ、色調には微妙な変化がある。
+背景は完全に白く、影やテクスチャは含まれていない。
+この絵は、19世紀の植物図鑑の一ページのような印象を与える。
+高解像度で、伝統的な水彩紙の質感を持ち、ミニマルな構成になっている。

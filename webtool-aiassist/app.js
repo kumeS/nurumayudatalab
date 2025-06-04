@@ -1,6 +1,6 @@
 /**
  * 次世代AIアシスタント - 業務効率90%向上システム
- * LLM + RAG + 多言語対応 + 革新的出力制御
+ * LLM + RAG + 多言語対応 + 革新的出力制御 + 作業時間削減計算
  */
 
 class NextGenAssistantAI {
@@ -23,11 +23,54 @@ class NextGenAssistantAI {
     this.currentSession = null;
     this.speechSynthesis = window.speechSynthesis;
     
+    // 作業時間削減計算システム
+    this.timeReductionCalculator = {
+      // 個人設定（カスタマイズ可能）
+      personalSettings: {
+        typingSpeed: 40, // 文字/分（日本語の平均的な入力速度）
+        thinkingTime: 0.5, // 文字あたりの考える時間（秒）
+        proofreadingSpeed: 200, // 文字/分（校正・確認速度）
+        experienceMultiplier: 1.0 // 経験値による効率化係数（0.5-2.0）
+      },
+      
+      // タスクタイプ別時間係数
+      taskComplexity: {
+        'email': { complexity: 1.0, baseTime: 5 }, // 基本5分 + 文章量
+        'email-reply': { complexity: 0.8, baseTime: 3 }, // 返信は短縮
+        'document': { complexity: 1.5, baseTime: 10 },
+        'report': { complexity: 2.0, baseTime: 20 },
+        'proposal': { complexity: 2.5, baseTime: 30 },
+        'presentation': { complexity: 1.8, baseTime: 25 },
+        'schedule': { complexity: 0.6, baseTime: 3 },
+        'agenda': { complexity: 0.7, baseTime: 5 },
+        'minutes': { complexity: 1.3, baseTime: 15 },
+        'faq': { complexity: 1.2, baseTime: 8 },
+        'manual': { complexity: 2.2, baseTime: 25 },
+        'analysis': { complexity: 3.0, baseTime: 40 }
+      },
+      
+      // AI処理時間設定
+      aiProcessing: {
+        generationTime: 2, // AI生成時間（分）
+        reviewTime: 0.3, // 文字あたりの確認時間（秒）
+        editTime: 0.2 // 文字あたりの編集時間（秒）
+      },
+      
+      // 累積削減データ
+      totalSavings: {
+        totalMinutesSaved: 0,
+        documentsGenerated: 0,
+        averageSavingPercentage: 0,
+        lastUpdated: null
+      }
+    };
+    
     this.initializeElements();
     this.initializeEventListeners();
     this.loadStoredData();
     this.setupAutoSave();
     this.initializeAdvancedFeatures();
+    this.initializeTimeReductionDisplay();
   }
 
   initializeElements() {
@@ -66,6 +109,18 @@ class NextGenAssistantAI {
     this.shareSlackBtn = document.getElementById('shareSlackBtn');
     this.shareTeamsBtn = document.getElementById('shareTeamsBtn');
     this.improveOutputBtn = document.getElementById('improveOutputBtn');
+    
+    // 時間削減計算表示要素
+    this.manualTimeElement = document.getElementById('manualTime');
+    this.aiTimeElement = document.getElementById('aiTime');
+    this.savedTimeElement = document.getElementById('savedTime');
+    this.efficiencyRateElement = document.getElementById('efficiencyRate');
+    this.dailySavingsElement = document.getElementById('dailySavings');
+    this.totalSavingsElement = document.getElementById('totalSavings');
+    this.monthlyProjectionElement = document.getElementById('monthlyProjection');
+    this.productivityGainElement = document.getElementById('productivityGain');
+    this.typingSpeedInput = document.getElementById('typingSpeed');
+    this.experienceLevelSelect = document.getElementById('experienceLevel');
   }
 
   initializeEventListeners() {
@@ -112,6 +167,23 @@ class NextGenAssistantAI {
     this.shareSlackBtn.addEventListener('click', () => this.shareToSlack());
     this.shareTeamsBtn.addEventListener('click', () => this.shareToTeams());
     this.improveOutputBtn.addEventListener('click', () => this.improveOutput());
+    
+    // 時間削減計算設定の変更監視
+    if (this.typingSpeedInput) {
+      this.typingSpeedInput.addEventListener('input', () => {
+        this.timeReductionCalculator.personalSettings.typingSpeed = parseInt(this.typingSpeedInput.value);
+        this.updateTimeCalculation();
+        this.saveStoredData();
+      });
+    }
+    
+    if (this.experienceLevelSelect) {
+      this.experienceLevelSelect.addEventListener('change', () => {
+        this.timeReductionCalculator.personalSettings.experienceMultiplier = parseFloat(this.experienceLevelSelect.value);
+        this.updateTimeCalculation();
+        this.saveStoredData();
+      });
+    }
   }
 
   updateCharCount(textarea, countElement) {
@@ -123,9 +195,12 @@ class NextGenAssistantAI {
       countElement.style.color = 'var(--danger)';
     } else if (count > 500) {
       countElement.style.color = 'var(--warning)';
-    } else {
+      } else {
       countElement.style.color = 'var(--text-secondary)';
     }
+    
+    // リアルタイム時間計算更新
+    this.updateTimeCalculation();
   }
 
   handleTaskSelection(e) {
@@ -144,29 +219,10 @@ class NextGenAssistantAI {
       setTimeout(() => taskBtn.classList.remove('slide-up'), 300);
       
       console.log('選択されたタスク:', this.currentTask);
-      this.updateEfficiencyDisplay(this.currentTask);
+      this.updateTimeCalculation();
     }
   }
 
-  updateEfficiencyDisplay(taskType) {
-    const efficiencyMap = {
-      'email': '80%',
-      'email-reply': '85%',
-      'document': '75%',
-      'report': '75%',
-      'proposal': '70%',
-      'presentation': '80%',
-      'schedule': '85%',
-      'agenda': '90%',
-      'minutes': '80%',
-      'faq': '85%',
-      'manual': '75%',
-      'analysis': '70%'
-    };
-    
-    const efficiency = efficiencyMap[taskType] || '75%';
-    console.log(`選択されたタスクの効率化率: ${efficiency}`);
-  }
 
   handleStyleSelection(selectedBtn) {
     document.querySelectorAll('.style-btn').forEach(btn => btn.classList.remove('active'));
@@ -229,6 +285,9 @@ class NextGenAssistantAI {
       
       // 25種類AI自動タグ生成
       this.generateAdvancedTags(todoText, this.currentTask, response);
+      
+      // 時間削減を記録・表示
+      this.calculateAndRecordTimeSavings(response.content);
       
       // セッション保存
       this.saveToOutputHistory(response);
@@ -626,27 +685,27 @@ class NextGenAssistantAI {
   }
 
   getInfoById(infoId) {
-    // サンプルデータ
-    const sampleData = {
+    // よく使用される情報のテンプレート
+    const templateData = {
       sample1: {
-        title: 'サンプル情報1',
-        content: '株式会社サンプル\n住所: 東京都渋谷区\n電話: 03-0000-0000\n営業時間: 9:00-18:00'
+        title: '企業基本情報テンプレート',
+        content: '会社名: [会社名を入力]\n設立年: [設立年を入力]\n従業員数: [従業員数を入力]\n所在地: [所在地を入力]\n事業内容: [事業内容を入力]\n連絡先: [連絡先を入力]'
       },
       sample2: {
-        title: 'サンプル情報2',
-        content: '主要製品:\n- Webアプリケーション開発\n- AI・機械学習ソリューション\n- データ分析サービス'
+        title: '製品・サービス情報テンプレート',
+        content: '製品名: [製品名を入力]\n価格: [価格を入力]\n主要機能:\n- [機能1を入力]\n- [機能2を入力]\n- [機能3を入力]\nターゲット: [ターゲットを入力]\n特徴: [特徴を入力]'
       }
     };
     
-    return sampleData[infoId] || this.informationHistory.find(info => info.id === infoId);
+    return templateData[infoId] || this.informationHistory.find(info => info.id === infoId);
   }
 
   saveCurrentInfo() {
     const content = this.infoInput.value.trim();
     if (!content) {
       alert('保存する情報を入力してください。');
-      return;
-    }
+        return;
+      }
     
     const title = prompt('情報のタイトルを入力してください:');
     if (!title) return;
@@ -666,12 +725,12 @@ class NextGenAssistantAI {
   }
 
   updateInfoHistory() {
-    // サンプルアイテムを保持
-    const sampleItems = Array.from(this.infoHistory.children);
+    // テンプレートアイテムを保持
+    const templateItems = Array.from(this.infoHistory.children);
     this.infoHistory.innerHTML = '';
     
-    // サンプルアイテムを復元
-    sampleItems.forEach(item => {
+    // テンプレートアイテムを復元
+    templateItems.forEach(item => {
       if (item.getAttribute('data-info').startsWith('sample')) {
         this.infoHistory.appendChild(item);
       }
@@ -793,7 +852,7 @@ class NextGenAssistantAI {
     }
     
     // 現在の読み上げを停止
-    speechSynthesis.cancel();
+      speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = this.currentLanguage === 'auto' ? 'ja-JP' : 
@@ -875,7 +934,7 @@ class NextGenAssistantAI {
     if (loading) {
       this.loadingIndicator.classList.add('active');
       this.generateBtn.disabled = true;
-    } else {
+        } else {
       this.loadingIndicator.classList.remove('active');
       this.generateBtn.disabled = false;
     }
@@ -985,24 +1044,24 @@ class NextGenAssistantAI {
 
   // 新機能の初期化
   initializeAdvancedFeatures() {
-    // 情報履歴のサンプルデータ
+    // 初回利用時のテンプレート情報を表示
     if (this.informationHistory.length === 0) {
       this.informationHistory = [
         {
           id: 'sample1',
-          title: '企業基本情報',
-          content: '会社名：〇〇株式会社\n設立：2020年\n従業員数：50名\n事業内容：ITソリューション開発',
+          title: '企業基本情報テンプレート',
+          content: '会社名: [会社名を入力]\n設立年: [設立年を入力]\n従業員数: [従業員数を入力]\n所在地: [所在地を入力]\n事業内容: [事業内容を入力]\n連絡先: [連絡先を入力]',
           timestamp: new Date().toISOString(),
           usage: 0,
-          category: '企業情報'
+          category: 'テンプレート'
         },
         {
           id: 'sample2',
-          title: '製品・サービス情報',
-          content: 'AIアシスタントツール\n価格：月額9,800円\n機能：自動文章生成、多言語対応、データ分析',
+          title: '製品・サービス情報テンプレート',
+          content: '製品名: [製品名を入力]\n価格: [価格を入力]\n主要機能:\n- [機能1を入力]\n- [機能2を入力]\n- [機能3を入力]\nターゲット: [ターゲットを入力]\n特徴: [特徴を入力]',
           timestamp: new Date().toISOString(),
           usage: 0,
-          category: '製品情報'
+          category: 'テンプレート'
         }
       ];
       this.updateInfoHistory();
@@ -1251,6 +1310,13 @@ class NextGenAssistantAI {
     this.displayOutput(fallbackResponse);
     this.generateAdvancedTags(todoText, this.currentTask, fallbackResponse);
   }
+
+  initializeTimeReductionDisplay() {
+    // 作業時間削減表示の初期化
+    this.loadTimeReductionData();
+    this.resetTimeDisplay(); // デフォルト値で初期化
+  }
+
 }
 
 // グローバルインスタンスの作成
@@ -1258,18 +1324,13 @@ let assistantAI;
 
 // DOM読み込み完了時に初期化
 document.addEventListener('DOMContentLoaded', () => {
-  assistantAI = new NextGenAssistantAI();
+  window.assistantAI = new NextGenAssistantAI();
+  console.log('あなたのお手軽アシスタントAIが起動しました');
 });
 
- // ページ更新時の状態保持
- window.addEventListener('beforeunload', () => {
-   if (assistantAI) {
-     assistantAI.saveStoredData();
-   }
- });
-
-// ページ読み込み時に初期化
-document.addEventListener('DOMContentLoaded', () => {
-  window.assistantAI = new AssistantAI();
-  console.log('あなたのお手軽アシスタントAIが起動しました');
+// ページ更新時の状態保持
+window.addEventListener('beforeunload', () => {
+  if (window.assistantAI) {
+    window.assistantAI.saveStoredData();
+  }
 }); 

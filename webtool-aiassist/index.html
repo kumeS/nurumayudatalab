@@ -7,21 +7,21 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <style>
     :root {
-      --primary: #4a90e2;
-      --secondary: #7bb3f0;
-      --accent: #f39c12;
+      --primary: #ff7e5f;
+      --secondary: #feb47b;
+      --accent: #7ee8fa;
       --success: #27ae60;
-      --warning: #f39c12;
+      --warning: #ff9800;
       --danger: #e74c3c;
       --text-primary: #2c3e50;
       --text-secondary: #7f8c8d;
-      --background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      --background: linear-gradient(135deg, #fff4e6 0%, #ffe8cc 100%);
       --card-bg: #ffffff;
-      --border: #e9ecef;
-      --card-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      --border: #ffd8b3;
+      --card-shadow: 0 8px 25px rgba(255, 126, 95, 0.15);
       --transition-speed: 0.3s;
-      --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      --gradient-primary: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
+      --gradient-accent: linear-gradient(135deg, #ff9a56 0%, #ffad56 100%);
     }
     
     * {
@@ -178,7 +178,7 @@
       outline: none;
       border-color: var(--primary);
       background: white;
-      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+      box-shadow: 0 0 0 3px rgba(255, 126, 95, 0.1);
     }
     
     .char-count {
@@ -258,7 +258,7 @@
     
     .task-btn:hover {
       border-color: var(--primary);
-      background: #f0f7ff;
+      background: #fff5f0;
       transform: translateY(-2px);
     }
     
@@ -266,19 +266,13 @@
       border-color: var(--primary);
       background: var(--primary);
       color: white;
-      box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+      box-shadow: 0 4px 12px rgba(255, 126, 95, 0.3);
     }
     
-    .task-efficiency {
-      font-size: 0.7rem;
-      color: var(--success);
-      font-weight: 600;
-      margin-top: 0.2rem;
-    }
     
     /* AI分析精度表示 */
     .ai-analysis {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
       color: white;
       border-radius: 10px;
       padding: 1rem;
@@ -555,7 +549,7 @@
     
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
+      box-shadow: 0 6px 20px rgba(255, 126, 95, 0.4);
     }
     
     .btn-secondary {
@@ -566,7 +560,7 @@
     
     .btn-secondary:hover {
       border-color: var(--primary);
-      background: #f0f7ff;
+      background: #fff5f0;
     }
     
     /* 負荷インジケーター */
@@ -628,6 +622,185 @@
       from { transform: translateY(10px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
+    
+    /* 時間削減計算パネル */
+    .time-calculator-content {
+      padding: 0;
+    }
+    
+    .calculation-display {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .time-estimate-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .time-estimate-item {
+      background: var(--card-bg);
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+      border: 2px solid var(--border);
+      transition: all var(--transition-speed);
+    }
+    
+    .time-estimate-item.highlight {
+      border-color: var(--success);
+      background: linear-gradient(135deg, #d4edda, #c3e6cb);
+    }
+    
+    .time-estimate-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .estimate-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    
+    .estimate-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.3rem;
+    }
+    
+    .estimate-value.savings {
+      color: var(--success);
+    }
+    
+    .estimate-details {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+    
+    .savings-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    
+    .summary-item {
+      display: flex;
+      align-items: center;
+      background: rgba(255,255,255,0.7);
+      padding: 0.8rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    
+    .summary-item i {
+      margin-right: 0.5rem;
+      color: var(--primary);
+    }
+    
+    .personal-settings {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+    
+    .setting-item {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .setting-item label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.3rem;
+    }
+    
+    .setting-item input,
+    .setting-item select {
+      padding: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    
+    .efficiency-projection {
+      background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
+      color: white;
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    
+    .projection-display {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+    
+    .projection-item {
+      background: rgba(255,255,255,0.1);
+      padding: 0.8rem;
+      border-radius: 6px;
+      text-align: center;
+    }
+    
+    .projection-label {
+      font-size: 0.8rem;
+      opacity: 0.9;
+      margin-bottom: 0.3rem;
+    }
+    
+    .projection-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 0.2rem;
+    }
+    
+    .projection-note {
+      font-size: 0.7rem;
+      opacity: 0.8;
+    }
+    
+    /* 通知アニメーション */
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes slideOutRight {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+    
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+      .time-estimate-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .projection-display {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -638,28 +811,23 @@
       <div class="subtitle">LLMを活用した次世代業務支援ツール</div>
       <div class="description">業務効率を最大90%向上させる革新的AIアシスタント</div>
     </div>
-
+    
     <!-- 効率化実績表示 -->
     <div class="efficiency-stats fade-in">
       <div class="stat-card">
-        <span class="stat-number">90%</span>
-        <div class="stat-label">作業時間短縮</div>
-        <div class="stat-description">従来の業務時間を大幅削減</div>
+        <span id="totalTasksExecuted" class="stat-number">0</span>
+        <div class="stat-label">実行タスク数</div>
+        <div class="stat-description">これまでに処理したタスクの総数</div>
       </div>
       <div class="stat-card">
-        <span class="stat-number">98%</span>
-        <div class="stat-label">AI分析精度</div>
-        <div class="stat-description">高精度な自動分類・タグ付け</div>
+        <span id="averageTimeSaved" class="stat-number">0%</span>
+        <div class="stat-label">平均時間削減率</div>
+        <div class="stat-description">実際の作業時間短縮効果</div>
       </div>
       <div class="stat-card">
-        <span class="stat-number">12</span>
-        <div class="stat-label">業務タスク対応</div>
-        <div class="stat-description">業界最多レベルのタスク種類</div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-number">4</span>
-        <div class="stat-label">多言語対応</div>
-        <div class="stat-description">グローバル対応＋方言サポート</div>
+        <span id="mostUsedTask" class="stat-number">-</span>
+        <div class="stat-label">最頻使用タスク</div>
+        <div class="stat-description">最もよく使われている業務タイプ</div>
       </div>
     </div>
 
@@ -670,7 +838,7 @@
         <div class="panel-header">
           <i class="fas fa-tasks"></i>
           <span class="panel-title">業務ToDo</span>
-        </div>
+          </div>
         
         <div class="textarea-container">
           <textarea id="todoInput" class="main-textarea" placeholder="対応したい業務内容を入力してください..."></textarea>
@@ -689,19 +857,17 @@
               <div class="category-title">
                 <i class="fas fa-envelope"></i>
                 コミュニケーション
-              </div>
+        </div>
               <div class="task-grid">
                 <div class="task-btn" data-task="email">
                   メール作成
-                  <div class="task-efficiency">80%短縮</div>
                 </div>
                 <div class="task-btn" data-task="email-reply">
                   メール返信
-                  <div class="task-efficiency">85%短縮</div>
                 </div>
-              </div>
-            </div>
-            
+      </div>
+    </div>
+
             <div class="task-category">
               <div class="category-title">
                 <i class="fas fa-file-alt"></i>
@@ -710,23 +876,19 @@
               <div class="task-grid">
                 <div class="task-btn" data-task="document">
                   文書作成
-                  <div class="task-efficiency">75%短縮</div>
                 </div>
                 <div class="task-btn" data-task="report">
                   レポート
-                  <div class="task-efficiency">75%短縮</div>
                 </div>
                 <div class="task-btn" data-task="proposal">
                   企画書
-                  <div class="task-efficiency">70%短縮</div>
                 </div>
                 <div class="task-btn" data-task="presentation">
                   プレゼン
-                  <div class="task-efficiency">80%短縮</div>
                 </div>
               </div>
-            </div>
-            
+    </div>
+    
             <div class="task-category">
               <div class="category-title">
                 <i class="fas fa-calendar"></i>
@@ -735,19 +897,16 @@
               <div class="task-grid">
                 <div class="task-btn" data-task="schedule">
                   スケジュール
-                  <div class="task-efficiency">85%短縮</div>
                 </div>
                 <div class="task-btn" data-task="agenda">
                   アジェンダ
-                  <div class="task-efficiency">90%短縮</div>
                 </div>
                 <div class="task-btn" data-task="minutes">
                   議事録
-                  <div class="task-efficiency">80%短縮</div>
                 </div>
-              </div>
-            </div>
-            
+      </div>
+    </div>
+    
             <div class="task-category">
               <div class="category-title">
                 <i class="fas fa-search"></i>
@@ -756,15 +915,12 @@
               <div class="task-grid">
                 <div class="task-btn" data-task="faq">
                   FAQ作成
-                  <div class="task-efficiency">85%短縮</div>
                 </div>
                 <div class="task-btn" data-task="manual">
                   マニュアル
-                  <div class="task-efficiency">75%短縮</div>
                 </div>
                 <div class="task-btn" data-task="analysis">
                   分析レポート
-                  <div class="task-efficiency">70%短縮</div>
                 </div>
               </div>
             </div>
@@ -794,20 +950,20 @@
               <div class="analysis-percentage">96%</div>
               <div class="analysis-label">文書分類</div>
             </div>
-          </div>
-        </div>
-
+      </div>
+    </div>
+    
         <!-- プロフェッショナル文章スタイル -->
         <div class="style-selection">
           <div class="section-title">
             <i class="fas fa-palette"></i>
             AI駆動文章スタイル
-          </div>
+      </div>
           <div class="style-options">
             <div class="style-btn active" data-style="business">
               <div>ビジネス</div>
               <div class="style-description">効率的・結論明確</div>
-            </div>
+        </div>
             <div class="style-btn" data-style="casual">
               <div>カジュアル</div>
               <div class="style-description">親しみやすい</div>
@@ -824,9 +980,9 @@
               <div>プロ仕様</div>
               <div class="style-description">専門性の高い</div>
             </div>
-          </div>
-        </div>
-
+      </div>
+    </div>
+    
         <!-- 多言語対応強化 -->
         <div class="language-selection">
           <div class="section-title">
@@ -955,11 +1111,97 @@
       </div>
     </div>
 
+    <!-- 時間削減計算パネル -->
+    <div class="panel fade-in" style="margin-bottom: 1rem;">
+      <div class="panel-header">
+        <i class="fas fa-clock"></i>
+        <span class="panel-title">リアルタイム作業時間削減計算</span>
+      </div>
+      
+      <div class="time-calculator-content">
+        <div class="calculation-display">
+          <div class="time-estimate-grid">
+            <div class="time-estimate-item">
+              <div class="estimate-label">従来の作業時間</div>
+              <div id="manualTime" class="estimate-value">15分</div>
+              <div class="estimate-details">手動での作業時間</div>
+            </div>
+            <div class="time-estimate-item">
+              <div class="estimate-label">AI支援作業時間</div>
+              <div id="aiTime" class="estimate-value">3分</div>
+              <div class="estimate-details">AI支援での作業時間</div>
+            </div>
+            <div class="time-estimate-item highlight">
+              <div class="estimate-label">削減時間</div>
+              <div id="savedTime" class="estimate-value savings">12分</div>
+              <div class="estimate-details">効率化により短縮</div>
+            </div>
+          </div>
+          
+          <div class="savings-summary">
+            <div class="summary-item">
+              <i class="fas fa-percentage"></i>
+              <span id="efficiencyRate">80%効率化</span>
+            </div>
+            <div class="summary-item">
+              <i class="fas fa-calendar-day"></i>
+              <span id="dailySavings">月間30時間削減</span>
+            </div>
+            <div class="summary-item">
+              <i class="fas fa-chart-line"></i>
+              <span id="totalSavings">累計削減: 0時間</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="personal-settings">
+          <div class="section-title">
+            <i class="fas fa-user-cog"></i>
+            個人設定最適化
+          </div>
+          <div class="settings-grid">
+            <div class="setting-item">
+              <label>入力速度 (文字/分)</label>
+              <input type="number" id="typingSpeed" value="40" min="10" max="100">
+            </div>
+            <div class="setting-item">
+              <label>経験レベル</label>
+              <select id="experienceLevel">
+                <option value="0.8">初心者</option>
+                <option value="1.0" selected>中級者</option>
+                <option value="1.2">上級者</option>
+                <option value="1.5">エキスパート</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <div class="efficiency-projection">
+          <div class="section-title" style="color: white;">
+            <i class="fas fa-crystal-ball"></i>
+            月間効率化予測
+          </div>
+          <div class="projection-display">
+            <div class="projection-item">
+              <div class="projection-label">予想削減時間</div>
+              <div id="monthlyProjection" class="projection-value">30時間</div>
+              <div class="projection-note">月間使用頻度基準</div>
+            </div>
+            <div class="projection-item">
+              <div class="projection-label">生産性向上</div>
+              <div id="productivityGain" class="projection-value">25%</div>
+              <div class="projection-note">業務効率改善率</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- コントロールパネル -->
     <div class="panel fade-in" style="margin-bottom: 2rem;">
       <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
         <button id="generateBtn" class="btn btn-primary">
-          <i class="fas fa-magic"></i> AI生成（3-5分で完成）
+          <i class="fas fa-magic"></i> AI生成
         </button>
         <button id="resetBtn" class="btn btn-secondary">
           <i class="fas fa-refresh"></i> リセット

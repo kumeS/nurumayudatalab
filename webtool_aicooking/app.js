@@ -1376,6 +1376,9 @@ ${settings.ingredients.join('、')}
 11. 分量は具体的に記載すること
 12. 手順は分かりやすく順序立てて記載すること
 13. **指定されていない野菜や肉類などの主要食材を追加で使用しないこと**
+14. **材料の分量について：使用しない材料は「0g」として記載し、説明文で「使いません」と記述しても矛盾ではありません**
+    - **例：「豚肉: 0g」で材料リストに含め、説明で「今回は豚肉は使いません」と記述することは正しい処理です**
+    - **0gの材料は実質的に使用されていないため、否定的な表現と矛盾しません**
 `;
     
     return [
@@ -1820,6 +1823,9 @@ ${settings.ingredients.join('、')}
 9. 実際に作れる現実的なレシピにすること
 10. 分量は具体的に記載すること
 11. 手順は分かりやすく順序立てて記載すること
+12. **材料の分量について：使用しない材料は「0g」として記載し、説明文で「使いません」と記述しても矛盾ではありません**
+    - **例：「豚肉: 0g」で材料リストに含め、説明で「今回は豚肉は使いません」と記述することは正しい処理です**
+    - **0gの材料は実質的に使用されていないため、否定的な表現と矛盾しません**
 `;
 
     return [
@@ -2098,13 +2104,21 @@ ${settings.ingredients.join('、')}
   function checkRecipeContradictions(recipe) {
     const contradictions = [];
     
-    // 材料リストから食材名を抽出
-    const ingredientNames = [];
+    // 材料リストから食材名と分量を抽出
+    const ingredientData = [];
     if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
-      ingredientNames.push(...recipe.ingredients.map(ing => ing.name));
+      ingredientData.push(...recipe.ingredients.map(ing => ({
+        name: ing.name,
+        amount: ing.amount || '',
+        category: 'ingredient'
+      })));
     }
     if (recipe.seasonings && Array.isArray(recipe.seasonings)) {
-      ingredientNames.push(...recipe.seasonings.map(ing => ing.name));
+      ingredientData.push(...recipe.seasonings.map(ing => ({
+        name: ing.name,
+        amount: ing.amount || '',
+        category: 'seasoning'
+      })));
     }
     
     // 説明文とコツ・ポイントを検査対象とする
@@ -2133,7 +2147,19 @@ ${settings.ingredients.join('、')}
     ];
     
     // 各食材について矛盾をチェック
-    ingredientNames.forEach(ingredient => {
+    ingredientData.forEach(ingredientInfo => {
+      const ingredient = ingredientInfo.name;
+      const amount = ingredientInfo.amount;
+      
+      // 0g、0ml、0個など、実質的に使用しない分量かチェック
+      const isZeroAmount = /^0\s*(g|ml|個|本|枚|片|かけ|つ|粒|滴|適量|少々)?$/i.test(amount.trim());
+      
+      // 0gの場合は矛盾チェックをスキップ（0gなら「使いません」でも矛盾しない）
+      if (isZeroAmount) {
+        console.log(`矛盾チェックスキップ: ${ingredient} (分量: ${amount}) - 0gのため使用されていない材料として扱います`);
+        return;
+      }
+      
       // 食材名を正規化（調味料ラベルや余分な文字を除去）
       let cleanIngredientName = ingredient
         .replace(/チーズ$/, '')
@@ -2214,7 +2240,8 @@ ${settings.ingredients.join('、')}
                   pattern: pattern,
                   context: matches[0],
                   matchedVariation: variation,
-                  message: `材料リストに「${ingredient}」が含まれていますが、説明では「${matches[0]}」と記載されており矛盾しています。`
+                  amount: amount,
+                  message: `材料リストに「${ingredient}」(${amount})が含まれていますが、説明では「${matches[0]}」と記載されており矛盾しています。`
                 });
               }
             }
@@ -2285,9 +2312,16 @@ ${settings.ingredients.join('、')}
         const item = document.createElement('div');
         item.className = 'ingredient-item-result';
         
+        // 0gかどうかチェック
+        const isZeroAmount = /^0\s*(g|ml|個|本|枚|片|かけ|つ|粒|滴|適量|少々)?$/i.test(ingredient.amount.trim());
+        const zeroAmountStyle = isZeroAmount ? 
+          'color: #888; font-style: italic; text-decoration: line-through;' : '';
+        const zeroAmountIndicator = isZeroAmount ? 
+          ' <span style="color: #f44336; font-size: 0.8em;" title="使用されていません">（未使用）</span>' : '';
+        
         item.innerHTML = `
-          <span class="ingredient-name">${ingredient.name}</span>
-          <span class="ingredient-amount">${ingredient.amount}</span>
+          <span class="ingredient-name" style="${zeroAmountStyle}">${ingredient.name}${zeroAmountIndicator}</span>
+          <span class="ingredient-amount" style="${zeroAmountStyle}">${ingredient.amount}</span>
         `;
         ingredientsList.appendChild(item);
       });
@@ -2315,12 +2349,24 @@ ${settings.ingredients.join('、')}
           isSelected = false;
         }
         
+        // 0gかどうかチェック
+        const isZeroAmount = /^0\s*(g|ml|個|本|枚|片|かけ|つ|粒|滴|適量|少々)?$/i.test(seasoning.amount.trim());
+        const zeroAmountIndicator = isZeroAmount ? 
+          ' <span style="color: #f44336; font-size: 0.8em;" title="使用されていません">（未使用）</span>' : '';
+        
         const selectionIndicator = !isSelected ? ' <span class="added-seasoning-label" title="追加された調味料">追加</span>' : '';
-        const seasoningNameStyle = 'background: linear-gradient(135deg, #fff3e0, #ffe0b2); border: 1px solid #ffb74d; padding: 2px 6px; border-radius: 4px;';
+        let seasoningNameStyle = 'background: linear-gradient(135deg, #fff3e0, #ffe0b2); border: 1px solid #ffb74d; padding: 2px 6px; border-radius: 4px;';
+        let amountStyle = '';
+        
+        // 0gの場合はスタイルを変更
+        if (isZeroAmount) {
+          seasoningNameStyle += ' color: #888; text-decoration: line-through;';
+          amountStyle = 'color: #888; font-style: italic; text-decoration: line-through;';
+        }
         
         item.innerHTML = `
-          <span class="ingredient-name" style="${seasoningNameStyle}">${seasoning.name}${selectionIndicator}</span>
-          <span class="ingredient-amount">${seasoning.amount}</span>
+          <span class="ingredient-name" style="${seasoningNameStyle}">${seasoning.name}${selectionIndicator}${zeroAmountIndicator}</span>
+          <span class="ingredient-amount" style="${amountStyle}">${seasoning.amount}</span>
         `;
         ingredientsList.appendChild(item);
       });
