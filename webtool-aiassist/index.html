@@ -74,45 +74,18 @@
       opacity: 0.8;
     }
     
-    /* 効率化実績表示 */
-    .efficiency-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-    
-    .stat-card {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: var(--card-shadow);
-      text-align: center;
-      border: 1px solid var(--border);
-      transition: transform var(--transition-speed);
-    }
-    
-    .stat-card:hover {
-      transform: translateY(-5px);
-    }
-    
-    .stat-number {
-      font-size: 2.5rem;
-      font-weight: 700;
-      color: var(--primary);
-      display: block;
-    }
-    
-    .stat-label {
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-      margin-top: 0.5rem;
-    }
-    
-    .stat-description {
+    /* 履歴アイテム削除ボタン */
+    .delete-btn {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
       font-size: 0.8rem;
-      color: var(--text-secondary);
-      margin-top: 0.5rem;
+      margin-left: 0.5rem;
+    }
+
+    .delete-btn:hover {
+      color: #b00020;
     }
     
     /* メインレイアウト */
@@ -569,6 +542,10 @@
       text-align: center;
       margin: 1rem 0;
     }
+
+    .loading-indicator.active {
+      display: block;
+    }
     
     .spinner {
       border: 3px solid #f3f3f3;
@@ -591,9 +568,6 @@
         grid-template-columns: 1fr;
       }
       
-      .efficiency-stats {
-        grid-template-columns: repeat(2, 1fr);
-      }
       
       .task-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -812,24 +786,6 @@
       <div class="description">業務効率を最大90%向上させる革新的AIアシスタント</div>
     </div>
     
-    <!-- 効率化実績表示 -->
-    <div class="efficiency-stats fade-in">
-      <div class="stat-card">
-        <span id="totalTasksExecuted" class="stat-number">0</span>
-        <div class="stat-label">実行タスク数</div>
-        <div class="stat-description">これまでに処理したタスクの総数</div>
-      </div>
-      <div class="stat-card">
-        <span id="averageTimeSaved" class="stat-number">0%</span>
-        <div class="stat-label">平均時間削減率</div>
-        <div class="stat-description">実際の作業時間短縮効果</div>
-      </div>
-      <div class="stat-card">
-        <span id="mostUsedTask" class="stat-number">-</span>
-        <div class="stat-label">最頻使用タスク</div>
-        <div class="stat-description">最もよく使われている業務タイプ</div>
-      </div>
-    </div>
 
     <!-- メインレイアウト -->
     <div class="main-layout">
@@ -983,6 +939,26 @@
               <div class="lang-accuracy">簡繁対応</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- コントロールパネル -->
+      <div class="panel fade-in" style="margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+          <button id="generateBtn" class="btn btn-primary">
+            <i class="fas fa-magic"></i> AI生成
+          </button>
+          <button id="resetBtn" class="btn btn-secondary">
+            <i class="fas fa-refresh"></i> リセット
+          </button>
+          <button id="saveSessionBtn" class="btn btn-secondary">
+            <i class="fas fa-save"></i> セッション保存
+          </button>
+        </div>
+
+        <div id="loadingIndicator" class="loading-indicator">
+          <div class="spinner"></div>
+          <div style="margin-top: 0.5rem;">AIが高品質な文章を生成中...</div>
         </div>
       </div>
 
@@ -1141,25 +1117,6 @@
       </div>
     </div>
 
-    <!-- コントロールパネル -->
-    <div class="panel fade-in" style="margin-bottom: 2rem;">
-      <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-        <button id="generateBtn" class="btn btn-primary">
-          <i class="fas fa-magic"></i> AI生成
-        </button>
-        <button id="resetBtn" class="btn btn-secondary">
-          <i class="fas fa-refresh"></i> リセット
-        </button>
-        <button id="saveSessionBtn" class="btn btn-secondary">
-          <i class="fas fa-save"></i> セッション保存
-        </button>
-      </div>
-      
-      <div id="loadingIndicator" class="loading-indicator">
-        <div class="spinner"></div>
-        <div style="margin-top: 0.5rem;">AIが高品質な文章を生成中...</div>
-      </div>
-    </div>
   </div>
 
   <script src="app.js"></script>
