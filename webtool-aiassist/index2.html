@@ -3,8 +3,80 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>小中高生向けクイズ自動作成ツール｜LLM活用学習支援ツール</title>
+  <title>NuruMayu StudyLab - AI OCR学習支援ツール</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+  <script>
+    // Tesseract.js のデバッグとライブラリ確認（改善版）
+    window.addEventListener('load', () => {
+      console.log('=== Tesseract.js ライブラリ確認（改善版）===');
+      console.log('Tesseract オブジェクト:', typeof Tesseract);
+      
+      if (typeof Tesseract !== 'undefined') {
+        console.log('Tesseract.js バージョン:', Tesseract.version || 'バージョン情報なし');
+        console.log('利用可能なメソッド:', Object.getOwnPropertyNames(Tesseract));
+        
+        // ワーカーパスの設定とログ設定
+        try {
+          if (Tesseract.setLogging) {
+            Tesseract.setLogging(true);
+          }
+          
+          // 基本的なワーカー作成テスト（非同期）
+          setTimeout(async () => {
+            try {
+              console.log('Tesseract.js ワーカー作成テスト開始...');
+              const testWorker = await Tesseract.createWorker();
+              console.log('✅ ワーカー作成テスト成功');
+              await testWorker.terminate();
+              console.log('✅ ワーカー終了テスト成功');
+              console.log('🎉 Tesseract.js 完全初期化完了');
+            } catch (testError) {
+              console.error('⚠️ ワーカー作成テスト失敗:', testError);
+              console.log('OCR機能は制限的に動作する可能性があります');
+            }
+          }, 1000);
+          
+          console.log('✅ Tesseract.js 基本初期化完了');
+        } catch (initError) {
+          console.error('⚠️ Tesseract.js 初期化でエラー:', initError);
+        }
+      } else {
+        console.error('❌ Tesseract.js の読み込みに失敗しました');
+        alert('OCR機能の初期化に失敗しました。ページを再読み込みしてください。\n\nもし問題が継続する場合は、ブラウザのキャッシュをクリアしてください。');
+      }
+    });
+    
+    // グローバルエラーハンドラーの追加
+    window.addEventListener('error', (event) => {
+      console.error('🚨 ページエラー:', event.error);
+      if (event.error.message && event.error.message.includes('Tesseract')) {
+        console.error('Tesseract.js関連のエラーが発生しました');
+      }
+    });
+
+    // アプリケーション開始前の最終チェック
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🔍 DOMContentLoaded - 最終チェック開始');
+      console.log('DOM要素確認:', {
+        imageUpload: !!document.getElementById('imageUpload'),
+        startOcrBtn: !!document.getElementById('startOcrBtn'),
+        ocrText: !!document.getElementById('ocrText'),
+        progressFill: !!document.getElementById('progressFill')
+      });
+      
+      // 少し遅らせてTesseract.jsの確認
+      setTimeout(() => {
+        console.log('Tesseract.js最終確認:', typeof Tesseract);
+        if (typeof Tesseract === 'undefined') {
+          console.error('❌ Tesseract.js の読み込みが完了していません');
+          alert('OCR機能の初期化に失敗しました。ページを再読み込みしてください。');
+        } else {
+          console.log('✅ Tesseract.js 読み込み確認済み');
+        }
+      }, 500);
+    });
+  </script>
   <style>
     :root {
       --primary: #ff7e5f;
@@ -211,6 +283,68 @@
       box-shadow: 0 3px 8px rgba(126, 232, 250, 0.3);
     }
     
+    /* コンテンツトグルボタンのスタイル */
+    .content-toggle-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    
+    .content-toggle-btn {
+      padding: 0.75rem 1.25rem;
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      color: var(--text-secondary);
+      border: 2px solid #e0e0e0;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+    
+    .content-toggle-btn:hover {
+      background: linear-gradient(135deg, #fff, #f8f9fa);
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .content-toggle-btn.active {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(255, 126, 95, 0.3);
+    }
+    
+    .content-toggle-btn i {
+      margin-right: 0.5rem;
+    }
+    
+    /* グレイアウトスタイル */
+    .quiz-settings.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    
+    .quiz-settings.disabled .quiz-settings-label {
+      color: #999;
+    }
+    
+    .quiz-settings.disabled .quiz-option-name {
+      background: #f5f5f5;
+      color: #999;
+      border-color: #ddd;
+    }
+    
+    .quiz-settings.disabled .quiz-option input[type="radio"]:checked + .quiz-option-name {
+      background: #ddd;
+      color: #999;
+      border-color: #ccc;
+      box-shadow: none;
+    }
+    
     .input-section {
       margin-bottom: 1rem;
     }
@@ -315,6 +449,151 @@
     .speak-disabled {
       background: linear-gradient(135deg, #9E9E9E, #BDBDBD) !important;
       cursor: not-allowed;
+    }
+    
+    /* タブコンテンツ */
+    .tab-content {
+      background-color: #fff;
+      padding: 1.5rem;
+      border-radius: 0 0 12px 12px;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 1rem;
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* OCR関連スタイル */
+    .image-upload-area {
+      margin-bottom: 1.5rem;
+    }
+    
+    .image-upload-zone {
+      border: 3px dashed #e0e0e0;
+      border-radius: 12px;
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      pointer-events: auto;
+    }
+    
+    .image-upload-zone:hover {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, #fff, #f8f9fa);
+      transform: translateY(-2px);
+    }
+    
+    .image-upload-zone.dragover {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, rgba(255, 126, 95, 0.1), rgba(254, 180, 123, 0.1));
+    }
+    
+    .image-upload-zone i {
+      font-size: 3rem;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      display: block;
+    }
+    
+    .image-upload-zone p {
+      margin: 0.5rem 0;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+    }
+    
+    .upload-hint {
+      font-size: 0.9rem !important;
+      color: var(--text-secondary) !important;
+    }
+    
+    .image-preview {
+      margin-bottom: 1.5rem;
+      background: #fff;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .image-preview img {
+      max-width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    
+    .image-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    .remove-btn {
+      background: var(--error);
+      color: white;
+      border: none;
+      padding: 0.5rem;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .remove-btn:hover {
+      background: #d32f2f;
+      transform: scale(1.1);
+    }
+    
+    .ocr-settings {
+      margin-bottom: 1.5rem;
+      padding: 1.5rem;
+      background-color: #f8f9fa;
+      border-radius: 12px;
+    }
+    
+    .ocr-progress {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    
+    .progress-text {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .ocr-result {
+      margin-bottom: 1.5rem;
     }
     
     .output-container {
@@ -676,6 +955,12 @@
     .usage-guide h3 {
       margin-top: 0;
     }
+
+    .content-generation-section {
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 2px solid #e0e0e0;
+    }
     
     .guide-step {
       display: flex;
@@ -758,6 +1043,126 @@
       0% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0.7); }
       70% { box-shadow: 0 0 0 10px rgba(255, 126, 95, 0); }
       100% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0); }
+    }
+    
+    /* 段階的祝福演出 */
+    .celebration-overlay.excellent {
+      background: linear-gradient(135deg, 
+        rgba(255, 215, 0, 0.9),   /* 金色 */
+        rgba(255, 165, 0, 0.9),   /* オレンジ金 */
+        rgba(255, 69, 0, 0.8)     /* 赤オレンジ */
+      );
+    }
+    
+    .celebration-overlay.good {
+      background: linear-gradient(135deg, 
+        rgba(192, 192, 192, 0.9), /* 銀色 */
+        rgba(169, 169, 169, 0.9), /* 濃い銀 */
+        rgba(128, 128, 128, 0.8)  /* グレー */
+      );
+    }
+    
+    .celebration-overlay.average {
+      background: linear-gradient(135deg, 
+        rgba(205, 127, 50, 0.9),  /* 銅色 */
+        rgba(184, 115, 51, 0.9),  /* 濃い銅 */
+        rgba(160, 82, 45, 0.8)    /* サドルブラウン */
+      );
+    }
+    
+    .celebration-overlay.encouraging {
+      background: linear-gradient(135deg, 
+        rgba(255, 165, 0, 0.9),   /* オレンジ */
+        rgba(255, 140, 0, 0.9),   /* 濃いオレンジ */
+        rgba(255, 99, 71, 0.8)    /* トマト色 */
+      );
+    }
+    
+    .celebration-overlay.motivating {
+      background: linear-gradient(135deg, 
+        rgba(106, 90, 205, 0.9),  /* スレートブルー */
+        rgba(72, 61, 139, 0.9),   /* 濃いスレートブルー */
+        rgba(75, 0, 130, 0.8)     /* インディゴ */
+      );
+    }
+    
+    /* 紙吹雪の色バリエーション */
+    .confetti.gold { background: #FFD700; }
+    .confetti.silver { background: #C0C0C0; }
+    .confetti.bronze { background: #CD7F32; }
+    .confetti.orange { background: #FF8C00; }
+    .confetti.purple { background: #9370DB; }
+    
+    /* メダルアイコン */
+    .medal-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      animation: medalGlow 2s ease-in-out infinite alternate;
+    }
+    
+    .medal-gold { color: #FFD700; }
+    .medal-silver { color: #C0C0C0; }
+    .medal-bronze { color: #CD7F32; }
+    
+    @keyframes medalGlow {
+      0% { 
+        text-shadow: 0 0 20px currentColor;
+        transform: scale(1);
+      }
+      100% { 
+        text-shadow: 0 0 30px currentColor, 0 0 40px currentColor;
+        transform: scale(1.1);
+      }
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      color: var(--primary);
+      text-decoration: none;
+      margin-top: 1rem;
+      transition: all 0.3s;
+    }
+    
+    .back-link:hover {
+      color: var(--secondary);
+    }
+    
+    .back-link i {
+      margin-right: 0.5rem;
+    }
+    
+    @media (max-width: 600px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      .tab {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+      }
+      
+      .button-container, .button-group {
+        flex-wrap: wrap;
+      }
+      
+      .level-options, .quiz-options, .content-toggle-buttons {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      
+      .level-name, .quiz-option-name, .content-toggle-btn {
+        text-align: center;
+        width: 100%;
+      }
+      
+      .quiz-navigation {
+        flex-direction: column;
+      }
+      
+      .input-area {
+        min-height: 120px;
+      }
     }
     
     /* 祝福演出の基本スタイル */
@@ -919,388 +1324,13 @@
         transform: scale(1.2);
       }
     }
-    
-    /* 段階的祝福演出 */
-    .celebration-overlay.excellent {
-      background: linear-gradient(135deg, 
-        rgba(255, 215, 0, 0.9),   /* 金色 */
-        rgba(255, 165, 0, 0.9),   /* オレンジ金 */
-        rgba(255, 69, 0, 0.8)     /* 赤オレンジ */
-      );
-    }
-    
-    .celebration-overlay.good {
-      background: linear-gradient(135deg, 
-        rgba(192, 192, 192, 0.9), /* 銀色 */
-        rgba(169, 169, 169, 0.9), /* 濃い銀 */
-        rgba(128, 128, 128, 0.8)  /* グレー */
-      );
-    }
-    
-    .celebration-overlay.average {
-      background: linear-gradient(135deg, 
-        rgba(205, 127, 50, 0.9),  /* 銅色 */
-        rgba(184, 115, 51, 0.9),  /* 濃い銅 */
-        rgba(160, 82, 45, 0.8)    /* サドルブラウン */
-      );
-    }
-    
-    .celebration-overlay.encouraging {
-      background: linear-gradient(135deg, 
-        rgba(255, 165, 0, 0.9),   /* オレンジ */
-        rgba(255, 140, 0, 0.9),   /* 濃いオレンジ */
-        rgba(255, 99, 71, 0.8)    /* トマト色 */
-      );
-    }
-    
-    .celebration-overlay.motivating {
-      background: linear-gradient(135deg, 
-        rgba(106, 90, 205, 0.9),  /* スレートブルー */
-        rgba(72, 61, 139, 0.9),   /* 濃いスレートブルー */
-        rgba(75, 0, 130, 0.8)     /* インディゴ */
-      );
-    }
-    
-    /* 紙吹雪の色バリエーション */
-    .confetti.gold { background: #FFD700; }
-    .confetti.silver { background: #C0C0C0; }
-    .confetti.bronze { background: #CD7F32; }
-    .confetti.orange { background: #FF8C00; }
-    .confetti.purple { background: #9370DB; }
-    
-    /* メダルアイコン */
-    .medal-icon {
-      font-size: 4rem;
-      margin-bottom: 1rem;
-      animation: medalGlow 2s ease-in-out infinite alternate;
-    }
-    
-    .medal-gold { color: #FFD700; }
-    .medal-silver { color: #C0C0C0; }
-    .medal-bronze { color: #CD7F32; }
-    
-    @keyframes medalGlow {
-      0% { 
-        text-shadow: 0 0 20px currentColor;
-        transform: scale(1);
-      }
-      100% { 
-        text-shadow: 0 0 30px currentColor, 0 0 40px currentColor;
-        transform: scale(1.1);
-      }
-    }
-    
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      color: var(--primary);
-      text-decoration: none;
-      margin-top: 1rem;
-      transition: all 0.3s;
-    }
-    
-    .back-link:hover {
-      color: var(--secondary);
-    }
-    
-    .back-link i {
-      margin-right: 0.5rem;
-    }
-    
-    @media (max-width: 600px) {
-      .container {
-        padding: 1rem;
-      }
-      
-      h1 {
-        font-size: 1.8rem;
-        line-height: 1.2;
-      }
-      
-      .description {
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-      }
-      
-      .tab {
-        padding: 12px 8px;
-        font-size: 0.85rem;
-      }
-      
-      .level-selection, .quiz-settings {
-        padding: 1rem;
-        margin-bottom: 1rem;
-      }
-      
-      .level-selection-label, .quiz-settings-label {
-        font-size: 1rem;
-        margin-bottom: 0.75rem;
-      }
-      
-      .level-options, .quiz-options {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      
-      .level-name, .quiz-option-name {
-        text-align: center;
-        width: 100%;
-        padding: 0.8rem 1rem;
-        font-size: 0.9rem;
-      }
-      
-      .input-label {
-        font-size: 1rem;
-        margin-bottom: 0.5rem;
-      }
-      
-      .input-area {
-        min-height: 120px;
-        padding: 1rem;
-        font-size: 16px; /* iOS zoom prevention */
-      }
-      
-      .button-container, .button-group {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.75rem;
-        margin-bottom: 1rem;
-      }
-      
-      .button {
-        padding: 0.8rem 1rem;
-        font-size: 0.9rem;
-        text-align: center;
-        justify-content: center;
-      }
-      
-      #generateQuizBtn {
-        grid-column: 1 / -1; /* Full width for main action button */
-        background: linear-gradient(135deg, var(--primary), var(--secondary));
-        font-weight: bold;
-      }
-      
-      .quiz-container {
-        padding: 1rem;
-        margin-bottom: 1rem;
-      }
-      
-      .question-card {
-        padding: 1rem;
-      }
-      
-      .question-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-      }
-      
-      .question-number {
-        align-self: flex-start;
-        font-size: 0.8rem;
-        padding: 0.4rem 0.8rem;
-      }
-      
-      .hint-button {
-        align-self: flex-end;
-        padding: 0.3rem 0.6rem;
-        font-size: 0.75rem;
-      }
-      
-      .question-text {
-        font-size: 1rem;
-        line-height: 1.4;
-      }
-      
-      .option-item {
-        padding: 0.8rem;
-        font-size: 0.9rem;
-        text-align: left;
-      }
-      
-      .quiz-navigation {
-      display: flex;
-      flex-direction: column;
-        gap: 0.75rem;
-      }
-      
-      .quiz-navigation .button {
-        width: 100%;
-        padding: 1rem;
-        font-size: 1rem;
-      }
-      
-      .quiz-results {
-        padding: 1.5rem 1rem;
-      }
-      
-      .results-title {
-        font-size: 1.5rem;
-      }
-      
-      .results-score {
-        font-size: 1.5rem;
-      }
-      
-      .results-breakdown {
-        flex-direction: column;
-        gap: 1rem;
-      }
-      
-      .breakdown-item {
-        display: flex;
-        justify-content: space-between;
-      align-items: center;
-        padding: 0.5rem;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-      }
-      
-      .loading {
-        grid-column: 1 / -1;
-        justify-self: center;
-        margin: 0;
-    }
-    
-      .usage-guide {
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-      .guide-step {
-        flex-direction: column;
-        align-items: flex-start;
-        margin-bottom: 0.75rem;
-      }
-      
-      .step-number {
-        margin-right: 0;
-        margin-bottom: 0.5rem;
-    }
-    
-      .celebration-overlay {
-        padding: 1rem;
-    }
-    
-    .celebration-title {
-        font-size: 2.5rem;
-        line-height: 1.2;
-    }
-    
-    .celebration-message {
-        font-size: 1.2rem;
-        text-align: center;
-    }
-    
-    .celebration-stats {
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .celebration-score {
-        font-size: 1.5rem;
-      }
-      
-      .back-link {
-        margin-top: 2rem;
-        padding: 0.75rem;
-        text-align: center;
-        display: block;
-        background: rgba(255, 126, 95, 0.1);
-        border-radius: 8px;
-        transition: all 0.3s;
-    }
-    
-      .back-link:hover {
-        background: rgba(255, 126, 95, 0.2);
-      }
-    }
-    
-    /* 超小画面対応 (iPhone SE等) */
-    @media (max-width: 375px) {
-      .container {
-        padding: 0.75rem;
-    }
-    
-      h1 {
-        font-size: 1.5rem;
-      }
-      
-      .level-name, .quiz-option-name {
-        padding: 0.7rem;
-        font-size: 0.85rem;
-      }
-      
-      .button {
-        padding: 0.7rem 0.8rem;
-        font-size: 0.85rem;
-      }
-      
-      .question-text {
-        font-size: 0.95rem;
-      }
-      
-      .option-item {
-        padding: 0.7rem;
-        font-size: 0.85rem;
-      }
-      
-      .celebration-title {
-        font-size: 2rem;
-      }
-      
-      .medal-icon {
-        font-size: 3rem;
-      }
-    }
-    
-    /* タッチデバイス用のスタイル */
-    @media (hover: none) and (pointer: coarse) {
-      .button, .level-name, .quiz-option-name, .option-item {
-        min-height: 44px; /* Appleの推奨タッチターゲットサイズ */
-      }
-      
-      .option-item:hover {
-        background: #f8f9fa; /* ホバー効果を無効化 */
-      }
-      
-      .button:hover {
-        transform: none; /* ホバー変形を無効化 */
-      }
-    }
-    
-    /* 横向きスマホ対応 */
-    @media (max-width: 768px) and (orientation: landscape) {
-      .container {
-        padding: 1rem 2rem;
-      }
-      
-      .button-container {
-        grid-template-columns: repeat(4, 1fr);
-    }
-    
-      #generateQuizBtn {
-        grid-column: 1 / -1;
-      }
-      
-      .quiz-navigation {
-        flex-direction: row;
-        justify-content: center;
-      }
-      
-      .quiz-navigation .button {
-        flex: 1;
-        max-width: 200px;
-      }
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>小中高生向けクイズ自動作成ツール</h1>
-      <p class="description">LLM活用学習支援ツール｜音声入力対応クイズ生成システム</p>
+      <h1>NuruMayu StudyLab</h1>
+      <p class="description">AI OCR学習支援ツール｜写真から文字起こし＆AI学習コンテンツ自動生成</p>
     </div>
     
     <div class="usage-guide">
@@ -1308,11 +1338,11 @@
         <i class="fas fa-info-circle"></i>
         <h3>使い方を表示</h3>
       </div>
-      <div class="guide-content" style="display: none;">
+      <div class="guide-content" style="display: block;">
         <div class="guide-step">
           <div class="step-number">1</div>
           <div>
-            <strong>学習レベル選択:</strong> 小学生（低学年・中学年・高学年）、中学生、高校生から選択
+            <strong>理解度レベル選択:</strong> 寝てても分かるレベル、初級レベル、中級レベル、上級者向けの難しいやつから選択
           </div>
         </div>
         <div class="guide-step">
@@ -1324,7 +1354,7 @@
         <div class="guide-step">
           <div class="step-number">3</div>
           <div>
-            <strong>テキスト入力:</strong> サンプル入力ボタンで学習レベルに応じたサンプルテキストを自動入力、音声録音ボタンで音声入力、または直接テキストを入力・編集
+            <strong>テキスト入力:</strong> サンプル入力ボタンで理解度レベルに応じたサンプルテキストを自動入力、音声録音ボタンで音声入力、または直接テキストを入力・編集
           </div>
         </div>
         <div class="guide-step">
@@ -1348,90 +1378,291 @@
       </div>
     </div>
 
-    <!-- クイズ自動作成タブ -->
+    <!-- メインタブ -->
     <div class="tabs">
-      <div class="tab active" id="tab-quiz">クイズ自動作成</div>
+      <div class="tab active" id="tab-ocr">OCR（写真から文字起こし）</div>
+      <div class="tab" id="tab-text">テキスト入力</div>
     </div>
     
-    <!-- 学習レベル選択 -->
-    <div class="level-selection">
-      <label class="level-selection-label"><i class="fas fa-graduation-cap"></i> 学習レベルを選択</label>
-      <div class="level-options">
-        <div class="level-option">
-          <input type="radio" id="level-elementary-low" name="level" value="elementary-low" checked>
-          <label for="level-elementary-low" class="level-name">小学生（低学年）</label>
+    <!-- タブコンテンツ -->
+    
+    <!-- OCRタブ -->
+    <div id="content-ocr" class="tab-content active">
+      <div class="ocr-section">
+        <label class="input-label"><i class="fas fa-camera"></i> 画像をアップロードして文字起こし</label>
+        
+        <!-- 画像アップロード -->
+        <div class="image-upload-area">
+          <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+          <div id="imageUploadZone" class="image-upload-zone">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>ここに画像をドラッグ＆ドロップするか、クリックして選択</p>
+            <p class="upload-hint">対応形式：JPEG, PNG, WebP</p>
+          </div>
         </div>
-        <div class="level-option">
-          <input type="radio" id="level-elementary-mid" name="level" value="elementary-mid">
-          <label for="level-elementary-mid" class="level-name">小学生（中学年）</label>
+        
+        <!-- 画像プレビュー -->
+        <div id="imagePreview" class="image-preview" style="display: none;">
+          <img id="previewImage" alt="アップロード画像" />
+          <div class="image-info">
+            <span id="imageFileName"></span>
+            <button id="removeImageBtn" class="remove-btn"><i class="fas fa-times"></i></button>
+          </div>
         </div>
-        <div class="level-option">
-          <input type="radio" id="level-elementary-high" name="level" value="elementary-high">
-          <label for="level-elementary-high" class="level-name">小学生（高学年）</label>
+        
+        <!-- OCR設定 -->
+        <div class="ocr-settings">
+          <label class="quiz-settings-label"><i class="fas fa-language"></i> 言語設定</label>
+          <div class="quiz-options">
+            <div class="quiz-option">
+              <input type="radio" id="lang-jpn" name="ocrLanguage" value="jpn" checked>
+              <label for="lang-jpn" class="quiz-option-name">日本語</label>
+            </div>
+            <div class="quiz-option">
+              <input type="radio" id="lang-eng" name="ocrLanguage" value="eng">
+              <label for="lang-eng" class="quiz-option-name">英語</label>
+            </div>
+          </div>
         </div>
-        <div class="level-option">
-          <input type="radio" id="level-junior" name="level" value="junior">
-          <label for="level-junior" class="level-name">中学生</label>
+        
+        <!-- OCR実行ボタン -->
+        <div class="button-container">
+          <button id="startOcrBtn" class="button" disabled><i class="fas fa-eye"></i> 文字起こし開始</button>
+          <button id="stopOcrBtn" class="button" style="display: none; background: linear-gradient(135deg, #e74c3c, #c0392b);"><i class="fas fa-stop"></i> 停止</button>
+          <button id="correctOcrBtn" class="button" style="display: none;"><i class="fas fa-magic"></i> AI補正</button>
         </div>
-        <div class="level-option">
-          <input type="radio" id="level-senior" name="level" value="senior">
-          <label for="level-senior" class="level-name">高校生</label>
+        
+        <!-- OCR進捗 -->
+        <div id="ocrProgress" class="ocr-progress" style="display: none;">
+          <div class="progress-bar">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+          <div class="progress-text">文字認識中... <span id="progressPercent">0%</span></div>
+        </div>
+        
+        <!-- OCR結果 -->
+        <div id="ocrResult" class="ocr-result" style="display: none;">
+          <label class="input-label"><i class="fas fa-file-text"></i> 認識結果（編集可能）</label>
+          <textarea id="ocrText" class="input-area" placeholder="OCR結果がここに表示されます..."></textarea>
+          
+          <!-- 学習コンテンツ生成セクション -->
+          <div class="content-generation-section">
+            <!-- 理解度レベル選択 -->
+            <div class="level-selection">
+              <label class="level-selection-label"><i class="fas fa-brain"></i> 理解度レベルを選択</label>
+              <div class="level-options">
+                <div class="level-option">
+                  <input type="radio" id="level-elementary-low-ocr" name="level-ocr" value="elementary-low" checked>
+                  <label for="level-elementary-low-ocr" class="level-name">小学生（低学年）</label>
+                </div>
+                <div class="level-option">
+                  <input type="radio" id="level-elementary-mid-ocr" name="level-ocr" value="elementary-mid">
+                  <label for="level-elementary-mid-ocr" class="level-name">小学生（中学年）</label>
+                </div>
+                <div class="level-option">
+                  <input type="radio" id="level-elementary-high-ocr" name="level-ocr" value="elementary-high">
+                  <label for="level-elementary-high-ocr" class="level-name">小学生（高学年）</label>
+                </div>
+                <div class="level-option">
+                  <input type="radio" id="level-junior-ocr" name="level-ocr" value="junior">
+                  <label for="level-junior-ocr" class="level-name">中学生</label>
+                </div>
+                <div class="level-option">
+                  <input type="radio" id="level-senior-ocr" name="level-ocr" value="senior">
+                  <label for="level-senior-ocr" class="level-name">高校生</label>
+                </div>
+                <div class="level-option">
+                  <input type="radio" id="level-university-ocr" name="level-ocr" value="university">
+                  <label for="level-university-ocr" class="level-name">大学生</label>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 生成コンテンツ選択 -->
+            <div class="quiz-settings">
+              <div class="quiz-settings-group">
+                <label class="quiz-settings-label"><i class="fas fa-cogs"></i> 生成する学習コンテンツ</label>
+                <div class="content-toggle-buttons">
+                  <button type="button" id="content-summary-ocr" class="content-toggle-btn active" data-content="summary">
+                    <i class="fas fa-file-alt"></i> 要約
+                  </button>
+                  <button type="button" id="content-explanation-ocr" class="content-toggle-btn active" data-content="explanation">
+                    <i class="fas fa-book-open"></i> 詳しい説明
+                  </button>
+                  <button type="button" id="content-quiz-ocr" class="content-toggle-btn active" data-content="quiz">
+                    <i class="fas fa-question-circle"></i> クイズ
+                  </button>
+                </div>
+              </div>
+            </div>
+          
+            <!-- クイズ設定 -->
+            <div class="quiz-settings" id="quiz-settings-ocr">
+              <div class="quiz-settings-group">
+                <label class="quiz-settings-label"><i class="fas fa-list-ol"></i> 問題数を選択</label>
+                <div class="quiz-options">
+                  <div class="quiz-option">
+                    <input type="radio" id="count-3-ocr" name="questionCount-ocr" value="3" checked>
+                    <label for="count-3-ocr" class="quiz-option-name">3問</label>
+                  </div>
+                  <div class="quiz-option">
+                    <input type="radio" id="count-5-ocr" name="questionCount-ocr" value="5">
+                    <label for="count-5-ocr" class="quiz-option-name">5問</label>
+                  </div>
+                </div>
+              </div>
+              <div class="quiz-settings-group">
+                <label class="quiz-settings-label"><i class="fas fa-check-circle"></i> クイズ形式を選択</label>
+                <div class="quiz-options">
+                  <div class="quiz-option">
+                    <input type="radio" id="type-2-ocr" name="quizType-ocr" value="2">
+                    <label for="type-2-ocr" class="quiz-option-name">2択（はい・いいえ）</label>
+                  </div>
+                  <div class="quiz-option">
+                    <input type="radio" id="type-3-ocr" name="quizType-ocr" value="3">
+                    <label for="type-3-ocr" class="quiz-option-name">3択</label>
+                  </div>
+                  <div class="quiz-option">
+                    <input type="radio" id="type-4-ocr" name="quizType-ocr" value="4" checked>
+                    <label for="type-4-ocr" class="quiz-option-name">4択</label>
+                  </div>
+                  <div class="quiz-option">
+                    <input type="radio" id="type-5-ocr" name="quizType-ocr" value="5">
+                    <label for="type-5-ocr" class="quiz-option-name">5択</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 生成ボタン -->
+            <div class="button-container">
+              <button id="generateContentOcrBtn" class="button"><i class="fas fa-brain"></i> 学習コンテンツ生成</button>
+              <button id="resetContentOcrBtn" class="button"><i class="fas fa-trash"></i> リセット</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
     
-    <!-- クイズ設定 -->
-    <div class="quiz-settings">
-      <div class="quiz-settings-group">
-        <label class="quiz-settings-label"><i class="fas fa-list-ol"></i> 問題数を選択</label>
-        <div class="quiz-options">
-          <div class="quiz-option">
-            <input type="radio" id="count-3" name="questionCount" value="3" checked>
-            <label for="count-3" class="quiz-option-name">3問</label>
-          </div>
-          <div class="quiz-option">
-            <input type="radio" id="count-5" name="questionCount" value="5">
-            <label for="count-5" class="quiz-option-name">5問</label>
+    <!-- テキスト入力タブ -->
+    <div id="content-text" class="tab-content">
+      <!-- 入力エリア -->
+      <div class="input-section">
+        <label for="inputArea" class="input-label"><i class="fas fa-edit"></i> 学習内容を入力</label>
+        <textarea id="inputArea" class="input-area" placeholder="ここに学習内容を入力するか、サンプル入力ボタンや音声録音ボタンを使って入力してください...&#10;&#10;例：&#10;・教科書やノートの内容&#10;・授業で習った内容&#10;・理解したい概念や用語&#10;・復習したい分野"></textarea>
+      </div>
+      
+      <!-- ボタン部分 -->
+      <div class="button-container">
+        <button id="sampleBtn" class="button"><i class="fas fa-file-text"></i> サンプル入力</button>
+        <button id="recordBtn" class="button recording-button"><i class="fas fa-microphone"></i> 音声録音</button>
+        <button id="clearBtn" class="button"><i class="fas fa-trash"></i> クリア</button>
+      </div>
+      
+      <!-- 学習コンテンツ生成セクション -->
+      <div class="content-generation-section">
+        <!-- 理解度レベル選択 -->
+        <div class="level-selection">
+          <label class="level-selection-label"><i class="fas fa-brain"></i> 理解度レベルを選択</label>
+          <div class="level-options">
+            <div class="level-option">
+              <input type="radio" id="level-elementary-low-text" name="level-text" value="elementary-low" checked>
+              <label for="level-elementary-low-text" class="level-name">小学生（低学年）</label>
+            </div>
+            <div class="level-option">
+              <input type="radio" id="level-elementary-mid-text" name="level-text" value="elementary-mid">
+              <label for="level-elementary-mid-text" class="level-name">小学生（中学年）</label>
+            </div>
+            <div class="level-option">
+              <input type="radio" id="level-elementary-high-text" name="level-text" value="elementary-high">
+              <label for="level-elementary-high-text" class="level-name">小学生（高学年）</label>
+            </div>
+            <div class="level-option">
+              <input type="radio" id="level-junior-text" name="level-text" value="junior">
+              <label for="level-junior-text" class="level-name">中学生</label>
+            </div>
+            <div class="level-option">
+              <input type="radio" id="level-senior-text" name="level-text" value="senior">
+              <label for="level-senior-text" class="level-name">高校生</label>
+            </div>
+            <div class="level-option">
+              <input type="radio" id="level-university-text" name="level-text" value="university">
+              <label for="level-university-text" class="level-name">大学生</label>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="quiz-settings-group">
-        <label class="quiz-settings-label"><i class="fas fa-check-circle"></i> クイズ形式を選択</label>
-        <div class="quiz-options">
-          <div class="quiz-option">
-            <input type="radio" id="type-2" name="quizType" value="2" checked>
-            <label for="type-2" class="quiz-option-name">2択（はい・いいえ）</label>
+        
+        <!-- 生成コンテンツ選択 -->
+        <div class="quiz-settings">
+          <div class="quiz-settings-group">
+            <label class="quiz-settings-label"><i class="fas fa-cogs"></i> 生成する学習コンテンツ</label>
+            <div class="content-toggle-buttons">
+              <button type="button" id="content-summary-text" class="content-toggle-btn active" data-content="summary">
+                <i class="fas fa-file-alt"></i> 要約
+              </button>
+              <button type="button" id="content-explanation-text" class="content-toggle-btn active" data-content="explanation">
+                <i class="fas fa-book-open"></i> 詳しい説明
+              </button>
+              <button type="button" id="content-quiz-text" class="content-toggle-btn active" data-content="quiz">
+                <i class="fas fa-question-circle"></i> クイズ
+              </button>
+            </div>
           </div>
-          <div class="quiz-option">
-            <input type="radio" id="type-3" name="quizType" value="3">
-            <label for="type-3" class="quiz-option-name">3択</label>
+        </div>
+      
+        <!-- クイズ設定 -->
+        <div class="quiz-settings" id="quiz-settings-text">
+          <div class="quiz-settings-group">
+            <label class="quiz-settings-label"><i class="fas fa-list-ol"></i> 問題数を選択</label>
+            <div class="quiz-options">
+              <div class="quiz-option">
+                <input type="radio" id="count-3-text" name="questionCount-text" value="3" checked>
+                <label for="count-3-text" class="quiz-option-name">3問</label>
+              </div>
+              <div class="quiz-option">
+                <input type="radio" id="count-5-text" name="questionCount-text" value="5">
+                <label for="count-5-text" class="quiz-option-name">5問</label>
+              </div>
+            </div>
           </div>
-          <div class="quiz-option">
-            <input type="radio" id="type-4" name="quizType" value="4">
-            <label for="type-4" class="quiz-option-name">4択</label>
+          <div class="quiz-settings-group">
+            <label class="quiz-settings-label"><i class="fas fa-check-circle"></i> クイズ形式を選択</label>
+            <div class="quiz-options">
+              <div class="quiz-option">
+                <input type="radio" id="type-2-text" name="quizType-text" value="2">
+                <label for="type-2-text" class="quiz-option-name">2択（はい・いいえ）</label>
+              </div>
+              <div class="quiz-option">
+                <input type="radio" id="type-3-text" name="quizType-text" value="3">
+                <label for="type-3-text" class="quiz-option-name">3択</label>
+              </div>
+              <div class="quiz-option">
+                <input type="radio" id="type-4-text" name="quizType-text" value="4" checked>
+                <label for="type-4-text" class="quiz-option-name">4択</label>
+              </div>
+              <div class="quiz-option">
+                <input type="radio" id="type-5-text" name="quizType-text" value="5">
+                <label for="type-5-text" class="quiz-option-name">5択</label>
+              </div>
+            </div>
           </div>
+        </div>
+        
+        <!-- 生成ボタン -->
+        <div class="button-container">
+          <button id="generateContentTextBtn" class="button"><i class="fas fa-brain"></i> 学習コンテンツ生成</button>
+          <button id="resetContentTextBtn" class="button"><i class="fas fa-trash"></i> リセット</button>
         </div>
       </div>
     </div>
     
-    <!-- 入力エリア -->
-    <div class="input-section">
-      <label for="inputArea" class="input-label"><i class="fas fa-edit"></i> クイズ生成に使う学習内容を入力</label>
-      <textarea id="inputArea" class="input-area" placeholder="ここに学習内容のテキストを入力するか、サンプル入力ボタンや音声録音ボタンを使って入力してください...&#10;&#10;例：&#10;・教科書の内容&#10;・授業のノート&#10;・学習したい内容&#10;・復習したいテーマ"></textarea>
-    </div>
     
-    <!-- ボタン部分 -->
-    <div class="button-container">
-      <button id="sampleBtn" class="button"><i class="fas fa-file-text"></i> サンプル入力</button>
-      <button id="recordBtn" class="button recording-button"><i class="fas fa-microphone"></i> 音声録音</button>
-      <button id="generateQuizBtn" class="button"><i class="fas fa-brain"></i> クイズ生成</button>
-      <button id="resetBtn" class="button"><i class="fas fa-trash"></i> クリア</button>
-      <div id="loadingIndicator" class="loading">
-        <div class="dot-pulse"></div>
-        <span class="loading-text">処理中</span>
-      </div>
+    <!-- 読み込みインジケーター -->
+    <div id="loadingIndicator" class="loading">
+      <div class="dot-pulse"></div>
+      <span class="loading-text">処理中</span>
     </div>
-    
+      
     <!-- クイズ表示エリア -->
     <div id="quizContainer" class="quiz-container" style="display: none;">
       <div class="quiz-header">

@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>共感スペクトラム・メッセンジャー</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .input-section, .output-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            color: #667eea;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            width: 30px;
+            height: 30px;
+            background: #667eea;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+        }
+
+        .language-selector {
+            margin-bottom: 20px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .input-area {
+            margin-bottom: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .primary-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .primary-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .secondary-btn {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .secondary-btn:hover {
+            background: #d0d0d0;
+        }
+
+        .display-modes {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .mode-tab {
+            padding: 10px;
+            text-align: center;
+            background: #f0f0f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mode-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .output-display {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 200px;
+        }
+
+        .emotion-spectrum {
+            margin-top: 20px;
+            padding: 20px;
+            background: linear-gradient(to right, #ffeaa7, #fab1a0, #ff7675);
+            border-radius: 10px;
+            color: white;
+        }
+
+        .emotion-bars {
+            margin-top: 15px;
+        }
+
+        .emotion-bar {
+            margin-bottom: 10px;
+        }
+
+        .emotion-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .emotion-progress {
+            height: 20px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .emotion-fill {
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .cultural-notes {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f4fd;
+            border-radius: 10px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .cultural-notes h4 {
+            color: #2196f3;
+            margin-bottom: 10px;
+        }
+
+        .conversation-history {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .history-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .history-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .timestamp {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .empathy-score {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #28a745;
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .display-modes {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* アニメーション */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+
+        /* ツールチップ */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <div class="header fade-in">
+            <h1>共感スペクトラム・メッセンジャー</h1>
+            <p class="subtitle">心の温度を可視化するAI翻訳対話ツール</p>
+        </div>
+
+        <!-- メインコンテンツ -->
+        <div class="main-content">
+            <!-- 入力セクション -->
+            <div class="input-section fade-in">
+                <h2 class="section-title">
+                    <span class="icon">✍️</span>
+                    入力
+                </h2>
+
+                <div class="language-selector">
+                    <label for="inputLang">入力言語:</label>
+                    <select id="inputLang">
+                        <option value="ja">日本語</option>
+                        <option value="en">English</option>
+                        <option value="zh">中文</option>
+                        <option value="ko">한국어</option>
+                    </select>
+                </div>
+
+                <div class="input-area">
+                    <textarea id="messageInput" placeholder="メッセージを入力してください..."></textarea>
+                </div>
+
+                <div class="button-group">
+                    <button class="primary-btn" onclick="analyzeMessage()">
+                        <span>🔍</span>
+                        分析
+                    </button>
+                    <button class="secondary-btn" onclick="clearInput()">
+                        <span>🗑️</span>
+                        クリア
+                    </button>
+                </div>
+
+                <!-- 音声入力（モック） -->
+                <div class="button-group">
+                    <button class="secondary-btn" onclick="startVoiceRecording()">
+                        <span>🎤</span>
+                        音声入力
+                    </button>
+                </div>
+            </div>
+
+            <!-- 出力セクション -->
+            <div class="output-section fade-in">
+                <h2 class="section-title">
+                    <span class="icon">📊</span>
+                    分析結果
+                </h2>
+
+                <!-- 表示モード切替 -->
+                <div class="display-modes">
+                    <div class="mode-tab active" onclick="switchMode('original')">オリジナル</div>
+                    <div class="mode-tab" onclick="switchMode('translation')">翻訳</div>
+                    <div class="mode-tab" onclick="switchMode('spectrum')">感情スペクトラム</div>
+                </div>
+
+                <!-- 出力表示エリア -->
+                <div class="output-display" id="outputDisplay">
+                    <p style="color: #999; text-align: center;">メッセージを入力して分析ボタンを押してください</p>
+                </div>
+
+                <!-- 感情スペクトラム表示 -->
+                <div class="emotion-spectrum" id="emotionSpectrum" style="display: none;">
+                    <h3>感情分析結果</h3>
+                    <div class="emotion-bars">
+                        <div class="emotion-bar">
+                            <div class="emotion-label">
+                                <span>本心</span>
+                                <span id="sincerityPercent">0%</span>
+                            </div>
+                            <div class="emotion-progress">
+                                <div class="emotion-fill" id="sincerityBar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        <div class="emotion-bar">
+                            <div class="emotion-label">
+                                <span>社交辞令</span>
+                                <span id="politenessPercent">0%</span>
+                            </div>
+                            <div class="emotion-progress">
+                                <div class="emotion-fill" id="politenessBar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        <div class="emotion-bar">
+                            <div class="emotion-label">
+                                <span>感情の強さ</span>
+                                <span id="intensityPercent">0%</span>
+                            </div>
+                            <div class="emotion-progress">
+                                <div class="emotion-fill" id="intensityBar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 文化的注釈 -->
+                <div class="cultural-notes" id="culturalNotes" style="display: none;">
+                    <h4>文化的背景・注意点</h4>
+                    <p id="culturalNotesText"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 会話履歴 -->
+        <div class="conversation-history fade-in">
+            <h2 class="section-title">
+                <span class="icon">📚</span>
+                会話履歴
+            </h2>
+            <div id="historyList">
+                <p style="color: #999; text-align: center;">まだ会話履歴がありません</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // グローバル変数
+        let currentMode = 'original';
+        let conversationHistory = [];
+        let currentAnalysis = null;
+
+        // 感情分析用のキーワード辞書（簡易版）
+        const emotionKeywords = {
+            sincerity: {
+                high: ['本当に', '心から', '誠に', '真剣に', 'really', 'truly', 'honestly', 'genuinely'],
+                low: ['多分', 'おそらく', 'かもしれない', 'maybe', 'perhaps', 'probably']
+            },
+            politeness: {
+                high: ['お願いします', 'ありがとうございます', '恐れ入りますが', 'すみません', 'please', 'thank you', 'excuse me', 'sorry'],
+                low: ['ちょっと', 'まあ', 'だけど', 'but', 'just', 'well']
+            },
+            intensity: {
+                high: ['とても', '非常に', '絶対', '最高', 'very', 'extremely', 'absolutely', 'amazing'],
+                low: ['少し', 'ちょっと', '若干', 'やや', 'a bit', 'slightly', 'somewhat']
+            }
+        };
+
+        // 文化的注釈のデータベース（簡易版）
+        const culturalNotes = {
+            ja: {
+                patterns: {
+                    'すみません': '日本語の「すみません」は謝罪だけでなく、感謝や呼びかけにも使用されます。',
+                    'よろしくお願いします': '日本独特の表現で、協力や好意的な関係を求める際に使用されます。',
+                    'お疲れ様': '労いの言葉として、仕事終わりの挨拶にも使用されます。'
+                }
+            },
+            en: {
+                patterns: {
+                    'How are you': '英語圏では社交的な挨拶として使用され、詳細な返答は期待されていない場合が多いです。',
+                    'Thank you': '感謝の表現は文化により頻度が異なり、英語圏では頻繁に使用されます。'
+                }
+            }
+        };
+
+        // メッセージ分析関数
+        function analyzeMessage() {
+            const input = document.getElementById('messageInput').value;
+            const lang = document.getElementById('inputLang').value;
+            
+            if (!input.trim()) {
+                alert('メッセージを入力してください');
+                return;
+            }
+
+            // 感情分析（簡易版）
+            const analysis = performEmotionAnalysis(input, lang);
+            currentAnalysis = {
+                original: input,
+                language: lang,
+                translation: translateMessage(input, lang),
+                emotions: analysis.emotions,
+                culturalNotes: analysis.culturalNotes,
+                timestamp: new Date()
+            };
+
+            // 結果を表示
+            displayAnalysis(currentAnalysis);
+            
+            // 履歴に追加
+            addToHistory(currentAnalysis);
+            
+            // 感情スペクトラムを表示
+            document.getElementById('emotionSpectrum').style.display = 'block';
+            updateEmotionBars(analysis.emotions);
+            
+            // 文化的注釈を表示
+            if (analysis.culturalNotes) {
+                document.getElementById('culturalNotes').style.display = 'block';
+                document.getElementById('culturalNotesText').textContent = analysis.culturalNotes;
+            }
+        }
+
+        // 簡易感情分析
+        function performEmotionAnalysis(text, lang) {
+            const lowerText = text.toLowerCase();
+            
+            // 感情スコアを計算
+            let sincerity = 50;
+            let politeness = 50;
+            let intensity = 50;
+            
+            // キーワードベースでスコアを調整
+            for (const keyword of emotionKeywords.sincerity.high) {
+                if (lowerText.includes(keyword)) sincerity += 10;
+            }
+            for (const keyword of emotionKeywords.sincerity.low) {
+                if (lowerText.includes(keyword)) sincerity -= 10;
+            }
+            
+            for (const keyword of emotionKeywords.politeness.high) {
+                if (lowerText.includes(keyword)) politeness += 10;
+            }
+            for (const keyword of emotionKeywords.politeness.low) {
+                if (lowerText.includes(keyword)) politeness -= 10;
+            }
+            
+            for (const keyword of emotionKeywords.intensity.high) {
+                if (lowerText.includes(keyword)) intensity += 10;
+            }
+            for (const keyword of emotionKeywords.intensity.low) {
+                if (lowerText.includes(keyword)) intensity -= 10;
+            }
+            
+            // スコアを0-100の範囲に正規化
+            sincerity = Math.max(0, Math.min(100, sincerity));
+            politeness = Math.max(0, Math.min(100, politeness));
+            intensity = Math.max(0, Math.min(100, intensity));
+            
+            // 文化的注釈を検索
+            let culturalNote = '';
+            if (culturalNotes[lang]) {
+                for (const [pattern, note] of Object.entries(culturalNotes[lang].patterns)) {
+                    if (text.includes(pattern)) {
+                        culturalNote = note;
+                        break;
+                    }
+                }
+            }
+            
+            return {
+                emotions: { sincerity, politeness, intensity },
+                culturalNotes: culturalNote
+            };
+        }
+
+        // 簡易翻訳（実際のAPIの代わりにモック）
+        function translateMessage(text, sourceLang) {
+            const translations = {
+                'こんにちは': 'Hello',
+                'ありがとう': 'Thank you',
+                'すみません': 'Excuse me / Sorry',
+                'よろしくお願いします': 'Please treat me well (Japanese cultural expression)',
+                'Hello': 'こんにちは',
+                'Thank you': 'ありがとう',
+                'How are you': 'お元気ですか'
+            };
+            
+            return translations[text] || `[Translation of: ${text}]`;
+        }
+
+        // 分析結果を表示
+        function displayAnalysis(analysis) {
+            const outputDisplay = document.getElementById('outputDisplay');
+            
+            switch (currentMode) {
+                case 'original':
+                    outputDisplay.innerHTML = `
+                        <h3>オリジナルメッセージ</h3>
+                        <p style="font-size: 18px; margin-top: 10px;">${analysis.original}</p>
+                        <p style="color: #666; margin-top: 10px;">言語: ${getLanguageName(analysis.language)}</p>
+                    `;
+                    break;
+                    
+                case 'translation':
+                    outputDisplay.innerHTML = `
+                        <h3>翻訳</h3>
+                        <p style="font-size: 18px; margin-top: 10px;">${analysis.translation}</p>
+                        <p style="color: #666; margin-top: 10px;">オリジナル: ${analysis.original}</p>
+                    `;
+                    break;
+                    
+                case 'spectrum':
+                    outputDisplay.innerHTML = `
+                        <h3>感情スペクトラム分析</h3>
+                        <div style="margin-top: 20px;">
+                            <p><strong>本心度:</strong> ${analysis.emotions.sincerity}%</p>
+                            <p><strong>社交性:</strong> ${analysis.emotions.politeness}%</p>
+                            <p><strong>感情強度:</strong> ${analysis.emotions.intensity}%</p>
+                        </div>
+                        <div style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+                            <p style="font-size: 14px;">このメッセージは${getEmotionDescription(analysis.emotions)}</p>
+                        </div>
+                    `;
+                    break;
+            }
+        }
+
+        // 感情の説明文を生成
+        function getEmotionDescription(emotions) {
+            let description = '';
+            
+            if (emotions.sincerity > 70) {
+                description += '本心から発せられた';
+            } else if (emotions.sincerity < 30) {
+                description += '表面的な';
+            } else {
+                description += '一般的な';
+            }
+            
+            if (emotions.politeness > 70) {
+                description += '、礼儀正しい';
+            } else if (emotions.politeness < 30) {
+                description += '、カジュアルな';
+            }
+            
+            if (emotions.intensity > 70) {
+                description += '、感情の強い';
+            } else if (emotions.intensity < 30) {
+                description += '、穏やかな';
+            }
+            
+            description += 'メッセージです。';
+            
+            return description;
+        }
+
+        // 感情バーを更新
+        function updateEmotionBars(emotions) {
+            // 本心バー
+            document.getElementById('sincerityBar').style.width = emotions.sincerity + '%';
+            document.getElementById('sincerityPercent').textContent = emotions.sincerity + '%';
+            
+            // 社交辞令バー
+            document.getElementById('politenessBar').style.width = emotions.politeness + '%';
+            document.getElementById('politenessPercent').textContent = emotions.politeness + '%';
+            
+            // 感情強度バー
+            document.getElementById('intensityBar').style.width = emotions.intensity + '%';
+            document.getElementById('intensityPercent').textContent = emotions.intensity + '%';
+        }
+
+        // 履歴に追加
+        function addToHistory(analysis) {
+            conversationHistory.unshift(analysis);
+            
+            // ローカルストレージに保存
+            localStorage.setItem('conversationHistory', JSON.stringify(conversationHistory));
+            
+            // 履歴表示を更新
+            updateHistoryDisplay();
+        }
+
+        // 履歴表示を更新
+        function updateHistoryDisplay() {
+            const historyList = document.getElementById('historyList');
+            
+            if (conversationHistory.length === 0) {
+                historyList.innerHTML = '<p style="color: #999; text-align: center;">まだ会話履歴がありません</p>';
+                return;
+            }
+            
+            historyList.innerHTML = conversationHistory.map((item, index) => `
+                <div class="history-item" onclick="loadFromHistory(${index})">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${item.original.substring(0, 30)}${item.original.length > 30 ? '...' : ''}</strong>
+                            <span class="timestamp">${formatTimestamp(item.timestamp)}</span>
+                        </div>
+                        <span class="empathy-score">${calculateEmpathyScore(item.emotions)}%</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 共感スコアを計算（簡易版）
+        function calculateEmpathyScore(emotions) {
+            return Math.round((emotions.sincerity + emotions.politeness + emotions.intensity) / 3);
+        }
+
+        // タイムスタンプをフォーマット
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('ja-JP', { 
+                month: 'short', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+
+        // 履歴から読

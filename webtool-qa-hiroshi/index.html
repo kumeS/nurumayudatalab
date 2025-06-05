@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>なぜを問い続ける - 自己の深淵への探求</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Serif JP', serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            line-height: 1.8;
+        }
+
+        /* 背景の深淵を表現するグラデーション */
+        .background-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, 
+                rgba(20, 20, 40, 0.8) 0%, 
+                rgba(5, 5, 15, 0.95) 50%, 
+                rgba(0, 0, 0, 1) 100%);
+            z-index: -1;
+        }
+
+        /* タイトル部分 */
+        .header {
+            text-align: center;
+            padding: 3rem 2rem;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            margin-bottom: 1rem;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out forwards;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #999;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 0.3s forwards;
+        }
+
+        /* メインコンテナ */
+        .main-container {
+            width: 100%;
+            max-width: 700px;
+            padding: 0 2rem 4rem;
+            flex: 1;
+        }
+
+        /* 初期選択画面 */
+        .theme-selection {
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 0.6s forwards;
+        }
+
+        .theme-title {
+            text-align: center;
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            color: #b0b0b0;
+        }
+
+        .theme-buttons {
+            display: grid;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .theme-button {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #e0e0e0;
+            padding: 1.5rem 2rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 10px;
+            text-align: left;
+            backdrop-filter: blur(10px);
+        }
+
+        .theme-button:hover {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            border-color: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .theme-button h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            font-weight: 400;
+        }
+
+        .theme-button p {
+            font-size: 0.9rem;
+            color: #999;
+            line-height: 1.5;
+        }
+
+        /* 質問セクション */
+        .question-section {
+            display: none;
+            opacity: 0;
+        }
+
+        .question-section.active {
+            display: block;
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+
+        /* 質問履歴 */
+        .conversation-history {
+            margin-bottom: 3rem;
+        }
+
+        .qa-pair {
+            margin-bottom: 2rem;
+            opacity: 0;
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+
+        .question {
+            font-size: 1.1rem;
+            color: #70a0ff;
+            margin-bottom: 0.5rem;
+            font-style: italic;
+        }
+
+        .answer {
+            font-size: 1rem;
+            color: #c0c0c0;
+            padding-left: 1.5rem;
+            border-left: 2px solid rgba(255,255,255,0.1);
+        }
+
+        /* 現在の質問 */
+        .current-question {
+            background: linear-gradient(135deg, rgba(112,160,255,0.1) 0%, rgba(112,160,255,0.05) 100%);
+            border: 1px solid rgba(112,160,255,0.2);
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .question-text {
+            font-size: 1.3rem;
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+            line-height: 1.8;
+        }
+
+        .question-level {
+            font-size: 0.9rem;
+            color: #70a0ff;
+            opacity: 0.7;
+        }
+
+        /* 回答入力エリア */
+        .answer-input-area {
+            margin-bottom: 2rem;
+        }
+
+        .answer-input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #e0e0e0;
+            padding: 1.5rem;
+            font-size: 1.1rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 120px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .answer-input:focus {
+            outline: none;
+            border-color: rgba(112,160,255,0.5);
+            background: rgba(255,255,255,0.08);
+        }
+
+        /* 送信ボタン */
+        .submit-button {
+            background: linear-gradient(135deg, #4a69bd 0%, #3c5aa6 100%);
+            color: white;
+            border: none;
+            padding: 1rem 3rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            letter-spacing: 0.05em;
+        }
+
+        .submit-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(74,105,189,0.3);
+        }
+
+        .submit-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 完了画面 */
+        .completion-section {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+            opacity: 0;
+        }
+
+        .completion-section.active {
+            display: block;
+            animation: fadeIn 1.5s ease-out forwards;
+        }
+
+        .completion-title {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: #70a0ff;
+        }
+
+        .completion-message {
+            font-size: 1.2rem;
+            line-height: 2;
+            color: #c0c0c0;
+            margin-bottom: 3rem;
+        }
+
+        .insight-box {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        .insight-title {
+            font-size: 1.2rem;
+            color: #e0e0e0;
+            margin-bottom: 1rem;
+        }
+
+        .insight-content {
+            color: #999;
+            line-height: 1.8;
+        }
+
+        /* リスタートボタン */
+        .restart-button {
+            background: transparent;
+            color: #70a0ff;
+            border: 1px solid #70a0ff;
+            padding: 1rem 2.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .restart-button:hover {
+            background: rgba(112,160,255,0.1);
+            transform: translateY(-2px);
+        }
+
+        /* アニメーション */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .theme-button {
+                padding: 1.2rem 1.5rem;
+            }
+            
+            .question-text {
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-gradient"></div>
+    
+    <header class="header">
+        <h1>なぜを問い続ける</h1>
+        <p class="subtitle">自己の深淵への探求 - 4つの「なぜ」があなたの本質を明らかにする</p>
+    </header>
+
+    <main class="main-container">
+        <!-- テーマ選択画面 -->
+        <section class="theme-selection" id="themeSelection">
+            <h2 class="theme-title">探求したいテーマを選んでください</h2>
+            <div class="theme-buttons">
+                <button class="theme-button" onclick="startQuestioning('career')">
+                    <h3>キャリア・仕事</h3>
+                    <p>なぜその仕事を選ぶのか、その本質的な動機を探ります</p>
+                </button>
+                <button class="theme-button" onclick="startQuestioning('relationship')">
+                    <h3>人間関係・パートナー</h3>
+                    <p>なぜその人と共にいたいのか、関係性の根源を見つめます</p>
+                </button>
+                <button class="theme-button" onclick="startQuestioning('purpose')">
+                    <h3>人生の目的・夢</h3>
+                    <p>なぜそれを成し遂げたいのか、人生の意味を問います</p>
+                </button>
+                <button class="theme-button" onclick="startQuestioning('custom')">
+                    <h3>自由なテーマ</h3>
+                    <p>あなたが深く探求したい任意のテーマを設定できます</p>
+                </button>
+            </div>
+        </section>
+
+        <!-- 質問セクション -->
+        <section class="question-section" id="questionSection">
+            <div class="conversation-history" id="conversationHistory"></div>
+            
+            <div class="current-question">
+                <div class="question-text" id="currentQuestion"></div>
+                <div class="question-level" id="questionLevel"></div>
+            </div>
+            
+            <div class="answer-input-area">
+                <textarea 
+                    class="answer-input" 
+                    id="answerInput" 
+                    placeholder="あなたの答えをここに書いてください..."
+                ></textarea>
+            </div>
+            
+            <button class="submit-button" id="submitButton" onclick="submitAnswer()">
+                答える
+            </button>
+        </section>
+
+        <!-- 完了画面 -->
+        <section class="completion-section" id="completionSection">
+            <h2 class="completion-title">探求の終わり</h2>
+            <p class="completion-message">
+                あなたは4つの「なぜ」を通じて、自己の深淵に到達しました。<br>
+                この体験があなたに何をもたらしたでしょうか。
+            </p>
+            
+            <div class="insight-box">
+                <h3 class="insight-title">あなたの探求の軌跡</h3>
+                <div class="insight-content" id="insightContent"></div>
+            </div>
+            
+            <button class="restart-button" onclick="restart()">
+                新たな探求を始める
+            </button>
+        </section>
+    </main>
+
+    <script>
+        // グローバル変数
+        let currentTheme = '';
+        let questionLevel = 0;
+        let conversationHistory = [];
+        let customTheme = '';
+
+        // テーマごとの質問テンプレート
+        const questionTemplates = {
+            career: [
+                "なぜその仕事・キャリアを選びたいのですか？",
+                "なぜ「{previous}」ということが、あなたにとって重要なのですか？",
+                "なぜその重要性をあなたは重視するようになったのですか？",
+                "なぜあなたはそもそも、そのような価値観を持つようになったのですか？"
+            ],
+            relationship: [
+                "なぜその人と共にいたい、あるいは関係を持ちたいのですか？",
+                "なぜ「{previous}」ということが、あなたにとって意味を持つのですか？",
+                "なぜその意味があなたの人生において必要だと感じるのですか？",
+                "なぜあなたは、そもそもそのような関係性を求めているのですか？"
+            ],
+            purpose: [
+                "なぜそれを成し遂げたい、あるいは追求したいのですか？",
+                "なぜ「{previous}」ということが、あなたを動かすのですか？",
+                "なぜその動機があなたの存在にとって本質的なのですか？",
+                "なぜあなたは、そもそもそのような目的を持つに至ったのですか？"
+            ],
+            custom: [
+                "{customQuestion}",
+                "なぜ「{previous}」なのですか？",
+                "なぜそれがあなたにとって根本的に重要なのですか？",
+                "なぜあなたは、そもそもそのような考えを持つようになったのですか？"
+            ]
+        };
+
+        // レベルごとの説明
+        const levelDescriptions = [
+            "第1の問い - 表面的な理由",
+            "第2の問い - 個人的な動機",
+            "第3の問い - 深層の信念",
+            "第4の問い - 存在の根源"
+        ];
+
+        // 質問を開始
+        function startQuestioning(theme) {
+            currentTheme = theme;
+            questionLevel = 0;
+            conversationHistory = [];
+            
+            if (theme === 'custom') {
+                customTheme = prompt('探求したいテーマを入力してください：\n例：「なぜ私は成功したいのか」「なぜ私は孤独を恐れるのか」');
+                if (!customTheme) {
+                    return;
+                }
+            }
+            
+            document.getElementById('themeSelection').style.display = 'none';
+            document.getElementById('questionSection').classList.add('active');
+            
+            showNextQuestion();
+        }
+
+        // 次の質問を表示
+        function showNextQuestion() {
+            const questions = questionTemplates[currentTheme];
+            let questionText = questions[questionLevel];
+            
+            // カスタムテーマの場合
+            if (currentTheme === 'custom' && questionLevel === 0) {
+                questionText = customTheme;
+            }
+            
+            // 前の回答を参照する場合
+            if (questionLevel > 0 && questionText.includes('{previous}')) {
+                const previousAnswer = conversationHistory[conversationHistory.length - 1].answer;
+                // 前の回答から核心部分を抽出（最初の20文字程度）
+                const coreAnswer = previousAnswer.length > 40 
+                    ? previousAnswer.substring(0, 40) + '...' 
+                    : previousAnswer;
+                questionText = questionText.replace('{previous}', coreAnswer);
+            }
+            
+            document.getElementById('currentQuestion').textContent = questionText;
+            document.getElementById('questionLevel').textContent = levelDescriptions[questionLevel];
+            document.getElementById('answerInput').value = '';
+            document.getElementById('answerInput').focus();
+        }
+
+        // 回答を送信
+        function submitAnswer() {
+            const answerInput = document.getElementById('answerInput');
+            const answer = answerInput.value.trim();
+            
+            if (!answer) {
+                alert('回答を入力してください。');
+                return;
+            }
+            
+            // 回答を履歴に追加
+            const questionText = document.getElementById('currentQuestion').textContent;
+            conversationHistory.push({
+                question: questionText,
+                answer: answer,
+                level: questionLevel
+            });
+            
+            // 履歴を表示
+            updateConversationHistory();
+            
+            // 次のレベルへ
+            questionLevel++;
+            
+            if (questionLevel >= 4) {
+                // 4回の質問が完了
+                showCompletion();
+            } else {
+                // 次の質問を表示
+                showNextQuestion();
+            }
+        }
+
+        // 会話履歴を更新
+        function updateConversationHistory() {
+            const historyContainer = document.getElementById('conversationHistory');
+            historyContainer.innerHTML = '';
+            
+            conversationHistory.forEach((item, index) => {
+                const qaPair = document.createElement('div');
+                qaPair.className = 'qa-pair';
+                qaPair.style.animationDelay = `${index * 0.1}s`;
+                
+                qaPair.innerHTML = `
+                    <div class="question">${item.question}</div>
+                    <div class="answer">${item.answer}</div>
+                `;
+                
+                historyContainer.appendChild(qaPair);
+            });
+        }
+
+        // 完了画面を表示
+        function showCompletion() {
+            document.getElementById('questionSection').classList.remove('active');
+            document.getElementById('completionSection').classList.add('active');
+            
+            // 洞察を生成
+            generateInsight();
+        }
+
+        // 洞察を生成
+        function generateInsight() {
+            const insightContent = document.getElementById('insightContent');
+            let insight = '<p>あなたの回答の変遷：</p><ul style="list-style: none; padding: 0;">';
+            
+            conversationHistory.forEach((item, index) => {
+                const levelName = levelDescriptions[index].split(' - ')[1];
+                insight += `<li style="margin-bottom: 1rem;">
+                    <strong>${levelName}：</strong><br>
+                    「${item.answer}」
+                </li>`;
+            });
+            
+            insight += '</ul>';
+            
+            // 最後の回答に基づく考察
+            const lastAnswer = conversationHistory[3].answer;
+            if (lastAnswer.length < 20 || lastAnswer.includes('わからない') || lastAnswer.includes('分からない')) {
+                insight += `<p style="margin-top: 2rem; font-style: italic;">
+                    言葉にできない領域に到達しました。<br>
+                    それは、あなたが自己の根源的な不可知性に触れた証かもしれません。
+                </p>`;
+            } else {
+                insight += `<p style="margin-top: 2rem; font-style: italic;">
+                    4つの問いを通じて、あなたは自己の深層に隠された真実に近づきました。<br>
+                    この探求が、あなたの人生に新たな視点をもたらすことを願っています。
+                </p>`;
+            }
+            
+            insightContent.innerHTML = insight;
+        }
+
+        // リスタート
+        function restart() {
+            document.getElementById('completionSection').classList.remove('active');
+            document.getElementById('questionSection').classList.remove('active');
+            document.getElementById('themeSelection').style.display = 'block';
+            
+            // アニメーションのリセット
+            setTimeout(() => {
+                document.getElementById('conversationHistory').innerHTML = '';
+                document.getElementById('completionSection').style.display = 'none';
+                document.getElementById('questionSection').style.display = 'none';
+            }, 500);
+        }
+
+        // Enterキーで送信
+        document.getElementById('answerInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitAnswer();
+            }
+        });
+    </script>
+</body>
+</html>

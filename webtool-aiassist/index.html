@@ -73,6 +73,114 @@
       margin: 0 auto;
       opacity: 0.8;
     }
+
+    /* ページタブ（index2.html スタイル採用） */
+    .page-tabs {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2rem;
+      background-color: #fff;
+      border-radius: 12px 12px 0 0;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+      border: 1px solid #e0e0e0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 1.2rem 2rem;
+      border: none;
+      background-color: #f8f9fa;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all var(--transition-speed);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      border-bottom: 3px solid transparent;
+      position: relative;
+    }
+
+    .tab-btn:hover:not(.active) {
+      background-color: #fff;
+      color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .tab-btn.active {
+      background-color: #fff;
+      color: var(--primary);
+      font-weight: bold;
+      border-bottom: 3px solid var(--primary);
+      box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+      z-index: 1;
+    }
+
+    .tab-btn i {
+      font-size: 1.1rem;
+      opacity: 0.8;
+    }
+
+    .tab-btn.active i {
+      opacity: 1;
+    }
+
+    /* アクションボタン（元のスタイル） */
+    .action-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .action-tab-btn {
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all var(--transition-speed);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--card-bg);
+      color: var(--text-secondary);
+      border: 2px solid var(--border);
+    }
+
+    .action-tab-btn:hover {
+      background: #f8f9fa;
+      color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .action-tab-btn.generate-btn {
+      background: var(--gradient-primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(255, 126, 95, 0.3);
+      border: none;
+    }
+
+    .action-tab-btn.generate-btn:hover {
+      background: var(--gradient-primary);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(255, 126, 95, 0.4);
+    }
+
+    /* ページコンテンツ */
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
     
     /* 履歴アイテム削除ボタン */
     .delete-btn {
@@ -103,6 +211,7 @@
       box-shadow: var(--card-shadow);
       border: 1px solid var(--border);
       transition: box-shadow var(--transition-speed);
+      min-height: 500px;
     }
     
     .panel:hover {
@@ -153,6 +262,18 @@
       background: white;
       box-shadow: 0 0 0 3px rgba(255, 126, 95, 0.1);
     }
+
+    /* RAGが無効時の入力フィールドスタイル */
+    .main-textarea:disabled {
+      background: #e8e8e8;
+      color: #999;
+      border-color: #ddd;
+      cursor: not-allowed;
+    }
+
+    .main-textarea:disabled::placeholder {
+      color: #bbb;
+    }
     
     .char-count {
       position: absolute;
@@ -164,6 +285,55 @@
       padding: 0.3rem 0.6rem;
       border-radius: 6px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* AI生成履歴ページ用スタイル */
+    .history-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .history-panel {
+      background: var(--card-bg);
+      border-radius: 15px;
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid var(--border);
+    }
+
+    .history-item {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border-left: 4px solid var(--primary);
+    }
+
+    .history-item-header {
+      display: flex;
+      justify-content: between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .history-item-date {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .history-item-tags {
+      margin-top: 0.5rem;
+    }
+
+    .history-tag {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      padding: 0.2rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      margin-right: 0.3rem;
+      margin-bottom: 0.3rem;
     }
     
     /* 高度なタスク選択システム */
@@ -217,29 +387,34 @@
     }
     
     .task-btn {
-      padding: 0.7rem 0.5rem;
-      border: 2px solid var(--border);
-      background: var(--card-bg);
-      border-radius: 8px;
+      display: inline-block;
+      padding: 0.6rem 1rem;
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      color: var(--text-secondary);
+      border: 2px solid #e0e0e0;
+      border-radius: 20px;
       cursor: pointer;
-      transition: all var(--transition-speed);
-      font-size: 0.8rem;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      font-size: 0.85rem;
+      white-space: nowrap;
       text-align: center;
       position: relative;
-      font-weight: 500;
     }
     
     .task-btn:hover {
+      background: linear-gradient(135deg, #fff, #f8f9fa);
       border-color: var(--primary);
-      background: #fff5f0;
-      transform: translateY(-2px);
+      color: var(--primary);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
     }
     
     .task-btn.active {
-      border-color: var(--primary);
-      background: var(--primary);
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
       color: white;
-      box-shadow: 0 4px 12px rgba(255, 126, 95, 0.3);
+      border-color: var(--primary);
+      box-shadow: 0 3px 8px rgba(255, 126, 95, 0.3);
     }
     
     
@@ -299,26 +474,38 @@
     }
     
     .style-btn {
-      padding: 0.6rem 0.4rem;
-      border: 2px solid var(--border);
-      background: var(--card-bg);
-      border-radius: 8px;
+      display: inline-block;
+      padding: 0.6rem 1rem;
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      color: var(--text-secondary);
+      border: 2px solid #e0e0e0;
+      border-radius: 20px;
       cursor: pointer;
-      transition: all var(--transition-speed);
+      transition: all 0.3s ease;
+      font-weight: 500;
       font-size: 0.8rem;
       text-align: center;
-      font-weight: 500;
+      line-height: 1.3;
+      min-height: 2.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
     
     .style-btn:hover {
+      background: linear-gradient(135deg, #fff, #f8f9fa);
       border-color: var(--accent);
-      background: #fff7e6;
+      color: var(--accent);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
     }
     
     .style-btn.active {
-      border-color: var(--accent);
-      background: var(--accent);
+      background: linear-gradient(135deg, var(--accent), #7ee8fa);
       color: white;
+      border-color: var(--accent);
+      box-shadow: 0 3px 8px rgba(126, 232, 250, 0.3);
     }
     
     .style-description {
@@ -334,38 +521,41 @@
     
     .language-options {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 0.5rem;
     }
     
     .lang-btn {
-      padding: 0.6rem 0.4rem;
-      border: 2px solid var(--border);
-      background: var(--card-bg);
-      border-radius: 8px;
+      display: inline-block;
+      padding: 0.6rem 1rem;
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      color: var(--text-secondary);
+      border: 2px solid #e0e0e0;
+      border-radius: 20px;
       cursor: pointer;
-      transition: all var(--transition-speed);
-      font-size: 0.8rem;
-      text-align: center;
+      transition: all 0.3s ease;
       font-weight: 500;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      text-align: center;
     }
     
     .lang-btn:hover {
+      background: linear-gradient(135deg, #fff, #f8f9fa);
       border-color: var(--secondary);
-      background: #f0f7ff;
+      color: var(--secondary);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
     }
     
     .lang-btn.active {
-      border-color: var(--secondary);
-      background: var(--secondary);
+      background: linear-gradient(135deg, var(--secondary), #feb47b);
       color: white;
+      border-color: var(--secondary);
+      box-shadow: 0 3px 8px rgba(254, 180, 123, 0.3);
     }
     
-    .lang-accuracy {
-      font-size: 0.7rem;
-      color: var(--success);
-      font-weight: 600;
-    }
+
     
     /* 革新的出力制御 */
     .output-controls {
@@ -376,35 +566,186 @@
     }
     
     .control-btn {
-      padding: 0.6rem 0.8rem;
-      border: 1px solid var(--border);
-      background: var(--card-bg);
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all var(--transition-speed);
-      font-size: 0.8rem;
-      text-align: center;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
+      padding: 0.6rem 1rem;
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      color: var(--text-secondary);
+      border: 2px solid #e0e0e0;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
       font-weight: 500;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      text-align: center;
+      gap: 0.3rem;
     }
     
     .control-btn:hover {
-      background: var(--primary);
-      color: white;
-      transform: translateY(-2px);
+      background: linear-gradient(135deg, #fff, #f8f9fa);
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
     }
     
     .control-btn i {
-      margin-right: 0.3rem;
       font-size: 0.9rem;
+      opacity: 0.8;
     }
     
     /* 情報統合システム */
     .info-panel {
+      min-height: 200px;
       max-height: 300px;
       overflow-y: auto;
+    }
+    
+    .info-history {
+      min-height: 150px;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    /* RAG制御パネル */
+    .rag-control {
+      margin-bottom: 1rem;
+      padding: 0.8rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    
+    .rag-toggle-container {
+      margin-top: 0.5rem;
+    }
+    
+    .rag-toggle-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .rag-toggle-btn {
+      position: relative;
+      width: 80px;
+      height: 40px;
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      background: #e0e0e0;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+    
+    .rag-toggle-btn.active {
+      background: var(--success);
+      border-color: var(--success);
+    }
+    
+    .toggle-indicator {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 32px;
+      height: 32px;
+      background: white;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .rag-toggle-btn.active .toggle-indicator {
+      transform: translateX(40px);
+    }
+    
+    .toggle-labels {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      padding: 0 8px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      pointer-events: none;
+    }
+    
+    .toggle-on {
+      color: white;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .toggle-off {
+      color: #666;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+    
+    .rag-toggle-btn.active .toggle-on {
+      opacity: 1;
+    }
+    
+    .rag-toggle-btn.active .toggle-off {
+      opacity: 0;
+    }
+    
+    .rag-status {
+      flex: 1;
+    }
+    
+    .status-active {
+      color: var(--success);
+      font-weight: 600;
+    }
+    
+    .status-inactive {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* 情報統合操作パネル */
+    .info-controls {
+      margin-top: 1rem;
+    }
+    
+    .control-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    
+    .control-buttons .control-btn {
+      padding: 0.6rem 0.8rem;
+      font-size: 0.85rem;
+      border: 2px solid var(--border);
+      background: var(--card-bg);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+    }
+    
+    .control-buttons .control-btn:hover {
+      border-color: var(--primary);
+      background: #f0f7ff;
+      transform: translateY(-1px);
+    }
+    
+    .control-buttons .control-btn:active {
+      transform: translateY(0);
     }
     
     .info-history {
@@ -786,9 +1127,63 @@
       <div class="description">業務効率を最大90%向上させる革新的AIアシスタント</div>
     </div>
     
+    <!-- ページタブ -->
+    <div class="page-tabs">
+      <button class="tab-btn active" data-page="todo">
+        <i class="fas fa-tasks"></i>
+        業務ToDo
+      </button>
+      <button class="tab-btn" data-page="history">
+        <i class="fas fa-history"></i>
+        AI生成履歴
+      </button>
+      <button class="tab-btn" data-page="settings">
+        <i class="fas fa-cog"></i>
+        設定
+      </button>
+    </div>
+
+    <!-- 業務ToDoページ -->
+    <div id="todoPage" class="page active">
+      <!-- アクションボタンパネル -->
+      <div class="action-buttons">
+        <button id="generateBtn" class="action-tab-btn generate-btn">
+          <i class="fas fa-magic"></i> AI生成
+        </button>
+        <button id="resetBtn" class="action-tab-btn">
+          <i class="fas fa-refresh"></i> リセット
+        </button>
+        <button id="saveSessionBtn" class="action-tab-btn">
+          <i class="fas fa-save"></i> セッション保存
+        </button>
+      </div>
+
+      <!-- ローディングインジケーター -->
+      <div id="loadingIndicator" class="loading-indicator" style="margin-bottom: 1rem;">
+        <div class="spinner"></div>
+        <div style="margin-top: 0.5rem;">AIが高品質な文章を生成中...</div>
+      </div>
 
     <!-- メインレイアウト -->
-    <div class="main-layout">
+    <div class="main-layout" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+      <style>
+        @media (max-width: 1200px) {
+          .main-layout {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          .main-layout .panel:nth-child(3) {
+            grid-column: 1 / -1;
+          }
+        }
+        @media (max-width: 768px) {
+          .main-layout {
+            grid-template-columns: 1fr !important;
+          }
+          .main-layout .panel {
+            grid-column: 1 !important;
+          }
+        }
+      </style>
       <!-- ToDo入力パネル -->
       <div class="panel fade-in">
         <div class="panel-header">
@@ -915,52 +1310,30 @@
       </div>
     </div>
     
-        <!-- 多言語対応強化 -->
+        <!-- 多言語対応 -->
         <div class="language-selection">
           <div class="section-title">
             <i class="fas fa-globe"></i>
-            多言語対応（精度98%）
+            出力言語
           </div>
           <div class="language-options">
             <div class="lang-btn active" data-lang="auto">
               <div>🤖 自動判定</div>
-              <div class="lang-accuracy">98%精度</div>
             </div>
             <div class="lang-btn" data-lang="ja">
               <div>🇯🇵 日本語</div>
-              <div class="lang-accuracy">方言対応</div>
             </div>
             <div class="lang-btn" data-lang="en">
               <div>🇺🇸 English</div>
-              <div class="lang-accuracy">US/UK対応</div>
             </div>
             <div class="lang-btn" data-lang="zh">
-              <div>🇨🇳 中文</div>
-              <div class="lang-accuracy">簡繁対応</div>
+              <div>🇨🇳 简体中文</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- コントロールパネル -->
-      <div class="panel fade-in" style="margin-bottom: 2rem;">
-        <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-          <button id="generateBtn" class="btn btn-primary">
-            <i class="fas fa-magic"></i> AI生成
-          </button>
-          <button id="resetBtn" class="btn btn-secondary">
-            <i class="fas fa-refresh"></i> リセット
-          </button>
-          <button id="saveSessionBtn" class="btn btn-secondary">
-            <i class="fas fa-save"></i> セッション保存
-          </button>
-        </div>
 
-        <div id="loadingIndicator" class="loading-indicator">
-          <div class="spinner"></div>
-          <div style="margin-top: 0.5rem;">AIが高品質な文章を生成中...</div>
-        </div>
-      </div>
 
       <!-- 情報統合パネル -->
       <div class="panel fade-in">
@@ -974,29 +1347,58 @@
           <div id="infoCharCount" class="char-count">0文字</div>
         </div>
 
+        <!-- RAG使用制御 -->
+        <div class="rag-control">
+          <div class="section-title">
+            <i class="fas fa-toggle-on"></i>
+            RAG機能制御
+          </div>
+          <div class="rag-toggle-container">
+            <div class="rag-toggle-wrapper">
+              <button id="ragToggleBtn" class="rag-toggle-btn active" data-rag-enabled="true">
+                <div class="toggle-indicator"></div>
+                <div class="toggle-labels">
+                  <span class="toggle-on">ON</span>
+                  <span class="toggle-off">OFF</span>
+                </div>
+              </button>
+              <div class="rag-status">
+                <span id="ragStatusText" class="status-active">RAG機能有効 - 履歴に保存されます</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+
+        <!-- インテリジェント履歴管理 -->
         <div class="info-panel">
           <div class="section-title">
             <i class="fas fa-history"></i>
-            インテリジェント履歴管理
+            インテリジェント履歴管理（自動保存）
           </div>
           <div id="infoHistory" class="info-history">
             <!-- 動的に生成される情報履歴 -->
           </div>
         </div>
 
-        <div class="output-controls">
-          <button id="saveInfoBtn" class="control-btn">
-            <i class="fas fa-save"></i> 保存
-          </button>
-          <button id="importInfoBtn" class="control-btn">
-            <i class="fas fa-file-import"></i> インポート
-          </button>
-          <button id="exportInfoBtn" class="control-btn">
-            <i class="fas fa-file-export"></i> エクスポート
-          </button>
-          <button id="clearInfoBtn" class="control-btn">
-            <i class="fas fa-trash"></i> クリア
-          </button>
+        <!-- 情報統合操作パネル -->
+        <div class="info-controls">
+          <div class="section-title">
+            <i class="fas fa-cogs"></i>
+            データ管理操作
+          </div>
+          <div class="control-buttons">
+            <button id="importInfoBtn" class="control-btn">
+              <i class="fas fa-file-import"></i> インポート
+            </button>
+            <button id="exportInfoBtn" class="control-btn">
+              <i class="fas fa-file-export"></i> エクスポート
+            </button>
+            <button id="clearInfoBtn" class="control-btn">
+              <i class="fas fa-trash"></i> クリア
+            </button>
+          </div>
         </div>
         
         <input type="file" id="infoFileInput" accept=".json" style="display: none;">
@@ -1013,14 +1415,14 @@
           <div id="outputContent" class="output-content">ここに生成された文章が表示されます...</div>
         </div>
 
-        <!-- AI自動タグ表示 -->
+        <!-- 出力方式表示 -->
         <div class="tag-display">
           <div class="section-title">
-            <i class="fas fa-tags"></i>
-            25種類AI自動タグ
+            <i class="fas fa-cogs"></i>
+            出力方式
           </div>
           <div id="tagDisplay">
-            <!-- 動的に生成されるタグ -->
+            <!-- 動的に生成される出力方式タグ -->
           </div>
         </div>
 
@@ -1063,57 +1465,221 @@
       </div>
     </div>
 
-    <!-- 時間削減計算パネル -->
-    <div class="panel fade-in" style="margin-bottom: 1rem;">
-      <div class="panel-header">
-        <i class="fas fa-clock"></i>
-        <span class="panel-title">リアルタイム作業時間削減計算</span>
+
+
+      <!-- 時間削減計算パネル -->
+      <div class="panel fade-in" style="margin-bottom: 1rem;">
+        <div class="panel-header">
+          <i class="fas fa-clock"></i>
+          <span class="panel-title">リアルタイム作業時間削減計算</span>
+        </div>
+        
+        <div class="time-calculator-content">
+          <div class="calculation-display">
+            <div class="time-estimate-grid">
+              <div class="time-estimate-item">
+                <div class="estimate-label">従来の作業時間</div>
+                <div id="manualTime" class="estimate-value">15分</div>
+                <div class="estimate-details">手動での作業時間</div>
+              </div>
+              <div class="time-estimate-item">
+                <div class="estimate-label">AI支援作業時間</div>
+                <div id="aiTime" class="estimate-value">3分</div>
+                <div class="estimate-details">AI支援での作業時間</div>
+              </div>
+              <div class="time-estimate-item highlight">
+                <div class="estimate-label">削減時間</div>
+                <div id="savedTime" class="estimate-value savings">12分</div>
+                <div class="estimate-details">効率化により短縮</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      
-      <div class="time-calculator-content">
-        <div class="calculation-display">
-          <div class="time-estimate-grid">
-            <div class="time-estimate-item">
-              <div class="estimate-label">従来の作業時間</div>
-              <div id="manualTime" class="estimate-value">15分</div>
-              <div class="estimate-details">手動での作業時間</div>
-            </div>
-            <div class="time-estimate-item">
-              <div class="estimate-label">AI支援作業時間</div>
-              <div id="aiTime" class="estimate-value">3分</div>
-              <div class="estimate-details">AI支援での作業時間</div>
-            </div>
-            <div class="time-estimate-item highlight">
-              <div class="estimate-label">削減時間</div>
-              <div id="savedTime" class="estimate-value savings">12分</div>
-              <div class="estimate-details">効率化により短縮</div>
-            </div>
+    </div>
+
+    <!-- AI生成履歴ページ -->
+    <div id="historyPage" class="page">
+      <div class="history-container">
+        <div class="history-panel">
+          <div class="panel-header">
+            <i class="fas fa-history"></i>
+            <span class="panel-title">革新的出力制御システム - 生成履歴</span>
           </div>
           
-        </div>
-        
-        <div class="personal-settings">
           <div class="section-title">
-            <i class="fas fa-user-cog"></i>
-            個人設定最適化
+            <i class="fas fa-search"></i>
+            履歴検索・フィルター
           </div>
-          <div class="settings-grid">
-            <div class="setting-item">
-              <label>入力速度 (文字/分)</label>
-              <input type="number" id="typingSpeed" value="40" min="10" max="100">
+          
+          <div style="margin-bottom: 2rem;">
+            <input type="text" id="historySearch" placeholder="履歴を検索..." 
+                   style="width: 100%; padding: 0.8rem; border: 2px solid var(--border); border-radius: 10px; font-size: 1rem;">
+          </div>
+          
+          <div id="historyList" class="history-list">
+            <div class="history-item">
+              <div class="history-item-header">
+                <div style="flex: 1;">
+                  <h4 style="margin: 0 0 0.5rem 0; color: var(--primary);">サンプル出力履歴</h4>
+                  <div class="history-item-date">2024年6月5日 20:00</div>
+                </div>
+                <button class="delete-btn"><i class="fas fa-trash"></i></button>
+              </div>
+              <div style="color: var(--text-secondary); margin-bottom: 1rem;">
+                <strong>入力:</strong> メール作成のサンプルタスク
+              </div>
+              <div style="background: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                <strong>出力:</strong><br>
+                件名: 会議の件について<br><br>
+                いつもお世話になっております。<br>
+                来週の会議についてご連絡いたします。<br>
+                詳細は添付資料をご確認ください。<br><br>
+                よろしくお願いいたします。
+              </div>
+              <div class="history-item-tags">
+                <span class="history-tag">メール</span>
+                <span class="history-tag">ビジネス</span>
+                <span class="history-tag">会議</span>
+              </div>
             </div>
-            <div class="setting-item">
-              <label>経験レベル</label>
-              <select id="experienceLevel">
-                <option value="0.8">初心者</option>
-                <option value="1.0" selected>中級者</option>
-                <option value="1.2">上級者</option>
-                <option value="1.5">エキスパート</option>
-              </select>
+            
+            <!-- 追加の履歴アイテムがここに動的に生成されます -->
+          </div>
+          
+          <div style="text-align: center; margin-top: 2rem; color: var(--text-secondary);">
+            <i class="fas fa-info-circle"></i>
+            生成された出力は自動的にここに保存されます
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 設定ページ -->
+    <div id="settingsPage" class="page">
+      <div class="history-container">
+        <div class="history-panel">
+          <div class="panel-header">
+            <i class="fas fa-cog"></i>
+            <span class="panel-title">システム設定</span>
+          </div>
+          
+          <!-- 個人設定最適化 -->
+          <div class="personal-settings" style="margin-bottom: 2rem;">
+            <div class="section-title">
+              <i class="fas fa-user-cog"></i>
+              個人設定最適化
+            </div>
+            <div class="settings-grid">
+              <div class="setting-item">
+                <label>入力速度 (文字/分)</label>
+                <input type="number" id="typingSpeed" value="40" min="10" max="100">
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.3rem;">
+                  日本語での平均的な入力速度を設定してください
+                </div>
+              </div>
+              <div class="setting-item">
+                <label>経験レベル</label>
+                <select id="experienceLevel">
+                  <option value="0.8">初心者</option>
+                  <option value="1.0" selected>中級者</option>
+                  <option value="1.2">上級者</option>
+                  <option value="1.5">エキスパート</option>
+                </select>
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.3rem;">
+                  業務経験に応じて効率化係数が調整されます
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI設定 -->
+          <div style="margin-bottom: 2rem;">
+            <div class="section-title">
+              <i class="fas fa-brain"></i>
+              AI動作設定
+            </div>
+            <div class="settings-grid">
+              <div class="setting-item">
+                <label>生成品質レベル</label>
+                <select id="qualityLevel">
+                  <option value="fast">高速生成 (品質: 標準)</option>
+                  <option value="balanced" selected>バランス (品質: 高)</option>
+                  <option value="high">高品質 (品質: 最高)</option>
+                </select>
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.3rem;">
+                  生成速度と品質のバランスを調整します
+                </div>
+              </div>
+              <div class="setting-item">
+                <label>自動保存間隔</label>
+                <select id="autoSaveInterval">
+                  <option value="1">1秒</option>
+                  <option value="3">3秒</option>
+                  <option value="5" selected>5秒</option>
+                  <option value="10">10秒</option>
+                  <option value="0">無効</option>
+                </select>
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.3rem;">
+                  作業内容の自動保存頻度を設定します
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 表示設定 -->
+          <div style="margin-bottom: 2rem;">
+            <div class="section-title">
+              <i class="fas fa-palette"></i>
+              表示設定
+            </div>
+            <div class="settings-grid">
+
+              <div class="setting-item">
+                <label>フォントサイズ</label>
+                <select id="fontSize">
+                  <option value="small">小</option>
+                  <option value="medium" selected>中</option>
+                  <option value="large">大</option>
+                  <option value="xl">特大</option>
+                </select>
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.3rem;">
+                  文字サイズを調整します
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- データ管理 -->
+          <div style="margin-bottom: 2rem;">
+            <div class="section-title">
+              <i class="fas fa-database"></i>
+              データ管理
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <button class="control-btn" id="exportAllDataBtn">
+                <i class="fas fa-download"></i> 全データエクスポート
+              </button>
+              <button class="control-btn" id="importAllDataBtn">
+                <i class="fas fa-upload"></i> 全データインポート
+              </button>
+              <button class="control-btn" id="clearAllDataBtn" style="background: var(--danger); color: white;">
+                <i class="fas fa-trash"></i> 全データクリア
+              </button>
+            </div>
+            <input type="file" id="allDataFileInput" accept=".json" style="display: none;">
+          </div>
+
+          <!-- 設定保存 -->
+          <div style="text-align: center; padding: 1rem; background: #f8f9fa; border-radius: 10px;">
+            <button class="btn btn-primary" id="saveSettingsBtn">
+              <i class="fas fa-save"></i> 設定を保存
+            </button>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
+              設定は自動的に保存されますが、手動保存も可能です
             </div>
           </div>
         </div>
-        
       </div>
     </div>
 

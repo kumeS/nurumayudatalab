@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ぬるっと旅行・冒険プランナー｜AI活用旅行企画ツール</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #4a90e2;
+      --secondary: #7b68ee;
+      --accent: #ff6b6b;
+      --travel-gold: #f39c12;
+      --travel-green: #27ae60;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+    }
+    
+    body { 
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 50%, #fff3e0 100%);
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    h1 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+    }
+    
+    .description {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    
+    .tabs {
+      display: flex;
+      background-color: #fff;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 1rem;
+      text-align: center;
+      background-color: #f8f9fa;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+    }
+    
+    .tab:hover {
+      background-color: #fff;
+      color: var(--primary);
+    }
+    
+    .tab.active {
+      background-color: #fff;
+      color: var(--primary);
+      font-weight: bold;
+      border-bottom: 3px solid var(--primary);
+      /* Make the active tab more distinct */
+      box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .model-selection {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .model-selection-label {
+      font-weight: bold;
+      margin-right: 1rem;
+      color: var(--text-primary);
+    }
+    
+    .model-option {
+      display: flex;
+      align-items: center;
+      margin-right: 0.5rem;
+    }
+    
+    .model-name {
+      margin-left: 0.5rem;
+      color: var(--text-primary);
+    }
+    
+    .model-note {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-left: 0.5rem;
+    }
+    
+    .input-area {
+      width: 100%;
+      min-height: 150px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      resize: vertical;
+      font-size: 1rem;
+      font-family: inherit;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .button-container, .button-group {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 1.5rem;
+    }
+    
+    .button {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.6rem 1.2rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .button i {
+      margin-right: 0.5rem;
+    }
+    
+    .copy-success {
+      background: linear-gradient(135deg, #4CAF50, #8BC34A) !important;
+    }
+    
+    .speak-active {
+      background: linear-gradient(135deg, #2196F3, #03A9F4) !important;
+    }
+    
+    .speak-disabled {
+      background: linear-gradient(135deg, #9E9E9E, #BDBDBD) !important;
+      cursor: not-allowed;
+    }
+    
+    .output-container {
+      margin-bottom: 2rem;
+    }
+    
+    .output-section {
+      margin-bottom: 1.5rem;
+    }
+    
+    .output-area {
+      width: 100%;
+      min-height: 100px;
+      padding: 1rem;
+      margin-top: 0.5rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      resize: vertical;
+      font-size: 1rem;
+      font-family: inherit;
+      box-shadow: var(--card-shadow);
+    }
+    
+    h3 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .review-output {
+      background-color: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+      min-height: 50px;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    
+    /* 校閲結果のスタイル強化 */
+    .review-output h4 {
+      color: var(--primary);
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+      border-bottom: 1px solid rgba(255, 126, 95, 0.2);
+      padding-bottom: 0.3rem;
+    }
+    
+    .review-output ol, .review-output ul {
+      padding-left: 1.5rem;
+      margin-bottom: 0.8rem;
+    }
+    
+    .review-output li {
+      margin-bottom: 0.5rem;
+    }
+    
+    .review-output strong {
+      color: var(--primary);
+    }
+    
+    /* 変更箇所ハイライト用スタイル */
+    .diff-removed {
+      background-color: #ffecec;
+      color: #b30000;
+      text-decoration: line-through;
+      padding: 1px 3px;
+      border-radius: 2px;
+    }
+    
+    .diff-added {
+      background-color: #eaffea;
+      color: #006b00;
+      font-weight: bold;
+      padding: 1px 3px;
+      border-radius: 2px;
+    }
+    
+    /* 入力欄のハイライト効果 */
+    @keyframes highlight-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(255, 126, 95, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0); }
+    }
+    
+    .highlight-input {
+      animation: highlight-pulse 1s ease-in-out;
+      border-color: var(--primary);
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      color: var(--primary);
+      text-decoration: none;
+      margin-top: 1rem;
+      transition: all 0.3s;
+    }
+    
+    .back-link:hover {
+      color: var(--secondary);
+    }
+    
+    .back-link i {
+      margin-right: 0.5rem;
+    }
+    
+    .loading {
+      display: none; /* 初期状態は非表示 */
+      margin-left: 10px;
+      font-size: 0.9rem;
+      align-items: center;
+    }
+    
+    /* 表示時はflex */
+    .loading.active {
+      display: flex;
+    }
+    
+    .loading-text {
+      margin-left: 8px;
+      color: var(--primary);
+      position: relative;
+    }
+    
+    .loading-text:after {
+      content: '...';
+      position: absolute;
+      width: 24px;
+      text-align: left;
+      animation: dots 1.5s infinite;
+    }
+    
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+    }
+    
+    .dot-pulse {
+      position: relative;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+      50% {
+        transform: scale(1.2);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+    }
+    
+    .usage-guide {
+      background-color: #fff;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .usage-guide h3 {
+      margin-top: 0;
+    }
+    
+    .guide-step {
+      display: flex;
+      margin-bottom: 1rem;
+    }
+    
+    .step-number {
+      background-color: var(--primary);
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      font-weight: bold;
+    }
+    
+    .toggle-guide {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 1rem;
+      color: var(--primary);
+    }
+    
+    .toggle-guide i {
+      margin-right: 0.5rem;
+    }
+    
+    .warning {
+      background-color: #fff3cd;
+      color: #856404;
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ffeeba;
+      border-radius: 0.25rem;
+    }
+    
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1rem;
+      border: 1px solid #f5c6cb;
+      border-radius: 0.25rem;
+    }
+    
+    /* 使い方アコーディオンのスタイル */
+    .instruction-box {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+      background-color: #fff;
+    }
+    
+    .instruction-toggle {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      cursor: pointer;
+      background-color: #f8f9fa;
+      transition: all 0.3s ease;
+    }
+    
+    .instruction-toggle.active {
+      background-color: #f0f0f0;
+    }
+    
+    .instruction-toggle i {
+      margin-right: 0.8rem;
+      transition: transform 0.3s ease;
+    }
+    
+    .instruction-toggle.active i {
+      transform: rotate(180deg);
+    }
+    
+    .instruction-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    
+    .instruction-content.show {
+      max-height: 1000px;
+      padding: 1rem;
+    }
+    
+    .step {
+      margin-bottom: 1rem;
+    }
+    
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background-color: var(--primary);
+      color: white;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      font-weight: bold;
+    }
+    
+    /* Travel-specific styles */
+    .step-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--card-shadow);
+      border-left: 4px solid var(--primary);
+    }
+    
+    .step-title {
+      display: flex;
+      align-items: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--primary);
+      margin-bottom: 1rem;
+    }
+    
+    .step-title i {
+      margin-right: 0.8rem;
+      font-size: 1.5rem;
+    }
+    
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .option-card {
+      background: #f8f9fa;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      text-align: center;
+    }
+    
+    .option-card:hover {
+      border-color: var(--primary);
+      background: #e3f2fd;
+      transform: translateY(-2px);
+    }
+    
+    .option-card.selected {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, rgba(74, 144, 226, 0.1), rgba(123, 104, 238, 0.1));
+    }
+    
+    .option-card i {
+      font-size: 2rem;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .travel-output {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--card-shadow);
+      min-height: 200px;
+    }
+    
+    .travel-story {
+      line-height: 1.8;
+      font-size: 1.1rem;
+    }
+    
+    .travel-tips {
+      background: linear-gradient(135deg, #fff3e0, #ffeaa7);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      border-left: 4px solid var(--travel-gold);
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      width: 0%;
+      transition: width 0.5s ease;
+    }
+    
+    @media (max-width: 600px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      .tab {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+      }
+      
+      .button-container {
+        flex-wrap: wrap;
+      }
+      
+      .option-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><i class="fas fa-globe-americas"></i> ぬるっと旅行・冒険プランナー</h1>
+      <p class="description">AI活用旅行企画ツール｜理想の旅プランを生成・可視化</p>
+    </div>
+    
+    <div class="usage-guide">
+      <div class="toggle-guide">
+        <i class="fas fa-info-circle"></i>
+        <h3>使い方を表示</h3>
+      </div>
+      <div class="guide-content" style="display: none;">
+        <div class="guide-step">
+          <div class="step-number">1</div>
+          <div>
+            <strong>旅の目的選択:</strong> どんな旅にしたいかを選んでください
+            <ul>
+              <li>癒し・リラックス系の旅</li>
+              <li>冒険・アクティブ系の旅</li>
+              <li>グルメ・食文化中心の旅</li>
+              <li>歴史・文化探訪の旅</li>
+            </ul>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-number">2</div>
+          <div>
+            <strong>同行者・行き先・予算:</strong> 各ステップで選択肢を選んでください
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-number">3</div>
+          <div>
+            <strong>プラン生成:</strong> AIが選択に基づいて旅行記を作成
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-number">4</div>
+          <div>
+            <strong>結果確認:</strong> 生成された旅行プランと豆知識を確認
+            <ul>
+              <li>旅行ストーリー: 物語仕立ての旅行記</li>
+              <li>観光Tips: 現地の豆知識とアドバイス</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <!-- ステップ1: 旅の目的選択 -->
+    <div class="step-card" id="step1">
+      <div class="step-title">
+        <i class="fas fa-heart"></i>
+        どんな旅にしたいですか？
+      </div>
+      <div class="option-grid">
+        <div class="option-card" data-purpose="healing">
+          <i class="fas fa-spa"></i>
+          <div><strong>癒し・リラックス</strong></div>
+          <div>温泉や自然でゆったり</div>
+        </div>
+        <div class="option-card" data-purpose="adventure">
+          <i class="fas fa-mountain"></i>
+          <div><strong>冒険・アクティブ</strong></div>
+          <div>アウトドアや体験活動</div>
+        </div>
+        <div class="option-card" data-purpose="gourmet">
+          <i class="fas fa-utensils"></i>
+          <div><strong>グルメ・食文化</strong></div>
+          <div>現地料理や食べ歩き</div>
+        </div>
+        <div class="option-card" data-purpose="culture">
+          <i class="fas fa-university"></i>
+          <div><strong>歴史・文化探訪</strong></div>
+          <div>遺跡や美術館めぐり</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ステップ2: 同行者選択 -->
+    <div class="step-card" id="step2" style="display: none;">
+      <div class="step-title">
+        <i class="fas fa-users"></i>
+        誰と一緒に行きますか？
+      </div>
+      <div class="option-grid">
+        <div class="option-card" data-companion="solo">
+          <i class="fas fa-user"></i>
+          <div><strong>ひとり旅</strong></div>
+          <div>自由気ままな旅</div>
+        </div>
+        <div class="option-card" data-companion="couple">
+          <i class="fas fa-heart"></i>
+          <div><strong>恋人・パートナー</strong></div>
+          <div>ロマンチックな旅</div>
+        </div>
+        <div class="option-card" data-companion="family">
+          <i class="fas fa-home"></i>
+          <div><strong>家族</strong></div>
+          <div>みんなで楽しむ旅</div>
+        </div>
+        <div class="option-card" data-companion="friends">
+          <i class="fas fa-user-friends"></i>
+          <div><strong>友人・グループ</strong></div>
+          <div>みんなでワイワイ</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ステップ3: 行き先選択 -->
+    <div class="step-card" id="step3" style="display: none;">
+      <div class="step-title">
+        <i class="fas fa-map-marked-alt"></i>
+        どこに行きたいですか？
+      </div>
+      <div class="option-grid">
+        <div class="option-card" data-destination="domestic">
+          <i class="fas fa-torii-gate"></i>
+          <div><strong>国内</strong></div>
+          <div>日本の魅力再発見</div>
+        </div>
+        <div class="option-card" data-destination="asia">
+          <i class="fas fa-globe-asia"></i>
+          <div><strong>アジア</strong></div>
+          <div>近場で異文化体験</div>
+        </div>
+        <div class="option-card" data-destination="europe">
+          <i class="fas fa-landmark"></i>
+          <div><strong>ヨーロッパ</strong></div>
+          <div>歴史と芸術の旅</div>
+        </div>
+        <div class="option-card" data-destination="other">
+          <i class="fas fa-plane"></i>
+          <div><strong>その他の地域</strong></div>
+          <div>未知の世界へ</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ステップ4: 予算選択 -->
+    <div class="step-card" id="step4" style="display: none;">
+      <div class="step-title">
+        <i class="fas fa-yen-sign"></i>
+        どれくらいの予算ですか？
+      </div>
+      <div class="option-grid">
+        <div class="option-card" data-budget="budget">
+          <i class="fas fa-piggy-bank"></i>
+          <div><strong>エコノミー</strong></div>
+          <div>節約しながら楽しく</div>
+        </div>
+        <div class="option-card" data-budget="standard">
+          <i class="fas fa-credit-card"></i>
+          <div><strong>スタンダード</strong></div>
+          <div>一般的な旅行予算</div>
+        </div>
+        <div class="option-card" data-budget="luxury">
+          <i class="fas fa-gem"></i>
+          <div><strong>ラグジュアリー</strong></div>
+          <div>贅沢な体験を重視</div>
+        </div>
+        <div class="option-card" data-budget="unlimited">
+          <i class="fas fa-crown"></i>
+          <div><strong>プレミアム</strong></div>
+          <div>最高級の旅</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 生成ボタン -->
+    <div class="button-container" id="generateSection" style="display: none;">
+      <button id="generateBtn" class="button"><i class="fas fa-magic"></i> 旅行プランを生成</button>
+      <button id="resetBtn" class="button"><i class="fas fa-undo"></i> リセット</button>
+      <div id="loadingIndicator" class="loading">
+        <div class="dot-pulse"></div>
+        <span class="loading-text">AI旅行プランナーが企画中</span>
+      </div>
+    </div>
+
+    <!-- 出力部分 -->
+    <div class="output-container" id="outputContainer" style="display: none;">
+      <div class="travel-output">
+        <h3><i class="fas fa-book-open"></i> あなたの旅行ストーリー</h3>
+        <div id="travelStory" class="travel-story"></div>
+      </div>
+      
+      <div class="travel-output">
+        <h3><i class="fas fa-lightbulb"></i> 旅のTips・豆知識</h3>
+        <div id="travelTips" class="travel-tips"></div>
+      </div>
+
+      <div class="button-group">
+        <button id="copyBtn" class="button"><i class="fas fa-copy"></i> ストーリーをコピー</button>
+        <button id="exportBtn" class="button"><i class="fas fa-file-pdf"></i> PDF出力</button>
+        <button id="shareBtn" class="button"><i class="fas fa-share"></i> シェア</button>
+      </div>
+    </div>
+    
+    <a href="../index.html" class="back-link"><i class="fas fa-arrow-left"></i> ぬるま湯データラボに戻る</a>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html> 

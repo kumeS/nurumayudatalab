@@ -1,643 +1,620 @@
 /**
- * ぬるっと翻訳・校閲ツール JavaScript
- * LLMを活用したテキスト処理ツール
+ * AI植物辞典 JavaScript
+ * LLMを活用した植物検索ツール with Replicate API画像生成
+ * 統合版 - 全機能を含む
+ * 
+ * 更新内容：
+ * - アスペクト比をデフォルト1:1に変更
+ * - 画像サイズ・アスペクト比調整機能を追加
+ * - SDXL Lightning: width/height指定可能（512-1280px）
+ * - Minimax Image-01: aspect_ratio指定可能（1:1, 3:4, 4:3, 9:16, 16:9）
  */
-document.addEventListener('DOMContentLoaded', () => {
-  // 要素の参照を取得
-  const tabs = document.querySelectorAll('.tabs .tab');
-  const inputArea = document.getElementById('inputArea');
-  const finalOutput = document.getElementById('final');
-  const reviewOutput = document.getElementById('review');
-  const runBtn = document.getElementById('runBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const copyBtn = document.getElementById('copyBtn');
-  const speakBtn = document.getElementById('speakBtn');
-  const toInputBtn = document.getElementById('toInputBtn');
-  const loadingIndicator = document.getElementById('loadingIndicator');
-  
-  // ---- BEGIN MODIFICATION: Load saved input text ----
-  // Load saved input text from localStorage, clearing a specific erroneous string if present
-  let savedInputText = localStorage.getItem('inputText');
-  if (savedInputText === "This will ensure that your input text is preserved even if you refresh the page.") {
-    localStorage.removeItem('inputText');
-    savedInputText = null; // Prevent loading this specific string
-  }
-  if (savedInputText) {
-    inputArea.value = savedInputText;
-  } else {
-    inputArea.value = ''; // Ensure it's empty if nothing valid is loaded or after clearing the specific string
-  }
-  // ---- END MODIFICATION ----
 
-  // ---- BEGIN MODIFICATION: Save input text on change ----
-  // Save input text to localStorage whenever it changes
-  inputArea.addEventListener('input', () => {
-    localStorage.setItem('inputText', inputArea.value);
-  });
-  // ---- END MODIFICATION ----
-  
-  // 現在のモード（デフォルト：日本語→英語）
-  let currentMode = 'jaen';
-  
-  // 起動時にタブの状態を明示的に確認
-  console.log('初期タブ状態:');
-  tabs.forEach(tab => {
-    console.log(`${tab.id}: ${tab.classList.contains('active') ? 'active' : 'inactive'}`);
-    // スタイル確認のためのデバッグコード追加
-    const computedStyle = window.getComputedStyle(tab);
-    console.log(`${tab.id} スタイル: 背景色=${computedStyle.backgroundColor}, 色=${computedStyle.color}, ボーダー=${computedStyle.borderBottom}`);
-  });
-  
-  // すべてのタブの表示を更新する関数
-  function updateTabDisplay() {
-    tabs.forEach(tab => {
-      if (tab.classList.contains('active')) {
-        // アクティブなタブのスタイル
-        tab.style.cssText = `
-          background-color: #fff;
-          color: var(--primary);
-          font-weight: bold;
-          border-bottom: 3px solid var(--primary);
-          box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
-        `;
-      } else {
-        // 非アクティブなタブのスタイル
-        tab.style.cssText = `
-          background-color: #f8f9fa;
-          color: var(--text-secondary);
-          font-weight: normal;
-          border-bottom: none;
-          box-shadow: none;
-        `;
+// Replicate API画像生成用クライアント
+class ReplicateImageClient {
+  constructor(workerUrl = 'https://nurumayu-replicate-api.skume-bioinfo.workers.dev/') {
+    this.workerUrl = workerUrl;
+  }
+
+  // SDXL Lightning 4-step による高速画像生成（1:1アスペクト比対応）
+  async generateImageSDXL(prompt, options = {}) {
+    const apiUrl = 'https://api.replicate.com/v1/predictions';
+    const payload = {
+      version: "6f7a773af6fc3e8de9d5a3c00be77c17308914bf67772726aff83496ba1e3bbe",
+      input: {
+        prompt: prompt,
+        width: options.width || 1024,
+        height: options.height || 1024,
+        scheduler: options.scheduler || "K_EULER",
+        num_inference_steps: options.steps || 4,
+        guidance_scale: options.guidance || 0,
+        negative_prompt: options.negativePrompt || ""
       }
-    });
-  }
-  
-  // タブ切り替え関数
-  function switchTab(selectedTab) {
-    // 前のタブから active クラスを削除
-    tabs.forEach(tab => tab.classList.remove('active'));
-    
-    // 選択されたタブに active クラスを追加
-    selectedTab.classList.add('active');
-    
-    // タブの表示を更新
-    updateTabDisplay();
-    
-    // IDからモードを取得
-    currentMode = selectedTab.id.replace('tab-', '');
-    console.log('モード切替:', currentMode);
-    
-    // タブ切り替え時は結果だけをクリア（入力は保持）
-    clearResults();
-  }
-  
-  // タブ切り替え
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      switchTab(tab);
-      
-      // タブの状態を確認
-      console.log('タブ切り替え後の状態:');
-      tabs.forEach(t => {
-        console.log(`${t.id}: ${t.classList.contains('active') ? 'active' : 'inactive'}`);
-        const computedStyle = window.getComputedStyle(t);
-        console.log(`${t.id} スタイル: 背景色=${computedStyle.backgroundColor}, 色=${computedStyle.color}, ボーダー=${computedStyle.borderBottom}`);
-      });
-    });
-  });
-  
-  // 初期表示時にタブの表示を更新
-  updateTabDisplay();
-  
-  // ページ離脱時に読み上げを停止
-  window.addEventListener('beforeunload', () => {
-    if (currentSpeech) {
-      speechSynthesis.cancel();
-    }
-  });
-  
-  // コピー禁止制御（校閲結果）
-  reviewOutput.addEventListener('copy', e => {
-    e.preventDefault();
-  });
-  
-  // 最終結果コピー機能
-  copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(finalOutput.value).then(() => {
-      // コピー成功時の処理
-      copyBtn.classList.add('copy-success');
-      
-      // 2秒後に元に戻す
-      setTimeout(() => {
-        copyBtn.classList.remove('copy-success');
-      }, 2000);
-    }).catch(err => {
-      console.error('コピーに失敗しました', err);
-      alert('コピーできませんでした。');
-    });
-  });
-  
-  // 読み上げ機能
-  let currentSpeech = null;
-  
-  speakBtn.addEventListener('click', () => {
-    const text = finalOutput.value.trim();
-    
-    if (!text) {
-      alert('読み上げるテキストがありません。');
-      return;
-    }
-    
-    // Web Speech API対応チェック
-    if (!('speechSynthesis' in window)) {
-      alert('お使いのブラウザは音声読み上げ機能に対応していません。');
-      return;
-    }
-    
-    // 現在の読み上げを停止
-    if (currentSpeech) {
-      speechSynthesis.cancel();
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
-      return;
-    }
-    
-    // 新しい読み上げを開始
-    currentSpeech = new SpeechSynthesisUtterance(text);
-    
-    // 言語を自動判定
-    const language = detectLanguageForSpeech(text);
-    currentSpeech.lang = language;
-    
-    // 読み上げ設定
-    currentSpeech.rate = 0.9; // 読み上げ速度
-    currentSpeech.pitch = 1.0; // 音の高さ
-    currentSpeech.volume = 1.0; // 音量
-    
-    // イベントリスナー
-    currentSpeech.onstart = () => {
-      speakBtn.classList.add('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-stop"></i> 停止';
     };
-    
-    currentSpeech.onend = () => {
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
+
+    return this.callReplicateAPI(apiUrl, payload);
+  }
+
+  // Minimax Image-01 による高品質画像生成
+  async generateImageMinimax(prompt, options = {}) {
+    const apiUrl = 'https://api.replicate.com/v1/models/minimax/image-01/predictions';
+    const payload = {
+      input: {
+        prompt: prompt,
+        aspect_ratio: options.aspectRatio || "1:1"
+      }
     };
-    
-    currentSpeech.onerror = (event) => {
-      console.error('読み上げエラー:', event.error);
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
-      alert('読み上げ中にエラーが発生しました。');
-    };
-    
-    // 読み上げ開始
-    speechSynthesis.speak(currentSpeech);
-  });
-  
-  // 言語自動判定関数（読み上げ用）
-  function detectLanguageForSpeech(text) {
-    // 日本語文字が含まれている場合は日本語
-    if (containsJapaneseChars(text)) {
-      return 'ja-JP';
-    }
-    // 英語文字のみの場合は英語
-    else if (containsLatinChars(text)) {
-      return 'en-US';
-    }
-    // デフォルトは日本語
-    return 'ja-JP';
-  }
-  
-  // リセットボタン
-  resetBtn.addEventListener('click', resetUI);
-  
-  // 実行ボタン
-  runBtn.addEventListener('click', runLLM);
-  
-  // 入力欄に戻すボタン
-  toInputBtn.addEventListener('click', () => {
-    // 最終結果を入力欄に設定
-    inputArea.value = finalOutput.value;
-    
-    // スクロールを入力欄の先頭に移動
-    inputArea.scrollTop = 0;
-    
-    // 入力欄にフォーカスを当てる
-    inputArea.focus();
-    
-    // アニメーション効果（オプション）
-    inputArea.classList.add('highlight-input');
-    setTimeout(() => {
-      inputArea.classList.remove('highlight-input');
-    }, 1000);
-  });
-  
-  // 結果のみクリア（タブ切り替え時に使用）
-  function clearResults() {
-    finalOutput.value = '';
-    reviewOutput.innerHTML = '';
-  }
-  
-  // UI初期化（全てクリア）
-  function resetUI() {
-    inputArea.value = '';
-    clearResults();
-  }
-  
-  // ---- BEGIN MODIFICATION: Helper functions for language detection ----
-  // Helper function to detect Japanese characters
-  function containsJapaneseChars(text) {
-    const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
-    return japaneseRegex.test(text);
+
+    return this.callReplicateAPI(apiUrl, payload);
   }
 
-  // Helper function to detect Latin characters
-  function containsLatinChars(text) {
-    const latinRegex = /[a-zA-Z]/;
-    return latinRegex.test(text);
-  }
-  // ---- END MODIFICATION ----
-  
-  // 使い方表示トグル
-  const toggleGuide = document.querySelector('.toggle-guide');
-  const guideContent = document.querySelector('.guide-content');
-  
-  if (toggleGuide && guideContent) {
-    toggleGuide.addEventListener('click', function() {
-      guideContent.style.display = guideContent.style.display === 'none' ? 'block' : 'none';
-      this.classList.toggle('active');
-      
-      // テキストを切り替え
-      const heading = this.querySelector('h3');
-      if (heading) {
-        if (guideContent.style.display === 'block') {
-          heading.textContent = '使い方を隠す';
-        } else {
-          heading.textContent = '使い方を表示';
-        }
-      }
-    });
-  } else {
-    console.error('使い方表示/非表示の要素が見つかりません');
-  }
-  
-  // LLM実行
-  function runLLM() {
-    const input = inputArea.value.trim();
-    if (!input) {
-      alert('テキストを入力してください');
-      return;
-    }
-    
-    // ---- BEGIN MODIFICATION: Language check for proofreading modes ----
-    if (currentMode === 'jajarev') {
-      if (!containsJapaneseChars(input)) {
-        loadingIndicator.classList.remove('active'); // Ensure loading is off
-        finalOutput.value = ''; 
-        if (containsLatinChars(input)) {
-          reviewOutput.innerHTML = `<div class='error'>入力されたテキストには日本語の文字が含まれていないようです。英語のようなラテン文字ベースのテキストが検出されました。<br>日本語校閲モードでは日本語のテキストを入力してください。英語の校閲が必要な場合は、英語校閲モードに切り替えてください。</div>`;
-        } else {
-          reviewOutput.innerHTML = `<div class='error'>入力されたテキストに日本語の文字が見当たりません。日本語校閲モードでは、日本語のテキストを入力してください。</div>`;
-        }
-        return;
-      }
-    } else if (currentMode === 'enrev') {
-      if (containsJapaneseChars(input)) {
-        loadingIndicator.classList.remove('active'); // Ensure loading is off
-        finalOutput.value = '';
-        reviewOutput.innerHTML = `<div class='error'>入力されたテキストに日本語の文字が含まれています。<br>英語校閲モードでは、主に英語のテキストを対象としています。日本語の校閲が必要な場合は、日本語校閲モードをご利用ください。</div>`;
-        return;
-      }
-    }
-    // ---- END MODIFICATION ----
-    
-    // UI更新
-    loadingIndicator.classList.add('active');
-    finalOutput.value = '';
-    reviewOutput.innerHTML = '';
-    
-    // モードに応じたプロンプト作成
-    const messages = createMessages(currentMode, input);
-    
-    // APIリクエスト（非ストリーミングモードを使用）
-    // ストリーミングモードで問題が続いているため、一旦非ストリーミングモードに切り替え
-    fallbackNonStreamingAPI(messages);
-  }
-  
-  // モードごとのメッセージ作成
-  function createMessages(mode, input) {
-    const messagesMap = {
-      'jaen': [
-        { role: "system", content: "あなたは翻訳エンジンです。日本語テキストを英語に翻訳するだけです。挨拶や説明、コメントは一切含めないでください。入力テキストの英訳だけを返してください。必ず文章全体を完全に翻訳し、途中で切れないようにしてください。思考過程や翻訳に関する考察は絶対に出力しないでください。" },
-        { role: "user", content: `以下の日本語文を英語に翻訳してください。必ず全体を完全に翻訳し、途中で切れないように注意してください：\n\n『${input}』` }
-      ],
-      'enja': [
-        { role: "system", content: "あなたは翻訳エンジンです。英語テキストを日本語に翻訳するだけです。挨拶や説明、コメントは一切含めないでください。入力テキストの日本語訳だけを返してください。必ず完全な文章全体を翻訳してください。部分訳や省略は行わないでください。思考過程や翻訳に関する考察は絶対に出力しないでください。" },
-        { role: "user", content: `以下の英文を日本語に翻訳してください。必ず全体を完全に翻訳し、部分的な訳は避けてください：\n\n『${input}』` }
-      ],
-      'jajarev': [
-        { role: "system", content: "あなたは日本語校閲エンジンです。入力された日本語文を詳細に校閲し、3つの部分に分けて出力してください。\n\n1. まず「校閲結果:」で始まる校閲コメントを書いてください。以下の点を詳しく解説してください：\n- 文法・表現の誤りや改善点\n- 語彙の選択や言い回しの提案\n- 文章構造や論理展開の改善点\n- 読みやすさや自然さの向上のためのアドバイス\n\n2. 次に「変更箇所:」で始まるセクションに、元の文章から変更した箇所を以下の形式で示してください：\n```diff\n- 削除された文や単語\n+ 追加または変更された文や単語\n```\n特に重要な変更箇所を3〜5か所程度ピックアップしてください。\n\n3. 最後に「最終案:」で始まる改善された文章全体を提示してください。\n\n文章の種類や内容に応じて適切な校閲を行い、具体的な改善理由も示してください。自己紹介や余計な説明は含めないでください。" },
-        { role: "user", content: input }
-      ],
-      'enrev': [
-        { role: "system", content: "あなたは英語校閲エンジンです。入力された英語文を詳細に校閲し、3つの部分に分けて出力してください。\n\n1. まず「校閲結果:」で始まる日本語での校閲コメントを書いてください。以下の点を詳しく解説してください：\n- 文法・表現の誤りや改善点\n- 語彙の選択や言い回しの提案\n- 文章構造や論理展開の改善点\n- 英語表現としての自然さや適切さの向上のためのアドバイス\n\n2. 次に「変更箇所:」で始まるセクションに、元の文章から変更した箇所を以下の形式で示してください：\n```diff\n- 削除された文や単語（原文）\n+ 追加または変更された文や単語（修正後）\n```\n特に重要な変更箇所を3〜5か所程度ピックアップしてください。\n\n3. 最後に「最終案:」で始まる改善された英語文全体を提示してください。\n\n文章の種類や内容に応じて適切な校閲を行い、なぜその修正が必要なのかも日本語で分かりやすく説明してください。自己紹介や余計な説明は含めないでください。" },
-        { role: "user", content: input }
-      ]
-    };
-    
-    return messagesMap[mode] || messagesMap['jaen'];
-  }
-  
-  // 余計な説明テキストを除去する関数
-  function cleanResponse(text, mode) {
-    console.log("入力テキスト(元):", text);
-    console.log("モード:", mode);
-
-    if (mode === 'jaen' || mode === 'enja') {
-      let cleaned = text;
-      console.log("引用符チェック前:", cleaned);
-
-      // Remove surrounding quotes
-      if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
-        console.log("ダブルクォート検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
-        console.log("シングルクォート検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith('「') && cleaned.endsWith('」')) {
-        console.log("鉤括弧検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith('『') && cleaned.endsWith('』')) {
-        console.log("二重鉤括弧検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      }
-      console.log("引用符除去後:", cleaned);
-
-      // Remove common prefixes
-      const exactPrefixes = [
-        "Translation: ",
-        "Translated text: ",
-        "翻訳結果: ",
-        "翻訳: ",
-        "訳文: ",
-        "英訳: ",
-        "和訳: "
-      ];
-
-      for (const prefix of exactPrefixes) {
-        if (cleaned.startsWith(prefix)) {
-          cleaned = cleaned.substring(prefix.length);
-          console.log(`プレフィックス "${prefix}" を除去`);
-          break; // Stop after removing the first found prefix
-        }
-      }
-      
-      console.log("最終クリーニング結果:", cleaned);
-      return cleaned.trim();
-    }
-
-    return text; // For non-translation modes, return as is
-  }
-  
-  // エラー発生時のフォールバックモード
-  function fallbackNonStreamingAPI(messages) {
-    // 非ストリーミングモードでのAPIリクエスト
-    console.log("非ストリーミングモードでAPIリクエスト送信", messages);
-    
-    const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+  // 汎用Replicate API呼び出し
+  async callReplicateAPI(apiUrl, payload) {
     const requestData = {
-      model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-      temperature: 0.7,
-      stream: false,
-      max_completion_tokens: 1500,  // トークン上限を増やして長文対応
-      messages: messages
+      apiUrl: apiUrl,
+      payload: payload
     };
-    
-    fetch(apiUrl, {
+
+    console.log('Replicate API Request:', requestData);
+
+    const response = await fetch(this.workerUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(requestData)
-    })
-    .then(response => response.json())
-    .then(data => {
-      loadingIndicator.classList.remove('active');
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(`Worker API呼び出しに失敗: ${response.status} - ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(`Replicate API エラー: ${JSON.stringify(data.details || data.error)}`);
+    }
+
+    return data;
+  }
+}
+
+// 植物画像生成専用の便利関数
+async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, model = 'minimax', imageOptions = {}) {
+  const client = new ReplicateImageClient(workerUrl);
+  
+  // プロンプト作成（時間帯とシードも考慮）
+  const time = imageOptions.time || 'day';
+  const seed = imageOptions.seed;
+  const prompt = createPlantImagePrompt(plantInfo, style, time, seed);
+  
+  try {
+    let result;
+    
+    if (model === 'sdxl-lightning') {
+      // SDXL Lightning使用（サイズ指定可能）
+      console.log(`Generating plant image with SDXL Lightning: ${prompt}`);
+      const sdxlOptions = {
+        width: imageOptions.width || 1024,
+        height: imageOptions.height || 1024,
+        scheduler: imageOptions.scheduler || "K_EULER",
+        steps: imageOptions.steps || 4,
+        guidance: imageOptions.guidance || 0,
+        negativePrompt: imageOptions.negativePrompt || "",
+        seed: imageOptions.seed // シードを追加
+      };
+      result = await client.generateImageSDXL(prompt, sdxlOptions);
       
-      console.log("非ストリーミングAPIレスポンス:", data);
+      if (result.output && Array.isArray(result.output) && result.output.length > 0) {
+        return {
+          success: true,
+          imageUrl: result.output[0],
+          prompt: prompt,
+          model: 'bytedance/sdxl-lightning-4step',
+          options: sdxlOptions
+        };
+      } else if (result.output) {
+        return {
+          success: true,
+          imageUrl: result.output,
+          prompt: prompt,
+          model: 'bytedance/sdxl-lightning-4step',
+          options: sdxlOptions
+        };
+        } else {
+        throw new Error('画像URLが返されませんでした');
+      }
+  } else {
+      // Minimax使用（デフォルト）- アスペクト比指定可能
+      console.log(`Generating plant image with Minimax: ${prompt}`);
+      const minimaxOptions = {
+        aspectRatio: imageOptions.aspectRatio || "1:1",
+        seed: imageOptions.seed // シードを追加
+      };
+      result = await client.generateImageMinimax(prompt, minimaxOptions);
+      
+      if (result.output && Array.isArray(result.output) && result.output.length > 0) {
+        return {
+          success: true,
+          imageUrl: result.output[0],
+          prompt: prompt,
+          model: 'minimax/image-01',
+          options: minimaxOptions
+        };
+      } else if (result.output) {
+        return {
+          success: true,
+          imageUrl: result.output,
+          prompt: prompt,
+          model: 'minimax/image-01',
+          options: minimaxOptions
+        };
+        } else {
+        throw new Error('画像URLが返されませんでした');
+      }
+    }
+  } catch (error) {
+    console.error(`${model} generation failed:`, error);
+    return {
+      success: false,
+      error: `画像生成に失敗しました: ${error.message}`,
+      prompt: prompt
+    };
+  }
+}
+
+// 植物画像プロンプト作成
+function createPlantImagePrompt(plantInfo, style, time = 'day', seed = null) {
+  // プロンプトのバリエーションを追加するため、シードに基づいて異なる表現を選択
+  const variations = [
+    `A detailed botanical image of ${plantInfo.scientificName}`,
+    `A beautiful illustration of ${plantInfo.scientificName}`,
+    `An artistic rendering of ${plantInfo.scientificName}`,
+    `A botanical study of ${plantInfo.scientificName}`,
+    `A detailed plant portrait of ${plantInfo.scientificName}`
+  ];
+  
+  // シードが提供された場合、それを使ってバリエーションを選択
+  const variationIndex = seed ? seed % variations.length : 0;
+  let basePrompt = variations[variationIndex];
+  
+  // 一般名があれば追加
+  if (plantInfo.commonName) {
+    basePrompt += ` (commonly known as ${plantInfo.commonName})`;
+  }
+
+  // 植物の詳細特徴を英語で追加（より具体的に）
+  let featuresPrompt = '';
+  if (plantInfo.features) {
+    const translatedFeatures = translateFeaturesToEnglish(plantInfo.features);
+    featuresPrompt = `, featuring ${translatedFeatures}`;
+  }
+
+  // 生育環境情報を追加
+  let habitatPrompt = '';
+  if (plantInfo.habitat) {
+    const translatedHabitat = translateFeaturesToEnglish(plantInfo.habitat);
+    habitatPrompt = `, typically found in ${translatedHabitat}`;
+  }
+
+  // 季節情報を追加
+  let seasonPrompt = '';
+  if (plantInfo.season) {
+    const translatedSeason = translateFeaturesToEnglish(plantInfo.season);
+    seasonPrompt = `, ${translatedSeason}`;
+  }
+
+  // 時間帯に応じたライティング（より詳細に）
+  let lightingPrompt = '';
+  switch (time) {
+    case 'morning':
+      lightingPrompt = ', captured in soft morning light with golden hour illumination, fresh dewdrops on petals and leaves, misty atmospheric background, gentle warm glow';
+      break;
+    case 'night':
+      lightingPrompt = ', photographed under moonlight with subtle artificial lighting, evening atmosphere with cool blue tones, gentle shadows and mysterious ambiance';
+      break;
+    case 'day':
+    default:
+      lightingPrompt = ', photographed in bright natural daylight with even illumination, clear visibility of all botanical details, vibrant natural colors';
+      break;
+  }
+
+  // スタイルに応じたプロンプト（より具体的で植物に特化）
+  let stylePrompt = '';
+  switch (style) {
+    case 'botanical':
+      stylePrompt = `. A highly detailed botanical illustration of a plant, in classical scientific style. The image features fine ink outlines combined with delicate watercolor shading using glazing techniques. Each leaf and bud is rendered with botanical accuracy, showing intricate vein patterns and subtle color gradients. The background is pure white, with no shadows or textures. The style is reminiscent of 18th to 19th century botanical field guides, with precise, academic aesthetics and clean composition.`;
+      break;
+    case 'anime':
+      stylePrompt = `. Illustrated in beautiful anime art style with vibrant colors and soft cel-shading. Clean vector-like lines with bright, saturated colors typical of Japanese animation. The plant maintains botanical accuracy while being stylized with artistic flair. Soft gradients, glowing effects on flowers, and a cheerful, appealing aesthetic. Background with soft bokeh or gradient effects. Digital art finish with smooth textures.`;
+      break;
+    case 'realistic':
+      stylePrompt = `. Captured as a highly detailed, photorealistic image with macro photography quality. Crystal clear focus showing minute details like leaf textures, petal surface patterns, stem structures, and natural imperfections. Professional nature photography with excellent depth of field, natural color reproduction, and lifelike appearance. Include environmental context showing the plant's natural growing conditions. Shot with high-end botanical photography techniques.`;
+      break;
+    default:
+      stylePrompt = '. Beautifully rendered with accurate botanical details, natural colors, excellent lighting, and clear definition of plant structures.';
+  }
+
+  // 品質向上のための追加指示
+  const qualityPrompt = ' High resolution, botanically accurate, detailed plant anatomy, professional quality, masterpiece';
+
+  return basePrompt + featuresPrompt + habitatPrompt + seasonPrompt + lightingPrompt + stylePrompt + qualityPrompt;
+}
+
+// 日本語植物特徴を英語に変換
+function translateFeaturesToEnglish(features) {
+  const translations = {
+    // 花の特徴
+    '白い花': 'white flowers with delicate petals',
+    '小さい花': 'small delicate flowers',
+    '紫の花': 'purple violet flowers',
+    '黄色い花': 'bright yellow flowers',
+    '赤い花': 'red crimson flowers',
+    '青い花': 'blue flowers',
+    'ふわふわした花': 'fluffy cotton-like flowers',
+    '星みたいな花': 'star-shaped flowers with radiating petals',
+    'いい匂いの花': 'fragrant aromatic flowers',
+    
+    // 葉の特徴
+    '葉っぱがハート型': 'heart-shaped leaves',
+    'ギザギザの葉': 'serrated jagged-edged leaves',
+    '毛深い葉っぱ': 'fuzzy hairy leaves with dense pubescence',
+    'でかい葉っぱ': 'large broad leaves',
+    '多肉っぽい': 'succulent fleshy leaves',
+    
+    // 全体的な特徴
+    'ヒラヒラしてる': 'delicate drooping parts',
+    'ベタベタする': 'sticky resinous surface',
+    '垂れ下がってる': 'drooping pendulous branches',
+    'シダっぽい': 'fern-like fronds',
+    'コケみたい': 'moss-like appearance',
+    
+    // 環境・場所
+    '道端': 'roadside habitat',
+    '雑草': 'weedy wild plant',
+    'よく見る雑草': 'common roadside weed',
+    '水辺にある': 'aquatic wetland plant',
+    
+    // 季節・時期
+    '春': 'spring blooming season',
+    '夏': 'summer flowering period',
+    '秋': 'autumn fruiting season',
+    '冬': 'winter dormant period',
+    
+    // サイズ・形状
+    '大きい': 'large-sized',
+    '小さい': 'small compact',
+    '背が高い': 'tall upright growth',
+    '低い': 'low growing prostrate',
+    '這う': 'creeping ground-covering',
+    
+    // 植物タイプ
+    '木': 'woody tree',
+    '草': 'herbaceous plant',
+    
+    // 色の詳細
+    '黄色くて小さい': 'small bright yellow',
+    '白っぽい': 'whitish pale colored',
+    '紫っぽい': 'purplish violet tinted',
+    
+    // 植物部位
+    '葉': 'foliage leaves',
+    '花': 'blooming flowers',
+    '実': 'fruits berries',
+    '種': 'seeds',
+    '赤い実がなる': 'producing red berries',
+    
+    // 生態
+    '虫がよく来る': 'attracting insects pollinator-friendly'
+  };
+
+  let englishFeatures = features;
+  Object.entries(translations).forEach(([jp, en]) => {
+    englishFeatures = englishFeatures.replace(new RegExp(jp, 'g'), en);
+  });
+
+  return englishFeatures;
+}
+
+// 植物検索用LLM API呼び出し
+async function callPlantSearchAPI(searchQuery, region = 'japan') {
+  const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+  
+  // 地域設定に基づく優先度テキスト
+  const regionTexts = {
+    'japan': '日本で見られる植物を優先',
+    'southeast-asia': '東南アジア（タイ、マレーシア、インドネシア、フィリピン、ベトナム、ラオス、カンボジア、ミャンマー、ブルネイ、シンガポール）で見られる植物を優先',
+    'north-america': '北米大陸（アメリカ合衆国、カナダ、メキシコ）で見られる植物を優先'
+  };
+
+  const regionPriority = regionTexts[region] || regionTexts['japan'];
+  
+  const messages = [
+    {
+      role: "system", 
+      content: `あなたは植物学の専門家です。ユーザーの曖昧で直感的な植物の説明から、該当する可能性のある植物を特定し、JSON形式で返してください。
+
+## 曖昧な表現の解釈ガイド：
+- 「ふわふわ」→ 綿毛状、柔毛、穂状花序など
+- 「ヒラヒラ」→ 薄い花弁、風に揺れる葉、垂れ下がる形状
+- 「ベタベタ」→ 樹液分泌、粘性のある葉、虫を捕らえる
+- 「毛深い」→ 有毛、絨毛、密生した細毛
+- 「ギザギザ」→ 鋸歯状、切れ込み、裂片
+- 「多肉っぽい」→ 肉厚な葉、水分貯蔵組織、多肉質
+- 「星みたい」→ 放射状、星型花冠、掌状分裂
+- 「ハート型」→ 心形、心臓形の葉
+- 「でかい」→ 大型、巨大葉、高木
+- 「よく見る雑草」→ 帰化植物、路傍植物、都市雑草
+
+## 色の表現：
+- 「白っぽい」「薄い色」→ 淡色、クリーム色、薄紫なども含む
+- 「紫っぽい」→ 薄紫、青紫、赤紫の幅広い範囲
+- 「黄色い」→ 淡黄、濃黄、橙黄も含む
+
+## 環境・季節の手がかり：
+- 「道端」「道路脇」→ 路傍植物、耐踏圧性
+- 「水辺」→ 湿地植物、水生植物、河畔植物
+- 「春に見た」「夏に咲く」→ 開花時期の特定
+- 「虫がよく来る」→ 虫媒花、蜜源植物
+
+レスポンス形式：
+{
+  "plants": [
+    {
+      "scientificName": "学名（ラテン語）",
+      "commonName": "一般的な日本語名", 
+      "aliases": ["別名1", "別名2", "俗名"],
+      "confidence": 0.85,
+      "features": "主な特徴の説明（ユーザーの表現との関連も含む）",
+      "habitat": "生息環境",
+      "season": "開花・成長期",
+      "wildlifeConnection": "野生動物との関係",
+      "culturalInfo": "文化的背景や用途"
+    }
+  ]
+}
+
+## 重要な指針：
+1. ${regionPriority}
+2. 曖昧な表現でも形態学的特徴に変換して候補を絞り込む
+3. 複数の解釈が可能な場合は、最も一般的な植物から順に提案
+4. confidence値は曖昧さを考慮して控えめに設定（0.3-0.7程度）
+5. 特徴説明では、ユーザーの表現がなぜその植物に当てはまるかを説明
+6. 俗名や地方名も aliases に含める
+7. 季節情報がある場合は開花期・結実期と照合
+8. 生育環境の情報も重要な手がかりとして活用`
+    },
+    {
+      role: "user",
+      content: `以下の植物の説明から、該当する可能性のある植物を特定してください：\n\n${searchQuery}`
+    }
+  ];
+  
+    const requestData = {
+      model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+      temperature: 0.7,
+      stream: false,
+    max_completion_tokens: 2000,
+      messages: messages
+    };
+    
+  const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API呼び出しに失敗しました: ${response.status}`);
+  }
+  
+  const data = await response.json();
       
       if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-        const text = data.choices[0].message.content;
-        console.log("LLMレスポンス:", text);
-        
-        // 余計な説明文が含まれていないか確認して処理
-        const cleanedResponse = cleanResponse(text, currentMode);
-        console.log("クリーニング後:", cleanedResponse);
-        
-        if (currentMode === 'jajarev' || currentMode === 'enrev') {
-          processReviewOutput(cleanedResponse);
+    return parsePlantSearchResponse(data.choices[0].message.content);
+  } else if (data.answer) {
+    return parsePlantSearchResponse(data.answer);
         } else {
-          // 翻訳結果の欠落チェック
-          if (currentMode === 'enja' && isPossiblyTruncatedResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 翻訳の先頭部分が欠落している可能性があります。翻訳全体を確認してください。</div>`;
-          } else if (currentMode === 'jaen' && isPossiblyTruncatedEnglishResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 英語翻訳が不完全である可能性があります。翻訳全体を確認してください。</div>`;
-          } else {
-            finalOutput.value = cleanedResponse;
-          }
-        }
-      } else if (data.answer) {
-        const text = data.answer;
-        console.log("LLMレスポンス(answer):", text);
-        
-        // 余計な説明文が含まれていないか確認して処理
-        const cleanedResponse = cleanResponse(text, currentMode);
-        console.log("クリーニング後:", cleanedResponse);
-        
-        if (currentMode === 'jajarev' || currentMode === 'enrev') {
-          processReviewOutput(cleanedResponse);
-        } else {
-          // 翻訳結果の欠落チェック
-          if (currentMode === 'enja' && isPossiblyTruncatedResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 翻訳の先頭部分が欠落している可能性があります。翻訳全体を確認してください。</div>`;
-          } else if (currentMode === 'jaen' && isPossiblyTruncatedEnglishResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 英語翻訳が不完全である可能性があります。翻訳全体を確認してください。</div>`;
-          } else {
-            finalOutput.value = cleanedResponse;
-          }
-        }
-      } else {
-        throw new Error('レスポンスに期待されるフィールドがありません');
+    throw new Error('レスポンスに期待されるフィールドがありません');
+  }
+}
+
+// 植物検索レスポンス解析
+function parsePlantSearchResponse(responseText) {
+  try {
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.plants && Array.isArray(parsed.plants)) {
+        return parsed.plants;
       }
-    })
-    .catch(error => {
-      console.error('非ストリーミングAPI呼び出しエラー:', error);
-      loadingIndicator.classList.remove('active');
-      reviewOutput.innerHTML = `<div class="error">エラーが発生しました: ${error.message}</div>`;
-    });
+    }
+  } catch (error) {
+    console.warn('JSON解析に失敗:', error);
   }
   
-  // 翻訳が先頭欠落している可能性を判定する関数
-  function isPossiblyTruncatedResponse(text) {
-    // 日本語の文が「が」「は」「を」「に」「で」「と」から始まっていたら、
-    // 先頭が欠落している可能性が高いと判定
-    const truncationIndicators = /^[がはをにでと]/;
-    
-    if (truncationIndicators.test(text)) {
-      console.log('翻訳の先頭欠落を検出:', text);
-      return true;
-    }
-    
-    // 先頭が小文字から始まる場合も怪しい
-    if (/^[a-z]/.test(text)) {
-      console.log('翻訳の先頭欠落の可能性あり (小文字から始まる):', text);
-      return true;
-    }
-    
-    return false;
+  // フォールバック: 基本的な植物情報を返す
+  return [{
+    scientificName: "Unknown species",
+    commonName: "不明な植物",
+    aliases: [],
+    confidence: 0.1,
+    features: "詳細な特徴を特定できませんでした",
+    habitat: "不明",
+    season: "不明",
+    wildlifeConnection: "情報なし",
+    culturalInfo: "情報なし"
+  }];
+}
+
+// 植物検索用のLLM処理システム
+class PlantSearchLLM {
+  constructor() {
+    this.apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+    this.model = "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8";
+    // Replicate API用Cloudflare Workerのエンドポイント
+    this.replicateWorkerUrl = 'https://nurumayu-replicate-api.skume-bioinfo.workers.dev/';
   }
-  
-  // 英語翻訳結果が不完全である可能性を判定する関数
-  function isPossiblyTruncatedEnglishResponse(text) {
-    // 文章が途中で終わっている可能性のあるパターン
-    if (text.endsWith(',') || text.endsWith(';') || 
-        /[a-z]$/.test(text) || // 小文字で終わる
-        /[^\.\?\!]$/.test(text)) { // 句読点なしで終わる
-      console.log('英語翻訳の末尾欠落を検出:', text);
-      return true;
-    }
-    
-    // 単語数と文字数の比率が異常に小さい場合（短い単語が多すぎる）
-    const words = text.split(/\s+/).filter(w => w.length > 0);
-    const chars = text.replace(/\s+/g, '').length;
-    if (words.length > 5 && chars / words.length < 3) {
-      console.log('英語翻訳の異常を検出 (単語/文字比率):', text);
-      return true;
-    }
-    
-    return false;
+
+  // Replicate Worker URLを設定
+  setReplicateWorkerUrl(url) {
+    this.replicateWorkerUrl = url;
   }
-  
-  // 校閲結果の処理
-  function processReviewOutput(text) {
-    // 新しいパターン：校閲結果、変更箇所、最終案の3つのセクションを抽出
-    const reviewPattern = /校閲結果[:：]([\s\S]+?)(変更箇所[:：]([\s\S]+?))?最終案[:：]([\s\S]+)/i;
-    const match = text.match(reviewPattern);
+
+  // 植物検索用のプロンプトを作成
+  createPlantSearchPrompt(searchQuery, region = 'japan') {
+    // 地域設定に基づく優先度テキスト
+    const regionTexts = {
+      'japan': '日本で見られる植物を優先',
+      'southeast-asia': '東南アジア（タイ、マレーシア、インドネシア、フィリピン、ベトナム、ラオス、カンボジア、ミャンマー、ブルネイ、シンガポール）で見られる植物を優先',
+      'north-america': '北米大陸（アメリカ合衆国、カナダ、メキシコ）で見られる植物を優先'
+    };
+
+    const regionPriority = regionTexts[region] || regionTexts['japan'];
     
-    if (match) {
-      // 校閲結果の抽出と構造化
-      let reviewText = match[1].trim();
-      
-      // 数字リストのフォーマット強化（1. 2. 3.など）
-      reviewText = reviewText.replace(/(\d+)\.\s+/g, '<strong>$1.</strong> ');
-      
-      // カテゴリ見出しのフォーマット強化（「文法：」「語彙：」など）
-      reviewText = reviewText.replace(/(文法|語彙|表現|構文|読みやすさ|論理展開|構造|自然さ|その他)(の問題|について|に関して)?[:：]/g, '<h4>$1</h4>');
-      
-      // 改行を段落に変換
-      reviewText = '<p>' + reviewText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
-      
-      // 重要な単語を強調
-      reviewText = reviewText.replace(/(問題点|誤り|改善点|推奨|提案|修正|不自然|適切でない)/g, '<strong>$1</strong>');
-      
-      // 変更箇所の処理（あれば）
-      let diffHtml = '';
-      if (match[3]) {
-        diffHtml = '<h4>変更箇所ハイライト</h4>';
-        
-        // diff形式の処理
-        const diffLines = match[3].trim().split('\n');
-        let inDiffBlock = false;
-        
-        diffLines.forEach(line => {
-          // diffブロックの開始と終了を検出
-          if (line.trim() === '```diff') {
-            inDiffBlock = true;
-            return;
-          } else if (line.trim() === '```' && inDiffBlock) {
-            inDiffBlock = false;
-            return;
-          }
-          
-          // diffブロック内の行を処理
-          if (inDiffBlock) {
-            if (line.startsWith('-')) {
-              // 削除された行
-              diffHtml += `<div class="diff-removed">${line.substring(1).trim()}</div>`;
-            } else if (line.startsWith('+')) {
-              // 追加された行
-              diffHtml += `<div class="diff-added">${line.substring(1).trim()}</div>`;
-            } else if (line.trim()) {
-              // コンテキスト行（内容があれば表示）
-              diffHtml += `<div>${line.trim()}</div>`;
-            }
-          } else if (line.trim()) {
-            // diffブロック外の説明文
-            diffHtml += `<p>${line.trim()}</p>`;
-          }
-        });
+    return [
+      {
+        role: "system", 
+        content: `あなたは植物学の専門家です。ユーザーの曖昧で直感的な植物の説明から、該当する可能性のある植物を特定し、JSON形式で返してください。
+
+## 曖昧な表現の解釈ガイド：
+- 「ふわふわ」→ 綿毛状、柔毛、穂状花序など
+- 「ヒラヒラ」→ 薄い花弁、風に揺れる葉、垂れ下がる形状
+- 「ベタベタ」→ 樹液分泌、粘性のある葉、虫を捕らえる
+- 「毛深い」→ 有毛、絨毛、密生した細毛
+- 「ギザギザ」→ 鋸歯状、切れ込み、裂片
+- 「多肉っぽい」→ 肉厚な葉、水分貯蔵組織、多肉質
+- 「星みたい」→ 放射状、星型花冠、掌状分裂
+- 「ハート型」→ 心形、心臓形の葉
+- 「でかい」→ 大型、巨大葉、高木
+- 「よく見る雑草」→ 帰化植物、路傍植物、都市雑草
+
+## 色の表現：
+- 「白っぽい」「薄い色」→ 淡色、クリーム色、薄紫なども含む
+- 「紫っぽい」→ 薄紫、青紫、赤紫の幅広い範囲
+- 「黄色い」→ 淡黄、濃黄、橙黄も含む
+
+## 環境・季節の手がかり：
+- 「道端」「道路脇」→ 路傍植物、耐踏圧性
+- 「水辺」→ 湿地植物、水生植物、河畔植物
+- 「春に見た」「夏に咲く」→ 開花時期の特定
+- 「虫がよく来る」→ 虫媒花、蜜源植物
+
+レスポンス形式：
+{
+  "plants": [
+    {
+      "scientificName": "学名（ラテン語）",
+      "commonName": "一般的な日本語名",
+      "aliases": ["別名1", "別名2", "俗名"],
+      "confidence": 0.85,
+      "features": "主な特徴の説明（ユーザーの表現との関連も含む）",
+      "habitat": "生息環境",
+      "season": "開花・成長期",
+      "wildlifeConnection": "野生動物との関係",
+      "culturalInfo": "文化的背景や用途"
+    }
+  ]
+}
+
+## 重要な指針：
+1. ${regionPriority}
+2. 曖昧な表現でも形態学的特徴に変換して候補を絞り込む
+3. 複数の解釈が可能な場合は、最も一般的な植物から順に提案
+4. confidence値は曖昧さを考慮して控えめに設定（0.3-0.7程度）
+5. 特徴説明では、ユーザーの表現がなぜその植物に当てはまるかを説明
+6. 俗名や地方名も aliases に含める
+7. 季節情報がある場合は開花期・結実期と照合
+8. 生育環境の情報も重要な手がかりとして活用`
+      },
+      {
+        role: "user",
+        content: `以下の植物の説明から、該当する可能性のある植物を特定してください：\n\n${searchQuery}`
       }
+    ];
+  }
+
+  // 植物検索実行
+  async searchPlants(searchQuery, region = 'japan') {
+    return await callPlantSearchAPI(searchQuery, region);
+  }
+
+  // レスポンス解析
+  parsePlantSearchResponse(responseText) {
+    return parsePlantSearchResponse(responseText);
+  }
+
+  // 植物画像生成（新しいReplicate API使用）
+  async generatePlantImage(plantInfo, style = 'botanical', model = 'minimax', imageOptions = {}) {
+    try {
+      // プロンプトの詳細ログ出力
+      const prompt = createPlantImagePrompt(plantInfo, style, imageOptions.time || 'day', imageOptions.seed);
+      console.log('Generated plant image prompt:', prompt);
+      console.log('Plant info:', plantInfo);
+      console.log('Style:', style, 'Model:', model, 'Options:', imageOptions);
       
-      // 最終案
-      let determinedFinalText = match[4] ? match[4].trim() : '';
-      if (currentMode === 'enrev' && determinedFinalText) {
-        const lines = determinedFinalText.split('\n');
-        const englishPortion = [];
-        for (const line of lines) {
-          if (containsJapaneseChars(line) && !containsLatinChars(line)) {
-            break; // Likely a purely Japanese explanatory line
-          }
-          englishPortion.push(line);
-        }
-        determinedFinalText = englishPortion.join('\n').trim();
-      }
-      
-      // 最終的な表示内容を構築
-      reviewOutput.innerHTML = reviewText + (diffHtml ? '<hr>' + diffHtml : '');
-      finalOutput.value = determinedFinalText;
-    } else {
-      // 旧パターンとのフォールバック互換性（2セクション版）
-      const oldPattern = /校閲結果[:：]([\s\S]+?)最終案[:：]([\s\S]+)/i;
-      const oldMatch = text.match(oldPattern);
-      
-      if (oldMatch) {
-        // 旧パターンで処理
-        let reviewText = oldMatch[1].trim();
-        reviewText = reviewText.replace(/(\d+)\.\s+/g, '<strong>$1.</strong> ');
-        reviewText = reviewText.replace(/(文法|語彙|表現|構文|読みやすさ|論理展開|構造|自然さ|その他)(の問題|について|に関して)?[:：]/g, '<h4>$1</h4>');
-        reviewText = '<p>' + reviewText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
-        reviewText = reviewText.replace(/(問題点|誤り|改善点|推奨|提案|修正|不自然|適切でない)/g, '<strong>$1</strong>');
-        
-        reviewOutput.innerHTML = reviewText;
-        
-        let determinedOldFinalText = oldMatch[2] ? oldMatch[2].trim() : '';
-        if (currentMode === 'enrev' && determinedOldFinalText) {
-          const lines = determinedOldFinalText.split('\n');
-          const englishPortion = [];
-          for (const line of lines) {
-            if (containsJapaneseChars(line) && !containsLatinChars(line)) {
-              break; 
-            }
-            englishPortion.push(line);
-          }
-          determinedOldFinalText = englishPortion.join('\n').trim();
-        }
-        finalOutput.value = determinedOldFinalText;
-      } else {
-        // どちらのパターンにも一致しない場合
-        reviewOutput.innerHTML = '校閲結果が期待される形式で見つかりませんでした。最終案も表示できません。';
-        finalOutput.value = ''; // Ensure finalOutput is empty if structure is not found
-      }
+      return await generatePlantImage(plantInfo, style, this.replicateWorkerUrl, model, imageOptions);
+    } catch (error) {
+      console.error('植物画像生成エラー:', error);
+      return {
+        success: false,
+        error: `画像生成に失敗しました: ${error.message}`
+      };
     }
   }
-}); 
+}
+
+// PlantDictionaryApp クラスは index.html で定義されています
+
+// プロンプト作成のヘルパー関数（改良版）
+class PlantImagePromptHelper {
+  static createBotanicalPrompt(plantInfo, time = 'day') {
+    return createPlantImagePrompt(plantInfo, 'botanical', time);
+  }
+
+  static createAnimePrompt(plantInfo, time = 'day') {
+    return createPlantImagePrompt(plantInfo, 'anime', time);
+  }
+
+  static createRealisticPrompt(plantInfo, time = 'day') {
+    return createPlantImagePrompt(plantInfo, 'realistic', time);
+  }
+
+  // 高精度な植物特化プロンプト生成
+  static createAdvancedBotanicalPrompt(plantInfo, includeAnatomical = true) {
+    let prompt = `Scientific botanical illustration of ${plantInfo.scientificName}`;
+    
+    if (plantInfo.commonName) {
+      prompt += ` (${plantInfo.commonName})`;
+    }
+    
+    if (plantInfo.features) {
+      prompt += `, showing ${translateFeaturesToEnglish(plantInfo.features)}`;
+    }
+    
+    prompt += `. Highly detailed scientific illustration in the style of botanical field guides, featuring precise pen and ink linework with watercolor washes. Complete plant specimen showing root system, stem structure, leaf morphology, flower anatomy, and fruit development stages.`;
+    
+    if (includeAnatomical) {
+      prompt += ` Include detailed cross-sectional views of flowers and fruits, showing internal structures, stamens, pistils, and seed arrangements.`;
+    }
+    
+    prompt += ` Pure white background, museum-quality botanical illustration, scientifically accurate, professional botanical art style.`;
+    
+    return prompt;
+  }
+}
+
+// エクスポート用のグローバル変数
+if (typeof window !== 'undefined') {
+  window.ReplicateImageClient = ReplicateImageClient;
+  window.generatePlantImage = generatePlantImage;
+  window.createPlantImagePrompt = createPlantImagePrompt;
+  window.translateFeaturesToEnglish = translateFeaturesToEnglish;
+  window.callPlantSearchAPI = callPlantSearchAPI;
+  window.parsePlantSearchResponse = parsePlantSearchResponse;
+  window.PlantSearchLLM = PlantSearchLLM;
+  window.PlantImagePromptHelper = PlantImagePromptHelper;
+} 

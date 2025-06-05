@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人生分岐体験 - Your Life Path</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* スタート画面 */
+        .welcome-screen {
+            text-align: center;
+            padding: 60px 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin-top: 40px;
+        }
+
+        .welcome-screen h1 {
+            font-size: 2.5em;
+            color: #667eea;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .welcome-screen p {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin: 20px auto;
+            max-width: 400px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        /* ゲーム画面 */
+        .game-screen {
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            margin-top: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .stage-info {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .stage-info h2 {
+            font-size: 2em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .stage-progress {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 10px;
+        }
+
+        .progress-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e1e1e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .progress-dot.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transform: scale(1.2);
+        }
+
+        .progress-dot.completed {
+            background: #4CAF50;
+        }
+
+        .scene-image {
+            width: 100%;
+            max-width: 600px;
+            height: 400px;
+            margin: 20px auto;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f0f0;
+            position: relative;
+        }
+
+        .scene-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .placeholder-image {
+            font-size: 1.2em;
+            color: #999;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .hint-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .hint-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .choices-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .choice-card {
+            background: white;
+            border: 2px solid #e1e1e1;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .choice-card:hover {
+            border-color: #667eea;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .choice-card h4 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .choice-card p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        /* 結果画面 */
+        .result-screen {
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            margin-top: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .result-header h2 {
+            font-size: 2.5em;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .life-type {
+            font-size: 1.5em;
+            color: #764ba2;
+            margin-bottom: 20px;
+        }
+
+        .analysis-box {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .rewards-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 30px 0;
+            justify-content: center;
+        }
+
+        .reward-badge {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .cheat-tips {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px 0;
+        }
+
+        .cheat-tips h3 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .cheat-tips ul {
+            list-style: none;
+        }
+
+        .cheat-tips li {
+            color: white;
+            margin: 10px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .cheat-tips li:before {
+            content: "✨";
+            position: absolute;
+            left: 0;
+        }
+
+        .life-journey {
+            margin: 40px 0;
+        }
+
+        .journey-item {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .journey-image {
+            width: 150px;
+            height: 150px;
+            border-radius: 10px;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .journey-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .journey-content {
+            flex: 1;
+        }
+
+        .journey-content h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .action-buttons {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .welcome-screen h1 {
+                font-size: 2em;
+            }
+
+            .journey-item {
+                flex-direction: column;
+            }
+
+            .journey-image {
+                width: 100%;
+                height: 200px;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- スタート画面 -->
+        <div class="welcome-screen" id="welcomeScreen">
+            <h1>🌟 人生分岐体験 🌟</h1>
+            <p>あなたの選択で変わる、もう一つの人生を体験してみませんか？</p>
+            
+            <div class="form-group">
+                <label for="userName">あなたのお名前</label>
+                <input type="text" id="userName" placeholder="名前を入力してください" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="lifeMood">どんな人生を体験したいですか？</label>
+                <select id="lifeMood">
+                    <option value="刺激的な人生">刺激的な人生</option>
+                    <option value="安定した人生">安定した人生</option>
+                    <option value="創造的な人生">創造的な人生</option>
+                    <option value="社会貢献の人生">社会貢献の人生</option>
+                </select>
+            </div>
+            
+            <button class="btn" onclick="startGame()">人生を始める</button>
+        </div>
+
+        <!-- ゲーム画面 -->
+        <div class="game-screen" id="gameScreen">
+            <div class="stage-progress">
+                <div class="progress-dot" data-stage="0">幼少</div>
+                <div class="progress-dot" data-stage="1">青年</div>
+                <div class="progress-dot" data-stage="2">20代</div>
+                <div class="progress-dot" data-stage="3">30-40</div>
+                <div class="progress-dot" data-stage="4">50-60</div>
+            </div>
+
+            <div class="stage-info">
+                <h2 id="stageTitle">幼少期</h2>
+                <p id="stageDescription">あなたの人生の始まり。どんな子供時代を過ごしますか？</p>
+            </div>
+
+            <div class="scene-image" id="sceneImage">
+                <div class="placeholder-image">
+                    画像生成中...
+                </div>
+            </div>
+
+            <div class="hint-box" id="hintBox">
+                <h3>💡 人生のヒント</h3>
+                <p id="hintText">選択の前に、少し立ち止まって考えてみましょう。</p>
+            </div>
+
+            <div class="choices-container" id="choicesContainer">
+                <!-- 選択肢はJavaScriptで動的に生成 -->
+            </div>
+        </div>
+
+        <!-- 結果画面 -->
+        <div class="result-screen" id="resultScreen">
+            <div class="result-header">
+                <h2>🎊 あなたの人生物語 🎊</h2>
+                <div class="life-type" id="lifeType">努力型サクセス人生</div>
+            </div>
+
+            <div class="analysis-box">
+                <h3>📊 人生分析</h3>
+                <p id="analysisText">あなたは挑戦と努力で困難を乗り越えるタイプです。</p>
+            </div>
+
+            <div class="rewards-container" id="rewardsContainer">
+                <!-- リワードバッジはJavaScriptで動的に生成 -->
+            </div>
+
+            <div class="cheat-tips">
+                <h3>🎯 現実で使える人生チート</h3>
+                <ul id="cheatTipsList">
+                    <!-- チートティップスはJavaScriptで動的に生成 -->
+                </ul>
+            </div>
+
+            <div class="life-journey">
+                <h3>📖 あなたの人生の軌跡</h3>
+                <div id="journeyContainer">
+                    <!-- 人生の軌跡はJavaScriptで動的に生成 -->
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn" onclick="downloadPDF()">📄 PDFでダウンロード</button>
+                <button class="btn" onclick="shareResult()">🔗 シェアする</button>
+                <button class="btn" onclick="restartGame()">🔄 もう一度プレイ</button>
+            </div>
+        </div>
+
+        <!-- ローディング画面 -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>処理中...</p>
+        </div>
+    </div>
+
+    <script>
+        // ゲームデータ
+        const gameData = {
+            stages: [
+                {
+                    name: "childhood",
+                    title: "幼少期",
+                    description: "あなたの人生の始まり。どんな子供時代を過ごしますか？",
+                    choices: [
+                        {
+                            id: "bookworm",
+                            title: "本好きな子供",
+                            description: "図書館が遊び場。物語の世界に夢中になる日々。"
+                        },
+                        {
+                            id: "athlete",
+                            title: "運動大好きっ子",
+                            description: "外で遊ぶのが大好き。友達とサッカーや野球に夢中。"
+                        },
+                        {
+                            id: "artist",
+                            title: "芸術家の卵",
+                            description: "絵を描いたり、音楽を聴いたり。創造的な遊びが好き。"
+                        },
+                        {
+                            id: "inventor",
+                            title: "発明家気質",
+                            description: "おもちゃを分解したり、新しいものを作るのが好き。"
+                        }
+                    ]
+                },
+                {
+                    name: "teen",
+                    title: "青年期",
+                    description: "思春期の選択。どんな道を選びますか？",
+                    choices: [
+                        {
+                            id: "studious",
+                            title: "勉強に打ち込む",
+                            description: "将来の夢に向かって、受験勉強に全力投球。"
+                        },
+                        {
+                            id: "club",
+                            title: "部活で青春",
+                            description: "仲間と共に汗を流し、大会を目指す日々。"
+                        },
+                        {
+                            id: "parttime",
+                            title: "アルバイト経験",
+                            description: "社会経験を積みながら、自立への第一歩。"
+                        },
+                        {
+                            id: "creative",
+                            title: "創作活動",
+                            description: "バンド活動や創作に没頭する、表現者の道。"
+                        }
+                    ]
+                },
+                {
+                    name: "twenties",
+                    title: "20代",
+                    description: "人生の岐路。どんな挑戦を選びますか？",
+                    choices: [
+                        {
+                            id: "career",
+                            title: "キャリアを積む",
+                            description: "大企業で着実にキャリアを築く道。"
+                        },
+                        {
+                            id: "startup",
+                            title: "起業に挑戦",
+                            description: "リスクを取って、自分のビジネスを立ち上げる。"
+                        },
+                        {
+                            id: "abroad",
+                            title: "海外留学",
+                            description: "異文化の中で自分を見つめ直す冒険。"
+                        },
+                        {
+                            id: "freelance",
+                            title: "フリーランス",
+                            description: "自由な働き方を求めて、独立の道へ。"
+                        }
+                    ]
+                },
+                {
+                    name: "thirties",
+                    title: "30-40代",
+                    description: "人生の充実期。何を大切にしますか？",
+                    choices: [
+                        {
+                            id: "family",
+                            title: "家族との時間",
+                            description: "家族を最優先に、温かい家庭を築く。"
+                        },
+                        {
+                            id: "executive",
+                            title: "経営者として",
+                            description: "組織のトップとして、社会に影響を与える。"
+                        },
+                        {
+                            id: "expert",
+                            title: "専門家の道",
+                            description: "一つの分野を極め、第一人者を目指す。"
+                        },
+                        {
+                            id: "balance",
+                            title: "ワークライフバランス",
+                            description: "仕事も趣味も大切に、充実した日々を送る。"
+                        }
+                    ]
+                },
+                {
+                    name: "fifties",
+                    title: "50-60代",
+                    description: "人生の集大成。どんな生き方を選びますか？",
+                    choices: [
+                        {
+                            id: "mentor",
+                            title: "次世代育成",
+                            description: "経験を活かして、若い世代を導く。"
+                        },
+                        {
+                            id: "adventure",
+                            title: "新たな挑戦",
+                            description: "年齢に関係なく、新しいことに挑戦し続ける。"
+                        },
+                        {
+                            id: "retirement",
+                            title: "悠々自適",
+                            description: "趣味や旅行を楽しむ、第二の人生。"
+                        },
+                        {
+                            id: "contribution",
+                            title: "社会貢献",
+                            description: "ボランティアや地域活動で社会に恩返し。"
+                        }
+                    ]
+                }
+            ]
+        };
+
+        // ゲーム状態
+        let gameState = {
+            user: {
+                name: "",
+                lifeMood: ""
+            },
+            currentStage: 0,
+            lifePath: [],
+            summary: null
+        };
+
+        // ゲーム開始
+        function startGame() {
+            const userName = document.getElementById('userName').value.trim();
+            const lifeMood = document.getElementById('lifeMood').value;
+
+            if (!userName) {
+                alert('名前を入力してください');
+                return;
+            }
+
+            gameState.user.name = userName;
+            gameState.user.lifeMood = lifeMood;
+            gameState.currentStage = 0;
+            gameState.lifePath = [];
+
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+
+            updateStage();
+        }
+
+        // ステージ更新
+        function updateStage() {
+            const stage = gameData.stages[gameState.currentStage];
+            
+            // プログレス更新
+            document.querySelectorAll('.progress-dot').forEach((dot, index) => {
+                if (index < gameState.currentStage) {
+                    dot.classList.add('completed');
+                    dot.classList.remove('active');
+                } else if (index === gameState.currentStage) {
+                    dot.classList.add('active');
+                    dot.classList.remove('completed');
+                } else {
+                    dot.classList.remove('active', 'completed');
+                }
+            });
+
+            // ステージ情報更新
+            document.getElementById('stageTitle').textContent = stage.title;
+            document.getElementById('stageDescription').textContent = stage.description;
+
+            // ヒント生成（実際のアプリではLLMを使用）
+            const hint = generateHint(stage, gameState);
+            document.getElementById('hintText').textContent = hint;
+
+            // 画像をプレースホルダーに戻す
+            document.getElementById('sceneImage').innerHTML = '<div class="placeholder-image">選択後、画像が生成されます</div>';
+
+            // 選択肢を表示
+            displayChoices(stage.choices);
+        }
+
+        // ヒント生成（簡易版）
+        function generateHint(stage, gameState) {
+            const hints = {
+                childhood: [
+                    "幼少期の体験は、あなたの価値観の基礎を作ります。",
+                    "好奇心は人生最大の原動力。何に興味を持つかで未来が変わります。",
+                    "子供の頃の「好き」は、大人になっても心の支えになります。"
+                ],
+                teen: [
+                    "青春時代の選択は、あなたの可能性を広げます。",
+                    "失敗を恐れずに挑戦することで、本当の自分が見えてきます。",
+                    "仲間との絆は、人生の宝物になります。"
+                ],
+                twenties: [
+                    "20代は人生の土台作り。どんな種を蒔くかが重要です。",
+                    "リスクを取ることも、安定を選ぶことも、どちらも正解です。",
+                    "自分の心の声に耳を傾けてみましょう。"
+                ],
+                thirties: [
+                    "30-40代は人生の実りの時期。何を収穫したいですか？",
+                    "バランスを取ることも、一点突破することも、あなた次第です。",
+                    "これまでの経験が、新しい可能性を開きます。"
+                ],
+                fifties: [
+                    "50-60代は人生の集大成。どんな legacy を残しますか？",
+                    "年齢は単なる数字。情熱があれば何でもできます。",
+                    "これまでの経験を、次の世代に繋げることも素晴らしい選択です。"
+                ]
+            };
+
+            const stageHints = hints[stage.name];
+            return stageHints[Math.floor(Math.random() * stageHints.length)];
+        }
+
+        // 選択肢表示
+        function displayChoices(choices) {
+            const container = document.getElementById('choicesContainer');
+            container.innerHTML = '';
+
+            choices.forEach(choice => {
+                const card = document.createElement('div');
+                card.className = 'choice-card';
+                card.onclick = () => selectChoice(choice);
+                
+                card.innerHTML = `
+                    <h4>${choice.title}</h4>
+                    <p>${choice.description}</p>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        // 選択処理
+        function selectChoice(choice) {
+            showLoading();
+            
+            const stage = gameData.stages[gameState.currentStage];
+            
+            // 画像生成（実際のアプリではAI画像生成APIを使用）
+            const imagePrompt = generateImagePrompt(stage, choice, gameState);
+            const fakeImage = generatePlaceholderImage(stage.name, choice.id);
+            
+            // AIコメント生成（実際のアプリではLLMを使用）
+            const comment = generateComment(stage, choice, gameState);
+            
+            // 選択を記録
+            gameState.lifePath.push({
+                scene: stage.name,
+                choice: choice.title,
+                hint: document.getElementById('hintText').textContent,
+                image: fakeImage,
+                comment: comment
+            });
+
+            // 画像表示
+            setTimeout(() => {
+                document.getElementById('sceneImage').innerHTML = `<img src="${fakeImage}" alt="${choice.title}">`;
+                hideLoading();
+
+                // 次のステージへ
+                setTimeout(() => {
+                    gameState.currentStage++;
+                    if (gameState.currentStage < gameData.stages.length) {
+                        updateStage();
+                    } else {
+                        showResult();
+                    }
+                }, 2000);
+            }, 1000);
+        }
+
+        // 画像プロンプト生成
+        function generateImagePrompt(stage, choice, gameState) {
+            return `${stage.title}の${gameState.user.name}が${choice.title}を選択、${gameState.user.lifeMood}の雰囲気、希望に満ちた表情`;
+        }
+
+        // プレースホルダー画像生成
+        function generatePlaceholderImage(stageName, choiceId) {
+            // 実際のアプリではAI画像生成APIの結果を使用
+            const colors = {
+                childhood: '#FFE5B4',
+                teen: '#B4E5FF',
+                twenties: '#FFB4E5',
+                thirties: '#B4FFB4',
+                fifties: '#E5B4FF'
+            };
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 600;
+            canvas.height = 400;
+            const ctx = canvas.getContext('2d');
+            
+            // グラデーション背景
+            const gradient = ctx.createLinearGradient(0, 0, 600, 400);
+            gradient.addColorStop(0, colors[stageName] || '#FFE5B4');
+            gradient.addColorStop(1, '#FFFFFF');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 600, 400);
+            
+            // テキスト
+            ctx.fillStyle = '#666';
+            ctx.font = '24px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${stageName} - ${choiceId}`, 300, 200);
+            
+            return canvas.toDataURL();
+        }
+
+        // コメント生成
+        function generateComment(stage, choice, gameState) {
+            const comments = {
+                bookworm: "本から得た知識が、あなたの世界を広げました。",
+                athlete: "スポーツで培った精神力が、人生の支えになりました。",
+                artist: "創造性があなたの人生を彩り豊かにしました。",
+                inventor: "好奇心と創意工夫が、新しい道を切り開きました。"
+            };
+            
+            return comments[choice.id] || "素晴らしい選択でした。";
+        }
+
+        // 結果表示
+        function showResult() {
+            // 人生タイプ判定（簡易版）
+            const lifeType = determineLifeType(gameState.lifePath);
+            const analysis = generateAnalysis(lifeType, gameState);
+            const rewards = generateRewards(gameState.lifePath);
+            const cheatTips = generateCheatTips(lifeType, gameState);
+
+            gameState.summary = {
+                type: lifeType,
+                analysis: analysis,
+                rewards: rewards,
+                cheatTips: cheatTips
+            };
+
+            // 画面切り替え
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('resultScreen').style.display = 'block';
+
+            // 結果表示
+            document.getElementById('lifeType').textContent = lifeType;
+            document.getElementById('analysisText').textContent = analysis;
+
+            // リワード表示
+            const rewardsContainer = document.getElementById('rewardsContainer');
+            rewardsContainer.innerHTML = '';
+            rewards.forEach(reward => {
+                const badge = document.createElement('div');
+                badge.className = 'reward-badge';
+                badge.textContent = reward.title;
+                badge.title = reward.description;
+                rewardsContainer.appendChild(badge);
+            });
+
+            // チートティップス表示
+            const tipsList = document.getElementById('cheatTipsList');
+            tipsList.innerHTML = '';
+            cheatTips.forEach(tip => {
+                const li = document.createElement('li');
+                li.textContent = tip;
+                tipsList.appendChild(li);
+            });
+
+            // 人生の軌跡表示
+            const journeyContainer = document.getElementById('journeyContainer');
+            journeyContainer.innerHTML = '';
+            gameState.lifePath.forEach((path, index) => {
+                const stageData = gameData.stages[index];
+                const item = document.createElement('div');
+                item.className = 'journey-item';
+                item.innerHTML = `
+                    <div class="journey-image">
+                        <img src="${path.image}" alt="${path.choice}">
+                    </div>
+                    <div class="journey-content">
+                        <h4>${stageData.title}: ${path.choice}</h4>
+                        <p><strong>ヒント:</strong> ${path.hint}</p>
+                        <p><strong>結果:</strong> ${path.comment}</p>
+                    </div>
+                `;
+                journeyContainer.appendChild(item);
+            });
+        }
+
+        // 人生タイプ判定
+        function determineLifeType(lifePath) {
+            // 簡易的な判定ロジック
+            const types = [
+                "挑戦型イノベーター人生",
+                "堅実型サクセス人生",
+                "創造型アーティスト人生",
+                "バランス型充実人生",
+                "貢献型リーダー人生"
+            ];
+            
+            return types[Math.floor(Math.random() * types.length)];
+        }
+
+        // 分析生成
+        function generateAnalysis(lifeType, gameState) {
+            const analyses = {
+                "挑戦型イノベーター人生": "あなたは常に新しいことに挑戦し、変化を恐れない革新者です。",
+                "堅実型サクセス人生": "着実に目標を達成し、信頼される存在として成功を収めました。",
+                "創造型アーティスト人生": "独自の感性で世界を表現し、人々に感動を与える人生でした。",
+                "バランス型充実人生": "仕事もプライベートも大切にし、幸せな人生を築きました。",
+                "貢献型リーダー人生": "他者のために尽くし、社会に大きな影響を与えました。"
+            };
+            
+            return analyses[lifeType] || "あなたは自分らしい素晴らしい人生を歩みました。";
+        }
+
+        // リワード生成
+        function generateRewards(lifePath) {
+            const rewards = [
+                { title: "🏆 パイオニア賞", description: "新しい道を切り開いた証" },
+                { title: "💎 継続は力賞", description: "努力を続けた証" },
+                { title: "🌟 インスピレーション賞", description: "他者に影響を与えた証" }
+            ];
+            
+            return rewards;
+        }
+
+        // チートティップス生成
+        function generateCheatTips(lifeType, gameState) {
+            return [
+                "失敗を恐れずに挑戦することで、新しい可能性が開けます",
+                "人との出会いを大切にすることで、人生が豊かになります",
+                "自分の価値観を信じて行動することが、幸せへの近道です",
+                "継続的な学習と成長が、長期的な成功につながります"
+            ];
+        }
+
+        // PDF生成
+        function downloadPDF() {
+            showLoading();
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // フォント設定（日本語対応は実際のアプリで追加実装必要）
+            doc.setFont("helvetica");
+            
+            // 表紙
+            doc.setFontSize(24);
+            doc.text("Life Path Journey", 105, 30, { align: "center" });
+            doc.setFontSize(16);
+            doc.text(gameState.user.name, 105, 50, { align: "center" });
+            doc.text(new Date().toLocaleDateString(), 105, 60, { align: "center" });
+            
+            // 人生タイプ
+            doc.setFontSize(14);
+            doc.text("Life Type: " + gameState.summary.type, 20, 80);
+            
+            // 分析
+            doc.setFontSize(12);
+            const analysisLines = doc.splitTextToSize(gameState.summary.analysis, 170);
+            doc.text(analysisLines, 20, 100);
+            
+            // 新しいページ
+            doc.addPage();
+            
+            // 人生の軌跡
+            let yPosition = 20;
+            gameState.lifePath.forEach((path, index) => {
+                if (yPosition > 250) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                
+                doc.setFontSize(14);
+                doc.text(`Stage ${index + 1}: ${path.scene}`, 20, yPosition);
+                yPosition += 10;
+                
+                doc.setFontSize(12);
+                doc.text(`Choice: ${path.choice}`, 20, yPosition);
+                yPosition += 10;
+                
+                const commentLines = doc.splitTextToSize(path.comment, 170);
+                doc.text(commentLines, 20, yPosition);
+                yPosition += commentLines.length * 5 + 10;
+            });
+            
+            // PDFダウンロード
+            doc.save(`life-path-${gameState.user.name}-${Date.now()}.pdf`);
+            
+            hideLoading();
+        }
+
+        // シェア機能
+        function shareResult() {
+            // 実際のアプリではシェア用URLを生成
+            const shareText = `私の人生タイプは「${gameState.summary.type}」でした！\n人生分岐体験アプリで、あなたも別の人生を体験してみませんか？`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: '人生分岐体験 - 結果',
+                    text: shareText,
+                    url: window.location.href
+                });
+            } else {
+                // フォールバック: クリップボードにコピー
+                navigator.clipboard.writeText(shareText + '\n' + window.location.href);
+                alert('シェア用テキストをコピーしました！');
+            }
+        }
+
+        // ゲームリスタート
+        function restartGame() {
+            gameState = {
+                user: { name: "", lifeMood: "" },
+                currentStage: 0,
+                lifePath: [],
+                summary: null
+            };
+            
+            document.getElementById('resultScreen').style.display = 'none';
+            document.getElementById('welcomeScreen').style.display = 'block';
+            document.getElementById('userName').value = '';
+        }
+
+        // ローディング表示/非表示
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // 初期化
+        window.onload = function() {
+            // エンターキーでゲーム開始
+            document.getElementById('userName').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    startGame();
+                }
+            });
+        };
+    </script>
+</body>
+</html>

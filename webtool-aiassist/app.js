@@ -8,9 +8,12 @@ class NextGenAssistantAI {
     this.currentTask = null;
     this.currentStyle = 'business';
     this.currentLanguage = 'auto';
+    this.ragEnabled = true;
     this.selectedInfo = [];
     this.informationHistory = [];
     this.isProcessing = false;
+    this.currentPage = 'todo';
+    this.outputHistory = [];
     
     // 新機能のための追加プロパティ
     this.aiAnalysisData = {
@@ -19,7 +22,6 @@ class NextGenAssistantAI {
       departmentAccuracy: 93,
       documentAccuracy: 96
     };
-    this.outputHistory = [];
     this.currentSession = null;
     this.speechSynthesis = window.speechSynthesis;
     
@@ -73,9 +75,19 @@ class NextGenAssistantAI {
 
     // 初期の時間削減計算表示
     this.updateTimeReduction();
+    
+    // 初期RAG状態の反映
+    this.updateInputFieldStates();
   }
 
   initializeElements() {
+    // ページ要素
+    this.todoPage = document.getElementById('todoPage');
+    this.historyPage = document.getElementById('historyPage');
+    this.settingsPage = document.getElementById('settingsPage');
+    this.historyList = document.getElementById('historyList');
+    this.historySearch = document.getElementById('historySearch');
+    
     // 入力要素
     this.todoInput = document.getElementById('todoInput');
     this.infoInput = document.getElementById('infoInput');
@@ -96,9 +108,12 @@ class NextGenAssistantAI {
     // ファイル関連
     this.importInfoBtn = document.getElementById('importInfoBtn');
     this.exportInfoBtn = document.getElementById('exportInfoBtn');
-    this.saveInfoBtn = document.getElementById('saveInfoBtn');
     this.clearInfoBtn = document.getElementById('clearInfoBtn');
     this.infoFileInput = document.getElementById('infoFileInput');
+    
+    // RAG制御関連
+    this.ragToggleBtn = document.getElementById('ragToggleBtn');
+    this.ragStatusText = document.getElementById('ragStatusText');
     
     // 革新的出力制御要素
     this.copyOutputBtn = document.getElementById('copyOutputBtn');
@@ -118,9 +133,30 @@ class NextGenAssistantAI {
     this.savedTimeElement = document.getElementById('savedTime');
     this.typingSpeedInput = document.getElementById('typingSpeed');
     this.experienceLevelSelect = document.getElementById('experienceLevel');
+    
+    // 設定要素
+    this.qualityLevelSelect = document.getElementById('qualityLevel');
+    this.autoSaveIntervalSelect = document.getElementById('autoSaveInterval');
+
+    this.fontSizeSelect = document.getElementById('fontSize');
+    this.exportAllDataBtn = document.getElementById('exportAllDataBtn');
+    this.importAllDataBtn = document.getElementById('importAllDataBtn');
+    this.clearAllDataBtn = document.getElementById('clearAllDataBtn');
+    this.allDataFileInput = document.getElementById('allDataFileInput');
+    this.saveSettingsBtn = document.getElementById('saveSettingsBtn');
   }
 
   initializeEventListeners() {
+    // ページタブ切り替え
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => this.switchPage(btn.dataset.page));
+    });
+    
+    // 履歴検索
+    if (this.historySearch) {
+      this.historySearch.addEventListener('input', () => this.filterHistory());
+    }
+    
     // 文字数カウント
     this.todoInput.addEventListener('input', () => this.updateCharCount(this.todoInput, this.todoCharCount));
     this.infoInput.addEventListener('input', () => this.updateCharCount(this.infoInput, this.infoCharCount));
@@ -137,7 +173,7 @@ class NextGenAssistantAI {
     document.querySelectorAll('.lang-btn').forEach(btn => {
       btn.addEventListener('click', () => this.handleLanguageSelection(btn));
     });
-    
+
     // RAG型情報統合
     this.infoHistory.addEventListener('click', (e) => this.handleInfoSelection(e));
     
@@ -149,9 +185,11 @@ class NextGenAssistantAI {
     // ファイル操作
     this.importInfoBtn.addEventListener('click', () => this.importInfo());
     this.exportInfoBtn.addEventListener('click', () => this.exportInfo());
-    this.saveInfoBtn.addEventListener('click', () => this.saveCurrentInfo());
     this.clearInfoBtn.addEventListener('click', () => this.clearInfo());
     this.infoFileInput.addEventListener('change', (e) => this.handleFileImport(e));
+    
+    // RAG制御
+    this.ragToggleBtn.addEventListener('click', () => this.toggleRAG());
     
     // 革新的出力制御システム
     this.copyOutputBtn.addEventListener('click', () => this.copyOutput());
@@ -181,6 +219,128 @@ class NextGenAssistantAI {
         this.updateTimeReduction();
       });
     }
+    
+    // 設定関連のイベントリスナー
+    if (this.qualityLevelSelect) {
+      this.qualityLevelSelect.addEventListener('change', () => this.saveStoredData());
+    }
+    
+    if (this.autoSaveIntervalSelect) {
+      this.autoSaveIntervalSelect.addEventListener('change', () => {
+        this.updateAutoSaveInterval();
+        this.saveStoredData();
+      });
+    }
+    
+
+    
+    if (this.fontSizeSelect) {
+      this.fontSizeSelect.addEventListener('change', () => {
+        this.applyFontSize();
+        this.saveStoredData();
+      });
+    }
+    
+    if (this.exportAllDataBtn) {
+      this.exportAllDataBtn.addEventListener('click', () => this.exportAllData());
+    }
+    
+    if (this.importAllDataBtn) {
+      this.importAllDataBtn.addEventListener('click', () => this.importAllData());
+    }
+    
+    if (this.clearAllDataBtn) {
+      this.clearAllDataBtn.addEventListener('click', () => this.clearAllData());
+    }
+    
+    if (this.allDataFileInput) {
+      this.allDataFileInput.addEventListener('change', (e) => this.handleAllDataImport(e));
+    }
+    
+    if (this.saveSettingsBtn) {
+      this.saveSettingsBtn.addEventListener('click', () => this.saveSettings());
+    }
+  }
+
+  switchPage(page) {
+    // タブの状態更新
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.page === page);
+    });
+    
+    // ページの表示/非表示
+    this.todoPage.classList.toggle('active', page === 'todo');
+    this.historyPage.classList.toggle('active', page === 'history');
+    this.settingsPage.classList.toggle('active', page === 'settings');
+    
+    this.currentPage = page;
+    
+    // 履歴ページを開いた時に履歴を更新
+    if (page === 'history') {
+      this.updateHistoryDisplay();
+    }
+    
+    // 設定ページを開いた時に設定を読み込み
+    if (page === 'settings') {
+      this.loadSettings();
+    }
+  }
+
+  updateHistoryDisplay() {
+    if (!this.historyList) return;
+    
+    const historyItems = this.outputHistory.filter(item => {
+      const searchTerm = this.historySearch ? this.historySearch.value.toLowerCase() : '';
+      return searchTerm === '' || 
+             item.input.toLowerCase().includes(searchTerm) ||
+             item.output.toLowerCase().includes(searchTerm) ||
+             (item.tags && item.tags.some(tag => tag.toLowerCase().includes(searchTerm)));
+    });
+    
+    this.historyList.innerHTML = historyItems.map(item => `
+      <div class="history-item">
+        <div class="history-item-header">
+          <div style="flex: 1;">
+            <h4 style="margin: 0 0 0.5rem 0; color: var(--primary);">${item.taskType || '不明なタスク'}</h4>
+            <div class="history-item-date">${new Date(item.timestamp).toLocaleString('ja-JP')}</div>
+          </div>
+          <button class="delete-btn" onclick="assistant.deleteHistoryItem('${item.id}')">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+        <div style="color: var(--text-secondary); margin-bottom: 1rem;">
+          <strong>入力:</strong> ${this.escapeHtml(item.input.substring(0, 100))}${item.input.length > 100 ? '...' : ''}
+        </div>
+        <div style="background: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+          <strong>出力:</strong><br>
+          ${this.escapeHtml(item.output.substring(0, 300))}${item.output.length > 300 ? '...' : ''}
+        </div>
+        ${item.tags ? `
+          <div class="history-item-tags">
+            ${item.tags.map(tag => `<span class="history-tag">${this.escapeHtml(tag)}</span>`).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+    
+    if (historyItems.length === 0) {
+      this.historyList.innerHTML = `
+        <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+          <i class="fas fa-search"></i><br>
+          検索条件に一致する履歴が見つかりませんでした
+        </div>
+      `;
+    }
+  }
+
+  filterHistory() {
+    this.updateHistoryDisplay();
+  }
+
+  deleteHistoryItem(id) {
+    this.outputHistory = this.outputHistory.filter(item => item.id !== id);
+    this.saveStoredData();
+    this.updateHistoryDisplay();
   }
 
   updateCharCount(textarea, countElement) {
@@ -192,11 +352,11 @@ class NextGenAssistantAI {
       countElement.style.color = 'var(--danger)';
     } else if (count > 500) {
       countElement.style.color = 'var(--warning)';
-      } else {
+    } else {
       countElement.style.color = 'var(--text-secondary)';
     }
     
-    // リアルタイム時間計算更新
+    // リアルタイム時間削減計算更新
     this.updateTimeReduction();
   }
 
@@ -222,7 +382,6 @@ class NextGenAssistantAI {
     }
   }
 
-
   handleStyleSelection(selectedBtn) {
     document.querySelectorAll('.style-btn').forEach(btn => btn.classList.remove('active'));
     selectedBtn.classList.add('active');
@@ -237,6 +396,52 @@ class NextGenAssistantAI {
     this.currentLanguage = selectedBtn.getAttribute('data-lang');
     
     console.log('選択された言語:', this.currentLanguage);
+  }
+
+  toggleRAG() {
+    this.ragEnabled = !this.ragEnabled;
+    this.updateRAGUI();
+    
+    // 入力フィールドの有効/無効状態を更新
+    this.updateInputFieldStates();
+    
+    // RAGが無効になった場合、現在の入力をクリア
+    if (!this.ragEnabled) {
+      this.infoInput.value = '';
+      this.updateCharCount(this.infoInput, this.infoCharCount);
+    }
+    
+    console.log('RAG機能:', this.ragEnabled ? '有効' : '無効');
+  }
+  
+  updateRAGUI() {
+    const btn = this.ragToggleBtn;
+    const statusText = this.ragStatusText;
+    
+    if (this.ragEnabled) {
+      btn.classList.add('active');
+      btn.setAttribute('data-rag-enabled', 'true');
+      statusText.textContent = 'RAG機能有効 - 履歴に保存されます';
+      statusText.className = 'status-active';
+    } else {
+      btn.classList.remove('active');
+      btn.setAttribute('data-rag-enabled', 'false');
+      statusText.textContent = 'RAG機能無効 - 履歴に保存されません';
+      statusText.className = 'status-inactive';
+    }
+  }
+
+  updateInputFieldStates() {
+    // RAGが無効の時は入力フィールドを無効化
+    if (this.infoInput) {
+      this.infoInput.disabled = !this.ragEnabled;
+      
+      if (!this.ragEnabled) {
+        this.infoInput.placeholder = 'RAG機能が無効のため入力できません';
+      } else {
+        this.infoInput.placeholder = '関連情報を入力してください...';
+      }
+    }
   }
 
   handleInfoSelection(e) {
@@ -317,7 +522,7 @@ class NextGenAssistantAI {
       // 出力結果の表示
       this.displayOutput(response);
       
-      // 25種類AI自動タグ生成
+      // 出力方式タグ生成
       this.generateAdvancedTags(todoText, this.currentTask, response);
       
       
@@ -482,8 +687,8 @@ class NextGenAssistantAI {
       prompt += `【企画書作成の特別指示】\n- 背景・現状の課題・提案する解決策・期待される効果の構成で作成\n- 具体的な数値目標や実施スケジュールも含める\n- 読み手を説得できる論理的な構成を心がける\n\n`;
     }
     
-    // 選択された情報を追加
-    if (this.selectedInfo.length > 0) {
+    // 選択された情報を追加（RAG有効時のみ）
+    if (this.selectedInfo.length > 0 && this.ragEnabled) {
       prompt += `【参考情報】\n`;
       this.selectedInfo.forEach(infoId => {
         const info = this.getInfoById(infoId);
@@ -493,9 +698,9 @@ class NextGenAssistantAI {
       });
     }
     
-    // 現在の情報ウィンドウの内容
+    // 現在の情報ウィンドウの内容（RAG有効時のみ）
     const currentInfo = this.infoInput.value.trim();
-    if (currentInfo) {
+    if (currentInfo && this.ragEnabled) {
       prompt += `【追加情報】\n${currentInfo}\n\n`;
     }
     
@@ -726,6 +931,11 @@ class NextGenAssistantAI {
       alert('保存する情報を入力してください。');
         return;
       }
+    
+    if (!this.ragEnabled) {
+      alert('RAG機能が無効のため、情報は保存されません。');
+      return;
+    }
     
     const title = prompt('情報のタイトルを入力してください:');
     if (!title) return;
@@ -980,12 +1190,12 @@ class NextGenAssistantAI {
       const savedTodo = localStorage.getItem('assistantAI_todo');
       const savedInfo = localStorage.getItem('assistantAI_info');
       
-      if (savedTodo) {
+      if (savedTodo && this.todoInput) {
         this.todoInput.value = savedTodo;
         this.updateCharCount(this.todoInput, this.todoCharCount);
       }
       
-      if (savedInfo) {
+      if (savedInfo && this.infoInput) {
         this.infoInput.value = savedInfo;
         this.updateCharCount(this.infoInput, this.infoCharCount);
       }
@@ -997,12 +1207,38 @@ class NextGenAssistantAI {
         this.updateInfoHistory();
       }
       
+      // 出力履歴の復元
+      const savedOutputHistory = localStorage.getItem('outputHistory');
+      if (savedOutputHistory) {
+        this.outputHistory = JSON.parse(savedOutputHistory);
+      }
+      
       // 設定の復元
       const savedSettings = localStorage.getItem('assistantAI_settings');
+      let settings = {};
       if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
+        settings = JSON.parse(savedSettings);
         this.currentStyle = settings.style || 'business';
         this.currentLanguage = settings.language || 'auto';
+        
+        // 時間削減計算設定の復元
+        if (settings.timeReductionCalculator) {
+          this.timeReductionCalculator = { ...this.timeReductionCalculator, ...settings.timeReductionCalculator };
+        }
+        
+        // RAG設定の復元
+        if (settings.ragEnabled !== undefined) {
+          this.ragEnabled = settings.ragEnabled;
+        }
+        
+        // UI要素に設定を反映
+        if (this.typingSpeedInput && this.timeReductionCalculator.personalSettings.typingSpeed) {
+          this.typingSpeedInput.value = this.timeReductionCalculator.personalSettings.typingSpeed;
+        }
+        
+        if (this.experienceLevelSelect && this.timeReductionCalculator.personalSettings.experienceMultiplier) {
+          this.experienceLevelSelect.value = this.timeReductionCalculator.personalSettings.experienceMultiplier;
+        }
         
         // UIに反映
         document.querySelectorAll('.style-btn').forEach(btn => {
@@ -1014,8 +1250,11 @@ class NextGenAssistantAI {
         });
       }
       
+      return settings;
+      
     } catch (error) {
       console.error('データの読み込みエラー:', error);
+      return {};
     }
   }
 
@@ -1024,10 +1263,17 @@ class NextGenAssistantAI {
       localStorage.setItem('assistantAI_todo', this.todoInput.value);
       localStorage.setItem('assistantAI_info', this.infoInput.value);
       localStorage.setItem('assistantAI_infoHistory', JSON.stringify(this.informationHistory));
+      localStorage.setItem('outputHistory', JSON.stringify(this.outputHistory));
       
       const settings = {
         style: this.currentStyle,
-        language: this.currentLanguage
+        language: this.currentLanguage,
+        timeReductionCalculator: this.timeReductionCalculator,
+        ragEnabled: this.ragEnabled,
+        qualityLevel: this.qualityLevelSelect?.value || 'balanced',
+        autoSaveInterval: this.autoSaveIntervalSelect?.value || '5',
+        themeMode: this.themeModeSelect?.value || 'light',
+        fontSize: this.fontSizeSelect?.value || 'medium'
       };
       localStorage.setItem('assistantAI_settings', JSON.stringify(settings));
       
@@ -1062,96 +1308,54 @@ class NextGenAssistantAI {
     }
   }
 
-  // 25種類AI自動タグ生成
+  // 出力方式タグ生成
   generateAdvancedTags(todoText, taskType, response) {
-    const tags = [];
+    // 出力方式タグ生成（25種類AI自動タグから変更）
+    const outputMethods = [
+      // 基本出力方式
+      'ビジネスメール形式', '報告書形式', '企画書形式', 'プレゼン形式',
+      '議事録形式', 'FAQ形式', 'マニュアル形式', 'チェックリスト形式',
+      
+      // 文体・トーン
+      '丁寧語スタイル', 'カジュアルスタイル', '簡潔スタイル', '詳細説明スタイル',
+      '説得的文体', '中立的文体', '分析的文体', '創造的文体',
+      
+      // 構造・レイアウト
+      '箇条書き重視', '段落構成', '見出し付き', '要約付き',
+      'アクション重視', '結論先行', '時系列構成', '優先度順',
+      
+      // 特殊形式
+      'テンプレート形式'
+    ];
+
+    // タスクタイプに応じて適切な出力方式を選択
+    let selectedMethods = [];
     
-    // 基本タグ分析
-    const analysisCategories = {
-      communication: ['メール作成', 'メール返信', '社内連絡', '顧客対応'],
-      documents: ['提案書', '報告書', '企画書', '承認書', 'FAQ', 'マニュアル'],
-      scheduling: ['プレゼン', '議事録', '仕様書', '契約書'],
-      analysis: ['ナレッジベース', '分析レポート']
-    };
-    
-    // タスクタイプベースタグ
     if (taskType) {
-      const taskTags = {
-        'email': 'メール作成',
-        'email-reply': 'メール返信',
-        'document': '文書作成',
-        'report': '報告書',
-        'proposal': '企画書',
-        'presentation': 'プレゼン',
-        'schedule': 'スケジュール',
-        'agenda': 'アジェンダ',
-        'minutes': '議事録',
-        'faq': 'FAQ',
-        'manual': 'マニュアル',
-        'analysis': '分析レポート'
+      const taskSpecificMethods = {
+        'email': ['ビジネスメール形式', '丁寧語スタイル', '簡潔スタイル', '要約付き'],
+        'email-reply': ['ビジネスメール形式', '丁寧語スタイル', '簡潔スタイル'],
+        'document': ['報告書形式', '段落構成', '見出し付き', '詳細説明スタイル'],
+        'report': ['報告書形式', '分析的文体', '結論先行', '箇条書き重視'],
+        'proposal': ['企画書形式', '説得的文体', '段落構成', '要約付き'],
+        'presentation': ['プレゼン形式', '箇条書き重視', '見出し付き', '簡潔スタイル'],
+        'schedule': ['チェックリスト形式', '時系列構成', '優先度順', '簡潔スタイル'],
+        'agenda': ['箇条書き重視', '時系列構成', '簡潔スタイル', '要約付き'],
+        'minutes': ['議事録形式', '箇条書き重視', 'アクション重視', '要約付き'],
+        'faq': ['FAQ形式', '箇条書き重視', '簡潔スタイル'],
+        'manual': ['マニュアル形式', '段落構成', '見出し付き', 'チェックリスト形式'],
+        'analysis': ['報告書形式', '分析的文体', '詳細説明スタイル', '結論先行']
       };
-      tags.push(taskTags[taskType]);
+      
+      selectedMethods = taskSpecificMethods[taskType] || outputMethods.slice(0, 4);
+    } else {
+      // デフォルトで最初の数個を選択
+      selectedMethods = outputMethods.slice(0, 4);
     }
     
-    // 感情・緊急度分析
-    const urgencyKeywords = ['緊急', '急ぎ', 'ASAP', '至急', 'すぐに', '早急'];
-    const importantKeywords = ['重要', '大切', '必須', '必要不可欠', 'クリティカル'];
-    const confirmKeywords = ['確認', 'チェック', '検討', '相談', '質問'];
-    
-    if (urgencyKeywords.some(keyword => todoText.includes(keyword))) {
-      tags.push('緊急');
-    }
-    if (importantKeywords.some(keyword => todoText.includes(keyword))) {
-      tags.push('重要');
-    }
-    if (confirmKeywords.some(keyword => todoText.includes(keyword))) {
-      tags.push('確認');
-    }
-    
-    // 部門推定
-    const departmentKeywords = {
-      '営業': ['売上', '顧客', '契約', '提案', '営業'],
-      '開発': ['開発', 'システム', 'バグ', 'プログラム', 'アプリ'],
-      '人事': ['採用', '人事', '研修', '評価', '給与'],
-      '経理': ['経費', '予算', '会計', '決算', '請求'],
-      '法務': ['契約', '法的', '規約', 'コンプライアンス'],
-      '総務': ['備品', '施設', '総務', '庶務', '管理']
-    };
-    
-    Object.entries(departmentKeywords).forEach(([dept, keywords]) => {
-      if (keywords.some(keyword => todoText.includes(keyword))) {
-        tags.push(dept);
-      }
-    });
-    
-    // 感情分析
-    const emotionKeywords = {
-      'クレーム': ['苦情', 'クレーム', '問題', '不満', 'トラブル'],
-      '感謝': ['ありがとう', '感謝', 'お礼', '助かり'],
-      '問い合わせ': ['質問', '問い合わせ', '教えて', '分からない']
-    };
-    
-    Object.entries(emotionKeywords).forEach(([emotion, keywords]) => {
-      if (keywords.some(keyword => todoText.includes(keyword))) {
-        tags.push(emotion);
-      }
-    });
-    
-    // 文書分類
-    const contentTypes = {
-      '外部向け': ['お客様', '顧客', '取引先', '外部'],
-      '内部向け': ['社内', 'チーム', '部署', '内部'],
-      '公式文書': ['正式', '公式', '承認', '決定'],
-      '下書き': ['案', 'draft', '検討中', '暫定']
-    };
-    
-    Object.entries(contentTypes).forEach(([type, keywords]) => {
-      if (keywords.some(keyword => todoText.includes(keyword))) {
-        tags.push(type);
-      }
-    });
-    
-    this.displayAdvancedTags(tags);
+    // 重複を削除して表示
+    const uniqueMethods = [...new Set(selectedMethods)];
+    this.displayAdvancedTags(uniqueMethods);
   }
 
   displayAdvancedTags(tags) {
@@ -1301,6 +1505,171 @@ class NextGenAssistantAI {
     
     this.displayOutput(fallbackResponse);
     this.generateAdvancedTags(todoText, this.currentTask, fallbackResponse);
+  }
+
+  // 設定関連メソッド
+  loadSettings() {
+    const settings = this.loadStoredData();
+    
+    if (this.qualityLevelSelect && settings.qualityLevel) {
+      this.qualityLevelSelect.value = settings.qualityLevel;
+    }
+    
+    if (this.autoSaveIntervalSelect && settings.autoSaveInterval !== undefined) {
+      this.autoSaveIntervalSelect.value = settings.autoSaveInterval;
+    }
+    
+
+    
+    if (this.fontSizeSelect && settings.fontSize) {
+      this.fontSizeSelect.value = settings.fontSize;
+    }
+  }
+
+  saveSettings() {
+    this.saveStoredData();
+    this.showTemporaryMessage(this.saveSettingsBtn, '設定を保存しました', 'success');
+  }
+
+  updateAutoSaveInterval() {
+    const interval = parseInt(this.autoSaveIntervalSelect.value) * 1000;
+    
+    // 既存の自動保存を停止
+    if (this.autoSaveTimer) {
+      clearInterval(this.autoSaveTimer);
+    }
+    
+    // 新しい間隔で自動保存を開始
+    if (interval > 0) {
+      this.autoSaveTimer = setInterval(() => {
+        this.saveStoredData();
+      }, interval);
+    }
+  }
+
+
+
+  applyFontSize() {
+    const fontSize = this.fontSizeSelect.value;
+    document.body.className = document.body.className.replace(/font-size-\w+/g, '');
+    document.body.classList.add(`font-size-${fontSize}`);
+  }
+
+  exportAllData() {
+    const allData = {
+      informationHistory: this.informationHistory,
+      outputHistory: this.outputHistory,
+      settings: {
+        typingSpeed: this.timeReductionCalculator.personalSettings.typingSpeed,
+        experienceLevel: this.timeReductionCalculator.personalSettings.experienceMultiplier,
+        qualityLevel: this.qualityLevelSelect?.value || 'balanced',
+        autoSaveInterval: this.autoSaveIntervalSelect?.value || '5',
+        themeMode: this.themeModeSelect?.value || 'light',
+        fontSize: this.fontSizeSelect?.value || 'medium'
+      },
+      exportDate: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `AIアシスタント_全データ_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    this.showTemporaryMessage(this.exportAllDataBtn, 'データをエクスポートしました', 'success');
+  }
+
+  importAllData() {
+    this.allDataFileInput.click();
+  }
+
+  handleAllDataImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        
+        if (data.informationHistory) {
+          this.informationHistory = data.informationHistory;
+        }
+        
+        if (data.outputHistory) {
+          this.outputHistory = data.outputHistory;
+        }
+        
+        if (data.settings) {
+          const settings = data.settings;
+          
+          if (settings.typingSpeed && this.typingSpeedInput) {
+            this.typingSpeedInput.value = settings.typingSpeed;
+            this.timeReductionCalculator.personalSettings.typingSpeed = settings.typingSpeed;
+          }
+          
+          if (settings.experienceLevel && this.experienceLevelSelect) {
+            this.experienceLevelSelect.value = settings.experienceLevel;
+            this.timeReductionCalculator.personalSettings.experienceMultiplier = settings.experienceLevel;
+          }
+          
+          if (settings.qualityLevel && this.qualityLevelSelect) {
+            this.qualityLevelSelect.value = settings.qualityLevel;
+          }
+          
+          if (settings.autoSaveInterval && this.autoSaveIntervalSelect) {
+            this.autoSaveIntervalSelect.value = settings.autoSaveInterval;
+            this.updateAutoSaveInterval();
+          }
+          
+          if (settings.themeMode && this.themeModeSelect) {
+            this.themeModeSelect.value = settings.themeMode;
+            this.applyTheme();
+          }
+          
+          if (settings.fontSize && this.fontSizeSelect) {
+            this.fontSizeSelect.value = settings.fontSize;
+            this.applyFontSize();
+          }
+        }
+        
+        this.saveStoredData();
+        this.updateInfoHistory();
+        this.updateTimeReduction();
+        
+        this.showTemporaryMessage(this.importAllDataBtn, 'データをインポートしました', 'success');
+        
+      } catch (error) {
+        console.error('インポートエラー:', error);
+        alert('ファイルの読み込みに失敗しました。');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  clearAllData() {
+    if (confirm('すべてのデータを削除しますか？この操作は取り消せません。')) {
+      this.informationHistory = [];
+      this.outputHistory = [];
+      this.selectedInfo = [];
+      
+      // 入力フィールドをクリア
+      if (this.todoInput) this.todoInput.value = '';
+      if (this.infoInput) this.infoInput.value = '';
+      if (this.outputContent) this.outputContent.textContent = 'ここに生成された文章が表示されます...';
+      
+      // ローカルストレージをクリア
+      localStorage.removeItem('assistantAI_settings');
+      localStorage.removeItem('outputHistory');
+      
+      this.updateInfoHistory();
+      this.updateCharCount(this.todoInput, this.todoCharCount);
+      this.updateCharCount(this.infoInput, this.infoCharCount);
+      
+      this.showTemporaryMessage(this.clearAllDataBtn, 'すべてのデータを削除しました', 'success');
+    }
   }
 
 }
