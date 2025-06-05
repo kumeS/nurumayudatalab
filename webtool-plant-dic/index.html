@@ -1382,13 +1382,40 @@
         this.searchResults = this.loadSearchResults();
         this.lastSearchQuery = this.loadLastSearchQuery();
         this.myCollection = this.loadCollection();
-        this.selectedStyle = 'botanical';
-        this.selectedTime = 'day';
-        this.selectedModel = 'sdxl-lightning'; // デフォルトをsdxl-lightningに設定
-        this.selectedRegion = 'japan'; // デフォルトを日本に設定
+        
+        // 設定をロードし、なければデフォルト値を使用
+        this.loadSettingsValues();
+        
         this.searchLLM = new PlantSearchLLM();
         this.imageGenerationAttempts = {}; // 画像生成試行回数を追跡
         this.init();
+      }
+
+      // 設定値をロード（コンストラクタ用）
+      loadSettingsValues() {
+        const saved = localStorage.getItem('plantAppSettings');
+        if (saved) {
+          try {
+            const settings = JSON.parse(saved);
+            this.selectedStyle = settings.style || 'botanical';
+            this.selectedTime = settings.time || 'day';
+            this.selectedModel = settings.model || 'sdxl-lightning';
+            this.selectedRegion = settings.region || 'japan';
+          } catch (error) {
+            console.warn('設定の読み込みに失敗:', error);
+            this.setDefaultSettings();
+          }
+        } else {
+          this.setDefaultSettings();
+        }
+      }
+
+      // デフォルト設定を設定
+      setDefaultSettings() {
+        this.selectedStyle = 'botanical';
+        this.selectedTime = 'day';
+        this.selectedModel = 'sdxl-lightning';
+        this.selectedRegion = 'japan';
       }
 
       // Replicate Worker URLを設定
@@ -1434,6 +1461,40 @@
             this.closeDetailsModal();
           }
         });
+
+        // 設定関連のイベントリスナーを追加
+        this.setupSettingsEventListeners();
+      }
+
+      setupSettingsEventListeners() {
+        // 設定の変更を監視して自動保存
+        document.querySelectorAll('input[name="style-setting"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            this.selectedStyle = radio.value;
+            this.saveSettings();
+          });
+        });
+
+        document.querySelectorAll('input[name="time-setting"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            this.selectedTime = radio.value;
+            this.saveSettings();
+          });
+        });
+
+        document.querySelectorAll('input[name="model-setting"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            this.selectedModel = radio.value;
+            this.saveSettings();
+          });
+        });
+
+        document.querySelectorAll('input[name="region-setting"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            this.selectedRegion = radio.value;
+            this.saveSettings();
+          });
+        });
       }
 
       switchTab(tab) {
@@ -1454,6 +1515,8 @@
           this.updateCollectionDisplay();
         } else if (tab === 'settings') {
           this.loadSettings();
+          // 設定タブに切り替わった時にイベントリスナーを再設定
+          setTimeout(() => this.setupSettingsEventListeners(), 100);
         }
       }
 
@@ -1748,9 +1811,6 @@
             <div class="plant-loading-icon">🌱</div>
             <div class="plant-loading-text">
               植物画像生成中 (${currentAttempt}/3)<span class="plant-loading-dots"></span>
-            </div>
-            <div class="plant-loading-subtext">
-              ${styleLabel}スタイルで生成しています...
             </div>
           </div>
         `;
@@ -2247,26 +2307,8 @@
         }
       }
 
-      // 設定の保存
+      // 設定の保存（自動保存対応）
       saveSettings() {
-        const styleRadio = document.querySelector('input[name="style-setting"]:checked');
-        const timeRadio = document.querySelector('input[name="time-setting"]:checked');
-        const modelRadio = document.querySelector('input[name="model-setting"]:checked');
-        const regionRadio = document.querySelector('input[name="region-setting"]:checked');
-        
-        if (styleRadio) {
-          this.selectedStyle = styleRadio.value;
-        }
-        if (timeRadio) {
-          this.selectedTime = timeRadio.value;
-        }
-        if (modelRadio) {
-          this.selectedModel = modelRadio.value;
-        }
-        if (regionRadio) {
-          this.selectedRegion = regionRadio.value;
-        }
-
         // ローカルストレージに保存
         localStorage.setItem('plantAppSettings', JSON.stringify({
           style: this.selectedStyle,
@@ -2275,8 +2317,13 @@
           region: this.selectedRegion,
           savedAt: new Date().toISOString()
         }));
-
-        this.showMessage('設定を保存しました', 'success');
+        
+        console.log('設定を自動保存しました:', {
+          style: this.selectedStyle,
+          time: this.selectedTime,
+          model: this.selectedModel,
+          region: this.selectedRegion
+        });
       }
 
       // 設定の読み込み
@@ -2340,8 +2387,8 @@
           regionRadio.checked = true;
         }
 
-        // ローカルストレージからも削除
-        localStorage.removeItem('plantAppSettings');
+        // 設定を保存
+        this.saveSettings();
 
         this.showMessage('設定をデフォルトに戻しました', 'success');
       }
@@ -2396,9 +2443,9 @@
         return this.getRegenerationCount(index) < 3;
       }
 
-      // ランダムシード生成
+      // ランダムシード生成（より大きな範囲で多様性を確保）
       generateRandomSeed() {
-        return Math.floor(Math.random() * 1000000);
+        return Math.floor(Math.random() * 4294967295); // 32bit整数の最大値
       }
     }
 

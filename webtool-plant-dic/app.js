@@ -101,7 +101,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
         scheduler: imageOptions.scheduler || "K_EULER",
         steps: imageOptions.steps || 4,
         guidance: imageOptions.guidance || 0,
-        negativePrompt: imageOptions.negativePrompt || "",
+        negativePrompt: imageOptions.negativePrompt || "text, words, letters, writing, watermark, signature, labels, captions, annotations, typography, symbols, numbers",
         seed: imageOptions.seed // シードを追加
       };
       result = await client.generateImageSDXL(prompt, sdxlOptions);
@@ -130,7 +130,8 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
       console.log(`Generating plant image with Minimax: ${prompt}`);
       const minimaxOptions = {
         aspectRatio: imageOptions.aspectRatio || "1:1",
-        seed: imageOptions.seed // シードを追加
+        seed: imageOptions.seed, // シードを追加
+        negative_prompt: imageOptions.negativePrompt || "text, words, letters, writing, watermark, signature, labels, captions, annotations, typography, symbols, numbers"
       };
       result = await client.generateImageMinimax(prompt, minimaxOptions);
       
@@ -224,22 +225,36 @@ function createPlantImagePrompt(plantInfo, style, time = 'day', seed = null) {
   let stylePrompt = '';
   switch (style) {
     case 'botanical':
-      stylePrompt = `. A highly detailed botanical illustration of a plant, in classical scientific style. The image features fine ink outlines combined with delicate watercolor shading using glazing techniques. Each leaf and bud is rendered with botanical accuracy, showing intricate vein patterns and subtle color gradients. The background is pure white, with no shadows or textures. The style is reminiscent of 18th to 19th century botanical field guides, with precise, academic aesthetics and clean composition.`;
+      stylePrompt = `. A highly detailed botanical illustration of a plant, in classical scientific style. The image features fine ink outlines combined with delicate watercolor shading using glazing techniques. Each leaf and bud is rendered with botanical accuracy, showing intricate vein patterns and subtle color gradients. The background is pure white, with no shadows or textures. The style is reminiscent of 18th to 19th century botanical field guides, with precise, academic aesthetics and clean composition. Pure visual botanical art without any text or labels.`;
       break;
     case 'anime':
-      stylePrompt = `. Illustrated in beautiful anime art style with vibrant colors and soft cel-shading. Clean vector-like lines with bright, saturated colors typical of Japanese animation. The plant maintains botanical accuracy while being stylized with artistic flair. Soft gradients, glowing effects on flowers, and a cheerful, appealing aesthetic. Background with soft bokeh or gradient effects. Digital art finish with smooth textures.`;
+      stylePrompt = `. Illustrated in beautiful anime art style with vibrant colors and soft cel-shading. Clean vector-like lines with bright, saturated colors typical of Japanese animation. The plant maintains botanical accuracy while being stylized with artistic flair. Soft gradients, glowing effects on flowers, and a cheerful, appealing aesthetic. Background with soft bokeh or gradient effects. Digital art finish with smooth textures. Pure illustration without text or writing.`;
       break;
     case 'realistic':
-      stylePrompt = `. Captured as a highly detailed, photorealistic image with macro photography quality. Crystal clear focus showing minute details like leaf textures, petal surface patterns, stem structures, and natural imperfections. Professional nature photography with excellent depth of field, natural color reproduction, and lifelike appearance. Include environmental context showing the plant's natural growing conditions. Shot with high-end botanical photography techniques.`;
+      stylePrompt = `. Captured as a highly detailed, photorealistic image with macro photography quality. Crystal clear focus showing minute details like leaf textures, petal surface patterns, stem structures, and natural imperfections. Professional nature photography with excellent depth of field, natural color reproduction, and lifelike appearance. Include environmental context showing the plant's natural growing conditions. Shot with high-end botanical photography techniques. Clean natural photography without any text overlays or watermarks.`;
       break;
     default:
       stylePrompt = '. Beautifully rendered with accurate botanical details, natural colors, excellent lighting, and clear definition of plant structures.';
   }
 
-  // 品質向上のための追加指示
-  const qualityPrompt = ' High resolution, botanically accurate, detailed plant anatomy, professional quality, masterpiece';
+  // シードに基づく構図のバリエーション
+  let compositionPrompt = '';
+  if (seed) {
+    const compositions = [
+      ', centered composition with full plant view',
+      ', close-up detail view focusing on flowers and leaves',
+      ', diagonal composition showing plant structure',
+      ', artistic angled view with depth',
+      ', side profile view highlighting plant silhouette'
+    ];
+    compositionPrompt = compositions[seed % compositions.length];
+  }
 
-  return basePrompt + featuresPrompt + habitatPrompt + seasonPrompt + lightingPrompt + stylePrompt + qualityPrompt;
+  // 品質向上とテキスト抑制のための追加指示
+  const qualityPrompt = ' High resolution, botanically accurate, detailed plant anatomy, professional quality, masterpiece';
+  const noTextPrompt = ', no text, no words, no letters, no watermarks, no labels, clean image without any written content';
+
+  return basePrompt + featuresPrompt + habitatPrompt + seasonPrompt + lightingPrompt + compositionPrompt + stylePrompt + qualityPrompt + noTextPrompt;
 }
 
 // 日本語植物特徴を英語に変換
