@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 設定値を取得
     const level = document.querySelector('input[name="level"]:checked').value;
     const questionCount = document.querySelector('input[name="questionCount"]:checked').value;
-    const quizType = document.querySelector('input[name="quizType"]:checked').value;
+    const subject = document.querySelector('input[name="subject"]:checked').value;
     
     // UI更新
     loadingIndicator.classList.add('active');
@@ -351,12 +351,12 @@ document.addEventListener('DOMContentLoaded', () => {
     updateGenerationInfo();
     
     // LLMにクイズ生成を依頼
-    const messages = createQuizGenerationMessages(input, level, questionCount, quizType);
+    const messages = createQuizGenerationMessages(input, level, questionCount, subject);
     callLLMAPI(messages);
   }
   
   // クイズ生成用メッセージ作成
-  function createQuizGenerationMessages(input, level, questionCount, quizType) {
+  function createQuizGenerationMessages(input, level, questionCount, subject) {
     const levelDescriptions = {
       'elementary-low': '小学生低学年（1-2年生）',
       'elementary-mid': '小学生中学年（3-4年生）',
@@ -365,10 +365,12 @@ document.addEventListener('DOMContentLoaded', () => {
       'senior': '高校生'
     };
     
-    const typeDescriptions = {
-      '2': 'はい・いいえの2択問題',
-      '3': '3択問題',
-      '4': '4択問題'
+    const subjectDescriptions = {
+      'japanese': '国語',
+      'math': '算数・数学',
+      'english': '英語',
+      'science': '理科',
+      'social': '社会'
     };
     
     // 生成回数に応じたバリエーション指示
@@ -383,39 +385,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // 正解位置のバランス指示を生成
     const balanceInstructions = createBalanceInstructions(questionCount, quizType);
     
-    const systemPrompt = `あなたはクイズ作成の専門家です。与えられたテキストから${levelDescriptions[level]}レベルの${typeDescriptions[quizType]}を${questionCount}問作成してください。
+    const systemPrompt = `あなたは${subjectDescriptions[subject]}の専門教師です。与えられたテキストから${levelDescriptions[level]}レベルの記述式問題を${questionCount}問作成してください。
 
-${variationInstructions}
-
-${focusAreas}
-
-${questionStyles}
-
-${avoidanceInstructions}
-
-${balanceInstructions}
+教科の特性を活かした問題作成：
+${getSubjectSpecificInstructions(subject, level)}
 
 以下のJSON形式で回答してください：
 {
   "questions": [
     {
-      "question": "問題文",
-      "options": ["選択肢1", "選択肢2"${quizType > 2 ? ', "選択肢3"' : ''}${quizType > 3 ? ', "選択肢4"' : ''}],
-      "correct": 0,
-      "hint": "間違えた時のヒント",
-      "explanation": "正解時の解説"
+      "question": "記述式問題文",
+      "subject": "${subject}",
+      "level": "${level}",
+      "expectedAnswer": "期待される回答の例",
+      "scoringCriteria": {
+        "excellent": "優秀な回答の基準",
+        "good": "良い回答の基準",
+        "average": "普通の回答の基準",
+        "poor": "改善が必要な回答の基準"
+      },
+      "keyPoints": ["評価ポイント1", "評価ポイント2", "評価ポイント3"]
     }
   ]
 }
 
 注意事項：
 - 問題は${levelDescriptions[level]}に適した難易度にしてください
-- correctは正解の選択肢のインデックス（0から始まる）
-- ${quizType === '2' ? '2択問題では「はい」「いいえ」形式を基本としてください' : ''}
-- ヒントは間違えた時に理解を助ける内容にしてください
-- 解説は正解の理由を分かりやすく説明してください
-- 必ずJSON形式で回答し、他の説明は含めないでください
-- 前回と異なる視点や角度から問題を作成してください`;
+- ${subjectDescriptions[subject]}の特性を活かした問題にしてください
+- 記述式回答で理解度を測れる問題にしてください
+- 必ずJSON形式で回答し、他の説明は含めないでください`;
     
     return [
       { role: "system", content: systemPrompt },
@@ -423,18 +421,47 @@ ${balanceInstructions}
     ];
   }
   
-  // バリエーション指示を生成
-  function getVariationInstructions(count, quizType) {
-    const variations = [
-      "基本的な理解を確認する問題を中心に作成してください。",
-      "応用的な思考力を問う問題を含めてください。前回とは異なる角度から問題を作成し、より深い理解を促す内容にしてください。",
-      "創造的で発展的な問題を作成してください。テキストの内容を実生活に応用したり、関連する事例を考えさせる問題を含めてください。",
-      "総合的な理解力を測る問題を作成してください。複数の概念を組み合わせたり、批判的思考を促す問題を含めてください。",
-      "多角的な視点から問題を作成してください。テキストの内容を異なる文脈で考えさせる問題や、比較・対比を求める問題を含めてください。"
-    ];
+  // 教科別指導方針を生成
+  function getSubjectSpecificInstructions(subject, level) {
+    const instructions = {
+      'japanese': {
+        'elementary-low': '文字の読み書き、基本的な語彙の理解、簡単な文章の内容把握を中心とした問題。',
+        'elementary-mid': '文章の構成理解、登場人物の気持ち、語彙の使い分けなどを問う問題。',
+        'elementary-high': '文章の要約、主題の把握、表現技法の理解などを問う問題。',
+        'junior': '古典の基礎、文法、文学作品の解釈、表現力を問う問題。',
+        'senior': '古典の深い理解、現代文の論理構造、小論文的な表現力を問う問題。'
+      },
+      'math': {
+        'elementary-low': '数の概念、基本的な計算、図形の認識を問う問題。',
+        'elementary-mid': '四則演算の活用、図形の性質、簡単な文章題を問う問題。',
+        'elementary-high': '分数・小数の計算、面積・体積、比例・反比例を問う問題。',
+        'junior': '文字式、方程式、関数、図形の証明を問う問題。',
+        'senior': '二次関数、三角関数、微分・積分の概念を問う問題。'
+      },
+      'english': {
+        'elementary-low': '基本的な英単語、簡単な挨拶、アルファベットの理解を問う問題。',
+        'elementary-mid': '基本的な文法、日常会話、短い文章の理解を問う問題。',
+        'elementary-high': '文法の応用、長い文章の理解、英作文を問う問題。',
+        'junior': '文法の体系的理解、長文読解、英作文の表現力を問う問題。',
+        'senior': '複雑な文法構造、論説文の理解、議論的な英作文を問う問題。'
+      },
+      'science': {
+        'elementary-low': '身の回りの自然現象、生き物の特徴、物の性質を問う問題。',
+        'elementary-mid': '植物・動物の仕組み、天気や季節、物質の変化を問う問題。',
+        'elementary-high': '人体の仕組み、電気・磁石、天体の動きを問う問題。',
+        'junior': '化学変化、生物の進化、物理法則の理解を問う問題。',
+        'senior': '化学結合、遺伝の仕組み、力学・電磁気学を問う問題。'
+      },
+      'social': {
+        'elementary-low': '家族・学校・地域社会、季節の行事、基本的なルールを問う問題。',
+        'elementary-mid': '都道府県の特徴、歴史的人物、地図の読み方を問う問題。',
+        'elementary-high': '日本の歴史、世界の国々、政治の仕組みを問う問題。',
+        'junior': '歴史の流れ、地理的特徴、政治・経済の基本を問う問題。',
+        'senior': '歴史の因果関係、地理的分析、現代社会の課題を問う問題。'
+      }
+    };
     
-    const index = Math.min(count - 1, variations.length - 1);
-    return variations[index];
+    return instructions[subject][level] || '教科の特性を活かした総合的な理解力を問う問題。';
   }
   
   // 焦点領域を生成
@@ -666,7 +693,7 @@ ${balanceInstructions}
     newQuizBtn.style.display = 'none';
   }
   
-  // 問題カードを作成
+  // 記述式問題カードを作成
   function createQuestionCard(question, questionIndex) {
     const card = document.createElement('div');
     card.className = 'question-card';
@@ -680,37 +707,52 @@ ${balanceInstructions}
     questionNumber.className = 'question-number';
     questionNumber.textContent = `問題 ${questionIndex + 1}`;
     
-    const hintButton = document.createElement('button');
-    hintButton.className = 'hint-button';
-    hintButton.innerHTML = '<i class="fas fa-lightbulb"></i> ヒント';
-    hintButton.addEventListener('click', () => showQuestionHint(questionIndex));
+    // 教科表示
+    const subjectBadge = document.createElement('div');
+    subjectBadge.className = 'subject-badge';
+    const subjectNames = {
+      'japanese': '国語',
+      'math': '算数・数学',
+      'english': '英語',
+      'science': '理科',
+      'social': '社会'
+    };
+    subjectBadge.textContent = subjectNames[question.subject] || question.subject;
     
     header.appendChild(questionNumber);
-    header.appendChild(hintButton);
+    header.appendChild(subjectBadge);
     
     // 問題文
     const questionText = document.createElement('div');
     questionText.className = 'question-text';
     questionText.textContent = question.question;
     
-    // 選択肢
-    const optionsContainer = document.createElement('div');
-    optionsContainer.className = 'question-options';
+    // 回答入力エリア
+    const answerLabel = document.createElement('label');
+    answerLabel.className = 'answer-label';
+    answerLabel.textContent = '回答を記述してください：';
     
-    question.options.forEach((option, optionIndex) => {
-      const optionElement = document.createElement('div');
-      optionElement.className = 'option-item';
-      optionElement.textContent = option;
-      optionElement.dataset.questionIndex = questionIndex;
-      optionElement.dataset.optionIndex = optionIndex;
-      optionElement.addEventListener('click', () => selectAnswer(questionIndex, optionIndex, optionElement));
-      optionsContainer.appendChild(optionElement);
+    const answerTextarea = document.createElement('textarea');
+    answerTextarea.className = 'answer-textarea';
+    answerTextarea.id = `answer-${questionIndex}`;
+    answerTextarea.placeholder = 'ここに回答を記述してください...';
+    answerTextarea.addEventListener('input', () => {
+      userAnswers[questionIndex] = answerTextarea.value;
+      if (answerTextarea.value.trim()) {
+        answerTextarea.classList.add('answered');
+        card.classList.add('answered');
+      } else {
+        answerTextarea.classList.remove('answered');
+        card.classList.remove('answered');
+      }
+      updateSubmitButton();
     });
     
     // カード構成
     card.appendChild(header);
     card.appendChild(questionText);
-    card.appendChild(optionsContainer);
+    card.appendChild(answerLabel);
+    card.appendChild(answerTextarea);
     
     return card;
   }
@@ -738,15 +780,15 @@ ${balanceInstructions}
   
   // 提出ボタンの状態を更新
   function updateSubmitButton() {
-    const allAnswered = userAnswers.every(answer => answer !== null);
+    const allAnswered = userAnswers.every(answer => answer !== null && answer.trim() !== '');
     submitAllAnswersBtn.disabled = !allAnswered;
     submitAllAnswersBtn.style.display = 'block';
     
     if (allAnswered) {
-      submitAllAnswersBtn.innerHTML = '<i class="fas fa-check-circle"></i> 回答する';
+      submitAllAnswersBtn.innerHTML = '<i class="fas fa-check-circle"></i> 回答を評価する';
     } else {
-      const answeredCount = userAnswers.filter(answer => answer !== null).length;
-      submitAllAnswersBtn.innerHTML = `<i class="fas fa-check-circle"></i> 回答する（${answeredCount}/${totalQuestions}問選択済み）`;
+      const answeredCount = userAnswers.filter(answer => answer !== null && answer.trim() !== '').length;
+      submitAllAnswersBtn.innerHTML = `<i class="fas fa-check-circle"></i> 回答を評価する（${answeredCount}/${totalQuestions}問記述済み）`;
     }
   }
   
@@ -777,69 +819,338 @@ ${balanceInstructions}
     hintDisplay.innerHTML = `<i class="fas fa-lightbulb hint-icon"></i><strong>ヒント:</strong> ${question.hint}`;
   }
   
-  // 一括採点
-  submitAllAnswersBtn.addEventListener('click', submitAllAnswers);
+  // 記述式回答評価
+  submitAllAnswersBtn.addEventListener('click', evaluateAnswers);
   
-  function submitAllAnswers() {
+  function evaluateAnswers() {
     if (isQuizSubmitted) return;
     
     isQuizSubmitted = true;
-    score = 0;
     
-    // 各問題を採点
-    currentQuiz.questions.forEach((question, questionIndex) => {
-      const userAnswer = userAnswers[questionIndex];
-      const isCorrect = userAnswer === question.correct;
-      const questionCard = document.querySelector(`[data-question-index="${questionIndex}"]`);
+    // 評価プロセス開始
+    loadingIndicator.classList.add('active');
+    submitAllAnswersBtn.disabled = true;
+    submitAllAnswersBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 評価中...';
+    
+    // LLMに評価を依頼
+    evaluateWithLLM();
+  }
+  
+  function evaluateWithLLM() {
+    const evaluationPromises = currentQuiz.questions.map((question, index) => {
+      const userAnswer = userAnswers[index];
+      const evaluationMessages = createEvaluationMessages(question, userAnswer, index);
       
-      // 得点計算（ヒント使用時は0.5点）
-      if (isCorrect) {
-        score += hintUsed[questionIndex] ? 0.5 : 1;
-      }
-      
-      // 選択肢の色分け
-      const options = questionCard.querySelectorAll('.option-item');
-      options.forEach((option, optionIndex) => {
-        if (optionIndex === question.correct) {
-          option.classList.add('correct');
-        } else if (optionIndex === userAnswer && !isCorrect) {
-          option.classList.add('incorrect');
+      return fetch('https://nurumayu-worker.skume-bioinfo.workers.dev/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+          temperature: 0.3,
+          stream: false,
+          max_completion_tokens: 1500,
+          messages: evaluationMessages
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+          return processEvaluationResponse(data.choices[0].message.content, index);
+        } else if (data.answer) {
+          return processEvaluationResponse(data.answer, index);
+        } else {
+          throw new Error('評価レスポンスに期待されるフィールドがありません');
         }
       });
-      
-      // 問題カードのスタイル更新
-      if (isCorrect) {
-        questionCard.classList.add('correct');
-      } else {
-        questionCard.classList.add('incorrect');
-      }
-      
-      // 解説またはフィードバック表示
-      addQuestionFeedback(questionCard, question, isCorrect);
     });
     
+    Promise.all(evaluationPromises)
+      .then(evaluations => {
+        displayEvaluationResults(evaluations);
+        calculateOverallScore(evaluations);
+        loadingIndicator.classList.remove('active');
+        submitAllAnswersBtn.style.display = 'none';
+        retryQuizBtn.style.display = 'block';
+        newQuizBtn.style.display = 'block';
+      })
+      .catch(error => {
+        console.error('評価エラー:', error);
+        loadingIndicator.classList.remove('active');
+        submitAllAnswersBtn.disabled = false;
+        submitAllAnswersBtn.innerHTML = '<i class="fas fa-check-circle"></i> 回答を評価する';
+        alert('評価中にエラーが発生しました。もう一度お試しください。');
+      });
+  }
+  
+  // 評価用メッセージ作成
+  function createEvaluationMessages(question, userAnswer, questionIndex) {
+    const subjectNames = {
+      'japanese': '国語',
+      'math': '算数・数学', 
+      'english': '英語',
+      'science': '理科',
+      'social': '社会'
+    };
+    
+    const levelNames = {
+      'elementary-low': '小学生低学年',
+      'elementary-mid': '小学生中学年',
+      'elementary-high': '小学生高学年',
+      'junior': '中学生',
+      'senior': '高校生'
+    };
+    
+    const systemPrompt = `あなたは${subjectNames[question.subject]}の専門教師です。${levelNames[question.level]}の学生の記述式回答を評価してください。
+
+評価観点：
+${question.keyPoints.map(point => `- ${point}`).join('\n')}
+
+期待される回答：
+${question.expectedAnswer}
+
+評価基準：
+- 優秀（90-100点）: ${question.scoringCriteria.excellent}
+- 良好（70-89点）: ${question.scoringCriteria.good}
+- 普通（50-69点）: ${question.scoringCriteria.average}
+- 要改善（0-49点）: ${question.scoringCriteria.poor}
+
+以下のJSON形式で評価結果を回答してください：
+{
+  "score": 75,
+  "level": "good",
+  "strengths": ["良い点1", "良い点2"],
+  "weaknesses": ["改善点1", "改善点2"], 
+  "corrections": [
+    {"incorrect": "間違った表現", "correct": "正しい表現", "explanation": "訂正理由"}
+  ],
+  "improvements": ["具体的な改善アドバイス1", "具体的な改善アドバイス2"],
+  "encouragement": "励ましのメッセージ"
+}
+
+注意事項：
+- scoreは0-100の数値で評価してください
+- levelは"excellent", "good", "average", "poor"のいずれかです
+- ${subjectNames[question.subject]}の特性を活かした専門的な評価をしてください
+- 学生の学習意欲を高める建設的なフィードバックを心がけてください
+- 必ずJSON形式で回答し、他の説明は含めないでください`;
+
+    return [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `問題: ${question.question}\n\n学生の回答: ${userAnswer}` }
+    ];
+  }
+  
+  // 評価レスポンス処理
+  function processEvaluationResponse(text, questionIndex) {
+    try {
+      let jsonText = text;
+      
+      // JSONの抽出
+      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[1];
+      } else {
+        const startIndex = text.indexOf('{');
+        const lastIndex = text.lastIndexOf('}');
+        if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
+          jsonText = text.substring(startIndex, lastIndex + 1);
+        }
+      }
+      
+      const evaluation = JSON.parse(jsonText);
+      evaluation.questionIndex = questionIndex;
+      return evaluation;
+    } catch (error) {
+      console.error('評価レスポンス解析エラー:', error);
+      // フォールバック評価
+      return {
+        questionIndex: questionIndex,
+        score: 50,
+        level: "average",
+        strengths: ["回答していただきありがとうございます"],
+        weaknesses: ["評価システムにエラーが発生しました"],
+        corrections: [],
+        improvements: ["もう一度お試しください"],
+        encouragement: "再度挑戦してみましょう！"
+      };
+    }
+  }
+  
+  // 評価結果表示
+  function displayEvaluationResults(evaluations) {
+    const resultsContainer = document.getElementById('evaluationResults');
+    resultsContainer.innerHTML = '';
+    resultsContainer.style.display = 'block';
+    
+    evaluations.forEach((evaluation, index) => {
+      const card = createEvaluationCard(evaluation, index);
+      resultsContainer.appendChild(card);
+    });
+  }
+  
+  // 評価カード作成
+  function createEvaluationCard(evaluation, questionIndex) {
+    const card = document.createElement('div');
+    card.className = `evaluation-card ${evaluation.level}`;
+    
+    // ヘッダー
+    const header = document.createElement('div');
+    header.className = 'evaluation-header';
+    
+    const questionNumber = document.createElement('div');
+    questionNumber.className = 'evaluation-question-number';
+    questionNumber.textContent = `問題 ${questionIndex + 1}`;
+    
+    const scoreContainer = document.createElement('div');
+    scoreContainer.className = `evaluation-score ${evaluation.level}`;
+    
+    const scoreValue = document.createElement('span');
+    scoreValue.className = 'evaluation-score-value';
+    scoreValue.textContent = `${evaluation.score}点`;
+    
+    const levelBadge = document.createElement('span');
+    levelBadge.className = 'evaluation-level-badge';
+    const levelTexts = {
+      'excellent': '優秀',
+      'good': '良好', 
+      'average': '普通',
+      'poor': '要改善'
+    };
+    levelBadge.textContent = levelTexts[evaluation.level];
+    
+    scoreContainer.appendChild(scoreValue);
+    scoreContainer.appendChild(levelBadge);
+    
+    header.appendChild(questionNumber);
+    header.appendChild(scoreContainer);
+    
+    // コンテンツ
+    const content = document.createElement('div');
+    content.className = 'evaluation-content';
+    
+    // 良い点
+    if (evaluation.strengths && evaluation.strengths.length > 0) {
+      const strengthsSection = createEvaluationSection(
+        '👍 良い点',
+        evaluation.strengths.map(s => `• ${s}`).join('\n')
+      );
+      content.appendChild(strengthsSection);
+    }
+    
+    // 改善点
+    if (evaluation.weaknesses && evaluation.weaknesses.length > 0) {
+      const weaknessesSection = createEvaluationSection(
+        '📝 改善点',
+        evaluation.weaknesses.map(w => `• ${w}`).join('\n')
+      );
+      content.appendChild(weaknessesSection);
+    }
+    
+    // 訂正
+    if (evaluation.corrections && evaluation.corrections.length > 0) {
+      const correctionsDiv = document.createElement('div');
+      correctionsDiv.className = 'corrections-highlight';
+      
+      const title = document.createElement('div');
+      title.className = 'evaluation-section-title';
+      title.innerHTML = '<i class="fas fa-edit"></i> 訂正';
+      correctionsDiv.appendChild(title);
+      
+      evaluation.corrections.forEach(correction => {
+        const item = document.createElement('div');
+        item.className = 'correction-item';
+        item.innerHTML = `
+          <span class="correction-before">${correction.incorrect}</span>
+          <span class="correction-after">→ ${correction.correct}</span>
+          <div style="margin-top: 0.3rem; font-size: 0.9rem; color: #666;">${correction.explanation}</div>
+        `;
+        correctionsDiv.appendChild(item);
+      });
+      
+      content.appendChild(correctionsDiv);
+    }
+    
+    // 改善アドバイス
+    if (evaluation.improvements && evaluation.improvements.length > 0) {
+      const improvementsDiv = document.createElement('div');
+      improvementsDiv.className = 'improvement-suggestions';
+      
+      const title = document.createElement('div');
+      title.className = 'evaluation-section-title';
+      title.innerHTML = '<i class="fas fa-lightbulb"></i> 改善アドバイス';
+      improvementsDiv.appendChild(title);
+      
+      evaluation.improvements.forEach(improvement => {
+        const item = document.createElement('div');
+        item.className = 'improvement-item';
+        item.innerHTML = `
+          <i class="fas fa-arrow-right improvement-icon"></i>
+          <span>${improvement}</span>
+        `;
+        improvementsDiv.appendChild(item);
+      });
+      
+      content.appendChild(improvementsDiv);
+    }
+    
+    // 励まし
+    if (evaluation.encouragement) {
+      const encouragementSection = createEvaluationSection(
+        '💪 メッセージ',
+        evaluation.encouragement
+      );
+      content.appendChild(encouragementSection);
+    }
+    
+    card.appendChild(header);
+    card.appendChild(content);
+    
+    return card;
+  }
+  
+  // 評価セクション作成
+  function createEvaluationSection(title, content) {
+    const section = document.createElement('div');
+    section.className = 'evaluation-section';
+    
+    const titleElement = document.createElement('div');
+    titleElement.className = 'evaluation-section-title';
+    titleElement.textContent = title;
+    
+    const contentElement = document.createElement('div');
+    contentElement.className = 'evaluation-section-content';
+    contentElement.textContent = content;
+    
+    section.appendChild(titleElement);
+    section.appendChild(contentElement);
+    
+    return section;
+  }
+  
+  // 総合スコア計算
+  function calculateOverallScore(evaluations) {
+    const totalScore = evaluations.reduce((sum, eval) => sum + eval.score, 0);
+    const averageScore = totalScore / evaluations.length;
+    const percentage = Math.round(averageScore);
+    
     // 累積スコアに追加
-    cumulativeScore += score;
-    cumulativeTotalQuestions += totalQuestions;
+    cumulativeScore += averageScore;
+    cumulativeTotalQuestions += 100; // 100点満点で計算
     cumulativeQuizCount++;
     
-    // スコア更新
-    const percentage = Math.round((score / totalQuestions) * 100);
+    // スコア表示更新
     const cumulativePercentage = Math.round((cumulativeScore / cumulativeTotalQuestions) * 100);
     
     if (cumulativeQuizCount > 1) {
-      quizScore.textContent = `今回: ${score.toFixed(1)} / ${totalQuestions} (${percentage}%) | 合計: ${cumulativeScore.toFixed(1)} / ${cumulativeTotalQuestions} (${cumulativePercentage}%)`;
+      quizScore.textContent = `今回: ${averageScore.toFixed(1)}点 (${percentage}%) | 合計平均: ${(cumulativeScore / cumulativeQuizCount).toFixed(1)}点`;
     } else {
-      quizScore.textContent = `得点: ${score.toFixed(1)} / ${totalQuestions} (${percentage}%)`;
+      quizScore.textContent = `平均得点: ${averageScore.toFixed(1)}点 (${percentage}%)`;
     }
     
-    // 結果表示
-    showQuizResults();
-    
-    // ボタン状態更新
-    submitAllAnswersBtn.style.display = 'none';
-    retryQuizBtn.style.display = 'block';
-    newQuizBtn.style.display = 'block';
+    // 祝福演出
+    showCelebrationByScore(percentage);
   }
   
   // 問題にフィードバックを追加

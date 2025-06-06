@@ -180,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // 生成成功のフィードバック
           generateQRBtn.style.background = 'linear-gradient(135deg, #4CAF50, #81c784)';
           generateQRBtn.innerHTML = '<i class="fas fa-check"></i> QRコード生成完了';
+          showNotification('QRコードが正常に生成されました', 'success');
           
           setTimeout(() => {
             generateQRBtn.style.background = '';
@@ -190,7 +191,11 @@ document.addEventListener('DOMContentLoaded', () => {
       
     } catch (error) {
       console.error('QRコード生成エラー:', error);
-      alert('QRコードの生成に失敗しました。');
+      showNotification('QRコードの生成に失敗しました', 'error');
+      
+      // エラー時のボタン状態をリセット
+      generateQRBtn.style.background = '';
+      generateQRBtn.innerHTML = '<i class="fas fa-magic"></i> QRコードを生成';
     }
   }
   
@@ -273,7 +278,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filteredAttendees.length === 0) {
       attendeeList.innerHTML = `
         <div style="padding: 2rem; text-align: center; color: #666;">
-          ${searchTerm ? '該当する参加者が見つかりません' : '参加者がまだいません'}
+          <i class="fas fa-${searchTerm ? 'search' : 'users'}" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i><br>
+          ${searchTerm ? '該当する参加者が見つかりません' : '参加者がまだいません'}<br>
+          <small style="color: #999; margin-top: 0.5rem; display: block;">
+            ${searchTerm ? '検索条件を変更してみてください' : 'QRコードを読み取って参加者を登録してください'}
+          </small>
         </div>
       `;
       return;
@@ -336,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function clearAllData() {
     attendeesData = [];
     localStorage.removeItem('qr_attendees');
-    localStorage.removeItem('qr_config');
+    // 設定はクリアしない（次回使用時のため）
     
     // UI更新
     updateAttendeeStats();
@@ -356,6 +365,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // 設定保存
   function saveConfiguration() {
     localStorage.setItem('qr_config', JSON.stringify(currentConfig));
+    
+    // 設定保存のフィードバック（控えめに）
+    // showNotification('設定を保存しました', 'info');
   }
   
   // 保存されたデータ読み込み
@@ -396,7 +408,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // 新しい参加者を追加（input.htmlから呼び出される）
   window.addNewAttendee = function(attendeeData) {
     const newAttendee = {
-      ...attendeeData,
+      name: attendeeData.name,
+      organization: attendeeData.organization || '',
+      contact: attendeeData.contact || '',
+      customFields: {
+        custom1: attendeeData.custom1 || '',
+        custom2: attendeeData.custom2 || '',
+        custom3: attendeeData.custom3 || ''
+      },
       timestamp: new Date().toISOString(),
       id: Date.now()
     };
@@ -412,6 +431,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return currentConfig;
   };
   
+  // 設定を外部からアクセス可能にする
+  window.getQRConfig = function() {
+    return JSON.parse(localStorage.getItem('qr_config') || JSON.stringify(currentConfig));
+  };
+  
   // 定期的なデータ更新（他のタブで追加された参加者を反映）
   setInterval(() => {
     const savedAttendees = localStorage.getItem('qr_attendees');
@@ -424,4 +448,95 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }, 2000);
+  
+  // Storage イベントリスナー（他のタブでのデータ変更を即座に反映）
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'qr_attendees') {
+      const newData = e.newValue ? JSON.parse(e.newValue) : [];
+      const oldLength = attendeesData.length;
+      
+      if (JSON.stringify(newData) !== JSON.stringify(attendeesData)) {
+        attendeesData = newData;
+        updateAttendeeStats();
+        renderAttendeeList();
+        
+        // 新しい参加者が追加された場合の通知
+        if (newData.length > oldLength) {
+          showNotification('新しい参加者が追加されました', 'success');
+        }
+      }
+    }
+    
+    if (e.key === 'qr_config') {
+      const newConfig = e.newValue ? JSON.parse(e.newValue) : currentConfig;
+      if (JSON.stringify(newConfig) !== JSON.stringify(currentConfig)) {
+        currentConfig = newConfig;
+        loadSavedData(); // UI反映
+      }
+    }
+  });
+  
+  // 通知表示機能
+  function showNotification(message, type = 'info') {
+    // 既存の通知があれば削除
+    const existingNotification = document.querySelector('.notification');
+    if (existingNotification) {
+      existingNotification.remove();
+    }
+    
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      z-index: 10000;
+      animation: slideIn 0.3s ease-out;
+      font-size: 0.9rem;
+      max-width: 300px;
+    `;
+    
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // 3秒後に自動削除
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+      }
+    }, 3000);
+  }
+  
+  // 通知用のCSSアニメーション
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+  `;
+  document.head.appendChild(style);
 }); 

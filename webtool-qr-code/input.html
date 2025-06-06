@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>参加者情報入力｜QR参加管理ツール</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
   <style>
     :root {
       --primary: #2196F3;
@@ -319,32 +320,51 @@
     });
     
     function initializeForm() {
-      // URLパラメータから設定を取得（将来の拡張用）
-      const urlParams = new URLSearchParams(window.location.search);
+      // ローカルストレージから設定を取得（統一されたキー名を使用）
+      const config = JSON.parse(localStorage.getItem('qr_config') || '{}');
       
-      // ローカルストレージから設定を取得
-      const settings = JSON.parse(localStorage.getItem('qr_attendance_settings') || '{}');
+      // デフォルト設定
+      const defaultConfig = {
+        fields: {
+          name: true,
+          organization: false,
+          contact: false,
+          custom1: false,
+          custom2: false,
+          custom3: false
+        },
+        customFieldNames: {
+          custom1: '',
+          custom2: '',
+          custom3: ''
+        }
+      };
+      
+      const settings = { ...defaultConfig, ...config };
       
       // フィールドの表示/非表示設定
-      if (settings.fields) {
-        if (settings.fields.grade) {
-          document.getElementById('gradeGroup').style.display = 'block';
-        }
-        if (settings.fields.contact) {
-          document.getElementById('contactGroup').style.display = 'block';
-        }
-        if (settings.fields.custom1 && settings.customFields?.field1) {
-          document.getElementById('custom1Group').style.display = 'block';
-          document.getElementById('custom1Label').textContent = settings.customFields.field1;
-        }
-        if (settings.fields.custom2 && settings.customFields?.field2) {
-          document.getElementById('custom2Group').style.display = 'block';
-          document.getElementById('custom2Label').textContent = settings.customFields.field2;
-        }
-        if (settings.fields.custom3 && settings.customFields?.field3) {
-          document.getElementById('custom3Group').style.display = 'block';
-          document.getElementById('custom3Label').textContent = settings.customFields.field3;
-        }
+      if (settings.fields.organization) {
+        document.getElementById('gradeGroup').style.display = 'block';
+        document.querySelector('#gradeGroup .form-label').textContent = '所属・学年';
+      }
+      
+      if (settings.fields.contact) {
+        document.getElementById('contactGroup').style.display = 'block';
+      }
+      
+      if (settings.fields.custom1 && settings.customFieldNames.custom1) {
+        document.getElementById('custom1Group').style.display = 'block';
+        document.getElementById('custom1Label').textContent = settings.customFieldNames.custom1;
+      }
+      
+      if (settings.fields.custom2 && settings.customFieldNames.custom2) {
+        document.getElementById('custom2Group').style.display = 'block';
+        document.getElementById('custom2Label').textContent = settings.customFieldNames.custom2;
+      }
+      
+      if (settings.fields.custom3 && settings.customFieldNames.custom3) {
+        document.getElementById('custom3Group').style.display = 'block';
+        document.getElementById('custom3Label').textContent = settings.customFieldNames.custom3;
       }
     }
     
@@ -386,6 +406,12 @@
           showError(input, errorElement, '電話番号またはメールアドレスを入力してください');
           return false;
         }
+      }
+      
+      // その他のフィールドの文字数チェック
+      if (value && value.length > 100) {
+        showError(input, errorElement, '100文字以内で入力してください');
+        return false;
       }
       
       clearError(input);
@@ -435,19 +461,34 @@
         const formData = new FormData(form);
         const attendeeData = {
           name: formData.get('name'),
-          grade: formData.get('grade') || '',
+          organization: formData.get('grade') || '',
           contact: formData.get('contact') || '',
           custom1: formData.get('custom1') || '',
           custom2: formData.get('custom2') || '',
-          custom3: formData.get('custom3') || '',
-          timestamp: new Date().toISOString(),
-          id: Date.now().toString()
+          custom3: formData.get('custom3') || ''
         };
         
-        // ローカルストレージに保存
-        const existingData = JSON.parse(localStorage.getItem('qr_attendance_data') || '[]');
-        existingData.push(attendeeData);
-        localStorage.setItem('qr_attendance_data', JSON.stringify(existingData));
+        // ローカルストレージが利用可能かチェック
+        if (typeof(Storage) === "undefined") {
+          throw new Error('ローカルストレージが利用できません');
+        }
+        
+        // ローカルストレージに保存（統一されたキー名とデータ構造を使用）
+        const existingData = JSON.parse(localStorage.getItem('qr_attendees') || '[]');
+        const newAttendee = {
+          name: attendeeData.name,
+          organization: attendeeData.organization,
+          contact: attendeeData.contact,
+          customFields: {
+            custom1: attendeeData.custom1,
+            custom2: attendeeData.custom2,
+            custom3: attendeeData.custom3
+          },
+          timestamp: new Date().toISOString(),
+          id: Date.now()
+        };
+        existingData.unshift(newAttendee); // 最新を先頭に
+        localStorage.setItem('qr_attendees', JSON.stringify(existingData));
         
         // 送信完了の演出
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -468,7 +509,13 @@
         
       } catch (error) {
         console.error('送信エラー:', error);
-        alert('送信に失敗しました。もう一度お試しください。');
+        
+        let errorMessage = '送信に失敗しました。もう一度お試しください。';
+        if (error.message.includes('ローカルストレージ')) {
+          errorMessage = 'データの保存に失敗しました。ブラウザの設定をご確認ください。';
+        }
+        
+        alert(errorMessage);
         
         submitBtn.disabled = false;
         submitBtn.classList.remove('loading');

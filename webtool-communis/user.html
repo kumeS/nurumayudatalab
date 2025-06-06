@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>コミュニケーション管理ツール - ユーザー画面</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ff7e5f;
+      --secondary: #feb47b;
+      --accent: #7ee8fa;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+      --success: #28a745;
+      --warning: #ffc107;
+      --info: #17a2b8;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    h1 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+    }
+    
+    .description {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    
+    .step-indicator {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+    
+    .step {
+      display: flex;
+      align-items: center;
+      margin: 0 1rem;
+    }
+    
+    .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #e0e0e0;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      margin-right: 0.5rem;
+      transition: all var(--transition-speed);
+    }
+    
+    .step.active .step-number {
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    .step.completed .step-number {
+      background-color: var(--success);
+      color: white;
+    }
+    
+    .step-text {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    
+    .step.active .step-text {
+      color: var(--primary);
+      font-weight: bold;
+    }
+    
+    .card {
+      background-color: #fff;
+      border-radius: 8px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .tag-selection {
+      display: none;
+    }
+    
+    .tag-selection.active {
+      display: block;
+    }
+    
+    .tag-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .tag-button {
+      background-color: #f8f9fa;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+    
+    .tag-button:hover {
+      border-color: var(--primary);
+      background-color: rgba(255, 126, 95, 0.1);
+    }
+    
+    .tag-button.selected {
+      border-color: var(--primary);
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    .tag-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    
+    .chat-section {
+      display: none;
+    }
+    
+    .chat-section.active {
+      display: block;
+    }
+    
+    .selected-tags-display {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    .selected-tag {
+      display: inline-block;
+      background-color: var(--primary);
+      color: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .chat-container {
+      height: 400px;
+      overflow-y: auto;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background-color: #fafafa;
+    }
+    
+    .message {
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: flex-start;
+    }
+    
+    .message.user {
+      flex-direction: row-reverse;
+    }
+    
+    .message-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 0.5rem;
+      flex-shrink: 0;
+    }
+    
+    .message.user .message-avatar {
+      background-color: var(--accent);
+      color: var(--text-primary);
+    }
+    
+    .message-content {
+      background-color: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      max-width: 70%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .message.user .message-content {
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    .message-time {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+    }
+    
+    .message.user .message-time {
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .input-container {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+    }
+    
+    .message-input {
+      flex: 1;
+      padding: 1rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      resize: vertical;
+      min-height: 50px;
+      max-height: 150px;
+      font-family: inherit;
+    }
+    
+    .message-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    .send-button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-size: 1.2rem;
+    }
+    
+    .send-button:hover {
+      background-color: var(--secondary);
+    }
+    
+    .send-button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .button {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.8rem 1.5rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+      box-shadow: var(--card-shadow);
+      text-decoration: none;
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .button i {
+      margin-right: 0.5rem;
+    }
+    
+    .button.secondary {
+      background: linear-gradient(135deg, #6c757d 0%, #868e96 100%);
+    }
+    
+    .loading-indicator {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      margin: 1rem 0;
+    }
+    
+    .loading-indicator.active {
+      display: flex;
+    }
+    
+    .loading-dots {
+      display: flex;
+      gap: 0.3rem;
+    }
+    
+    .loading-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      animation: loading-pulse 1.5s infinite;
+    }
+    
+    .loading-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    
+    .loading-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+    
+    @keyframes loading-pulse {
+      0%, 60%, 100% {
+        transform: initial;
+        opacity: 0.5;
+      }
+      30% {
+        transform: translateY(-10px);
+        opacity: 1;
+      }
+    }
+    
+    .alert {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      border-left: 4px solid;
+    }
+    
+    .alert.info {
+      background-color: #d1ecf1;
+      border-color: var(--info);
+      color: #0c5460;
+    }
+    
+    .alert.warning {
+      background-color: #fff3cd;
+      border-color: var(--warning);
+      color: #856404;
+    }
+    
+    .alert.success {
+      background-color: #d4edda;
+      border-color: var(--success);
+      color: #155724;
+    }
+    
+    .escalation-notice {
+      background-color: #fff3cd;
+      border: 1px solid #ffeeba;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      text-align: center;
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      color: var(--primary);
+      text-decoration: none;
+      margin-top: 2rem;
+      transition: all 0.3s;
+    }
+    
+    .back-link:hover {
+      color: var(--secondary);
+    }
+    
+    .back-link i {
+      margin-right: 0.5rem;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      .step-indicator {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      
+      .step {
+        margin: 0.5rem;
+      }
+      
+      .tag-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      }
+      
+      .message-content {
+        max-width: 85%;
+      }
+      
+      .step-number {
+        width: 35px;
+        height: 35px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><i class="fas fa-comments"></i> コミュニケーション管理ツール</h1>
+      <p class="description">お気軽にお問い合わせください - 24時間対応</p>
+    </div>
+    
+    <!-- ステップインジケーター -->
+    <div class="step-indicator">
+      <div class="step active" id="step1">
+        <div class="step-number">1</div>
+        <div class="step-text">カテゴリー選択</div>
+      </div>
+      <div class="step" id="step2">
+        <div class="step-number">2</div>
+        <div class="step-text">質問入力</div>
+      </div>
+      <div class="step" id="step3">
+        <div class="step-number">3</div>
+        <div class="step-text">回答確認</div>
+      </div>
+    </div>
+
+    <!-- カテゴリー選択 -->
+    <div class="card tag-selection active" id="tagSelection">
+      <h2><i class="fas fa-tags"></i> カテゴリーを選択してください</h2>
+      <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+        お問い合わせ内容に関連するカテゴリーを選択してください。複数選択可能です。
+      </p>
+      
+      <div class="tag-grid" id="tagGrid">
+        <!-- タグボタンがここに動的に追加される -->
+      </div>
+      
+      <div style="text-align: center;">
+        <button class="button" onclick="proceedToChat()" id="proceedButton" disabled>
+          <i class="fas fa-arrow-right"></i> 次へ進む
+        </button>
+      </div>
+    </div>
+
+    <!-- チャット画面 -->
+    <div class="card chat-section" id="chatSection">
+      <h2><i class="fas fa-comment-dots"></i> お問い合わせ</h2>
+      
+      <!-- 選択されたタグの表示 -->
+      <div class="selected-tags-display">
+        <strong>選択カテゴリー:</strong>
+        <div id="selectedTagsDisplay"></div>
+      </div>
+      
+      <!-- チャット履歴 -->
+      <div class="chat-container" id="chatContainer">
+        <div class="message">
+          <div class="message-avatar">
+            <i class="fas fa-robot"></i>
+          </div>
+          <div class="message-content">
+            <div>こんにちは！選択いただいたカテゴリーに関するご質問をお聞かせください。できる限りお答えいたします。</div>
+            <div class="message-time" id="welcomeTime"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- ローディングインジケーター -->
+      <div class="loading-indicator" id="loadingIndicator">
+        <div class="loading-dots">
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+        </div>
+        <span style="margin-left: 1rem; color: var(--text-secondary);">回答を準備中...</span>
+      </div>
+      
+      <!-- メッセージ入力 -->
+      <div class="input-container">
+        <textarea 
+          id="messageInput" 
+          class="message-input" 
+          placeholder="ご質問をお聞かせください..."
+          rows="1"
+        ></textarea>
+        <button class="send-button" id="sendButton" onclick="sendMessage()">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+      
+      <div style="margin-top: 1rem; text-align: center;">
+        <button class="button secondary" onclick="resetToTagSelection()">
+          <i class="fas fa-arrow-left"></i> カテゴリー選択に戻る
+        </button>
+      </div>
+    </div>
+
+    <a href="admin.html" class="back-link">
+      <i class="fas fa-users-cog"></i> 管理者画面に移動
+    </a>
+  </div>
+
+  <script src="user.js"></script>
+</body>
+</html>

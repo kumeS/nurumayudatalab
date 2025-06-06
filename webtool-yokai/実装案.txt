@@ -1,0 +1,296 @@
+
+## 妖怪AI辞典 MVP仕様（段階的深掘り＆API節約型）
+
+妖怪は、日本、東洋、西洋の妖怪（物の怪、幽霊, 幻, 魔物, 化け物、霊, 妖怪, 魂、ゴーストなど）を指します。
+
+妖怪の内容になるように、下記の内容も適時修正してください。
+
+
+### 1. **基本フロー・コンセプト**
+
+* **ユーザーの入力（妖怪名・俗名・特徴など）に対し、まずは“基本情報（学名・イラスト・概要）”のみ即時提示。**
+* 追加情報（関係しそうな妖怪／ネットワーク／ウンチク）は**各種ボタンを個別に押すことで段階的に生成・表示**。
+* ユーザーが“どこまで深掘るか”を自分で選択できるUX。
+* システム的にも**不要なAPI呼び出し・トークン消費を抑え**、レスポンスの高速化とコスト効率を両立。
+
+---
+
+### 2. **段階的出力設計（UI/UXフロー）**
+
+#### 【A. 最初に表示される“基本カード”】
+
+* **学名候補（最大3つ、sp.含む）**
+* **AI生成イラスト**（顕微鏡イメージ推奨）
+* **ごく簡単な概要説明**（分類／形態／生息場所などの超要約）
+
+#### 【B. ユーザー操作で“深掘りボタン”を任意選択】
+
+* **関係妖怪ボタン**
+
+  * その妖怪と“関連しそうな”他の妖怪名・学名リストを生成・表示
+  * 例：「この菌と拮抗する菌」「共生・競争関係にある菌」「一緒に検出されやすい妖怪」など
+* **ネットワーク可視化ボタン**
+
+  * d3.jsでの**相互作用ネットワーク**（生産物・阻害・共生・耐性等）を可視化
+  * ノード／エッジの詳細はクリック時にサブパネルで
+* **ウンチクボタン**
+
+  * 押すごとに、\*\*“その妖怪の雑学・逸話・トリビア”\*\*を表示
+  * 何回か押すごとに新しい雑学を追加生成（API消費も最小限）
+* **農業・環境での役割ボタン**（必要に応じて追加）
+
+  * その妖怪の“応用・生態系での役割・現実での発見例”などを解説
+
+#### 【C. マイ辞典登録・メモ機能】
+
+* 「気になる妖怪」や「深掘った情報」を自分のマイ辞典へ保存
+* 段階的に保存・追記できる
+
+---
+
+### 3. **API・実装面でのポイント**
+
+* **基本情報のみ最初にAPI呼び出し／生成**（圧倒的に速い・コスト小）
+* 追加ボタンごとに**API呼び出しをオンデマンド実行**
+
+  * 関連妖怪生成API、ネットワーク生成API、ウンチク生成APIを分離
+* キャッシュやローカルストレージで再リクエスト回避も容易
+* ユーザー体験として「全部知りたい」「とりあえず概要だけ」など様々な探究スタイルに対応
+
+
+
+// LLM API呼び出し
+async function callLLMAPI(messages) {
+  const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+  
+  const requestData = {
+    model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    temperature: 0.7,
+    stream: false,
+    max_completion_tokens: 2000,
+    messages: messages
+  };
+  
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestData)
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API呼び出しに失敗しました: ${response.status}`);
+  }
+  
+  const data = await response.json();
+    
+    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+    return parseRecipeResponse(data.choices[0].message.content);
+    } else if (data.answer) {
+    return parseRecipeResponse(data.answer);
+    } else {
+      throw new Error('レスポンスに期待されるフィールドがありません');
+    }
+}
+
+// メニュー提案レスポンス解析
+function parseRecipeResponse(text) {
+  try {
+    console.log('Raw API response:', text);
+    
+    // 複数の JSON 抽出パターンを試行
+    let jsonText = null;
+    
+    // パターン1: ```json と ``` で囲まれた JSON
+    let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      jsonText = jsonMatch[1];
+      console.log('JSON found with json marker:', jsonText);
+    } else {
+      // パターン2: ``` と ``` で囲まれた JSON
+      jsonMatch = text.match(/```\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[1];
+        console.log('JSON found with generic marker:', jsonText);
+      } else {
+        // パターン3: { から } までの最初の完全なJSON
+        const startIndex = text.indexOf('{');
+        const lastIndex = text.lastIndexOf('}');
+        if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
+          jsonText = text.substring(startIndex, lastIndex + 1);
+          console.log('JSON found with brace matching:', jsonText);
+        } else {
+          // パターン4: 直接JSONとして解析
+          jsonText = text.trim();
+          console.log('Using text directly as JSON:', jsonText);
+        }
+      }
+    }
+    
+    if (!jsonText) {
+      throw new Error('JSONコンテンツが見つかりません');
+    }
+    
+    // JSONをクリーンアップ
+    jsonText = jsonText.trim();
+    
+    // 不要な文字を除去
+    jsonText = jsonText.replace(/^[^{]*/, ''); // { より前の文字を除去
+    jsonText = jsonText.replace(/[^}]*$/, ''); // } より後の文字を除去
+    jsonText = jsonText.replace(/```$/, ''); // 末尾の ``` を除去
+    
+    console.log('Cleaned JSON text:', jsonText);
+    
+    const data = JSON.parse(jsonText);
+    console.log('Parsed result:', data);
+    
+    // メニューデータの場合
+    if (data.menus && Array.isArray(data.menus)) {
+      console.log('Returning menu data');
+      return data.menus;
+    }
+    
+    // レシピデータの場合（従来の処理）
+    if (data.menuName || data.ingredients || data.cookingSteps) {
+      console.log('Returning recipe data');
+      return data;
+    }
+    
+    throw new Error('有効なデータが見つかりません');
+    
+  } catch (error) {
+    console.error('データ解析エラー:', error);
+    console.error('レスポンステキスト:', text);
+    
+    // エラーの詳細を提供
+    if (error instanceof SyntaxError) {
+      throw new Error(`JSONの構文エラー: ${error.message}\n\n受信したテキスト:\n${text.substring(0, 500)}...`);
+    } else {
+      throw new Error(`データの解析に失敗しました: ${error.message}\n\n受信したテキスト:\n${text.substring(0, 500)}...`);
+    }
+  }
+}
+
+// 詳細ステップ専用のレスポンス解析
+function parseDetailedStepsResponse(text) {
+  try {
+    console.log('詳細ステップ Raw API response:', text);
+    
+    // 複数の JSON 抽出パターンを試行
+    let jsonText = null;
+    
+    // パターン1: ```json と ``` で囲まれた JSON
+    let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      jsonText = jsonMatch[1];
+      console.log('詳細ステップ JSON found with json marker:', jsonText);
+    } else {
+      // パターン2: ``` と ``` で囲まれた JSON
+      jsonMatch = text.match(/```\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[1];
+        console.log('詳細ステップ JSON found with generic marker:', jsonText);
+      } else {
+        // パターン3: { から } までの最初の完全なJSON
+        const startIndex = text.indexOf('{');
+        const lastIndex = text.lastIndexOf('}');
+        if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
+          jsonText = text.substring(startIndex, lastIndex + 1);
+          console.log('詳細ステップ JSON found with brace matching:', jsonText);
+        } else {
+          // パターン4: 直接JSONとして解析
+          jsonText = text.trim();
+          console.log('詳細ステップ Using text directly as JSON:', jsonText);
+        }
+      }
+    }
+    
+    if (!jsonText) {
+      throw new Error('詳細ステップのJSONコンテンツが見つかりません');
+    }
+    
+    // JSONをクリーンアップ
+    jsonText = jsonText.trim();
+    jsonText = jsonText.replace(/^[^{]*/, ''); // { より前の文字を除去
+    jsonText = jsonText.replace(/[^}]*$/, ''); // } より後の文字を除去
+    jsonText = jsonText.replace(/```$/, ''); // 末尾の ``` を除去
+    
+    console.log('詳細ステップ Cleaned JSON text:', jsonText);
+    
+    const data = JSON.parse(jsonText);
+    console.log('詳細ステップ Parsed result:', data);
+    
+    // detailedStepsフィールドの検証
+    if (data.detailedSteps && Array.isArray(data.detailedSteps)) {
+      return data;
+    } else {
+      throw new Error('詳細ステップデータに必要なフィールドがありません');
+    }
+  } catch (error) {
+    console.error('詳細ステップデータ解析エラー:', error);
+    console.error('レスポンステキスト:', text);
+    
+    // エラーの詳細を提供
+    if (error instanceof SyntaxError) {
+      throw new Error(`詳細ステップのJSONの構文エラー: ${error.message}\n\n受信したテキスト:\n${text.substring(0, 500)}...`);
+    } else {
+      throw new Error(`詳細ステップの解析に失敗しました: ${error.message}\n\n受信したテキスト:\n${text.substring(0, 500)}...`);
+    }
+  }
+}
+
+ 
+---
+
+### 4. **UI例・表示イメージ**
+
+```
+[入力] 青カビ
+
+──【基本カード】──────────
+| Penicillium sp.（青カビ）
+| [イラスト]
+| 概要：青緑色の胞子を形成。土壌や食品、果実の表面に多く分布。
+────────────────
+| [関係妖怪を見る] [ネットワークを見る] [ウンチク！] [農業・環境での役割]
+| [マイ辞典に登録]
+────────────────
+
+▼ユーザーが「関係妖怪」を押すと…
+　・Aspergillus sp.（黄カビ）
+　・Bacillus subtilis（拮抗菌）
+　・Streptomyces sp.（土壌放線菌）
+
+▼「ネットワーク」を押すとd3.jsで動的な関係図が出現
+
+▼「ウンチク！」を押すと
+「青カビの一種はチーズ作りに欠かせない存在。世界中で数百種類が知られる。」
+（さらにウンチク追加ボタンで“もっと”表示）
+```
+
+---
+
+### 5. **MVP設計上の意義・利点**
+
+* **ユーザーによる探求の深さのコントロール**
+  → 知的好奇心に応じて体験が“浅くも深くも”自在に
+* **APIコスト・レスポンス最適化**
+  → 体感速度と運用コストを両立
+* **“段階的開示”による学びのワクワク感・偶然性**
+  → 新たな発見や「自分の興味がどこまで続くか？」という“探検体験”が生まれる
+* **学名・イラスト・概要の即時表示で“第一印象”も抜群**
+  → 入力直後の満足感＋深掘りで“驚き”が倍増
+
+---
+
+### 6. **まとめ（Final仕様宣言）**
+
+> **妖怪AIネットワーク辞典MVPは、
+> ユーザー入力に即応する“学名・イラスト・概要”＋
+> 段階的に「関係妖怪」「ネットワーク」「ウンチク」「農業・環境役割」などを**
+> \*\*“ボタンで好みに応じて深掘りできる”\*\*インターフェースで実装する。
+>
+> これにより、**知的好奇心を最大化しつつ、システム負荷とAPIコストも最小化**する
+> “今の時代に最適な、使うほどにワクワクする妖怪事典”を目指す。
+

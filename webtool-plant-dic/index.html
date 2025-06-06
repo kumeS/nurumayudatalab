@@ -913,6 +913,34 @@
       transform: scale(1.1);
     }
 
+    /* 画像上のプロンプト情報ボタン */
+    .image-prompt-info-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      border-radius: 50%;
+      color: #666;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .image-prompt-info-btn:hover {
+      background: rgba(255, 255, 255, 1);
+      color: var(--primary);
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
     /* プロンプト表示モーダル */
     .prompt-modal {
       position: fixed;
@@ -1143,32 +1171,36 @@
 
       <div class="search-examples">
         <div class="search-examples-title">よく検索されるキーワード：</div>
-        <div class="example-tags">
-          <button class="example-tag" data-query="ねこじゃらし">ねこじゃらし</button>
-          <button class="example-tag" data-query="白い道端の花">白い道端の花</button>
-          <button class="example-tag" data-query="紫の小さい花">紫の小さい花</button>
-          <button class="example-tag" data-query="桜に似た花">桜に似た花</button>
-          <button class="example-tag" data-query="トゲのある植物">トゲのある植物</button>
-          <button class="example-tag" data-query="つる性の植物">つる性の植物</button>
-          <button class="example-tag" data-query="ふわふわした花">ふわふわした花</button>
-          <button class="example-tag" data-query="ヒラヒラしてる">ヒラヒラしてる</button>
-          <button class="example-tag" data-query="葉っぱがハート型">葉っぱがハート型</button>
-          <button class="example-tag" data-query="赤い実がなる">赤い実がなる</button>
-          <button class="example-tag" data-query="いい匂いの花">いい匂いの花</button>
-          <button class="example-tag" data-query="毛深い葉っぱ">毛深い葉っぱ</button>
-          <button class="example-tag" data-query="多肉っぽい">多肉っぽい</button>
-          <button class="example-tag" data-query="ギザギザの葉">ギザギザの葉</button>
-          <button class="example-tag" data-query="よく見る雑草">よく見る雑草</button>
-          <button class="example-tag" data-query="垂れ下がってる">垂れ下がってる</button>
-          <button class="example-tag" data-query="星みたいな花">星みたいな花</button>
-          <button class="example-tag" data-query="シダっぽい">シダっぽい</button>
-          <button class="example-tag" data-query="でかい葉っぱ">でかい葉っぱ</button>
-          <button class="example-tag" data-query="コケみたい">コケみたい</button>
-          <button class="example-tag" data-query="黄色くて小さい">黄色くて小さい</button>
-          <button class="example-tag" data-query="ベタベタする">ベタベタする</button>
-          <button class="example-tag" data-query="虫がよく来る">虫がよく来る</button>
-          <button class="example-tag" data-query="水辺にある">水辺にある</button>
-        </div>
+                  <div class="example-tags">
+            <button class="example-tag" data-query="ねこじゃらし">ねこじゃらし</button>
+            <button class="example-tag" data-query="白い道端の花">白い道端の花</button>
+            <button class="example-tag" data-query="紫の小さい花">紫の小さい花</button>
+            <button class="example-tag" data-query="桜に似た花">桜に似た花</button>
+            <button class="example-tag" data-query="畑でよく見る根菜">畑でよく見る根菜</button>
+            <button class="example-tag" data-query="道端で見かける果実">道端で見かける果実</button>
+            <button class="example-tag" data-query="樹海で現れる苔">樹海で現れる苔</button>
+            <button class="example-tag" data-query="樹海で遭遇するシダ植物">樹海で遭遇するシダ植物</button>
+            <button class="example-tag" data-query="トゲのある植物">トゲのある植物</button>
+            <button class="example-tag" data-query="つる性の植物">つる性の植物</button>
+            <button class="example-tag" data-query="ふわふわした花">ふわふわした花</button>
+            <button class="example-tag" data-query="ヒラヒラしてる">ヒラヒラしてる</button>
+            <button class="example-tag" data-query="葉っぱがハート型">葉っぱがハート型</button>
+            <button class="example-tag" data-query="赤い実がなる">赤い実がなる</button>
+            <button class="example-tag" data-query="いい匂いの花">いい匂いの花</button>
+            <button class="example-tag" data-query="毛深い葉っぱ">毛深い葉っぱ</button>
+            <button class="example-tag" data-query="多肉っぽい">多肉っぽい</button>
+            <button class="example-tag" data-query="ギザギザの葉">ギザギザの葉</button>
+            <button class="example-tag" data-query="よく見る雑草">よく見る雑草</button>
+            <button class="example-tag" data-query="垂れ下がってる">垂れ下がってる</button>
+            <button class="example-tag" data-query="星みたいな花">星みたいな花</button>
+            <button class="example-tag" data-query="シダっぽい">シダっぽい</button>
+            <button class="example-tag" data-query="でかい葉っぱ">でかい葉っぱ</button>
+            <button class="example-tag" data-query="コケみたい">コケみたい</button>
+            <button class="example-tag" data-query="黄色くて小さい">黄色くて小さい</button>
+            <button class="example-tag" data-query="ベタベタする">ベタベタする</button>
+            <button class="example-tag" data-query="虫がよく来る">虫がよく来る</button>
+            <button class="example-tag" data-query="水辺にある">水辺にある</button>
+          </div>
       </div>
 
       <div class="button-group">
@@ -1476,6 +1508,21 @@
           }
         });
 
+        // プロンプトモーダル関連
+        document.getElementById('prompt-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'prompt-modal') {
+            this.closePromptModal();
+          }
+        });
+
+        // ESCキーでモーダルを閉じる
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            this.closeDetailsModal();
+            this.closePromptModal();
+          }
+        });
+
         // 設定関連のイベントリスナーを追加
         this.setupSettingsEventListeners();
       }
@@ -1727,6 +1774,10 @@
             ${plant.generatedImageUrl ? 
               `<div style="position: relative;">
                 <img src="${plant.generatedImageUrl}" alt="${plant.commonName}" class="plant-image">
+                ${plant.generatedImagePrompt ? 
+                  `<button class="image-prompt-info-btn" onclick="app.showImagePrompt(${index})" title="使用されたプロンプトを表示">
+                    <i class="fas fa-info"></i>
+                  </button>` : ''}
                 <button class="image-generate-btn" data-index="${index}"
                         style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; opacity: 0.8;"
                         id="regen-btn-${index}" ${!this.canRegenerate(index) ? 'disabled' : ''}>
@@ -1743,6 +1794,15 @@
           </div>
 
           <div class="plant-details" id="details-${index}">
+            ${plant.features ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-leaf"></i> 総合的特徴
+                </div>
+                <div class="features-content">${plant.features}</div>
+              </div>
+            ` : ''}
+
             ${plant.feature1 ? `
               <div class="plant-features">
                 <div class="features-title">
@@ -1767,6 +1827,33 @@
                   <i class="fas fa-search"></i> 識別特徴
                 </div>
                 <div class="features-content">${plant.feature3}</div>
+              </div>
+            ` : ''}
+
+            ${plant.morphology ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-microscope"></i> 形態学的特徴
+                </div>
+                <div class="features-content">${plant.morphology}</div>
+              </div>
+            ` : ''}
+
+            ${plant.physiology ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-dna"></i> 生理的特徴
+                </div>
+                <div class="features-content">${plant.physiology}</div>
+              </div>
+            ` : ''}
+
+            ${plant.taxonomy ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-sitemap"></i> 分類学的特徴
+                </div>
+                <div class="features-content">${plant.taxonomy}</div>
               </div>
             ` : ''}
 
@@ -1913,8 +2000,9 @@
           });
           
           if (result.success) {
-            // 画像URLを検索結果に保存
+            // 画像URLとプロンプトを検索結果に保存
             this.searchResults[index].generatedImageUrl = result.imageUrl;
+            this.searchResults[index].generatedImagePrompt = result.prompt;
             this.saveSearchResults();
             
             // 再生成ボタンの状態を決定（モデル別）
@@ -1944,6 +2032,9 @@
             container.innerHTML = `
               <div style="position: relative;">
                 <img src="${result.imageUrl}" alt="${plant.commonName}" class="plant-image">
+                <button class="image-prompt-info-btn" onclick="app.showImagePrompt(${index})" title="使用されたプロンプトを表示">
+                  <i class="fas fa-info"></i>
+                </button>
                 ${regenButtonHtml}
               </div>
             `;
@@ -2241,7 +2332,13 @@
 
           item.innerHTML = `
             ${plant.imageUrl ? 
-              `<img src="${plant.imageUrl}" alt="${plant.commonName}" class="collection-image">` :
+              `<div style="position: relative;">
+                <img src="${plant.imageUrl}" alt="${plant.commonName}" class="collection-image">
+                ${plant.generatedImagePrompt ? 
+                  `<button class="image-prompt-info-btn" onclick="app.showCollectionImagePrompt(${index})" title="使用されたプロンプトを表示">
+                    <i class="fas fa-info"></i>
+                  </button>` : ''}
+              </div>` :
               `<div class="collection-image" style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); display: flex; align-items: center; justify-content: center;">
                 <i class="fas fa-seedling" style="font-size: 2rem; color: var(--text-secondary);"></i>
               </div>`
@@ -2304,16 +2401,70 @@
           ${plant.features ? `
             <div class="plant-features">
               <div class="features-title">
-                <i class="fas fa-leaf"></i> 特徴
+                <i class="fas fa-leaf"></i> 総合的特徴
               </div>
               <div class="features-content">${plant.features}</div>
+            </div>
+          ` : ''}
+
+          ${plant.feature1 ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-seedling"></i> 形態的特徴
+              </div>
+              <div class="features-content">${plant.feature1}</div>
+            </div>
+          ` : ''}
+
+          ${plant.feature2 ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-globe-americas"></i> 生態的特徴
+              </div>
+              <div class="features-content">${plant.feature2}</div>
+            </div>
+          ` : ''}
+
+          ${plant.feature3 ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-search"></i> 識別特徴
+              </div>
+              <div class="features-content">${plant.feature3}</div>
+            </div>
+          ` : ''}
+
+          ${plant.morphology ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-microscope"></i> 形態学的特徴
+              </div>
+              <div class="features-content">${plant.morphology}</div>
+            </div>
+          ` : ''}
+
+          ${plant.physiology ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-dna"></i> 生理的特徴
+              </div>
+              <div class="features-content">${plant.physiology}</div>
+            </div>
+          ` : ''}
+
+          ${plant.taxonomy ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-sitemap"></i> 分類学的特徴
+              </div>
+              <div class="features-content">${plant.taxonomy}</div>
             </div>
           ` : ''}
 
           ${plant.habitat ? `
             <div class="plant-features">
               <div class="features-title">
-                <i class="fas fa-map-marker-alt"></i> 生育環境
+                <i class="fas fa-map-marker-alt"></i> 生育環境・分布
               </div>
               <div class="features-content">${plant.habitat}</div>
             </div>
@@ -2523,6 +2674,32 @@
       // プロンプト表示モーダルを閉じる
       closePromptModal() {
         document.getElementById('prompt-modal').classList.remove('active');
+      }
+
+      // 画像生成プロンプトを表示
+      showImagePrompt(index) {
+        const plant = this.searchResults[index];
+        if (!plant || !plant.generatedImagePrompt) {
+          this.showMessage('プロンプト情報が見つかりません', 'warning');
+          return;
+        }
+
+        document.getElementById('prompt-modal-title').textContent = `${plant.commonName} - 画像生成プロンプト`;
+        document.getElementById('prompt-content').textContent = plant.generatedImagePrompt;
+        document.getElementById('prompt-modal').classList.add('active');
+      }
+
+      // マイ図鑑の画像生成プロンプトを表示
+      showCollectionImagePrompt(index) {
+        const plant = this.myCollection[index];
+        if (!plant || !plant.generatedImagePrompt) {
+          this.showMessage('プロンプト情報が見つかりません', 'warning');
+          return;
+        }
+
+        document.getElementById('prompt-modal-title').textContent = `${plant.commonName} - 画像生成プロンプト`;
+        document.getElementById('prompt-content').textContent = plant.generatedImagePrompt;
+        document.getElementById('prompt-modal').classList.add('active');
       }
 
       // 再生成試行回数を取得

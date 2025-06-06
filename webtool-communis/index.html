@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>コミュニケーション管理ツール｜メニュー</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ff7e5f;
+      --secondary: #feb47b;
+      --accent: #7ee8fa;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+    }
+    
+    body { 
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    h1 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+    }
+    
+    .description {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    
+    .tabs {
+      display: flex;
+      background-color: #fff;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 1rem;
+      text-align: center;
+      background-color: #f8f9fa;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+    }
+    
+    .tab:hover {
+      background-color: #fff;
+      color: var(--primary);
+    }
+    
+    .tab.active {
+      background-color: #fff;
+      color: var(--primary);
+      font-weight: bold;
+      border-bottom: 3px solid var(--primary);
+      /* Make the active tab more distinct */
+      box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .model-selection {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .model-selection-label {
+      font-weight: bold;
+      margin-right: 1rem;
+      color: var(--text-primary);
+    }
+    
+    .model-option {
+      display: flex;
+      align-items: center;
+      margin-right: 0.5rem;
+    }
+    
+    .model-name {
+      margin-left: 0.5rem;
+      color: var(--text-primary);
+    }
+    
+    .model-note {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-left: 0.5rem;
+    }
+    
+    .input-area {
+      width: 100%;
+      min-height: 150px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      resize: vertical;
+      font-size: 1rem;
+      font-family: inherit;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .button-container, .button-group {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 1.5rem;
+    }
+    
+    .button {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.6rem 1.2rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .button i {
+      margin-right: 0.5rem;
+    }
+    
+    .copy-success {
+      background: linear-gradient(135deg, #4CAF50, #8BC34A) !important;
+    }
+    
+    .speak-active {
+      background: linear-gradient(135deg, #2196F3, #03A9F4) !important;
+    }
+    
+    .speak-disabled {
+      background: linear-gradient(135deg, #9E9E9E, #BDBDBD) !important;
+      cursor: not-allowed;
+    }
+    
+    .output-container {
+      margin-bottom: 2rem;
+    }
+    
+    .output-section {
+      margin-bottom: 1.5rem;
+    }
+    
+    .output-area {
+      width: 100%;
+      min-height: 100px;
+      padding: 1rem;
+      margin-top: 0.5rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      resize: vertical;
+      font-size: 1rem;
+      font-family: inherit;
+      box-shadow: var(--card-shadow);
+    }
+    
+    h3 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .review-output {
+      background-color: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+      min-height: 50px;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    
+    /* 校閲結果のスタイル強化 */
+    .review-output h4 {
+      color: var(--primary);
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+      border-bottom: 1px solid rgba(255, 126, 95, 0.2);
+      padding-bottom: 0.3rem;
+    }
+    
+    .review-output ol, .review-output ul {
+      padding-left: 1.5rem;
+      margin-bottom: 0.8rem;
+    }
+    
+    .review-output li {
+      margin-bottom: 0.5rem;
+    }
+    
+    .review-output strong {
+      color: var(--primary);
+    }
+    
+    /* 変更箇所ハイライト用スタイル */
+    .diff-removed {
+      background-color: #ffecec;
+      color: #b30000;
+      text-decoration: line-through;
+      padding: 1px 3px;
+      border-radius: 2px;
+    }
+    
+    .diff-added {
+      background-color: #eaffea;
+      color: #006b00;
+      font-weight: bold;
+      padding: 1px 3px;
+      border-radius: 2px;
+    }
+    
+    /* 入力欄のハイライト効果 */
+    @keyframes highlight-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(255, 126, 95, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0); }
+    }
+    
+    .highlight-input {
+      animation: highlight-pulse 1s ease-in-out;
+      border-color: var(--primary);
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      color: var(--primary);
+      text-decoration: none;
+      margin-top: 1rem;
+      transition: all 0.3s;
+    }
+    
+    .back-link:hover {
+      color: var(--secondary);
+    }
+    
+    .back-link i {
+      margin-right: 0.5rem;
+    }
+    
+    .loading {
+      display: none; /* 初期状態は非表示 */
+      margin-left: 10px;
+      font-size: 0.9rem;
+      align-items: center;
+    }
+    
+    /* 表示時はflex */
+    .loading.active {
+      display: flex;
+    }
+    
+    .loading-text {
+      margin-left: 8px;
+      color: var(--primary);
+      position: relative;
+    }
+    
+    .loading-text:after {
+      content: '...';
+      position: absolute;
+      width: 24px;
+      text-align: left;
+      animation: dots 1.5s infinite;
+    }
+    
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+    }
+    
+    .dot-pulse {
+      position: relative;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+      50% {
+        transform: scale(1.2);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+    }
+    
+    .usage-guide {
+      background-color: #fff;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .usage-guide h3 {
+      margin-top: 0;
+    }
+    
+    .guide-step {
+      display: flex;
+      margin-bottom: 1rem;
+    }
+    
+    .step-number {
+      background-color: var(--primary);
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      font-weight: bold;
+    }
+    
+    .toggle-guide {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 1rem;
+      color: var(--primary);
+    }
+    
+    .toggle-guide i {
+      margin-right: 0.5rem;
+    }
+    
+    .warning {
+      background-color: #fff3cd;
+      color: #856404;
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ffeeba;
+      border-radius: 0.25rem;
+    }
+    
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1rem;
+      border: 1px solid #f5c6cb;
+      border-radius: 0.25rem;
+    }
+    
+    /* メニューカードのスタイル */
+    .menu-card {
+      background-color: #fff;
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      box-shadow: var(--card-shadow);
+      transition: all var(--transition-speed);
+      border: 2px solid transparent;
+    }
+    
+    .menu-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      border-color: var(--primary);
+    }
+    
+    .menu-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+      color: white;
+      font-size: 2rem;
+    }
+    
+    .menu-icon.user-icon {
+      background: linear-gradient(135deg, var(--accent) 0%, #4dd0e1 100%);
+    }
+    
+    .menu-icon.legacy-icon {
+      background: linear-gradient(135deg, #6c757d 0%, #868e96 100%);
+    }
+    
+    .menu-card h3,
+    .menu-card h4 {
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+    }
+    
+    .menu-card h4 {
+      font-size: 1.3rem;
+    }
+    
+    .menu-card p {
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+    
+    .menu-button {
+      display: inline-flex;
+      align-items: center;
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+      transition: all var(--transition-speed);
+      box-shadow: var(--card-shadow);
+    }
+    
+    .menu-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    .menu-button i {
+      margin-right: 0.5rem;
+    }
+    
+    .menu-button.user-button {
+      background: linear-gradient(135deg, var(--accent) 0%, #4dd0e1 100%);
+    }
+    
+    .menu-button.legacy-button {
+      background: linear-gradient(135deg, #6c757d 0%, #868e96 100%);
+    }
+    
+    .legacy-tools {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid #e0e0e0;
+    }
+    
+    .legacy-tools h3 {
+      text-align: center;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+    }
+    
+    .legacy-card {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    /* 使い方アコーディオンのスタイル */
+    .instruction-box {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+      background-color: #fff;
+    }
+    
+    .instruction-toggle {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      cursor: pointer;
+      background-color: #f8f9fa;
+      transition: all 0.3s ease;
+    }
+    
+    .instruction-toggle.active {
+      background-color: #f0f0f0;
+    }
+    
+    .instruction-toggle i {
+      margin-right: 0.8rem;
+      transition: transform 0.3s ease;
+    }
+    
+    .instruction-toggle.active i {
+      transform: rotate(180deg);
+    }
+    
+    .instruction-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    
+    .instruction-content.show {
+      max-height: 1000px;
+      padding: 1rem;
+    }
+    
+    .step {
+      margin-bottom: 1rem;
+    }
+    
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background-color: var(--primary);
+      color: white;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      font-weight: bold;
+    }
+    
+    @media (max-width: 600px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      .tab {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+      }
+      
+      .button-container {
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><i class="fas fa-home"></i> コミュニケーション管理ツール</h1>
+      <p class="description">学習塾・学童向け24時間対応FAQシステム</p>
+    </div>
+    
+    <!-- メニューカード -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+      <div class="menu-card">
+        <div class="menu-icon">
+          <i class="fas fa-users-cog"></i>
+        </div>
+        <h3>管理者画面</h3>
+        <p>情報管理・タグ管理・エスカレーション対応</p>
+        <a href="admin.html" class="menu-button">
+          <i class="fas fa-arrow-right"></i> 管理者画面へ
+        </a>
+      </div>
+      
+      <div class="menu-card">
+        <div class="menu-icon user-icon">
+          <i class="fas fa-comments"></i>
+        </div>
+        <h3>ユーザー画面</h3>
+        <p>カテゴリー選択・質問投稿・回答確認</p>
+        <a href="user.html" class="menu-button user-button">
+          <i class="fas fa-arrow-right"></i> ユーザー画面へ
+        </a>
+      </div>
+    </div>
+    
+    <!-- 旧翻訳ツールへのリンク -->
+    <div class="legacy-tools">
+      <h3><i class="fas fa-tools"></i> その他のツール</h3>
+      <div class="menu-card legacy-card">
+        <div class="menu-icon legacy-icon">
+          <i class="fas fa-language"></i>
+        </div>
+        <h4>ぬるっと翻訳・校閲ツール</h4>
+        <p>LLM活用テキスト処理ツール（翻訳・文章校閲）</p>
+        <a href="translation.html" class="menu-button legacy-button">
+          <i class="fas fa-arrow-right"></i> 翻訳ツールへ
+        </a>
+      </div>
+    </div>
+    
+    <!-- システム概要 -->
+    <div class="usage-guide">
+      <div class="toggle-guide">
+        <i class="fas fa-info-circle"></i>
+        <h3>システム概要を表示</h3>
+      </div>
+      <div class="guide-content" style="display: none;">
+        <div class="guide-step">
+          <div class="step-number">1</div>
+          <div>
+            <strong>管理者機能:</strong> 配信情報・イベント・休校日などの情報をタグ付きで管理
+            <ul>
+              <li>情報管理: タイトル、内容、カテゴリータグ、日付の設定</li>
+              <li>タグ管理: カテゴリーの追加・編集・削除</li>
+              <li>エスカレーション対応: 回答困難な質問への対応</li>
+              <li>分析機能: 質問傾向や利用統計の確認</li>
+            </ul>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-number">2</div>
+          <div>
+            <strong>ユーザー機能:</strong> 24時間いつでも質問可能なチャット形式のFAQ
+            <ul>
+              <li>カテゴリー選択: 質問内容に関連するタグを選択</li>
+              <li>チャット質問: 自然な会話形式での問い合わせ</li>
+              <li>AI回答: LLMが管理者登録情報を基に自動回答</li>
+              <li>エスカレーション: 回答不可時は管理者に転送</li>
+            </ul>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-number">3</div>
+          <div>
+            <strong>システムの特徴:</strong> 学習塾・学童などの運営現場に最適化
+            <ul>
+              <li>24時間365日対応で保護者の利便性向上</li>
+              <li>タグ×チャット×LLMで効率的な情報提供</li>
+              <li>エスカレーション機能で回答漏れを防止</li>
+              <li>質問履歴の分析で運営改善につながる</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 使い方表示トグル
+    const toggleGuide = document.querySelector('.toggle-guide');
+    const guideContent = document.querySelector('.guide-content');
+    
+    if (toggleGuide && guideContent) {
+      toggleGuide.addEventListener('click', function() {
+        guideContent.style.display = guideContent.style.display === 'none' ? 'block' : 'none';
+        this.classList.toggle('active');
+        
+        // テキストを切り替え
+        const heading = this.querySelector('h3');
+        if (heading) {
+          if (guideContent.style.display === 'block') {
+            heading.textContent = 'システム概要を隠す';
+          } else {
+            heading.textContent = 'システム概要を表示';
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html> 

@@ -89,6 +89,16 @@
             to { opacity: 1; transform: translateX(0); }
         }
 
+        @keyframes slideDown {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 1; transform: translate(-50%, 0); }
+            to { opacity: 0; transform: translate(-50%, -20px); }
+        }
+
         .stage-title {
             font-size: 24px;
             color: #333;
@@ -111,14 +121,21 @@
             cursor: pointer;
             transition: all 0.3s ease;
             text-align: left;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
-        .choice-button:hover {
+        .choice-button:hover,
+        .choice-button:focus,
+        .choice-button:active {
             background: #667eea;
             color: white;
             border-color: #667eea;
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102,126,234,0.3);
+            outline: none;
         }
 
         .choice-button h3 {
@@ -252,6 +269,164 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
+        /* APIキー設定モーダル */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .modal-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .api-key-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            margin: 15px 0;
+            transition: border-color 0.3s ease;
+        }
+
+        .api-key-input:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .api-key-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .api-key-status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .api-key-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.connected {
+            background: #28a745;
+        }
+
+        .status-indicator.disconnected {
+            background: #dc3545;
+        }
+
+        .settings-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .settings-button:hover {
+            background: #764ba2;
+            transform: scale(1.1);
+        }
+
+        /* タッチデバイス用の改善 */
+        @media (hover: none) and (pointer: coarse) {
+            .choice-button:hover {
+                background: #f8f9fa;
+                color: inherit;
+                border-color: #e9ecef;
+                transform: none;
+                box-shadow: none;
+            }
+            
+            .choice-button:active {
+                background: #667eea;
+                color: white;
+                border-color: #667eea;
+                transform: scale(0.98);
+            }
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 24px;
@@ -263,6 +438,17 @@
             
             .visual-container {
                 grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                padding: 20px;
+                margin: 20px;
+            }
+
+            .settings-button {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
             }
         }
     </style>
@@ -445,639 +631,25 @@
         </div>
     </div>
 
-    <script>
-        // ゲーム状態管理
-        const gameState = {
-            currentStage: 1,
-            decisions: {},
-            companyProfile: {
-                name: '',
-                industry: '',
-                funding: '',
-                strategy: '',
-                crisis: '',
-                growth: ''
-            }
-        };
+    <div class="modal-overlay" id="api-key-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>APIキー設定</h3>
+                <p>APIキーを入力してください。</p>
+            </div>
+            <input type="text" id="api-key-input" class="api-key-input" placeholder="APIキーを入力">
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="saveAPIKey()">保存</button>
+            </div>
+            <div class="api-key-status">
+                <span id="api-key-status">APIキーの状態: 未接続</span>
+                <span id="status-indicator"></span>
+            </div>
+        </div>
+    </div>
 
-        // 各選択肢のフィードバックデータ
-        const feedbackData = {
-            1: { // 起業アイデア
-                tech: {
-                    success: ['最新技術トレンドの把握', '優秀なエンジニアの確保', '継続的なイノベーション'],
-                    danger: ['技術偏重による顧客ニーズ軽視', '競合との差別化不足', '開発コストの肥大化']
-                },
-                health: {
-                    success: ['医療従事者との連携', '規制対応の専門知識', '社会的使命感の共有'],
-                    danger: ['薬事法違反リスク', '開発期間の長期化', '医療事故への対応不備']
-                },
-                eco: {
-                    success: ['SDGs目標との整合性', 'ESG投資家へのアピール', '地域社会との協働'],
-                    danger: ['収益化の遅れ', 'グリーンウォッシング批判', '技術的実現性の甘さ']
-                },
-                edu: {
-                    success: ['教育現場のニーズ把握', 'エビデンスベースの効果測定', '継続的な学習体験'],
-                    danger: ['教育格差の助長', 'プライバシー保護不足', '教育効果の過大評価']
-                }
-            },
-            2: { // 資金調達
-                self: {
-                    success: ['経営の自由度確保', 'リーンスタートアップ実践', '着実な財務管理'],
-                    danger: ['個人破産リスク', '成長速度の制限', '資金ショートの危険']
-                },
-                vc: {
-                    success: ['メンターシップ活用', 'ネットワーク拡大', '成長戦略の明確化'],
-                    danger: ['経営権の希薄化', 'エグジット圧力', '短期成果へのプレッシャー']
-                },
-                crowd: {
-                    success: ['コミュニティ形成', 'マーケティング効果', '支援者の声の活用'],
-                    danger: ['実行責任の重さ', '期待値管理の失敗', 'リターン設計の甘さ']
-                },
-                grant: {
-                    success: ['公的信用の獲得', '返済不要の安心感', '社会的意義の明確化'],
-                    danger: ['申請書類の負担', '使途制限への対応', '継続性の欠如']
-                }
-            },
-            3: { // 経営判断
-                talent: {
-                    success: ['イノベーション創出力', 'チーム文化の醸成', '知的財産の蓄積'],
-                    danger: ['人件費の高騰', '組織の硬直化', 'スター依存症']
-                },
-                speed: {
-                    success: ['市場フィードバック活用', 'アジャイル開発', '先行者利益'],
-                    danger: ['品質問題の発生', 'ブランド毀損', '技術的負債の蓄積']
-                },
-                quality: {
-                    success: ['顧客ロイヤリティ', 'プレミアム価格設定', '口コミ効果'],
-                    danger: ['市場投入の遅れ', '完璧主義の罠', '高コスト体質']
-                },
-                partner: {
-                    success: ['リソース補完', '信用力向上', '市場アクセス'],
-                    danger: ['依存体質', '利益配分の対立', '自主性の喪失']
-                }
-            },
-            4: { // 危機管理
-                transparent: {
-                    success: ['信頼回復', 'ステークホルダー支持', '組織学習'],
-                    danger: ['一時的な評判低下', '訴訟リスク', '過度な情報開示']
-                },
-                pivot: {
-                    success: ['新市場開拓', '組織活性化', '危機の機会転換'],
-                    danger: ['既存顧客の離反', '方向性の混乱', 'リソース浪費']
-                },
-                cost: {
-                    success: ['キャッシュフロー改善', '筋肉質な組織', '生存確率向上'],
-                    danger: ['優秀人材の流出', 'イノベーション停滞', '市場シェア低下']
-                },
-                support: {
-                    success: ['資金確保', '経営知見獲得', 'ネットワーク強化'],
-                    danger: ['交渉力低下', '不利な条件受入', '自立性喪失']
-                }
-            },
-            5: { // 成長フェーズ
-                expand: {
-                    success: ['市場リーダーシップ', '規模の経済', 'イノベーション継続'],
-                    danger: ['オーバーエクステンション', '品質管理困難', '組織文化希薄化']
-                },
-                stable: {
-                    success: ['持続可能な成長', '強固な基盤', '従業員満足度'],
-                    danger: ['成長機会の逸失', '競合の追い上げ', 'イノベーション不足']
-                },
-                global: {
-                    success: ['巨大市場アクセス', 'ブランド価値向上', 'リスク分散'],
-                    danger: ['文化的衝突', '規制対応複雑化', '管理コスト増大']
-                },
-                social: {
-                    success: ['社会的インパクト', 'ミレニアル世代支持', 'ESG評価向上'],
-                    danger: ['収益性の課題', '株主との対立', 'ミッションドリフト']
-                }
-            }
-        };
+    <button class="settings-button" onclick="toggleAPIKeyModal()">⚙</button>
 
-        // ビジュアル生成関数
-        function generateVisuals(stage, choice) {
-            const container = document.getElementById(`stage${stage}-visuals`);
-            container.innerHTML = '';
-
-            // ロゴ生成
-            const logoBox = createVisualBox('会社ロゴ', 'logo');
-            container.appendChild(logoBox);
-            drawLogo(logoBox.querySelector('canvas'), choice);
-
-            // オフィス生成
-            const officeBox = createVisualBox('オフィス風景', 'office');
-            container.appendChild(officeBox);
-            drawOffice(officeBox.querySelector('canvas'), choice);
-
-            // チーム生成
-            const teamBox = createVisualBox('チーム', 'team');
-            container.appendChild(teamBox);
-            drawTeam(teamBox.querySelector('canvas'), choice);
-        }
-
-        function createVisualBox(title, type) {
-            const box = document.createElement('div');
-            box.className = 'visual-box';
-            box.innerHTML = `
-                <h4>${title}</h4>
-                <canvas class="visual-canvas" width="200" height="150"></canvas>
-            `;
-            return box;
-        }
-
-        // キャンバス描画関数
-        function drawLogo(canvas, choice) {
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // 選択に応じたロゴデザイン
-            const logoDesigns = {
-                tech: () => {
-                    ctx.fillStyle = '#667eea';
-                    ctx.beginPath();
-                    ctx.moveTo(100, 30);
-                    ctx.lineTo(130, 90);
-                    ctx.lineTo(70, 90);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.strokeStyle = '#764ba2';
-                    ctx.lineWidth = 3;
-                    ctx.stroke();
-                },
-                health: () => {
-                    ctx.fillStyle = '#e74c3c';
-                    ctx.fillRect(85, 50, 30, 70);
-                    ctx.fillRect(70, 65, 60, 30);
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(95, 70, 10, 30);
-                    ctx.fillRect(90, 75, 20, 10);
-                },
-                eco: () => {
-                    ctx.fillStyle = '#27ae60';
-                    ctx.beginPath();
-                    ctx.arc(100, 75, 30, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#2ecc71';
-                    for(let i = 0; i < 6; i++) {
-                        ctx.beginPath();
-                        ctx.arc(100 + Math.cos(i * Math.PI / 3) * 25, 
-                               75 + Math.sin(i * Math.PI / 3) * 25, 10, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                },
-                edu: () => {
-                    ctx.fillStyle = '#3498db';
-                    ctx.fillRect(70, 50, 60, 50);
-                    ctx.fillStyle = '#2980b9';
-                    ctx.beginPath();
-                    ctx.moveTo(70, 50);
-                    ctx.lineTo(100, 30);
-                    ctx.lineTo(130, 50);
-                    ctx.closePath();
-                    ctx.fill();
-                },
-                // 資金調達の選択に応じたロゴ修飾
-                self: () => {
-                    ctx.strokeStyle = '#f39c12';
-                    ctx.lineWidth = 3;
-                    ctx.strokeRect(60, 40, 80, 80);
-                },
-                vc: () => {
-                    ctx.strokeStyle = '#9b59b6';
-                    ctx.lineWidth = 5;
-                    ctx.beginPath();
-                    ctx.arc(100, 75, 40, 0, Math.PI * 2);
-                    ctx.stroke();
-                },
-                crowd: () => {
-                    for(let i = 0; i < 5; i++) {
-                        ctx.fillStyle = `hsla(${i * 60}, 70%, 60%, 0.7)`;
-                        ctx.beginPath();
-                        ctx.arc(70 + i * 15, 100 - i * 10, 8, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                },
-                grant: () => {
-                    ctx.strokeStyle = '#34495e';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([5, 5]);
-                    ctx.strokeRect(55, 35, 90, 90);
-                    ctx.setLineDash([]);
-                }
-            };
-
-            // 既存の選択に基づいてロゴを描画
-            Object.keys(gameState.decisions).forEach(stage => {
-                const decision = gameState.decisions[stage];
-                if (logoDesigns[decision]) {
-                    logoDesigns[decision]();
-                }
-            });
-            
-            if (logoDesigns[choice]) {
-                logoDesigns[choice]();
-            }
-        }
-
-        function drawOffice(canvas, choice) {
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // オフィスの基本描画
-            ctx.fillStyle = '#ecf0f1';
-            ctx.fillRect(0, 100, 200, 50);
-            
-            // 選択に応じたオフィススタイル
-            const officeStyles = {
-                tech: () => {
-                    ctx.fillStyle = '#3498db';
-                    for(let i = 0; i < 4; i++) {
-                        ctx.fillRect(20 + i * 45, 30, 35, 60);
-                    }
-                },
-                health: () => {
-                    ctx.fillStyle = '#fff';
-                    ctx.fillRect(20, 30, 160, 60);
-                    ctx.strokeStyle = '#bdc3c7';
-                    ctx.strokeRect(20, 30, 160, 60);
-                },
-                eco: () => {
-                    ctx.fillStyle = '#27ae60';
-                    ctx.fillRect(50, 50, 100, 40);
-                    for(let i = 0; i < 3; i++) {
-                        ctx.beginPath();
-                        ctx.arc(70 + i * 30, 40, 15, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                },
-                edu: () => {
-                    ctx.fillStyle = '#f39c12';
-                    ctx.fillRect(30, 40, 140, 50);
-                    ctx.fillStyle = '#e67e22';
-                    for(let i = 0; i < 5; i++) {
-                        ctx.fillRect(40 + i * 25, 50, 15, 30);
-                    }
-                },
-                // 資金調達による規模感
-                self: () => {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                    ctx.font = '12px sans-serif';
-                    ctx.fillText('Cozy Space', 70, 120);
-                },
-                vc: () => {
-                    ctx.fillStyle = '#8e44ad';
-                    ctx.fillRect(10, 20, 180, 70);
-                    ctx.fillStyle = 'white';
-                    ctx.font = 'bold 16px sans-serif';
-                    ctx.fillText('SCALE UP', 65, 60);
-                },
-                crowd: () => {
-                    for(let i = 0; i < 20; i++) {
-                        ctx.fillStyle = `hsla(${Math.random() * 360}, 70%, 60%, 0.5)`;
-                        ctx.fillRect(Math.random() * 180 + 10, Math.random() * 70 + 20, 10, 10);
-                    }
-                },
-                grant: () => {
-                    ctx.strokeStyle = '#7f8c8d';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(20, 90);
-                    ctx.lineTo(100, 20);
-                    ctx.lineTo(180, 90);
-                    ctx.stroke();
-                }
-            };
-
-            // 既存の選択を反映
-            Object.keys(gameState.decisions).forEach(stage => {
-                const decision = gameState.decisions[stage];
-                if (officeStyles[decision]) {
-                    officeStyles[decision]();
-                }
-            });
-            
-            if (officeStyles[choice]) {
-                officeStyles[choice]();
-            }
-        }
-
-        function drawTeam(canvas, choice) {
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // チーム構成を選択に応じて変更
-            const teamConfigs = {
-                tech: { count: 5, colors: ['#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6'] },
-                health: { count: 6, colors: ['#e74c3c', '#ecf0f1', '#3498db', '#e74c3c', '#ecf0f1', '#3498db'] },
-                eco: { count: 4, colors: ['#27ae60', '#2ecc71', '#16a085', '#1abc9c'] },
-                edu: { count: 5, colors: ['#f39c12', '#e67e22', '#d35400', '#f39c12', '#e67e22'] },
-                talent: { count: 3, colors: ['#8e44ad', '#9b59b6', '#8e44ad'] },
-                speed: { count: 8, colors: Array(8).fill('#3498db') },
-                quality: { count: 4, colors: ['#34495e', '#2c3e50', '#34495e', '#2c3e50'] },
-                partner: { count: 6, colors: ['#e74c3c', '#3498db', '#e74c3c', '#3498db', '#e74c3c', '#3498db'] }
-            };
-
-            let config = teamConfigs[choice] || { count: 5, colors: ['#95a5a6'] };
-            
-            // 既存の決定から最新の設定を取得
-            Object.keys(gameState.decisions).forEach(stage => {
-                const decision = gameState.decisions[stage];
-                if (teamConfigs[decision]) {
-                    config = teamConfigs[decision];
-                }
-            });
-
-            const spacing = 180 / (config.count + 1);
-            
-            for(let i = 0; i < config.count; i++) {
-                const x = spacing * (i + 1) + 10;
-                const y = 75 + Math.sin(i) * 10;
-                
-                // 人物を描画
-                ctx.fillStyle = config.colors[i % config.colors.length];
-                ctx.beginPath();
-                ctx.arc(x, y, 15, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // 体
-                ctx.fillRect(x - 10, y + 15, 20, 25);
-            }
-        }
-
-        // 選択処理
-        function makeChoice(stage, choice) {
-            gameState.decisions[stage] = choice;
-            
-            // ビジュアル生成
-            generateVisuals(stage, choice);
-            
-            // フィードバック表示
-            showFeedback(stage, choice);
-            
-            // 次のステージへの遷移準備
-            setTimeout(() => {
-                if (stage < 5) {
-                    moveToNextStage();
-                } else {
-                    showSummary();
-                }
-            }, 2000);
-        }
-
-        function showFeedback(stage, choice) {
-            const feedbackContainer = document.getElementById(`stage${stage}-feedback`);
-            const feedback = feedbackData[stage][choice];
-            
-            feedbackContainer.innerHTML = `
-                <div class="feedback-box">
-                    <h4>成功の鍵</h4>
-                    <ul>
-                        ${feedback.success.map(item => `<li>${item}</li>`).join('')}
-                    </ul>
-                </div>
-                <div class="feedback-box danger-feedback">
-                    <h4>失敗の落とし穴</h4>
-                    <ul>
-                        ${feedback.danger.map(item => `<li>${item}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
-
-        function moveToNextStage() {
-            document.getElementById(`stage${gameState.currentStage}`).classList.remove('active');
-            gameState.currentStage++;
-            document.getElementById(`stage${gameState.currentStage}`).classList.add('active');
-            updateProgressBar();
-        }
-
-        function updateProgressBar() {
-            const progress = (gameState.currentStage / 5) * 100;
-            document.getElementById('progressBar').style.width = `${progress}%`;
-        }
-
-        function showSummary() {
-            document.getElementById(`stage${gameState.currentStage}`).classList.remove('active');
-            document.getElementById('summary').classList.add('active');
-            
-            // 起業家タイプ診断
-            const entrepreneurType = analyzeEntrepreneurType();
-            document.getElementById('entrepreneur-type').innerHTML = `
-                <h4>あなたの起業家タイプ</h4>
-                <p><strong>${entrepreneurType.type}</strong></p>
-                <p>${entrepreneurType.description}</p>
-            `;
-            
-            // 意思決定履歴
-            const decisionList = document.getElementById('decision-list');
-            const stageNames = ['起業アイデア', '資金調達', '経営判断', '危機管理', '成長戦略'];
-            
-            Object.keys(gameState.decisions).forEach((stage, index) => {
-                const decision = gameState.decisions[stage];
-                decisionList.innerHTML += `
-                    <div class="decision-item">
-                        <strong>${stageNames[index]}:</strong> ${getChoiceLabel(stage, decision)}
-                    </div>
-                `;
-            });
-            
-            // 最終アドバイス
-            document.getElementById('final-advice').innerHTML = `
-                <div class="feedback-box">
-                    <h4>現実の起業へのアドバイス</h4>
-                    <ul>
-                        <li>常に顧客の声に耳を傾けましょう</li>
-                        <li>キャッシュフローを最優先で管理しましょう</li>
-                        <li>失敗を恐れず、素早く学習しましょう</li>
-                        <li>チームの文化と価値観を大切にしましょう</li>
-                        <li>長期的なビジョンを持ちながら、短期的な実行力も磨きましょう</li>
-                    </ul>
-                </div>
-            `;
-            
-            // 最終ビジュアル
-            const finalCanvas = document.createElement('canvas');
-            finalCanvas.width = 300;
-            finalCanvas.height = 200;
-            finalCanvas.className = 'visual-canvas';
-            document.getElementById('final-company-visual').appendChild(finalCanvas);
-            drawFinalCompanyVisual(finalCanvas);
-        }
-
-        function analyzeEntrepreneurType() {
-            const types = {
-                innovator: {
-                    type: 'イノベーター型',
-                    description: '技術革新と新しいアイデアで世界を変えようとする起業家。リスクを恐れず、大きな成功を目指します。'
-                },
-                socialImpact: {
-                    type: '社会起業家型',
-                    description: '利益より社会的インパクトを重視。持続可能な社会の実現に情熱を注ぐ起業家です。'
-                },
-                steady: {
-                    type: '堅実経営型',
-                    description: '着実な成長と安定を重視。リスクを最小限に抑えながら、長期的な成功を目指します。'
-                },
-                networker: {
-                    type: 'ネットワーカー型',
-                    description: '人脈と協業を活かして成長。Win-Winの関係構築が得意な起業家です。'
-                }
-            };
-            
-            // 選択パターンに基づいてタイプを判定
-            const decisions = Object.values(gameState.decisions);
-            if (decisions.includes('tech') && decisions.includes('vc')) {
-                return types.innovator;
-            } else if (decisions.includes('eco') || decisions.includes('social')) {
-                return types.socialImpact;
-            } else if (decisions.includes('self') && decisions.includes('stable')) {
-                return types.steady;
-            } else {
-                return types.networker;
-            }
-        }
-
-        function getChoiceLabel(stage, choice) {
-            const labels = {
-                1: {
-                    tech: 'テクノロジー・AI',
-                    health: 'ヘルスケア・医療',
-                    eco: '環境・サステナビリティ',
-                    edu: '教育・人材開発'
-                },
-                2: {
-                    self: '自己資金・借入',
-                    vc: 'ベンチャーキャピタル',
-                    crowd: 'クラウドファンディング',
-                    grant: '補助金・助成金'
-                },
-                3: {
-                    talent: '優秀人材の獲得重視',
-                    speed: 'スピード重視の開発',
-                    quality: '品質・ブランド重視',
-                    partner: '戦略的提携重視'
-                },
-                4: {
-                    transparent: '透明性重視の対応',
-                    pivot: '事業ピボット',
-                    cost: 'コスト削減で耐える',
-                    support: '外部支援を求める'
-                },
-                5: {
-                    expand: '積極的な事業拡大',
-                    stable: '堅実な成長路線',
-                    global: '海外展開',
-                    social: '社会貢献重視'
-                }
-            };
-            
-            return labels[stage][choice] || choice;
-        }
-
-        function drawFinalCompanyVisual(canvas) {
-            const ctx = canvas.getContext('2d');
-            
-            // 会社の成長を表現する総合ビジュアル
-            ctx.fillStyle = '#667eea';
-            ctx.fillRect(50, 100, 200, 80);
-            
-            // 成長の軌跡を線で表現
-            ctx.strokeStyle = '#764ba2';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(50, 150);
-            
-            const points = Object.keys(gameState.decisions).length;
-            for(let i = 0; i <= points; i++) {
-                const x = 50 + (i * 200 / points);
-                const y = 150 - (i * 10) - Math.random() * 20;
-                ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-            
-            // 会社名
-            ctx.fillStyle = '#333';
-            ctx.font = 'bold 20px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('Your Company', 150, 140);
-        }
-
-        async function generatePDF() {
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF();
-            
-            // タイトル
-            pdf.setFontSize(20);
-            pdf.text('ビジネス起業体験シミュレーション結果', 105, 20, { align: 'center' });
-            
-            // 日付
-            pdf.setFontSize(12);
-            pdf.text(`実施日: ${new Date().toLocaleDateString('ja-JP')}`, 20, 35);
-            
-            // 起業家タイプ
-            const entrepreneurType = analyzeEntrepreneurType();
-            pdf.setFontSize(16);
-            pdf.text('あなたの起業家タイプ', 20, 50);
-            pdf.setFontSize(14);
-            pdf.text(entrepreneurType.type, 20, 60);
-            pdf.setFontSize(10);
-            const lines = pdf.splitTextToSize(entrepreneurType.description, 170);
-            pdf.text(lines, 20, 70);
-            
-            // 意思決定履歴
-            pdf.setFontSize(16);
-            pdf.text('意思決定の軌跡', 20, 100);
-            
-            const stageNames = ['起業アイデア', '資金調達', '経営判断', '危機管理', '成長戦略'];
-            let yPosition = 110;
-            
-            Object.keys(gameState.decisions).forEach((stage, index) => {
-                const decision = gameState.decisions[stage];
-                pdf.setFontSize(12);
-                pdf.text(`${stageNames[index]}: ${getChoiceLabel(stage, decision)}`, 20, yPosition);
-                yPosition += 10;
-            });
-            
-            // アドバイス
-            pdf.addPage();
-            pdf.setFontSize(16);
-            pdf.text('現実の起業へのアドバイス', 20, 20);
-            
-            const advice = [
-                '1. 常に顧客の声に耳を傾けましょう',
-                '2. キャッシュフローを最優先で管理しましょう',
-                '3. 失敗を恐れず、素早く学習しましょう',
-                '4. チームの文化と価値観を大切にしましょう',
-                '5. 長期的なビジョンを持ちながら、短期的な実行力も磨きましょう'
-            ];
-            
-            pdf.setFontSize(10);
-            advice.forEach((item, index) => {
-                pdf.text(item, 20, 35 + (index * 10));
-            });
-            
-            // 保存
-            pdf.save('起業シミュレーション結果.pdf');
-        }
-
-        function restart() {
-            gameState.currentStage = 1;
-            gameState.decisions = {};
-            document.getElementById('summary').classList.remove('active');
-            document.getElementById('stage1').classList.add('active');
-            document.getElementById('progressBar').style.width = '20%';
-            
-            // フィードバックとビジュアルをクリア
-            for(let i = 1; i <= 5; i++) {
-                document.getElementById(`stage${i}-visuals`).innerHTML = '';
-                document.getElementById(`stage${i}-feedback`).innerHTML = '';
-            }
-            
-            document.getElementById('decision-list').innerHTML = '';
-        }
-
-        // 初期化
-        updateProgressBar();
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>

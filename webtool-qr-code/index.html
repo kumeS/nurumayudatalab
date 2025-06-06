@@ -5,58 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QR参加管理ツール｜参加者管理システム</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <!-- index.html専用スタイル -->
   <style>
-    :root {
-      --primary: #2196F3;
-      --secondary: #03A9F4;
-      --accent: #00BCD4;
-      --success: #4CAF50;
-      --warning: #FF9800;
-      --error: #f44336;
-      --text-primary: #333;
-      --text-secondary: #666;
-      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      --transition-speed: 0.3s;
-    }
-    
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body { 
-      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+    /* index.htmlページ固有のスタイル */
+    .index-page {
       background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
       min-height: 100vh;
-      color: var(--text-primary);
     }
     
-    .container {
+    .index-container {
       max-width: 1200px;
       margin: 0 auto;
       padding: 2rem;
     }
     
-    .header {
+    .page-header {
       text-align: center;
       margin-bottom: 2rem;
     }
     
-    h1 {
+    .page-title {
       color: var(--primary);
       margin-bottom: 0.5rem;
       font-size: 2.5rem;
       font-weight: bold;
     }
     
-    .description {
+    .page-description {
       color: var(--text-secondary);
       font-size: 1.1rem;
       margin-bottom: 2rem;
     }
     
+    /* タブナビゲーション */
     .main-tabs {
       display: flex;
       background-color: #fff;
@@ -108,10 +91,6 @@
     }
     
     /* 設定タブ */
-    .field-config {
-      margin-bottom: 2rem;
-    }
-    
     .field-config h3 {
       color: var(--text-primary);
       margin-bottom: 1rem;
@@ -172,24 +151,6 @@
       margin-bottom: 2rem;
     }
     
-    .generate-btn {
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: white;
-      border: none;
-      padding: 1rem 2rem;
-      border-radius: 8px;
-      font-size: 1.1rem;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all var(--transition-speed);
-      margin-bottom: 2rem;
-    }
-    
-    .generate-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 12px rgba(33, 150, 243, 0.3);
-    }
-    
     .qr-display {
       display: none;
       margin-top: 2rem;
@@ -209,25 +170,6 @@
       justify-content: center;
       gap: 1rem;
       margin-top: 1rem;
-    }
-    
-    .qr-btn {
-      padding: 0.75rem 1.5rem;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: all var(--transition-speed);
-    }
-    
-    .qr-btn.open {
-      background: var(--success);
-      color: white;
-    }
-    
-    .qr-btn.copy {
-      background: var(--warning);
-      color: white;
     }
     
     /* 参加者一覧タブ */
@@ -254,23 +196,6 @@
     .stat-label {
       color: var(--text-secondary);
       font-size: 0.9rem;
-    }
-    
-    .attendee-search {
-      margin-bottom: 1rem;
-    }
-    
-    .search-input {
-      width: 100%;
-      padding: 0.75rem;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      font-size: 1rem;
-    }
-    
-    .search-input:focus {
-      outline: none;
-      border-color: var(--primary);
     }
     
     .attendee-list {
@@ -335,23 +260,6 @@
       margin-bottom: 1rem;
     }
     
-    .clear-btn {
-      background: var(--error);
-      color: white;
-      border: none;
-      padding: 1rem 2rem;
-      border-radius: 8px;
-      font-size: 1.1rem;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all var(--transition-speed);
-    }
-    
-    .clear-btn:hover {
-      background: #d32f2f;
-      transform: translateY(-2px);
-    }
-    
     /* モーダル */
     .modal {
       display: none;
@@ -381,32 +289,13 @@
       margin-top: 2rem;
     }
     
-    .modal-btn {
-      padding: 0.75rem 1.5rem;
-      border: none;
-      border-radius: 6px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all var(--transition-speed);
-    }
-    
-    .modal-btn.confirm {
-      background: var(--error);
-      color: white;
-    }
-    
-    .modal-btn.cancel {
-      background: #e0e0e0;
-      color: var(--text-primary);
-    }
-    
     /* レスポンシブ */
     @media (max-width: 768px) {
-      .container {
+      .index-container {
         padding: 1rem;
       }
       
-      h1 {
+      .page-title {
         font-size: 2rem;
       }
       
@@ -426,10 +315,10 @@
   </style>
 </head>
 <body>
-  <div class="container">
-    <header class="header">
-      <h1><i class="fas fa-qrcode"></i> QR参加管理ツール</h1>
-      <p class="description">QRコードを使った効率的な参加者管理システム</p>
+  <div class="index-container">
+    <header class="page-header">
+      <h1 class="page-title"><i class="fas fa-qrcode"></i> QR参加管理ツール</h1>
+      <p class="page-description">QRコードを使った効率的な参加者管理システム</p>
     </header>
 
     <div class="main-tabs">

@@ -295,13 +295,20 @@
     }
     
     /* 感情マップ */
-    .emotion-map {
+    .emotion-map, .thought-map {
       width: 100%;
       height: 200px;
       border: 1px solid #E0E0E0;
       border-radius: 8px;
       position: relative;
       background: radial-gradient(circle at center, #F5F5F5 0%, #E0E0E0 100%);
+      overflow: hidden;
+    }
+    
+    .emotion-map canvas, .thought-map canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
     }
     
     /* プログレスインジケーター */
@@ -476,7 +483,18 @@
           <h3>感情の変化</h3>
         </div>
         <div id="emotionMap" class="emotion-map">
-          <!-- D3.jsで可視化 -->
+          <canvas id="emotionCanvas" width="300" height="180"></canvas>
+        </div>
+      </div>
+      
+      <!-- 思考マップ -->
+      <div class="panel">
+        <div class="panel-header">
+          <i class="fas fa-brain"></i>
+          <h3>思考の繋がり</h3>
+        </div>
+        <div id="thoughtMap" class="thought-map">
+          <canvas id="thoughtCanvas" width="300" height="200"></canvas>
         </div>
       </div>
       

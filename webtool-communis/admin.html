@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>コミュニケーション管理ツール - 管理者画面</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ff7e5f;
+      --secondary: #feb47b;
+      --accent: #7ee8fa;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+      --success: #28a745;
+      --warning: #ffc107;
+      --danger: #dc3545;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    h1 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+    }
+    
+    .description {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    
+    .tabs {
+      display: flex;
+      background-color: #fff;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 1rem;
+      text-align: center;
+      background-color: #f8f9fa;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+    }
+    
+    .tab:hover {
+      background-color: #fff;
+      color: var(--primary);
+    }
+    
+    .tab.active {
+      background-color: #fff;
+      color: var(--primary);
+      font-weight: bold;
+      border-bottom: 3px solid var(--primary);
+      box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .tab-content {
+      display: none;
+      background-color: #fff;
+      padding: 2rem;
+      border-radius: 0 0 8px 8px;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color var(--transition-speed);
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    .form-group textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    
+    .tag-input-container {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .tag-chip {
+      background-color: var(--primary);
+      color: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .tag-chip .remove-tag {
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    .tag-chip .remove-tag:hover {
+      color: #ffcccc;
+    }
+    
+    .button {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.8rem 1.5rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+      box-shadow: var(--card-shadow);
+      text-decoration: none;
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .button i {
+      margin-right: 0.5rem;
+    }
+    
+    .button.secondary {
+      background: linear-gradient(135deg, #6c757d 0%, #868e96 100%);
+    }
+    
+    .button.success {
+      background: linear-gradient(135deg, var(--success) 0%, #34ce57 100%);
+    }
+    
+    .button.danger {
+      background: linear-gradient(135deg, var(--danger) 0%, #e35566 100%);
+    }
+    
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      background-color: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .data-table th,
+    .data-table td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .data-table th {
+      background-color: #f8f9fa;
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+    
+    .data-table tr:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .data-table .actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .data-table .actions button {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.8rem;
+    }
+    
+    .tag-badge {
+      display: inline-block;
+      background-color: var(--primary);
+      color: white;
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      margin-right: 0.3rem;
+      margin-bottom: 0.3rem;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      background-color: #fff;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 2rem;
+      font-weight: bold;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .alert {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      border-left: 4px solid;
+    }
+    
+    .alert.success {
+      background-color: #d4edda;
+      border-color: var(--success);
+      color: #155724;
+    }
+    
+    .alert.warning {
+      background-color: #fff3cd;
+      border-color: var(--warning);
+      color: #856404;
+    }
+    
+    .alert.danger {
+      background-color: #f8d7da;
+      border-color: var(--danger);
+      color: #721c24;
+    }
+    
+    .escalation-item {
+      background-color: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .escalation-header {
+      display: flex;
+      justify-content: between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .escalation-date {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .escalation-question {
+      background-color: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+      border-left: 4px solid var(--primary);
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      color: var(--primary);
+      text-decoration: none;
+      margin-top: 2rem;
+      transition: all 0.3s;
+    }
+    
+    .back-link:hover {
+      color: var(--secondary);
+    }
+    
+    .back-link i {
+      margin-right: 0.5rem;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      .tabs {
+        flex-wrap: wrap;
+      }
+      
+      .tab {
+        flex: none;
+        min-width: 150px;
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      }
+      
+      .data-table {
+        font-size: 0.9rem;
+      }
+      
+      .data-table th,
+      .data-table td {
+        padding: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><i class="fas fa-users-cog"></i> コミュニケーション管理ツール</h1>
+      <p class="description">管理者画面 - 情報管理とエスカレーション対応</p>
+    </div>
+    
+    <!-- 統計情報 -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number" id="totalInfo">0</div>
+        <div class="stat-label">登録情報数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="totalTags">0</div>
+        <div class="stat-label">タグ数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="totalQuestions">0</div>
+        <div class="stat-label">質問数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="pendingEscalations">0</div>
+        <div class="stat-label">未対応エスカレーション</div>
+      </div>
+    </div>
+
+    <!-- タブナビゲーション -->
+    <div class="tabs">
+      <div class="tab active" data-tab="info-management">情報管理</div>
+      <div class="tab" data-tab="tag-management">タグ管理</div>
+      <div class="tab" data-tab="escalation">エスカレーション</div>
+      <div class="tab" data-tab="analytics">分析</div>
+    </div>
+
+    <!-- 情報管理タブ -->
+    <div class="tab-content active" id="info-management">
+      <h2><i class="fas fa-plus-circle"></i> 新しい情報を追加</h2>
+      
+      <form id="infoForm">
+        <div class="form-group">
+          <label for="infoTitle">タイトル</label>
+          <input type="text" id="infoTitle" name="title" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="infoContent">内容</label>
+          <textarea id="infoContent" name="content" required></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="infoTags">タグ</label>
+          <div class="tag-input-container">
+            <select id="tagSelect">
+              <option value="">タグを選択</option>
+            </select>
+            <button type="button" class="button" onclick="addTag()">
+              <i class="fas fa-plus"></i> 追加
+            </button>
+          </div>
+          <div id="selectedTags" class="tag-input-container" style="margin-top: 0.5rem;"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="infoDate">日付</label>
+          <input type="date" id="infoDate" name="date" required>
+        </div>
+        
+        <button type="submit" class="button success">
+          <i class="fas fa-save"></i> 情報を保存
+        </button>
+      </form>
+      
+      <h3 style="margin-top: 2rem;"><i class="fas fa-list"></i> 登録済み情報</h3>
+      <table class="data-table" id="infoTable">
+        <thead>
+          <tr>
+            <th>タイトル</th>
+            <th>タグ</th>
+            <th>日付</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="infoTableBody">
+        </tbody>
+      </table>
+    </div>
+
+    <!-- タグ管理タブ -->
+    <div class="tab-content" id="tag-management">
+      <h2><i class="fas fa-tags"></i> タグ管理</h2>
+      
+      <form id="tagForm">
+        <div class="form-group">
+          <label for="tagName">タグ名</label>
+          <input type="text" id="tagName" name="name" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="tagColor">色</label>
+          <input type="color" id="tagColor" name="color" value="#ff7e5f">
+        </div>
+        
+        <button type="submit" class="button success">
+          <i class="fas fa-save"></i> タグを保存
+        </button>
+      </form>
+      
+      <h3 style="margin-top: 2rem;"><i class="fas fa-list"></i> 登録済みタグ</h3>
+      <table class="data-table" id="tagTable">
+        <thead>
+          <tr>
+            <th>タグ名</th>
+            <th>色</th>
+            <th>使用回数</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="tagTableBody">
+        </tbody>
+      </table>
+    </div>
+
+    <!-- エスカレーション管理タブ -->
+    <div class="tab-content" id="escalation">
+      <h2><i class="fas fa-exclamation-triangle"></i> エスカレーション管理</h2>
+      
+      <div id="escalationList">
+        <!-- エスカレーション項目がここに動的に追加される -->
+      </div>
+    </div>
+
+    <!-- 分析タブ -->
+    <div class="tab-content" id="analytics">
+      <h2><i class="fas fa-chart-bar"></i> 分析</h2>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="weeklyQuestions">0</div>
+          <div class="stat-label">今週の質問数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="responseRate">0%</div>
+          <div class="stat-label">回答率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="avgResponseTime">0分</div>
+          <div class="stat-label">平均応答時間</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="popularTag">-</div>
+          <div class="stat-label">人気タグ</div>
+        </div>
+      </div>
+      
+      <h3><i class="fas fa-question-circle"></i> よくある質問</h3>
+      <div id="frequentQuestions">
+        <!-- よくある質問がここに表示される -->
+      </div>
+    </div>
+
+    <a href="user.html" class="back-link">
+      <i class="fas fa-users"></i> ユーザー画面に移動
+    </a>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

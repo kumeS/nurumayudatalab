@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI音声会話ツール｜ぬるま湯データラボ</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ff7e5f;
+      --secondary: #feb47b;
+      --accent: #7ee8fa;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+      --success: #4CAF50;
+      --danger: #f44336;
+      --warning: #ff9800;
+    }
+    
+    body { 
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    h1 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+    }
+    
+    .description {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    
+    .voice-controls {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin: 2rem 0;
+      flex-wrap: wrap;
+    }
+    
+    .voice-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: all 0.3s;
+      box-shadow: var(--card-shadow);
+      min-width: 160px;
+    }
+    
+    .voice-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .voice-btn i {
+      margin-right: 0.7rem;
+      font-size: 1.2rem;
+    }
+    
+    .voice-btn.recording {
+      background: linear-gradient(135deg, var(--danger), #ff6b6b);
+      animation: pulse 1.5s infinite;
+    }
+    
+    .voice-btn.speaking {
+      background: linear-gradient(135deg, var(--accent), #4dd0e1);
+    }
+    
+    .voice-btn.disabled {
+      background: linear-gradient(135deg, #9e9e9e, #bdbdbd);
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
+      70% { box-shadow: 0 0 0 20px rgba(244, 67, 54, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+    }
+    
+    .conversation-area {
+      background: white;
+      border-radius: 15px;
+      padding: 2rem;
+      margin: 2rem 0;
+      box-shadow: var(--card-shadow);
+      min-height: 400px;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    
+    .message {
+      margin-bottom: 1.5rem;
+      padding: 1rem 1.5rem;
+      border-radius: 20px;
+      max-width: 80%;
+      position: relative;
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    .message.user {
+      background: linear-gradient(135deg, #e3f2fd, #f0f8ff);
+      margin-left: auto;
+      text-align: right;
+      color: var(--text-primary);
+      border: 1px solid #bbdefb;
+    }
+    
+    .message.ai {
+      background: linear-gradient(135deg, #f3e5f5, #fce4ec);
+      margin-right: auto;
+      color: var(--text-primary);
+      border: 1px solid #e1bee7;
+    }
+    
+    .message.system {
+      background: linear-gradient(135deg, #f0f0f0, #f5f5f5);
+      margin: 0 auto;
+      text-align: center;
+      color: var(--text-secondary);
+      font-style: italic;
+      max-width: 60%;
+      border: 1px solid #e0e0e0;
+    }
+    
+    .message-time {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+      opacity: 0.7;
+    }
+    
+    .message-actions {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: none;
+    }
+    
+    .message:hover .message-actions {
+      display: flex;
+      gap: 5px;
+    }
+    
+    .action-btn {
+      background: rgba(255, 255, 255, 0.8);
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 1);
+      transform: scale(1.1);
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .input-area {
+      background: white;
+      border-radius: 15px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .text-input {
+      width: 100%;
+      min-height: 100px;
+      padding: 1rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      resize: vertical;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: border-color 0.3s;
+    }
+    
+    .text-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    .input-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+      gap: 1rem;
+    }
+    
+    .send-btn {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border: none;
+      border-radius: 25px;
+      padding: 0.8rem 2rem;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .send-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .send-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ccc;
+    }
+    
+    .status-dot.listening {
+      background: var(--danger);
+      animation: pulse 1s infinite;
+    }
+    
+    .status-dot.processing {
+      background: var(--warning);
+      animation: spin 1s linear infinite;
+    }
+    
+    .status-dot.speaking {
+      background: var(--accent);
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .controls-panel {
+      background: white;
+      border-radius: 15px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .clear-btn {
+      background: linear-gradient(135deg, #757575, #9e9e9e);
+      color: white;
+      border: none;
+      border-radius: 25px;
+      padding: 0.7rem 1.5rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.3s;
+    }
+    
+    .clear-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      color: var(--primary);
+      text-decoration: none;
+      margin-top: 2rem;
+      transition: all 0.3s;
+    }
+    
+    .back-link:hover {
+      color: var(--secondary);
+    }
+    
+    .back-link i {
+      margin-right: 0.5rem;
+    }
+    
+    .error-message {
+      background: #ffebee;
+      color: #c62828;
+      padding: 1rem;
+      border-radius: 10px;
+      margin: 1rem 0;
+      border-left: 4px solid #f44336;
+    }
+    
+    .loading {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--primary);
+    }
+    
+    .loading.active {
+      display: flex;
+    }
+    
+    .loading-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      .voice-controls {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .voice-btn {
+        width: 100%;
+        max-width: 300px;
+      }
+      
+      .message {
+        max-width: 90%;
+      }
+      
+      .input-controls {
+        flex-direction: column;
+        gap: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>AI音声会話ツール</h1>
+      <p class="description">音声認識とAIでリアルタイム会話｜ぬるま湯データラボ</p>
+    </div>
+    
+    <!-- 音声コントロール -->
+    <div class="voice-controls">
+      <button id="recordBtn" class="voice-btn">
+        <i class="fas fa-microphone"></i>
+        音声で話す
+      </button>
+      <button id="stopSpeakBtn" class="voice-btn disabled">
+        <i class="fas fa-stop"></i>
+        音声停止
+      </button>
+    </div>
+    
+    <!-- ステータス表示 -->
+    <div class="status-indicator">
+      <div id="statusDot" class="status-dot"></div>
+      <span id="statusText">待機中</span>
+      <div id="loadingIndicator" class="loading">
+        <div class="loading-spinner"></div>
+        <span>処理中...</span>
+      </div>
+    </div>
+    
+    <!-- 会話エリア -->
+    <div id="conversationArea" class="conversation-area">
+      <div class="message system">
+        <div>AIとの音声会話を開始します。「音声で話す」ボタンを押して話しかけてください。</div>
+        <div class="message-time" id="startTime"></div>
+      </div>
+    </div>
+    
+    <!-- テキスト入力エリア -->
+    <div class="input-area">
+      <textarea id="textInput" class="text-input" placeholder="ここにテキストを入力してAIと会話することもできます..."></textarea>
+      <div class="input-controls">
+        <div class="status-indicator">
+          <span>テキスト入力での会話も可能です</span>
+        </div>
+        <button id="sendTextBtn" class="send-btn">
+          <i class="fas fa-paper-plane"></i>
+          送信
+        </button>
+      </div>
+    </div>
+    
+    <!-- コントロールパネル -->
+    <div class="controls-panel">
+      <button id="clearBtn" class="clear-btn">
+        <i class="fas fa-trash"></i>
+        会話履歴をクリア
+      </button>
+      
+      <button id="settingsToggle" class="clear-btn" style="margin-left: 1rem;">
+        <i class="fas fa-cog"></i>
+        設定
+      </button>
+    </div>
+
+    <!-- 設定パネル -->
+    <div id="settingsPanel" class="controls-panel" style="display: none;">
+      <h3 style="margin-top: 0; color: var(--primary);">
+        <i class="fas fa-cog"></i>
+        音声・履歴設定
+      </h3>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label for="speechRate" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">
+            話す速度: <span id="rateValue">1.0</span>
+          </label>
+          <input type="range" id="speechRate" min="0.5" max="2.0" step="0.1" value="1.0" 
+                 style="width: 100%;" />
+        </div>
+        
+        <div>
+          <label for="speechPitch" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">
+            声の高さ: <span id="pitchValue">1.0</span>
+          </label>
+          <input type="range" id="speechPitch" min="0.5" max="2.0" step="0.1" value="1.0" 
+                 style="width: 100%;" />
+        </div>
+        
+        <div>
+          <label for="speechVolume" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">
+            音量: <span id="volumeValue">0.8</span>
+          </label>
+          <input type="range" id="speechVolume" min="0.1" max="1.0" step="0.1" value="0.8" 
+                 style="width: 100%;" />
+        </div>
+        
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">
+            <input type="checkbox" id="autoSave" checked style="margin-right: 0.5rem;" />
+            会話履歴を自動保存
+          </label>
+          
+          <label for="maxHistory" style="display: block; margin-top: 1rem; font-size: 0.9rem;">
+            保存履歴数: <span id="historyValue">50</span>
+          </label>
+          <input type="range" id="maxHistory" min="10" max="100" step="10" value="50" 
+                 style="width: 100%;" />
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 1rem; align-items: center;">
+        <button id="testSpeech" class="send-btn" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+          <i class="fas fa-play"></i>
+          音声テスト
+        </button>
+        
+        <button id="exportHistory" class="clear-btn" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+          <i class="fas fa-download"></i>
+          履歴をエクスポート
+        </button>
+        
+        <button id="resetSettings" class="clear-btn" style="font-size: 0.9rem; padding: 0.5rem 1rem; background: var(--danger);">
+          <i class="fas fa-undo"></i>
+          設定リセット
+        </button>
+      </div>
+    </div>
+    
+    <a href="../index.html" class="back-link">
+      <i class="fas fa-arrow-left"></i>
+      ぬるま湯データラボに戻る
+    </a>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
