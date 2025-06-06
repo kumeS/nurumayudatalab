@@ -187,9 +187,30 @@ function createPlantImagePrompt(plantInfo, style, time = 'day', seed = null) {
 
   // 植物の詳細特徴を英語で追加（より具体的に）
   let featuresPrompt = '';
+  
+  // 総合的な特徴説明
   if (plantInfo.features) {
     const translatedFeatures = translateFeaturesToEnglish(plantInfo.features);
     featuresPrompt = `, featuring ${translatedFeatures}`;
+  }
+  
+  // 3つの個別特徴を詳細に追加
+  const specificFeatures = [];
+  if (plantInfo.feature1) {
+    const morphological = translateFeaturesToEnglish(plantInfo.feature1);
+    specificFeatures.push(`morphological characteristics: ${morphological}`);
+  }
+  if (plantInfo.feature2) {
+    const ecological = translateFeaturesToEnglish(plantInfo.feature2);
+    specificFeatures.push(`ecological traits: ${ecological}`);
+  }
+  if (plantInfo.feature3) {
+    const distinctive = translateFeaturesToEnglish(plantInfo.feature3);
+    specificFeatures.push(`distinctive features: ${distinctive}`);
+  }
+  
+  if (specificFeatures.length > 0) {
+    featuresPrompt += `, with detailed ${specificFeatures.join(', ')}`;
   }
 
   // 生育環境情報を追加
@@ -321,7 +342,78 @@ function translateFeaturesToEnglish(features) {
     '赤い実がなる': 'producing red berries',
     
     // 生態
-    '虫がよく来る': 'attracting insects pollinator-friendly'
+    '虫がよく来る': 'attracting insects pollinator-friendly',
+    
+    // 追加の形態的特徴
+    '単葉': 'simple leaves',
+    '複葉': 'compound leaves',
+    '羽状複葉': 'pinnately compound leaves',
+    '掌状複葉': 'palmately compound leaves',
+    '鋸歯': 'serrated margins',
+    '全縁': 'entire margins',
+    '心形葉': 'cordate heart-shaped leaves',
+    '卵形葉': 'ovate egg-shaped leaves',
+    '線形葉': 'linear narrow leaves',
+    '円形葉': 'round circular leaves',
+    '掌状分裂': 'palmately lobed',
+    '羽状分裂': 'pinnately lobed',
+    
+    // 茎の特徴
+    '直立': 'upright erect stem',
+    '匍匐': 'creeping prostrate stem',
+    '蔓性': 'climbing vine',
+    '中空': 'hollow stem',
+    '木質化': 'woody lignified',
+    '草質': 'herbaceous soft',
+    
+    // 花の詳細特徴
+    '合弁花': 'fused petals',
+    '離弁花': 'separate petals',
+    '両性花': 'hermaphroditic flowers',
+    '単性花': 'unisexual flowers',
+    '頭状花序': 'head inflorescence',
+    '穂状花序': 'spike inflorescence',
+    '総状花序': 'raceme inflorescence',
+    '散房花序': 'corymb inflorescence',
+    '散形花序': 'umbel inflorescence',
+    
+    // 果実の特徴
+    '液果': 'berry fruits',
+    '核果': 'drupe stone fruits',
+    '蒴果': 'capsule fruits',
+    '豆果': 'legume pod fruits',
+    '翼果': 'winged samara fruits',
+    '痩果': 'achene dry fruits',
+    
+    // 根の特徴
+    '直根': 'taproot system',
+    '髭根': 'fibrous root system',
+    '塊根': 'tuberous roots',
+    '気根': 'aerial roots',
+    
+    // 質感・表面
+    '光沢のある': 'glossy shiny surface',
+    'ビロード状': 'velvety pubescent',
+    'ザラザラ': 'rough textured surface',
+    'ツルツル': 'smooth surface',
+    'ワックス質': 'waxy coating',
+    
+    // 生育特性
+    '常緑': 'evergreen persistent foliage',
+    '落葉': 'deciduous seasonal leaf drop',
+    '一年草': 'annual plant lifecycle',
+    '二年草': 'biennial plant lifecycle',
+    '多年草': 'perennial plant lifecycle',
+    '球根': 'bulbous underground storage',
+    '地下茎': 'underground rhizome',
+    
+    // 環境適応
+    '耐寒性': 'cold hardy frost tolerant',
+    '耐暑性': 'heat tolerant',
+    '耐陰性': 'shade tolerant',
+    '耐乾性': 'drought tolerant',
+    '湿生': 'moisture loving hydrophytic',
+    '塩生': 'salt tolerant halophytic'
   };
 
   let englishFeatures = features;
@@ -382,7 +474,10 @@ async function callPlantSearchAPI(searchQuery, region = 'japan') {
       "aliases": ["別名1", "別名2", "俗名"],
       "confidence": 0.85,
       "features": "主な特徴の説明（ユーザーの表現との関連も含む）",
-      "habitat": "生息環境",
+      "feature1": "特徴1：形態的特徴（葉・花・茎の形状、色、サイズなど）",
+      "feature2": "特徴2：生態的特徴（生育環境、成長パターン、季節変化など）",
+      "feature3": "特徴3：識別特徴（他の植物との違い、特殊な構造、目立つ部分など）",
+      "habitat": "生息環境と地域分布（具体的な地方名も含める）",
       "season": "開花・成長期",
       "wildlifeConnection": "野生動物との関係",
       "culturalInfo": "文化的背景や用途"
@@ -458,7 +553,10 @@ function parsePlantSearchResponse(responseText) {
     aliases: [],
     confidence: 0.1,
     features: "詳細な特徴を特定できませんでした",
-    habitat: "不明",
+    feature1: "形態的特徴：特定できませんでした",
+    feature2: "生態的特徴：特定できませんでした", 
+    feature3: "識別特徴：特定できませんでした",
+    habitat: "分布不明",
     season: "不明",
     wildlifeConnection: "情報なし",
     culturalInfo: "情報なし"
@@ -527,7 +625,10 @@ class PlantSearchLLM {
       "aliases": ["別名1", "別名2", "俗名"],
       "confidence": 0.85,
       "features": "主な特徴の説明（ユーザーの表現との関連も含む）",
-      "habitat": "生息環境",
+      "feature1": "特徴1：形態的特徴（葉・花・茎の形状、色、サイズなど）",
+      "feature2": "特徴2：生態的特徴（生育環境、成長パターン、季節変化など）",
+      "feature3": "特徴3：識別特徴（他の植物との違い、特殊な構造、目立つ部分など）",
+      "habitat": "生息環境と地域分布（具体的な地方名も含める）",
       "season": "開花・成長期",
       "wildlifeConnection": "野生動物との関係",
       "culturalInfo": "文化的背景や用途"
@@ -543,7 +644,23 @@ class PlantSearchLLM {
 5. 特徴説明では、ユーザーの表現がなぜその植物に当てはまるかを説明
 6. 俗名や地方名も aliases に含める
 7. 季節情報がある場合は開花期・結実期と照合
-8. 生育環境の情報も重要な手がかりとして活用`
+8. 生育環境の情報も重要な手がかりとして活用
+
+## 3つの特徴について：
+- feature1（形態的特徴）：葉の形状・大きさ・色、花の色・形・サイズ、茎の特徴、全体の大きさなど視覚的特徴
+- feature2（生態的特徴）：どこに生える、いつ咲く、どう成長する、環境への適応など
+- feature3（識別特徴）：この植物ならではの特徴、似た植物との見分け方、特殊な構造や匂いなど
+
+## 地域別分布情報について：
+- 日本が選択された場合：生息環境と併せて具体的な分布地域を記載
+  例：「本州中部の山地」「北海道〜九州の湿地」「関東以西の平地」「西日本の里山」「沖縄・南西諸島の海岸」
+  「東北地方の林床」「中部高原」「近畿の河川敷」「九州南部」「北陸の雪国」など
+- 東南アジアが選択された場合：「タイ北部の山地」「マレー半島の熱帯雨林」「ジャワ島の火山性土壌」など
+- 北米が選択された場合：「アメリカ東部の落葉樹林」「西海岸の地中海性気候区」「五大湖周辺の湿原」など
+
+## 特徴の記載について：
+- feature1, feature2は必ず記載し、ユーザーが視覚的に確認しやすい要素を優先する
+- 特に花の色・形、葉の形状、全体のサイズ感、特徴的な部分を具体的に記載する`
       },
       {
         role: "user",

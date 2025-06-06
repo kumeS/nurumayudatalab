@@ -1204,6 +1204,20 @@
           <i class="fas fa-book"></i> マイ図鑑
         </h2>
         <p class="results-count" id="collection-count">保存された植物はありません</p>
+        
+        <!-- エクスポート・インポートボタン -->
+        <div class="collection-actions" style="margin-top: 1rem;">
+          <button class="btn btn-secondary" id="export-btn" onclick="app.exportCollection()">
+            <i class="fas fa-download"></i> エクスポート
+          </button>
+          <label class="btn btn-secondary" for="import-file" style="cursor: pointer; margin-left: 0.5rem;">
+            <i class="fas fa-upload"></i> インポート
+            <input type="file" id="import-file" accept=".json" style="display: none;" onchange="app.importCollection(this)">
+          </label>
+          <button class="btn btn-secondary" onclick="app.clearAllCollection()" style="margin-left: 0.5rem; background: #ff7043;">
+            <i class="fas fa-trash"></i> 全削除
+          </button>
+        </div>
       </div>
 
       <div class="collection-grid" id="collection-grid">
@@ -1427,7 +1441,7 @@
         this.setupEventListeners();
         this.updateCollectionDisplay();
         this.restoreSearchState();
-        this.loadSettings(); // 設定を読み込み
+        this.applySettingsToUI(); // UIに設定を反映（値は既にロード済み）
         this.restoreTabState(); // タブ状態を復元
       }
 
@@ -1467,32 +1481,48 @@
       }
 
       setupSettingsEventListeners() {
+        // 重複するイベントリスナーを防ぐため、一度だけ設定
+        if (this._settingsListenersSetup) return;
+        this._settingsListenersSetup = true;
+
         // 設定の変更を監視して自動保存
         document.querySelectorAll('input[name="style-setting"]').forEach(radio => {
           radio.addEventListener('change', () => {
-            this.selectedStyle = radio.value;
-            this.saveSettings();
+            if (radio.checked) {
+              this.selectedStyle = radio.value;
+              this.saveSettings();
+              console.log('Style changed to:', radio.value);
+            }
           });
         });
 
         document.querySelectorAll('input[name="time-setting"]').forEach(radio => {
           radio.addEventListener('change', () => {
-            this.selectedTime = radio.value;
-            this.saveSettings();
+            if (radio.checked) {
+              this.selectedTime = radio.value;
+              this.saveSettings();
+              console.log('Time changed to:', radio.value);
+            }
           });
         });
 
         document.querySelectorAll('input[name="model-setting"]').forEach(radio => {
           radio.addEventListener('change', () => {
-            this.selectedModel = radio.value;
-            this.saveSettings();
+            if (radio.checked) {
+              this.selectedModel = radio.value;
+              this.saveSettings();
+              console.log('Model changed to:', radio.value);
+            }
           });
         });
 
         document.querySelectorAll('input[name="region-setting"]').forEach(radio => {
           radio.addEventListener('change', () => {
-            this.selectedRegion = radio.value;
-            this.saveSettings();
+            if (radio.checked) {
+              this.selectedRegion = radio.value;
+              this.saveSettings();
+              console.log('Region changed to:', radio.value);
+            }
           });
         });
       }
@@ -1514,9 +1544,8 @@
         if (tab === 'collection') {
           this.updateCollectionDisplay();
         } else if (tab === 'settings') {
-          this.loadSettings();
-          // 設定タブに切り替わった時にイベントリスナーを再設定
-          setTimeout(() => this.setupSettingsEventListeners(), 100);
+          // 設定タブに切り替わった時はUIを更新するだけ（値は変更しない）
+          setTimeout(() => this.applySettingsToUI(), 50);
         }
       }
 
@@ -1549,7 +1578,7 @@
       async searchPlants(query) {
         // 新しいLLM処理システムを使用して植物候補を検索
         try {
-          const plants = await window.plantSearchLLM.searchPlants(query, this.selectedRegion);
+          const plants = await this.searchLLM.searchPlants(query, this.selectedRegion);
           
           // データ形式を統一（confidence数値を文字列に変換）
           return plants.map(plant => ({
@@ -1653,6 +1682,12 @@
         title.textContent = `「${query}」の検索結果`;
         count.textContent = `${results.length}件の候補が見つかりました`;
 
+        // 検索結果を保存
+        this.searchResults = results;
+
+        // 新しい検索結果の際は画像生成回数をリセット
+        this.resetImageGenerationAttempts();
+
         container.innerHTML = '';
 
         results.forEach((plant, index) => {
@@ -1692,7 +1727,7 @@
             ${plant.generatedImageUrl ? 
               `<div style="position: relative;">
                 <img src="${plant.generatedImageUrl}" alt="${plant.commonName}" class="plant-image">
-                <button class="image-generate-btn" onclick="app.generatePlantImage(${index})" 
+                <button class="image-generate-btn" data-index="${index}"
                         style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; opacity: 0.8;"
                         id="regen-btn-${index}" ${!this.canRegenerate(index) ? 'disabled' : ''}>
                   <i class="fas fa-redo"></i> 再生成 
@@ -1700,7 +1735,7 @@
                 </button>
               </div>` :
               `<div class="image-placeholder">
-                <button class="image-generate-btn" onclick="app.generatePlantImage(${index})">
+                <button class="image-generate-btn" data-index="${index}">
                   <i class="fas fa-magic"></i> 画像を生成
                 </button>
               </div>`
@@ -1708,17 +1743,37 @@
           </div>
 
           <div class="plant-details" id="details-${index}">
-            <div class="plant-features">
-              <div class="features-title">
-                <i class="fas fa-leaf"></i> 特徴
+            ${plant.feature1 ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-seedling"></i> 形態的特徴
+                </div>
+                <div class="features-content">${plant.feature1}</div>
               </div>
-              <div class="features-content">${plant.features}</div>
-            </div>
+            ` : ''}
+
+            ${plant.feature2 ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-globe-americas"></i> 生態的特徴
+                </div>
+                <div class="features-content">${plant.feature2}</div>
+              </div>
+            ` : ''}
+
+            ${plant.feature3 ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-search"></i> 識別特徴
+                </div>
+                <div class="features-content">${plant.feature3}</div>
+              </div>
+            ` : ''}
 
             ${plant.habitat ? `
               <div class="plant-features">
                 <div class="features-title">
-                  <i class="fas fa-map-marker-alt"></i> 生育環境
+                  <i class="fas fa-map-marker-alt"></i> 生育環境・分布
                 </div>
                 <div class="features-content">${plant.habitat}</div>
               </div>
@@ -1752,7 +1807,7 @@
             ` : ''}
 
             <div class="plant-actions">
-              <button class="action-btn save-btn" onclick="app.toggleSaveToCollection(${index})">
+              <button class="action-btn save-btn" data-index="${index}">
                 <i class="fas fa-bookmark"></i> マイ図鑑に保存
               </button>
             </div>
@@ -1778,22 +1833,52 @@
         // 詳細を最初から表示
         card.querySelector('.plant-details').classList.add('active');
 
+        // 画像生成ボタンのイベントリスナーを追加
+        const imageGenerateBtn = card.querySelector('.image-generate-btn');
+        if (imageGenerateBtn) {
+          imageGenerateBtn.addEventListener('click', (e) => {
+            const index = parseInt(e.target.closest('.image-generate-btn').dataset.index);
+            this.generatePlantImage(index);
+          });
+        }
+
+        // 保存ボタンのイベントリスナーを追加
+        const saveBtn = card.querySelector('.save-btn');
+        if (saveBtn) {
+          saveBtn.addEventListener('click', (e) => {
+            const index = parseInt(e.target.closest('.save-btn').dataset.index);
+            this.toggleSaveToCollection(index);
+          });
+        }
+
         return card;
       }
 
       async generatePlantImage(index) {
+        console.log('generatePlantImage called with index:', index);
+        console.log('searchResults:', this.searchResults);
         const plant = this.searchResults[index];
+        console.log('plant:', plant);
         const container = document.getElementById(`image-container-${index}`);
-        
-        // 再生成回数制限をチェック
-        if (!this.canRegenerate(index)) {
-          this.showMessage('画像の再生成回数上限（3回）に達しました', 'warning');
-          return;
-        }
+        console.log('container:', container);
         
         // 設定から現在のスタイル、時間帯、モデルを取得
         const selectedStyle = this.selectedStyle;
         const selectedTime = this.selectedTime;
+
+        // Minimax Image-01の場合は再生成制限をチェック
+        if (this.selectedModel === 'minimax') {
+          if (this.getRegenerationCount(index) >= 1) {
+            this.showMessage('Minimax Image-01は1回のみの生成です。再生成はできません。', 'warning');
+            return;
+          }
+        } else {
+          // SDXL Lightningの場合は3回制限
+          if (!this.canRegenerate(index)) {
+            this.showMessage('画像の再生成回数上限（3回）に達しました', 'warning');
+            return;
+          }
+        }
 
         // 再生成試行回数を更新
         const currentAttempt = this.updateRegenerationCount(index);
@@ -1832,19 +1917,29 @@
             this.searchResults[index].generatedImageUrl = result.imageUrl;
             this.saveSearchResults();
             
-            // 再生成ボタンの状態を決定
-            const canStillRegenerate = this.canRegenerate(index);
-            const regenButtonHtml = canStillRegenerate ? 
-              `<button class="image-generate-btn" onclick="app.generatePlantImage(${index})" 
-                      style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; opacity: 0.8;"
-                      id="regen-btn-${index}">
-                <i class="fas fa-redo"></i> 再生成 
-                <span class="regen-count" id="regen-count-${index}">(${currentAttempt}/3)</span>
-              </button>` :
-              `<div style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; 
+            // 再生成ボタンの状態を決定（モデル別）
+            let regenButtonHtml = '';
+            if (this.selectedModel === 'minimax') {
+              // Minimax Image-01は1回のみ、再生成ボタンは表示しない
+              regenButtonHtml = `<div style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; 
                           background: rgba(255,255,255,0.9); border-radius: 6px; color: #666;">
-                再生成回数上限
+                Minimax (1回のみ)
               </div>`;
+            } else {
+              // SDXL Lightningは3回まで再生成可能
+              const canStillRegenerate = this.canRegenerate(index);
+              regenButtonHtml = canStillRegenerate ? 
+                `<button class="image-generate-btn" onclick="app.generatePlantImage(${index})" 
+                        style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; opacity: 0.8;"
+                        id="regen-btn-${index}">
+                  <i class="fas fa-redo"></i> 再生成 
+                  <span class="regen-count" id="regen-count-${index}">(${currentAttempt}/3)</span>
+                </button>` :
+                `<div style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; 
+                            background: rgba(255,255,255,0.9); border-radius: 6px; color: #666;">
+                  再生成回数上限
+                </div>`;
+            }
             
             container.innerHTML = `
               <div style="position: relative;">
@@ -2120,9 +2215,11 @@
       updateCollectionDisplay() {
         const grid = document.getElementById('collection-grid');
         const count = document.getElementById('collection-count');
+        const exportBtn = document.getElementById('export-btn');
 
         if (this.myCollection.length === 0) {
           count.textContent = '保存された植物はありません';
+          if (exportBtn) exportBtn.disabled = true;
           grid.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-secondary);">
               <i class="fas fa-seedling" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
@@ -2134,6 +2231,7 @@
         }
 
         count.textContent = `${this.myCollection.length}件の植物が保存されています`;
+        if (exportBtn) exportBtn.disabled = false;
         grid.innerHTML = '';
 
         this.myCollection.forEach((plant, index) => {
@@ -2326,21 +2424,8 @@
         });
       }
 
-      // 設定の読み込み
-      loadSettings() {
-        const saved = localStorage.getItem('plantAppSettings');
-        if (saved) {
-          try {
-            const settings = JSON.parse(saved);
-            this.selectedStyle = settings.style || 'botanical';
-            this.selectedTime = settings.time || 'day';
-            this.selectedModel = settings.model || 'sdxl-lightning';
-            this.selectedRegion = settings.region || 'japan';
-          } catch (error) {
-            console.warn('設定の読み込みに失敗:', error);
-          }
-        }
-
+      // UIに設定を反映（設定値は既にロード済み）
+      applySettingsToUI() {
         // UIに反映
         const styleRadio = document.querySelector(`input[name="style-setting"][value="${this.selectedStyle}"]`);
         const timeRadio = document.querySelector(`input[name="time-setting"][value="${this.selectedTime}"]`);
@@ -2359,6 +2444,21 @@
         if (regionRadio) {
           regionRadio.checked = true;
         }
+        
+        console.log('UIに設定を反映:', {
+          style: this.selectedStyle,
+          time: this.selectedTime,
+          model: this.selectedModel,
+          region: this.selectedRegion
+        });
+      }
+
+      // 設定の読み込み（設定タブで使用）
+      loadSettings() {
+        // 設定値を再読み込み
+        this.loadSettingsValues();
+        // UIに反映
+        this.applySettingsToUI();
       }
 
       // 設定をデフォルトに戻す
@@ -2443,9 +2543,175 @@
         return this.getRegenerationCount(index) < 3;
       }
 
+      // 画像生成回数をリセット（新しい検索時に使用）
+      resetImageGenerationAttempts() {
+        this.imageGenerationAttempts = {};
+        console.log('画像生成回数をリセットしました');
+      }
+
       // ランダムシード生成（より大きな範囲で多様性を確保）
       generateRandomSeed() {
         return Math.floor(Math.random() * 4294967295); // 32bit整数の最大値
+      }
+
+      // 画像URLをBase64に変換
+      async convertImageToBase64(imageUrl) {
+        try {
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch (error) {
+          console.warn('画像の変換に失敗:', error);
+          return null;
+        }
+      }
+
+      // マイ図鑑をエクスポート
+      async exportCollection() {
+        if (this.myCollection.length === 0) {
+          this.showMessage('エクスポートする植物がありません', 'warning');
+          return;
+        }
+
+        this.showMessage('エクスポート準備中...', 'info');
+
+        try {
+          // 画像をBase64に変換
+          const exportData = await Promise.all(this.myCollection.map(async (plant) => {
+            const plantData = { ...plant };
+            
+            // 画像URLがある場合はBase64に変換
+            if (plant.imageUrl) {
+              try {
+                const base64Data = await this.convertImageToBase64(plant.imageUrl);
+                plantData.imageBase64 = base64Data;
+              } catch (error) {
+                console.warn(`画像変換失敗 (${plant.commonName}):`, error);
+                plantData.imageBase64 = null;
+              }
+            }
+            
+            return plantData;
+          }));
+
+          // エクスポートデータの構造
+          const exportJson = {
+            exportInfo: {
+              version: "1.0",
+              appName: "AI植物辞典",
+              exportDate: new Date().toISOString(),
+              totalPlants: exportData.length
+            },
+            plants: exportData
+          };
+
+          // JSONファイルとしてダウンロード
+          const jsonString = JSON.stringify(exportJson, null, 2);
+          const blob = new Blob([jsonString], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `植物図鑑_${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+
+          this.showMessage(`${exportData.length}件の植物をエクスポートしました`, 'success');
+        } catch (error) {
+          console.error('エクスポートエラー:', error);
+          this.showMessage('エクスポートに失敗しました', 'error');
+        }
+      }
+
+      // マイ図鑑をインポート
+      async importCollection(fileInput) {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          const importData = JSON.parse(text);
+
+          // データ形式の検証
+          if (!importData.plants || !Array.isArray(importData.plants)) {
+            throw new Error('無効なファイル形式です');
+          }
+
+          let importedCount = 0;
+          let skippedCount = 0;
+
+          for (const plantData of importData.plants) {
+            // 必須フィールドの確認
+            if (!plantData.scientificName || !plantData.commonName) {
+              skippedCount++;
+              continue;
+            }
+
+            // 既存データとの重複チェック
+            const isDuplicate = this.myCollection.some(existing => 
+              existing.scientificName === plantData.scientificName
+            );
+
+            if (isDuplicate) {
+              skippedCount++;
+              continue;
+            }
+
+            // 画像データの処理
+            const processedPlant = { ...plantData };
+            
+            // Base64画像データがある場合の処理
+            if (plantData.imageBase64) {
+              // Base64データをそのまま使用（ブラウザで表示可能）
+              processedPlant.imageUrl = plantData.imageBase64;
+            }
+
+            // インポート日時を追加
+            processedPlant.importedAt = new Date().toISOString();
+            if (!processedPlant.savedAt) {
+              processedPlant.savedAt = new Date().toISOString();
+            }
+
+            this.myCollection.push(processedPlant);
+            importedCount++;
+          }
+
+          // ローカルストレージに保存
+          this.saveCollection();
+          this.updateCollectionDisplay();
+
+          // 結果メッセージ
+          let message = `${importedCount}件の植物をインポートしました`;
+          if (skippedCount > 0) {
+            message += `（${skippedCount}件はスキップ）`;
+          }
+          this.showMessage(message, 'success');
+
+          // ファイル入力をリセット
+          fileInput.value = '';
+
+        } catch (error) {
+          console.error('インポートエラー:', error);
+          this.showMessage('インポートに失敗しました。ファイル形式を確認してください。', 'error');
+          fileInput.value = '';
+        }
+      }
+
+      // コレクションの完全消去（デバッグ用）
+      clearAllCollection() {
+        if (confirm('すべての植物データを削除しますか？この操作は取り消せません。')) {
+          this.myCollection = [];
+          this.saveCollection();
+          this.updateCollectionDisplay();
+          this.showMessage('すべての植物データを削除しました', 'success');
+        }
       }
     }
 
