@@ -363,6 +363,31 @@
       border-radius: 12px;
       font-size: 0.8rem;
       font-weight: 500;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .confidence-info-btn {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 0.2rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      opacity: 0.8;
+      font-size: 0.7rem;
+    }
+
+    .confidence-info-btn:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.1);
     }
 
     /* 植物画像 */
@@ -970,6 +995,130 @@
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
     }
 
+    /* 一致度根拠表示モーダル */
+    .confidence-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1001;
+      padding: 1rem;
+    }
+
+    .confidence-modal.active {
+      display: flex;
+    }
+
+    .confidence-modal-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .confidence-modal-header {
+      background: linear-gradient(135deg, var(--accent), #FFB74D);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .confidence-modal-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .confidence-modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 50%;
+      transition: all var(--transition-speed);
+      opacity: 0.8;
+    }
+
+    .confidence-modal-close:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.1);
+    }
+
+    .confidence-modal-body {
+      padding: 1.5rem;
+    }
+
+    .confidence-level-display {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: linear-gradient(135deg, #F8F9FA, #E9ECEF);
+      border-radius: 12px;
+    }
+
+    .confidence-level-display .confidence-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .confidence-level-display .confidence-meaning {
+      font-size: 1rem;
+      color: var(--text-secondary);
+    }
+
+    .confidence-factor {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      border-left: 4px solid var(--primary);
+      background: #F8F9FA;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .confidence-factor-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .confidence-factor-content {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .confidence-note {
+      background: linear-gradient(135deg, #E3F2FD, #F1F8E9);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
     .prompt-modal-header {
       background: linear-gradient(135deg, var(--primary), #8BC34A);
       color: white;
@@ -1291,7 +1440,7 @@
 
         <div class="settings-group">
           <h3 class="settings-group-title">
-            <i class="fas fa-palette"></i> スタイル設定
+            <i class="fas fa-palette"></i> 画像スタイル設定
           </h3>
                      <div class="settings-options">
              <label class="settings-option">
@@ -1327,34 +1476,7 @@
            </div>
         </div>
 
-                 <div class="settings-group">
-           <h3 class="settings-group-title">
-             <i class="fas fa-clock"></i> 時間帯設定
-           </h3>
-           <div class="settings-options">
-             <label class="settings-option">
-               <input type="radio" name="time-setting" value="day" checked>
-               <div class="settings-option-content">
-                 <div class="settings-option-label">昼</div>
-                 <div class="settings-option-desc">明るい日差しの下での植物</div>
-               </div>
-             </label>
-             <label class="settings-option">
-               <input type="radio" name="time-setting" value="morning">
-               <div class="settings-option-content">
-                 <div class="settings-option-label">朝</div>
-                 <div class="settings-option-desc">朝露に濡れた植物</div>
-               </div>
-             </label>
-             <label class="settings-option">
-               <input type="radio" name="time-setting" value="night">
-               <div class="settings-option-content">
-                 <div class="settings-option-label">夜</div>
-                 <div class="settings-option-desc">月明かりや人工照明下での植物</div>
-               </div>
-             </label>
-           </div>
-        </div>
+                 
 
         <div class="settings-group">
           <h3 class="settings-group-title">
@@ -1393,7 +1515,21 @@
         </button>
       </div>
       <div class="prompt-modal-body">
+        <div class="prompt-optimization-info" id="prompt-optimization-info" style="margin-bottom: 1rem; padding: 1rem; background: linear-gradient(135deg, #E3F2FD, #F1F8E9); border-radius: 8px; display: none;">
+          <div style="font-weight: 600; color: var(--primary); margin-bottom: 0.5rem;">
+            <i class="fas fa-robot"></i> LLM最適化済み
+          </div>
+          <div style="font-size: 0.9rem; color: var(--text-secondary);">
+            このプロンプトは画像生成AI用に最適化・英語化されています。
+          </div>
+        </div>
         <div class="prompt-content" id="prompt-content"></div>
+        <div class="draft-prompt-section" id="draft-prompt-section" style="margin-top: 1rem; display: none;">
+          <div style="font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; border-top: 1px solid #e0e0e0; padding-top: 1rem;">
+            <i class="fas fa-draft2digital"></i> 最適化前のドラフト
+          </div>
+          <div class="draft-prompt-content" id="draft-prompt-content" style="font-size: 0.85rem; color: #666; background: #f8f9fa; padding: 0.8rem; border-radius: 6px; white-space: pre-wrap; line-height: 1.4;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1444,7 +1580,6 @@
           try {
             const settings = JSON.parse(saved);
             this.selectedStyle = settings.style || 'botanical';
-            this.selectedTime = settings.time || 'day';
             this.selectedModel = settings.model || 'sdxl-lightning';
             this.selectedRegion = settings.region || 'japan';
           } catch (error) {
@@ -1459,7 +1594,6 @@
       // デフォルト設定を設定
       setDefaultSettings() {
         this.selectedStyle = 'botanical';
-        this.selectedTime = 'day';
         this.selectedModel = 'sdxl-lightning';
         this.selectedRegion = 'japan';
       }
@@ -1543,15 +1677,7 @@
           });
         });
 
-        document.querySelectorAll('input[name="time-setting"]').forEach(radio => {
-          radio.addEventListener('change', () => {
-            if (radio.checked) {
-              this.selectedTime = radio.value;
-              this.saveSettings();
-              console.log('Time changed to:', radio.value);
-            }
-          });
-        });
+
 
         document.querySelectorAll('input[name="model-setting"]').forEach(radio => {
           radio.addEventListener('change', () => {
@@ -1624,102 +1750,20 @@
 
       async searchPlants(query) {
         // 新しいLLM処理システムを使用して植物候補を検索
-        try {
-          const plants = await this.searchLLM.searchPlants(query, this.selectedRegion);
-          
-          // データ形式を統一（confidence数値を文字列に変換）
-          return plants.map(plant => ({
-            ...plant,
-            confidence: plant.confidence > 0.8 ? '高い' : 
-                       plant.confidence > 0.5 ? '中程度' : '低い',
-            reason: plant.features // 理由として特徴を使用
-          }));
-        } catch (error) {
-          console.error('植物検索LLMエラー:', error);
-          // フォールバック：従来の方法
-          return await this.fallbackSearchPlants(query);
-        }
-      }
-
-      async fallbackSearchPlants(query) {
-        // フォールバック用の従来の検索方法
-        const response = await callPlantSearchAPI(query, this.selectedRegion);
-        return response.map(plant => ({
+        const plants = await this.searchLLM.searchPlants(query, this.selectedRegion);
+        
+        // データ形式を統一（confidence数値を文字列に変換）
+        return plants.map(plant => ({
           ...plant,
           confidence: plant.confidence > 0.8 ? '高い' : 
                      plant.confidence > 0.5 ? '中程度' : '低い',
-          reason: plant.features
+          reason: plant.features // 理由として特徴を使用
         }));
       }
 
-      async callLLMAPI(messages) {
-        const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
-        
-        const requestData = {
-          model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-          temperature: 0.7,
-          stream: false,
-          max_completion_tokens: 2000,
-          messages: messages
-        };
 
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(requestData)
-        });
 
-        if (!response.ok) {
-          throw new Error(`API呼び出しに失敗しました: ${response.status}`);
-        }
 
-        const data = await response.json();
-        
-        let content;
-        if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-          content = data.choices[0].message.content;
-        } else if (data.answer) {
-          content = data.answer;
-        } else {
-          throw new Error('レスポンスに期待されるフィールドがありません');
-        }
-
-        return this.parseAPIResponse(content);
-      }
-
-      parseAPIResponse(text) {
-        try {
-          // JSON部分を抽出
-          let jsonText = text;
-          
-          // ```json ``` で囲まれている場合
-          const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-          if (jsonMatch) {
-            jsonText = jsonMatch[1];
-          } else {
-            // ``` ``` で囲まれている場合
-            const genericMatch = text.match(/```\s*([\s\S]*?)\s*```/);
-            if (genericMatch) {
-              jsonText = genericMatch[1];
-            } else {
-              // { } で囲まれた部分を抽出
-              const startIndex = text.indexOf('{');
-              const lastIndex = text.lastIndexOf('}');
-              if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
-                jsonText = text.substring(startIndex, lastIndex + 1);
-              }
-            }
-          }
-
-          return JSON.parse(jsonText.trim());
-        } catch (error) {
-          console.error('JSONパースエラー:', error);
-          console.error('レスポンステキスト:', text);
-          throw new Error('APIレスポンスの解析に失敗しました');
-        }
-      }
 
       displaySearchResults(results, query) {
         const container = document.getElementById('plant-candidates');
@@ -1767,6 +1811,9 @@
             </div>
             <div class="confidence-badge" style="background: ${confidenceColor}">
               一致度：${plant.confidence}
+              <button class="confidence-info-btn" onclick="app.showConfidenceReason(${index})" title="一致度の根拠を表示">
+                <i class="fas fa-info-circle"></i>
+              </button>
             </div>
           </div>
 
@@ -1951,7 +1998,7 @@
         
         // 設定から現在のスタイル、時間帯、モデルを取得
         const selectedStyle = this.selectedStyle;
-        const selectedTime = this.selectedTime;
+
 
         // Minimax Image-01の場合は再生成制限をチェック
         if (this.selectedModel === 'minimax') {
@@ -1982,7 +2029,7 @@
           <div class="plant-image-loading">
             <div class="plant-loading-icon">🌱</div>
             <div class="plant-loading-text">
-              植物画像生成中 (${currentAttempt}/3)<span class="plant-loading-dots"></span>
+              植物画像生成中<span class="plant-loading-dots"></span>
             </div>
           </div>
         `;
@@ -1993,7 +2040,6 @@
           
           // 新しいLLM処理システムを使用して画像生成
           const result = await this.searchLLM.generatePlantImage(plant, selectedStyle, this.selectedModel, {
-            time: selectedTime,
             seed: randomSeed,
             width: 1024,
             height: 1024
@@ -2003,6 +2049,10 @@
             // 画像URLとプロンプトを検索結果に保存
             this.searchResults[index].generatedImageUrl = result.imageUrl;
             this.searchResults[index].generatedImagePrompt = result.prompt;
+            // ドラフトプロンプトも保存（存在する場合）
+            if (result.draftPrompt) {
+              this.searchResults[index].generatedImageDraftPrompt = result.draftPrompt;
+            }
             this.saveSearchResults();
             
             // 再生成ボタンの状態を決定（モデル別）
@@ -2039,7 +2089,11 @@
               </div>
             `;
           } else {
-            throw new Error(result.error);
+            // エラーオブジェクトを作成して詳細なエラー情報を保持
+            const errorObj = new Error('画像生成失敗');
+            errorObj.apiError = result.error;
+            errorObj.fullError = result.fullError;
+            throw errorObj;
           }
         } catch (error) {
           console.error('画像生成エラー:', error);
@@ -2047,10 +2101,36 @@
           // エラー時は試行回数をロールバック
           this.imageGenerationAttempts[`plant-${index}`] = Math.max(0, (this.imageGenerationAttempts[`plant-${index}`] || 1) - 1);
           
+          // エラーメッセージを取得
+          let errorMessage = 'サーバーエラー';
+          
+          // APIエラーの場合
+          if (error.apiError) {
+            errorMessage = error.apiError;
+          } else if (error.message) {
+            // 直接的なエラーメッセージを短縮
+            const errorMsg = error.message.toLowerCase();
+            if (errorMsg.includes('api接続エラー')) {
+              errorMessage = 'API接続エラー';
+            } else if (errorMsg.includes('replicate')) {
+              errorMessage = 'Replicate APIエラー';
+            } else if (errorMsg.includes('timeout')) {
+              errorMessage = 'タイムアウト';
+            } else if (errorMsg.includes('network')) {
+              errorMessage = 'ネットワークエラー';
+            } else if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
+              errorMessage = 'API制限に達しました';
+            } else if (errorMsg.includes('画像生成失敗')) {
+              errorMessage = 'API処理エラー';
+            } else {
+              errorMessage = 'サーバーエラー';
+            }
+          }
+          
           const canRetry = this.canRegenerate(index);
           const retryButtonHtml = canRetry ? 
-            `<button class="image-generate-btn" onclick="app.generatePlantImage(${index})">
-              <i class="fas fa-redo"></i> 再生成 (${this.getRegenerationCount(index)}/3)
+            `<button class="image-generate-btn" onclick="app.generatePlantImage(${index})" style="margin-top: 1rem;">
+              <i class="fas fa-redo"></i> 再生成
             </button>` :
             `<div style="color: #666; font-size: 0.9rem; margin-top: 1rem;">
               再生成回数上限に達しました
@@ -2058,9 +2138,10 @@
           
           container.innerHTML = `
             <div class="image-placeholder">
-              <div style="text-align: center; padding: 1rem; color: #ff7043; margin-bottom: 1rem;">
+              <div style="text-align: center; padding: 1rem; color: #ff7043; margin-bottom: 0.5rem;">
                 <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
-                <div>画像生成に失敗しました</div>
+                <div style="font-weight: 600; margin-bottom: 0.5rem;">画像生成に失敗</div>
+                <div style="font-size: 0.9rem; color: #666;">${errorMessage}</div>
               </div>
               ${retryButtonHtml}
             </div>
@@ -2068,140 +2149,9 @@
         }
       }
 
-      async callImageGenerationAPI(plant, style, time) {
-        // プロンプト生成
-        const prompt = this.createImagePrompt(plant, style, time);
-        
-        // Replicate API設定 - 本格運用時は環境変数や設定ファイルから読み込み
-        const REPLICATE_API_TOKEN = 'r8_your_api_token_here'; // ここに実際のAPIトークンを設定
-        
-        // 使用するモデルを選択（柔軟に変更可能）
-        const selectedModel = this.getSelectedImageModel(style);
-        
-        console.log('画像生成開始:', { prompt, style, time, model: selectedModel.name });
-        
-        const response = await fetch(selectedModel.url, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${REPLICATE_API_TOKEN}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'wait' // 同期的な応答を要求
-          },
-          body: JSON.stringify({
-            input: {
-              prompt: prompt,
-              aspect_ratio: selectedModel.aspectRatio || "3:4",
-              ...selectedModel.additionalParams // モデル固有のパラメータ
-            }
-          })
-        });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Replicate API エラー:', response.status, errorText);
-          throw new Error(`画像生成API呼び出しに失敗しました: ${response.status} - ${errorText}`);
-        }
 
-        const data = await response.json();
-        console.log('Replicate API レスポンス:', data);
-        
-        // レスポンス形式の柔軟な処理
-        if (data.output && Array.isArray(data.output) && data.output.length > 0) {
-          return data.output[0];
-        } else if (data.output && typeof data.output === 'string') {
-          return data.output;
-        } else if (data.urls && data.urls.length > 0) {
-          return data.urls[0];
-        } else {
-          console.error('予期しないレスポンス形式:', data);
-          throw new Error('画像生成レスポンスが無効な形式です');
-        }
-      }
 
-      // 利用可能な画像生成モデルの設定
-      getAvailableImageModels() {
-        return {
-          // 高品質な画像生成モデル（推奨）
-          'minimax-image-01': {
-            name: 'Minimax Image-01',
-            url: 'https://api.replicate.com/v1/models/minimax/image-01/predictions',
-            aspectRatio: '3:4',
-            additionalParams: {},
-            description: '高品質な汎用画像生成モデル'
-          },
-          
-          // 高速な軽量モデル
-          'sdxl-lightning': {
-            name: 'SDXL Lightning',
-            url: 'https://api.replicate.com/v1/predictions',
-            modelVersion: '6f7a773af6fc3e8de9d5a3c00be77c17308914bf67772726aff83496ba1e3bbe',
-            aspectRatio: '1:1',
-            additionalParams: {
-              width: 512,
-              height: 512,
-              num_inference_steps: 4
-            },
-            description: '高速4ステップ生成モデル'
-          },
-          
-          // より詳細なコントロールが可能なモデル
-          'flux-dev': {
-            name: 'Flux Dev',
-            url: 'https://api.replicate.com/v1/models/black-forest-labs/flux-dev/predictions',
-            aspectRatio: '3:4',
-            additionalParams: {
-              guidance_scale: 7.5,
-              num_inference_steps: 50
-            },
-            description: '詳細コントロール可能な高品質モデル'
-          },
-          
-          // 植物画風に特化したい場合の例
-          'artistic-model': {
-            name: 'Artistic Botanical',
-            url: 'https://api.replicate.com/v1/models/another-model/predictions',
-            aspectRatio: '3:4',
-            additionalParams: {
-              style_preset: 'botanical-illustration'
-            },
-            description: '植物画風イラスト特化モデル（例）'
-          }
-        };
-      }
-
-      // スタイルに基づいてモデルを選択
-      getSelectedImageModel(style) {
-        const models = this.getAvailableImageModels();
-        
-        // スタイルごとに最適なモデルを選択
-        switch (style) {
-          case 'botanical':
-            // 植物画には詳細で正確な描写が可能なモデルを選択
-            return models['flux-dev'] || models['minimax-image-01'];
-            
-          case 'anime':
-            // アニメ風にはより芸術的なモデルを選択
-            return models['minimax-image-01'];
-            
-          case 'realistic':
-            // 写実的には高品質なモデルを選択
-            return models['minimax-image-01'];
-            
-          default:
-            // デフォルトは汎用性の高いモデル
-            return models['minimax-image-01'];
-        }
-      }
-
-      createImagePrompt(plant, style, time) {
-        // 新しいLLM処理システムの画像プロンプト機能を使用
-        if (window.plantSearchLLM) {
-          return window.plantSearchLLM.createImagePrompt(plant, style, time);
-        }
-        
-        // フォールバック：llm.jsの関数を使用
-        return createPlantImagePrompt(plant, style, time);
-      }
 
 
 
@@ -2569,7 +2519,6 @@
         
         console.log('設定を自動保存しました:', {
           style: this.selectedStyle,
-          time: this.selectedTime,
           model: this.selectedModel,
           region: this.selectedRegion
         });
@@ -2579,15 +2528,11 @@
       applySettingsToUI() {
         // UIに反映
         const styleRadio = document.querySelector(`input[name="style-setting"][value="${this.selectedStyle}"]`);
-        const timeRadio = document.querySelector(`input[name="time-setting"][value="${this.selectedTime}"]`);
         const modelRadio = document.querySelector(`input[name="model-setting"][value="${this.selectedModel}"]`);
         const regionRadio = document.querySelector(`input[name="region-setting"][value="${this.selectedRegion}"]`);
         
         if (styleRadio) {
           styleRadio.checked = true;
-        }
-        if (timeRadio) {
-          timeRadio.checked = true;
         }
         if (modelRadio) {
           modelRadio.checked = true;
@@ -2598,7 +2543,6 @@
         
         console.log('UIに設定を反映:', {
           style: this.selectedStyle,
-          time: this.selectedTime,
           model: this.selectedModel,
           region: this.selectedRegion
         });
@@ -2615,21 +2559,16 @@
       // 設定をデフォルトに戻す
       resetSettings() {
         this.selectedStyle = 'botanical';
-        this.selectedTime = 'day';
         this.selectedModel = 'sdxl-lightning';
         this.selectedRegion = 'japan';
 
         // UIに反映
         const styleRadio = document.querySelector('input[name="style-setting"][value="botanical"]');
-        const timeRadio = document.querySelector('input[name="time-setting"][value="day"]');
         const modelRadio = document.querySelector('input[name="model-setting"][value="sdxl-lightning"]');
         const regionRadio = document.querySelector('input[name="region-setting"][value="japan"]');
         
         if (styleRadio) {
           styleRadio.checked = true;
-        }
-        if (timeRadio) {
-          timeRadio.checked = true;
         }
         if (modelRadio) {
           modelRadio.checked = true;
@@ -2660,7 +2599,7 @@
           'realistic': 'Captured as a highly detailed, photorealistic image with macro photography quality. Crystal clear focus showing minute details like leaf textures, petal surface patterns, stem structures, and natural imperfections. Professional nature photography with excellent depth of field, natural color reproduction, and lifelike appearance. Include environmental context showing the plant\'s natural growing conditions. Shot with high-end botanical photography techniques.'
         };
 
-        const title = styleTitles[style] || 'スタイル設定';
+        const title = styleTitles[style] || '画像スタイル設定';
         const prompt = stylePrompts[style] || 'プロンプトが見つかりません';
 
         console.log('Selected title:', title); // デバッグ用
@@ -2686,6 +2625,23 @@
 
         document.getElementById('prompt-modal-title').textContent = `${plant.commonName} - 画像生成プロンプト`;
         document.getElementById('prompt-content').textContent = plant.generatedImagePrompt;
+        
+        // 最適化情報を表示
+        const optimizationInfo = document.getElementById('prompt-optimization-info');
+        const draftSection = document.getElementById('draft-prompt-section');
+        const draftContent = document.getElementById('draft-prompt-content');
+        
+        if (plant.generatedImageDraftPrompt) {
+          // ドラフトプロンプトが存在する場合は最適化済みとして表示
+          optimizationInfo.style.display = 'block';
+          draftSection.style.display = 'block';
+          draftContent.textContent = plant.generatedImageDraftPrompt;
+        } else {
+          // ドラフトプロンプトが存在しない場合は最適化なしとして表示
+          optimizationInfo.style.display = 'none';
+          draftSection.style.display = 'none';
+        }
+        
         document.getElementById('prompt-modal').classList.add('active');
       }
 
@@ -2699,7 +2655,129 @@
 
         document.getElementById('prompt-modal-title').textContent = `${plant.commonName} - 画像生成プロンプト`;
         document.getElementById('prompt-content').textContent = plant.generatedImagePrompt;
+        
+        // 最適化情報を表示
+        const optimizationInfo = document.getElementById('prompt-optimization-info');
+        const draftSection = document.getElementById('draft-prompt-section');
+        const draftContent = document.getElementById('draft-prompt-content');
+        
+        if (plant.generatedImageDraftPrompt) {
+          // ドラフトプロンプトが存在する場合は最適化済みとして表示
+          optimizationInfo.style.display = 'block';
+          draftSection.style.display = 'block';
+          draftContent.textContent = plant.generatedImageDraftPrompt;
+        } else {
+          // ドラフトプロンプトが存在しない場合は最適化なしとして表示
+          optimizationInfo.style.display = 'none';
+          draftSection.style.display = 'none';
+        }
+        
         document.getElementById('prompt-modal').classList.add('active');
+      }
+
+      // 一致度の根拠を表示
+      showConfidenceReason(index) {
+        const plant = this.searchResults[index];
+        if (!plant) {
+          this.showMessage('植物データが見つかりません', 'warning');
+          return;
+        }
+
+        // 一致度の意味を取得
+        const confidenceMeaning = this.getConfidenceMeaning(plant.confidence);
+        
+        // 一致度の色を取得
+        const confidenceColor = {
+          '非常に高い': '#4CAF50',
+          '高い': '#8BC34A',
+          '中程度': '#FFC107',
+          '低い': '#FF9800',
+          '非常に低い': '#F44336'
+        }[plant.confidence] || '#9E9E9E';
+
+        // モーダルの内容を構築
+        const modalBody = document.getElementById('confidence-modal-body');
+        modalBody.innerHTML = `
+          <div class="confidence-level-display">
+            <div class="confidence-value" style="color: ${confidenceColor}">${plant.confidence}</div>
+            <div class="confidence-meaning">${confidenceMeaning}</div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-search"></i>
+              検索クエリとの一致度
+            </div>
+            <div class="confidence-factor-content">
+              入力された特徴や検索語句が植物の特徴とどの程度一致しているかを評価します。特徴的な形態や生育環境の記述が正確に合致するほど一致度が向上します。
+            </div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-leaf"></i>
+              特徴の明確性
+            </div>
+            <div class="confidence-factor-content">
+              植物の形態的特徴（葉の形、花の色、茎の特徴など）や生態的特徴（開花時期、生育環境など）の記述が明確で詳細であるほど一致度が高くなります。
+            </div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-globe-americas"></i>
+              地域との適合性
+            </div>
+            <div class="confidence-factor-content">
+              選択された地域（${this.getRegionDisplayName()}）に自生または栽培される植物であるかを評価します。地域特有の植物ほど一致度が向上します。
+            </div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-database"></i>
+              データベース信頼性
+            </div>
+            <div class="confidence-factor-content">
+              植物学的に確立された分類体系や学名、一般的な呼称との整合性を評価します。正確な分類情報ほど信頼性が高くなります。
+            </div>
+          </div>
+
+          <div class="confidence-note">
+            <i class="fas fa-info-circle"></i>
+            <strong>注意：</strong> この一致度はAIによる推定であり、正確な植物同定には専門家による確認が必要です。フィールドワークや図鑑での詳細な照合も併せて行うことをお勧めします。
+          </div>
+        `;
+
+        // モーダルを表示
+        document.getElementById('confidence-modal').classList.add('active');
+      }
+
+      // 一致度の意味を取得
+      getConfidenceMeaning(confidence) {
+        const meanings = {
+          '非常に高い': '特徴が非常によく一致しており、ほぼ確実に同じ植物です',
+          '高い': '特徴がよく一致しており、同じ植物である可能性が高いです',
+          '中程度': '一部の特徴が一致していますが、他の候補も検討が必要です',
+          '低い': '特徴の一致が限定的で、さらなる確認が必要です',
+          '非常に低い': '特徴の一致が少なく、別の植物である可能性があります'
+        };
+        return meanings[confidence] || '一致度の評価が困難です';
+      }
+
+      // 現在の地域設定の表示名を取得
+      getRegionDisplayName() {
+        const regions = {
+          'japan': '日本',
+          'southeast_asia': '東南アジア',
+          'north_america': '北米'
+        };
+        return regions[this.selectedRegion] || '未設定';
+      }
+
+      // 一致度根拠モーダルを閉じる
+      closeConfidenceModal() {
+        document.getElementById('confidence-modal').classList.remove('active');
       }
 
       // 再生成試行回数を取得
@@ -2794,7 +2872,12 @@
           
           const link = document.createElement('a');
           link.href = url;
-          link.download = `植物図鑑_${new Date().toISOString().split('T')[0]}.json`;
+          // 現在の日時を取得
+          const now = new Date();
+          const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
+          const time = now.toTimeString().slice(0, 5).replace(':', ''); // HHMM
+          
+          link.download = `AI植物図鑑_${date}-${time}.json`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -2895,6 +2978,24 @@
   </script>
   
   <!-- 統合されたLLM処理システム読み込み -->
+  <!-- 一致度根拠表示モーダル -->
+  <div id="confidence-modal" class="confidence-modal">
+    <div class="confidence-modal-content">
+      <div class="confidence-modal-header">
+        <h2 class="confidence-modal-title">
+          <i class="fas fa-chart-bar"></i>
+          一致度の根拠
+        </h2>
+        <button class="confidence-modal-close" onclick="app.closeConfidenceModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="confidence-modal-body" id="confidence-modal-body">
+        <!-- 内容は動的に生成されます -->
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
   
   <script>
@@ -2923,6 +3024,13 @@
       document.getElementById('prompt-modal').addEventListener('click', (e) => {
         if (e.target.id === 'prompt-modal') {
           app.closePromptModal();
+        }
+      });
+
+      // 一致度根拠モーダル背景クリックで閉じる
+      document.getElementById('confidence-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'confidence-modal') {
+          app.closeConfidenceModal();
         }
       });
     }

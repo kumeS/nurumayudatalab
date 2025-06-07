@@ -55,7 +55,11 @@ class ReplicateImageClient {
       payload: payload
     };
 
-    console.log('Replicate API Request:', requestData);
+    console.log('🔥 画像生成API呼び出し開始:', {
+      workerUrl: this.workerUrl,
+      apiUrl: apiUrl,
+      payload: payload
+    });
 
     const response = await fetch(this.workerUrl, {
       method: 'POST',
@@ -65,36 +69,110 @@ class ReplicateImageClient {
       body: JSON.stringify(requestData)
     });
 
+    console.log('🔥 Worker API応答ステータス:', response.status);
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('🔥 Worker API呼び出しエラー:', errorData);
       throw new Error(`Worker API呼び出しに失敗: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
+    console.log('🔥 Worker API応答データ:', data);
     
     if (data.error) {
+      console.error('🔥 Replicate API内部エラー:', data.error, data.details);
       throw new Error(`Replicate API エラー: ${JSON.stringify(data.details || data.error)}`);
     }
 
+    console.log('🔥 画像生成成功:', data.output ? '画像URLあり' : '画像URLなし');
     return data;
+  }
+}
+
+// プロンプト最適化用のLLM呼び出し関数
+async function optimizeImagePrompt(draftPrompt, workerUrl) {
+  const optimizationPrompt = `あなたは画像生成AI（Stable Diffusion、DALL-E、Midjourney等）用のプロンプト最適化の専門家です。
+
+与えられたドラフトプロンプトを以下の条件で最適化してください：
+
+【最適化条件】
+1. **完全英語化**: 日本語部分をすべて自然な英語に変換
+2. **画像生成最適化**: 画像生成AIが理解しやすい具体的で明確な表現に変更
+3. **冗長性の削除**: 重複や不要な部分を削除して簡潔に
+4. **視覚的要素の強化**: 色、形、質感、光などの視覚的詳細を強調
+5. **専門用語の適切な使用**: 植物学的に正確で画像生成に有効な専門用語を使用
+
+【出力形式】
+最適化されたプロンプトのみを出力してください。説明や追加コメントは不要です。
+
+【ドラフトプロンプト】
+${draftPrompt}`;
+
+  try {
+    const response = await fetch(workerUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: 'user',
+            content: optimizationPrompt
+          }
+        ],
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`プロンプト最適化API呼び出しに失敗: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.result && data.result.response) {
+      return data.result.response.trim();
+    } else {
+      throw new Error('プロンプト最適化レスポンスが無効です');
+    }
+  } catch (error) {
+    console.warn('プロンプト最適化に失敗、元のプロンプトを使用:', error);
+    return draftPrompt; // 最適化に失敗した場合は元のプロンプトを返す
   }
 }
 
 // 植物画像生成専用の便利関数
 async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, model = 'minimax', imageOptions = {}) {
+  console.log('🌱 植物画像生成開始:', {
+    plant: plantInfo.commonName || plantInfo.scientificName,
+    style: style,
+    model: model,
+    workerUrl: workerUrl,
+    imageOptions: imageOptions
+  });
+
   const client = new ReplicateImageClient(workerUrl);
   
-  // プロンプト作成（時間帯とシードも考慮）
-  const time = imageOptions.time || 'day';
+  // ドラフトプロンプト作成（シードも考慮）
   const seed = imageOptions.seed;
-  const prompt = createPlantImagePrompt(plantInfo, style, time, seed);
+  const draftPrompt = createPlantImagePrompt(plantInfo, style, 'day', seed);
+  
+  console.log('🌱 ドラフトプロンプト:', draftPrompt);
+  
+  // LLMでプロンプトを最適化（植物検索と同じWorkerを使用）
+  const llmWorkerUrl = 'https://nurumayu-ai-api.skume-bioinfo.workers.dev/';
+  const optimizedPrompt = await optimizeImagePrompt(draftPrompt, llmWorkerUrl);
+  
+  console.log('🌱 最適化プロンプト:', optimizedPrompt);
   
   try {
     let result;
     
     if (model === 'sdxl-lightning') {
       // SDXL Lightning使用（サイズ指定可能）
-      console.log(`Generating plant image with SDXL Lightning: ${prompt}`);
+      console.log(`Generating plant image with SDXL Lightning: ${optimizedPrompt}`);
       const sdxlOptions = {
         width: imageOptions.width || 1024,
         height: imageOptions.height || 1024,
@@ -104,13 +182,14 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
         negativePrompt: imageOptions.negativePrompt || "text, words, letters, writing, watermark, signature, labels, captions, annotations, typography, symbols, numbers",
         seed: imageOptions.seed // シードを追加
       };
-      result = await client.generateImageSDXL(prompt, sdxlOptions);
+      result = await client.generateImageSDXL(optimizedPrompt, sdxlOptions);
       
       if (result.output && Array.isArray(result.output) && result.output.length > 0) {
         return {
           success: true,
           imageUrl: result.output[0],
-          prompt: prompt,
+          prompt: optimizedPrompt,
+          draftPrompt: draftPrompt,
           model: 'bytedance/sdxl-lightning-4step',
           options: sdxlOptions
         };
@@ -118,7 +197,8 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
         return {
           success: true,
           imageUrl: result.output,
-          prompt: prompt,
+          prompt: optimizedPrompt,
+          draftPrompt: draftPrompt,
           model: 'bytedance/sdxl-lightning-4step',
           options: sdxlOptions
         };
@@ -127,19 +207,20 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
       }
   } else {
       // Minimax使用（デフォルト）- アスペクト比指定可能
-      console.log(`Generating plant image with Minimax: ${prompt}`);
+      console.log(`Generating plant image with Minimax: ${optimizedPrompt}`);
       const minimaxOptions = {
         aspectRatio: imageOptions.aspectRatio || "1:1",
         seed: imageOptions.seed, // シードを追加
         negative_prompt: imageOptions.negativePrompt || "text, words, letters, writing, watermark, signature, labels, captions, annotations, typography, symbols, numbers"
       };
-      result = await client.generateImageMinimax(prompt, minimaxOptions);
+      result = await client.generateImageMinimax(optimizedPrompt, minimaxOptions);
       
       if (result.output && Array.isArray(result.output) && result.output.length > 0) {
         return {
           success: true,
           imageUrl: result.output[0],
-          prompt: prompt,
+          prompt: optimizedPrompt,
+          draftPrompt: draftPrompt,
           model: 'minimax/image-01',
           options: minimaxOptions
         };
@@ -147,7 +228,8 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
         return {
           success: true,
           imageUrl: result.output,
-          prompt: prompt,
+          prompt: optimizedPrompt,
+          draftPrompt: draftPrompt,
           model: 'minimax/image-01',
           options: minimaxOptions
         };
@@ -157,35 +239,75 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
     }
   } catch (error) {
     console.error(`${model} generation failed:`, error);
+    
+    // エラーメッセージを短く分かりやすく変換
+    let shortErrorMessage = 'サーバーエラー';
+    const errorMsg = error.message.toLowerCase();
+    
+    if (errorMsg.includes('worker api呼び出しに失敗')) {
+      shortErrorMessage = 'API接続エラー';
+    } else if (errorMsg.includes('replicate api エラー')) {
+      shortErrorMessage = 'Replicate APIエラー';
+    } else if (errorMsg.includes('timeout')) {
+      shortErrorMessage = 'タイムアウト';
+    } else if (errorMsg.includes('network')) {
+      shortErrorMessage = 'ネットワークエラー';
+    } else if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
+      shortErrorMessage = 'API制限に達しました';
+    } else if (errorMsg.includes('invalid')) {
+      shortErrorMessage = '無効なリクエスト';
+    } else if (errorMsg.includes('unauthorized')) {
+      shortErrorMessage = 'API認証エラー';
+    }
+    
     return {
       success: false,
-      error: `画像生成に失敗しました: ${error.message}`,
-      prompt: prompt
+      error: shortErrorMessage,
+      fullError: error.message,
+      prompt: optimizedPrompt || draftPrompt,
+      draftPrompt: draftPrompt
     };
   }
 }
 
 // 植物画像プロンプト作成
 function createPlantImagePrompt(plantInfo, style, time = 'day', seed = null) {
-  // プロンプトのバリエーションを追加するため、シードに基づいて異なる表現を選択
+  // 植物の学名と一般名を組み合わせて、より固有のプロンプトベースを作成
+  let basePrompt = `A detailed botanical image of ${plantInfo.scientificName}`;
+  
+  // 植物固有のハッシュを作成（学名と一般名から）
+  const plantHash = (plantInfo.scientificName + (plantInfo.commonName || '')).split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  
+  // シードと植物ハッシュを組み合わせてより多様なバリエーションを作成
+  const combinedSeed = seed ? (seed + Math.abs(plantHash)) : Math.abs(plantHash);
+  
+  // より多くのバリエーションを用意（10個に増加）
   const variations = [
     `A detailed botanical image of ${plantInfo.scientificName}`,
     `A beautiful illustration of ${plantInfo.scientificName}`,
     `An artistic rendering of ${plantInfo.scientificName}`,
     `A botanical study of ${plantInfo.scientificName}`,
-    `A detailed plant portrait of ${plantInfo.scientificName}`
+    `A detailed plant portrait of ${plantInfo.scientificName}`,
+    `A scientific documentation of ${plantInfo.scientificName}`,
+    `A nature photography of ${plantInfo.scientificName}`,
+    `A botanical specimen image of ${plantInfo.scientificName}`,
+    `A field guide illustration of ${plantInfo.scientificName}`,
+    `A horticultural display of ${plantInfo.scientificName}`
   ];
   
-  // シードが提供された場合、それを使ってバリエーションを選択
-  const variationIndex = seed ? seed % variations.length : 0;
-  let basePrompt = variations[variationIndex];
+  // 組み合わせシードを使ってバリエーションを選択
+  const variationIndex = combinedSeed % variations.length;
+  basePrompt = variations[variationIndex];
   
   // 一般名があれば追加
   if (plantInfo.commonName) {
     basePrompt += ` (commonly known as ${plantInfo.commonName})`;
   }
 
-  // 植物の詳細特徴を英語で追加（より具体的に）
+  // 植物の詳細特徴を英語で追加（より具体的かつ植物固有に）
   let featuresPrompt = '';
   
   // 総合的な特徴説明
@@ -211,6 +333,12 @@ function createPlantImagePrompt(plantInfo, style, time = 'day', seed = null) {
   
   if (specificFeatures.length > 0) {
     featuresPrompt += `, with detailed ${specificFeatures.join(', ')}`;
+  }
+  
+  // 植物固有の識別子を追加（学名の一部を含める）
+  const scientificParts = plantInfo.scientificName.split(' ');
+  if (scientificParts.length >= 2) {
+    featuresPrompt += `, characteristic of ${scientificParts[0]} genus ${scientificParts[1]} species`;
   }
 
   // 生育環境情報を追加
@@ -258,24 +386,41 @@ function createPlantImagePrompt(plantInfo, style, time = 'day', seed = null) {
       stylePrompt = '. Beautifully rendered with accurate botanical details, natural colors, excellent lighting, and clear definition of plant structures.';
   }
 
-  // シードに基づく構図のバリエーション
+  // 植物固有の構図バリエーション（常に適用）
   let compositionPrompt = '';
-  if (seed) {
-    const compositions = [
-      ', centered composition with full plant view',
-      ', close-up detail view focusing on flowers and leaves',
-      ', diagonal composition showing plant structure',
-      ', artistic angled view with depth',
-      ', side profile view highlighting plant silhouette'
-    ];
-    compositionPrompt = compositions[seed % compositions.length];
-  }
+  const compositions = [
+    ', centered composition with full plant view',
+    ', close-up detail view focusing on flowers and leaves',
+    ', diagonal composition showing plant structure',
+    ', artistic angled view with depth',
+    ', side profile view highlighting plant silhouette',
+    ', macro photography focusing on distinctive features',
+    ', three-quarter view showing plant architecture',
+    ', overhead view displaying leaf arrangement',
+    ', low angle view emphasizing plant height',
+    ', natural habitat composition'
+  ];
+  // 組み合わせシードを使って構図を選択（常に適用）
+  compositionPrompt = compositions[combinedSeed % compositions.length];
 
   // 品質向上とテキスト抑制のための追加指示
   const qualityPrompt = ' High resolution, botanically accurate, detailed plant anatomy, professional quality, masterpiece';
   const noTextPrompt = ', no text, no words, no letters, no watermarks, no labels, clean image without any written content';
 
-  return basePrompt + featuresPrompt + habitatPrompt + seasonPrompt + lightingPrompt + compositionPrompt + stylePrompt + qualityPrompt + noTextPrompt;
+  const finalPrompt = basePrompt + featuresPrompt + habitatPrompt + seasonPrompt + lightingPrompt + compositionPrompt + stylePrompt + qualityPrompt + noTextPrompt;
+  
+  // デバッグ用：植物固有の情報をログ出力
+  console.log(`🌿 画像プロンプト生成 - ${plantInfo.scientificName}:`, {
+    plantHash: plantHash,
+    combinedSeed: combinedSeed,
+    variationIndex: variationIndex,
+    selectedVariation: variations[variationIndex],
+    compositionIndex: combinedSeed % compositions.length,
+    selectedComposition: compositions[combinedSeed % compositions.length],
+    promptLength: finalPrompt.length
+  });
+
+  return finalPrompt;
 }
 
 // 日本語植物特徴を英語に変換
@@ -428,19 +573,46 @@ function translateFeaturesToEnglish(features) {
 async function callPlantSearchAPI(searchQuery, region = 'japan') {
   const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
   
-  // 地域設定に基づく優先度テキスト
+  // 地域設定に基づく厳格な制限テキスト
   const regionTexts = {
-    'japan': '日本で見られる植物を優先',
-    'southeast-asia': '東南アジア（タイ、マレーシア、インドネシア、フィリピン、ベトナム、ラオス、カンボジア、ミャンマー、ブルネイ、シンガポール）で見られる植物を優先',
-    'north-america': '北米大陸（アメリカ合衆国、カナダ、メキシコ）で見られる植物を優先'
+    'japan': '日本国内でのみ見られる植物のみを検索対象とする',
+    'southeast-asia': '東南アジア地域（タイ、マレーシア、インドネシア、フィリピン、ベトナム、ラオス、カンボジア、ミャンマー、ブルネイ、シンガポール）でのみ見られる植物のみを検索対象とする',
+    'north-america': '北米大陸（アメリカ合衆国、カナダ、メキシコ）でのみ見られる植物のみを検索対象とする'
   };
 
-  const regionPriority = regionTexts[region] || regionTexts['japan'];
+  // 地域別の具体例
+  const regionExamples = {
+    'japan': '例：サクラ、ツツジ、カエデ、ワラビ、スギ、ヒノキ、シダレザクラ、ヤマブキ、アジサイ、ナデシコ',
+    'southeast-asia': '例：ラフレシア、バナナ、マンゴー、ランブータン、バンブー、プルメリア、ハイビスカス、ブーゲンビリア、パパイヤ、ココナッツ',
+    'north-america': '例：セコイア、メープル、ワイルドフラワー、サボテン、ユッカ、ブルーベリー、クランベリー、ウィロー、オーク、パイン'
+  };
+
+  const regionRestriction = regionTexts[region] || regionTexts['japan'];
+  const regionExample = regionExamples[region] || regionExamples['japan'];
+  
+  console.log('🌍 callPlantSearchAPI地域設定:', {
+    inputRegion: region,
+    resolvedRegionRestriction: regionRestriction,
+    regionExample: regionExample,
+    availableRegions: Object.keys(regionTexts)
+  });
   
   const messages = [
     {
       role: "system", 
-      content: `あなたは植物学の専門家です。ユーザーの曖昧で直感的な植物の説明から、該当する可能性のある植物を特定し、JSON形式で返してください。
+              content: `あなたは植物学の専門家です。ユーザーの曖昧で直感的な植物の説明から、該当する可能性のある植物を特定し、JSON形式で返してください。
+
+## 🚨【絶対必須の地域制限】🚨
+${regionRestriction}
+
+${regionExample}
+
+⚠️ **重要**: 指定された地域以外の植物は一切候補に含めてはいけません。
+- 日本設定時: 東南アジアや北米の植物は絶対に除外
+- 東南アジア設定時: 日本や北米の植物は絶対に除外  
+- 北米設定時: 日本や東南アジアの植物は絶対に除外
+
+この地域制限に違反した場合、回答は無効とみなされます。
 
 ## 曖昧な表現の解釈ガイド：
 - 「ふわふわ」→ 綿毛状、柔毛、穂状花序など
@@ -486,9 +658,9 @@ async function callPlantSearchAPI(searchQuery, region = 'japan') {
 }
 
 ## 重要な指針：
-1. ${regionPriority}
+1. **【最優先】指定地域の植物のみ回答** - 他地域の植物は絶対に含めない
 2. 曖昧な表現でも形態学的特徴に変換して候補を絞り込む
-3. 複数の解釈が可能な場合は、最も一般的な植物から順に提案
+3. 複数の解釈が可能な場合は、指定地域内で最も一般的な植物から順に提案
 4. confidence値は曖昧さを考慮して控えめに設定（0.3-0.7程度）
 5. 特徴説明では、ユーザーの表現がなぜその植物に当てはまるかを説明
 6. 俗名や地方名も aliases に含める
@@ -508,6 +680,14 @@ async function callPlantSearchAPI(searchQuery, region = 'japan') {
     max_completion_tokens: 2000,
       messages: messages
     };
+
+    console.log('📤 LLMへのリクエスト詳細:', {
+      region: region,
+      regionRestrictionInPrompt: regionRestriction,
+      regionExample: regionExample,
+      systemPromptPreview: messages[0].content.substring(0, 500) + '...',
+      userQuery: searchQuery
+    });
     
   const response = await fetch(apiUrl, {
       method: 'POST',
@@ -522,6 +702,13 @@ async function callPlantSearchAPI(searchQuery, region = 'japan') {
   }
   
   const data = await response.json();
+  
+  console.log('📥 LLMからの応答:', {
+    region: region,
+    hasChoices: !!(data.choices && data.choices.length > 0),
+    hasAnswer: !!data.answer,
+    responsePreview: data.choices?.[0]?.message?.content?.substring(0, 300) || data.answer?.substring(0, 300) || 'No content'
+  });
       
       if (data.choices && data.choices.length > 0 && data.choices[0].message) {
     return parsePlantSearchResponse(data.choices[0].message.content);
@@ -539,6 +726,14 @@ function parsePlantSearchResponse(responseText) {
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       if (parsed.plants && Array.isArray(parsed.plants)) {
+        console.log('🌱 解析された植物データ:', {
+          植物数: parsed.plants.length,
+          植物名リスト: parsed.plants.map(p => p.commonName || p.scientificName),
+          各植物の生息環境: parsed.plants.map(p => ({ 
+            名前: p.commonName, 
+            生息環境: p.habitat?.substring(0, 100) 
+          }))
+        });
         return parsed.plants;
       }
     }
@@ -582,19 +777,39 @@ class PlantSearchLLM {
 
   // 植物検索用のプロンプトを作成
   createPlantSearchPrompt(searchQuery, region = 'japan') {
-    // 地域設定に基づく優先度テキスト
+    // 地域設定に基づく厳格な制限テキスト
     const regionTexts = {
-      'japan': '日本で見られる植物を優先',
-      'southeast-asia': '東南アジア（タイ、マレーシア、インドネシア、フィリピン、ベトナム、ラオス、カンボジア、ミャンマー、ブルネイ、シンガポール）で見られる植物を優先',
-      'north-america': '北米大陸（アメリカ合衆国、カナダ、メキシコ）で見られる植物を優先'
+      'japan': '日本国内でのみ見られる植物のみを検索対象とする',
+      'southeast-asia': '東南アジア地域（タイ、マレーシア、インドネシア、フィリピン、ベトナム、ラオス、カンボジア、ミャンマー、ブルネイ、シンガポール）でのみ見られる植物のみを検索対象とする',
+      'north-america': '北米大陸（アメリカ合衆国、カナダ、メキシコ）でのみ見られる植物のみを検索対象とする'
     };
 
-    const regionPriority = regionTexts[region] || regionTexts['japan'];
+    // 地域別の具体例
+    const regionExamples = {
+      'japan': '例：サクラ、ツツジ、カエデ、ワラビ、スギ、ヒノキ、シダレザクラ、ヤマブキ、アジサイ、ナデシコ',
+      'southeast-asia': '例：ラフレシア、バナナ、マンゴー、ランブータン、バンブー、プルメリア、ハイビスカス、ブーゲンビリア、パパイヤ、ココナッツ',
+      'north-america': '例：セコイア、メープル、ワイルドフラワー、サボテン、ユッカ、ブルーベリー、クランベリー、ウィロー、オーク、パイン'
+    };
+
+    const regionRestriction = regionTexts[region] || regionTexts['japan'];
+    const regionExample = regionExamples[region] || regionExamples['japan'];
     
     return [
       {
         role: "system", 
         content: `あなたは植物学の専門家です。ユーザーの曖昧で直感的な植物の説明から、該当する可能性のある植物を特定し、JSON形式で返してください。
+
+## 🚨【絶対必須の地域制限】🚨
+${regionRestriction}
+
+${regionExample}
+
+⚠️ **重要**: 指定された地域以外の植物は一切候補に含めてはいけません。
+- 日本設定時: 東南アジアや北米の植物は絶対に除外
+- 東南アジア設定時: 日本や北米の植物は絶対に除外  
+- 北米設定時: 日本や東南アジアの植物は絶対に除外
+
+この地域制限に違反した場合、回答は無効とみなされます。
 
 ## 曖昧な表現の解釈ガイド：
 - 「ふわふわ」→ 綿毛状、柔毛、穂状花序など
@@ -643,9 +858,9 @@ class PlantSearchLLM {
 }
 
 ## 重要な指針：
-1. ${regionPriority}
+1. **【最優先】指定地域の植物のみ回答** - 他地域の植物は絶対に含めない
 2. 曖昧な表現でも形態学的特徴に変換して候補を絞り込む
-3. 複数の解釈が可能な場合は、最も一般的な植物から順に提案
+3. 複数の解釈が可能な場合は、指定地域内で最も一般的な植物から順に提案
 4. confidence値は曖昧さを考慮して控えめに設定（0.3-0.7程度）
 5. 特徴説明では、ユーザーの表現がなぜその植物に当てはまるかを説明
 6. 俗名や地方名も aliases に含める
@@ -680,6 +895,11 @@ class PlantSearchLLM {
 
   // 植物検索実行
   async searchPlants(searchQuery, region = 'japan') {
+    console.log('🔍 PlantSearchLLM.searchPlants呼び出し:', {
+      searchQuery: searchQuery,
+      region: region,
+      使用するAPI: 'callPlantSearchAPI'
+    });
     return await callPlantSearchAPI(searchQuery, region);
   }
 
@@ -690,19 +910,51 @@ class PlantSearchLLM {
 
   // 植物画像生成（新しいReplicate API使用）
   async generatePlantImage(plantInfo, style = 'botanical', model = 'minimax', imageOptions = {}) {
+    console.log('🎯 PlantSearchLLM.generatePlantImage呼び出し:', {
+      plantInfo: plantInfo,
+      style: style,
+      model: model,
+      imageOptions: imageOptions,
+      replicateWorkerUrl: this.replicateWorkerUrl
+    });
+
     try {
       // プロンプトの詳細ログ出力
-      const prompt = createPlantImagePrompt(plantInfo, style, imageOptions.time || 'day', imageOptions.seed);
-      console.log('Generated plant image prompt:', prompt);
-      console.log('Plant info:', plantInfo);
-      console.log('Style:', style, 'Model:', model, 'Options:', imageOptions);
+      const prompt = createPlantImagePrompt(plantInfo, style, 'day', imageOptions.seed);
+      console.log('🎯 Generated plant image prompt:', prompt);
+      console.log('🎯 Plant info:', plantInfo);
+      console.log('🎯 Style:', style, 'Model:', model, 'Options:', imageOptions);
       
-      return await generatePlantImage(plantInfo, style, this.replicateWorkerUrl, model, imageOptions);
+      const result = await generatePlantImage(plantInfo, style, this.replicateWorkerUrl, model, imageOptions);
+      console.log('🎯 画像生成結果:', result);
+      return result;
     } catch (error) {
-      console.error('植物画像生成エラー:', error);
+      console.error('🎯 植物画像生成エラー:', error);
+      
+      // エラーメッセージを短く分かりやすく変換
+      let shortErrorMessage = 'サーバーエラー';
+      const errorMsg = error.message.toLowerCase();
+      
+      if (errorMsg.includes('worker api呼び出しに失敗')) {
+        shortErrorMessage = 'API接続エラー';
+      } else if (errorMsg.includes('replicate api エラー')) {
+        shortErrorMessage = 'Replicate APIエラー';
+      } else if (errorMsg.includes('timeout')) {
+        shortErrorMessage = 'タイムアウト';
+      } else if (errorMsg.includes('network')) {
+        shortErrorMessage = 'ネットワークエラー';
+      } else if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
+        shortErrorMessage = 'API制限に達しました';
+      } else if (errorMsg.includes('invalid')) {
+        shortErrorMessage = '無効なリクエスト';
+      } else if (errorMsg.includes('unauthorized')) {
+        shortErrorMessage = 'API認証エラー';
+      }
+      
       return {
         success: false,
-        error: `画像生成に失敗しました: ${error.message}`
+        error: shortErrorMessage,
+        fullError: error.message
       };
     }
   }
