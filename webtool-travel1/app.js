@@ -18,9 +18,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const copyBtn = document.getElementById('copyBtn');
   const exportBtn = document.getElementById('exportBtn');
   const shareBtn = document.getElementById('shareBtn');
+  const generateImageBtn = document.getElementById('generateImageBtn');
   
   const travelStory = document.getElementById('travelStory');
   const travelTips = document.getElementById('travelTips');
+  const travelImages = document.getElementById('travelImages');
   
   // 選択状態を管理
   let selections = {
@@ -91,21 +93,87 @@ document.addEventListener('DOMContentLoaded', () => {
   function selectOption(category, value, element) {
     selections[category] = value;
     
+    // 選択アニメーション
+    element.classList.add('selecting');
+    
     // 同じカテゴリの他の選択肢の選択を解除
     element.parentElement.querySelectorAll('.option-card').forEach(card => {
       card.classList.remove('selected');
     });
     
     // 選択された要素にselectedクラスを追加
-    element.classList.add('selected');
+    setTimeout(() => {
+      element.classList.remove('selecting');
+      element.classList.add('selected');
+    }, 300);
+    
+    // ローカルストレージに保存
+    saveSelections();
     
     console.log('選択更新:', selections);
+  }
+  
+  // 選択状態を保存
+  function saveSelections() {
+    try {
+      localStorage.setItem('travelPlannerSelections', JSON.stringify({
+        selections: selections,
+        currentStep: currentStep,
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.warn('選択状態の保存に失敗:', error);
+    }
+  }
+  
+  // 選択状態を復元
+  function loadSelections() {
+    try {
+      const saved = localStorage.getItem('travelPlannerSelections');
+      if (!saved) return false;
+      
+      const data = JSON.parse(saved);
+      const daysPassed = (Date.now() - data.timestamp) / (1000 * 60 * 60 * 24);
+      
+      // 7日以上経過していれば削除
+      if (daysPassed > 7) {
+        localStorage.removeItem('travelPlannerSelections');
+        return false;
+      }
+      
+      selections = data.selections || selections;
+      currentStep = data.currentStep || currentStep;
+      
+      // UIに選択状態を反映
+      restoreSelectionUI();
+      
+      return true;
+    } catch (error) {
+      console.warn('選択状態の復元に失敗:', error);
+      return false;
+    }
+  }
+  
+  // 選択状態をUIに反映
+  function restoreSelectionUI() {
+    Object.entries(selections).forEach(([category, value]) => {
+      if (value) {
+        const card = document.querySelector(`[data-${category}="${value}"]`);
+        if (card) {
+          card.classList.add('selected');
+        }
+      }
+    });
+    
+    updateProgress();
+    showCurrentStep();
   }
   
   // 次のステップに進む
   function nextStep() {
     currentStep++;
     updateProgress();
+    saveSelections(); // ステップ進行時も保存
     
     // 0.5秒後に次のステップを表示（アニメーション効果）
     setTimeout(() => {
@@ -121,29 +189,47 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 現在のステップを表示
   function showCurrentStep() {
-    // すべてのステップを非表示
+    // 現在表示されているステップをフェードアウト
     [step1, step2, step3, step4, generateSection].forEach(element => {
-      if (element) element.style.display = 'none';
+      if (element && element.style.display !== 'none') {
+        element.classList.add('hide');
+        setTimeout(() => {
+          element.style.display = 'none';
+          element.classList.remove('hide');
+        }, 300);
+      }
     });
     
-    // 現在のステップを表示
-    switch(currentStep) {
-      case 1:
-        step1.style.display = 'block';
-        break;
-      case 2:
-        step2.style.display = 'block';
-        break;
-      case 3:
-        step3.style.display = 'block';
-        break;
-      case 4:
-        step4.style.display = 'block';
-        break;
-      case 5:
-        generateSection.style.display = 'block';
-        break;
-    }
+    // 少し遅延してから新しいステップを表示
+    setTimeout(() => {
+      let targetElement;
+      
+      // 現在のステップを特定
+      switch(currentStep) {
+        case 1:
+          targetElement = step1;
+          break;
+        case 2:
+          targetElement = step2;
+          break;
+        case 3:
+          targetElement = step3;
+          break;
+        case 4:
+          targetElement = step4;
+          break;
+        case 5:
+          targetElement = generateSection;
+          break;
+      }
+      
+      if (targetElement) {
+        targetElement.style.display = 'block';
+        setTimeout(() => {
+          targetElement.classList.add('show');
+        }, 50);
+      }
+    }, 300);
   }
   
   // 旅行プラン生成
@@ -237,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
     const requestData = {
       model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-      temperature: 0.8, // 創造性を高めるため少し高め
+      temperature: 0.8,
       stream: false,
       max_completion_tokens: 2000,
       messages: [
@@ -248,14 +334,27 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log('API リクエスト送信:', requestData);
     
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestData)
+    // タイムアウト設定
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('リクエストがタイムアウトしました')), 30000)
+    );
+    
+    Promise.race([
+      fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      }),
+      timeoutPromise
+    ])
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTPエラー: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
     })
-    .then(response => response.json())
     .then(data => {
       loadingIndicator.classList.remove('active');
       generateBtn.disabled = false;
@@ -267,6 +366,8 @@ document.addEventListener('DOMContentLoaded', () => {
         processTravelResponse(content);
       } else if (data.answer) {
         processTravelResponse(data.answer);
+      } else if (data.error) {
+        throw new Error(`APIエラー: ${data.error}`);
       } else {
         throw new Error('予期しないレスポンス形式です');
       }
@@ -276,8 +377,12 @@ document.addEventListener('DOMContentLoaded', () => {
       loadingIndicator.classList.remove('active');
       generateBtn.disabled = false;
       
-      // エラー時のフォールバック表示
-      showErrorMessage(error.message);
+      // ネットワークエラーの場合はフォールバック表示
+      if (error.name === 'TypeError' || error.message.includes('Failed to fetch')) {
+        showFallbackContent();
+      } else {
+        showErrorMessage(error.message);
+      }
     });
   }
   
@@ -312,19 +417,63 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 旅行プラン表示
   function displayTravelPlan(story, tips) {
-    // ストーリーの表示（改行を段落に変換）
-    const formattedStory = story.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
-    travelStory.innerHTML = `<p>${formattedStory}</p>`;
-    
-    // Tipsの表示（リスト形式に整形）
-    const formattedTips = formatTipsText(tips);
-    travelTips.innerHTML = formattedTips;
-    
     // 結果エリアを表示
     outputContainer.style.display = 'block';
     
+    // タイピングアニメーションでストーリーを表示
+    typewriterEffect(travelStory, story, () => {
+      // ストーリー表示完了後にTipsを表示
+      setTimeout(() => {
+        const formattedTips = formatTipsText(tips);
+        travelTips.innerHTML = formattedTips;
+        
+        // Tipsにフェードインアニメーション
+        travelTips.style.opacity = '0';
+        travelTips.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+          travelTips.style.transition = 'all 0.5s ease';
+          travelTips.style.opacity = '1';
+          travelTips.style.transform = 'translateY(0)';
+        }, 100);
+      }, 500);
+    });
+    
+    // 自動的に画像生成を開始
+    setTimeout(() => {
+      generateTravelImages();
+    }, 2000);
+    
     // スムーズにスクロール
     outputContainer.scrollIntoView({ behavior: 'smooth' });
+  }
+  
+  // タイピングエフェクト
+  function typewriterEffect(element, text, callback) {
+    element.innerHTML = '';
+    
+    // プレーンテキストとして処理
+    const plainText = text.replace(/\n\n/g, '\n').replace(/\n/g, ' ');
+    let currentIndex = 0;
+    
+    function typeNextChar() {
+      if (currentIndex >= plainText.length) {
+        // タイピング完了後、最終的なフォーマットを適用
+        const formattedText = text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
+        element.innerHTML = `<p>${formattedText}</p>`;
+        if (callback) callback();
+        return;
+      }
+      
+      const currentText = plainText.substring(0, currentIndex + 1);
+      element.innerHTML = `<p>${currentText}<span class="typing-cursor">|</span></p>`;
+      currentIndex++;
+      
+      // ランダムなタイピング速度で自然な感じに
+      const delay = Math.random() * 30 + 20;
+      setTimeout(typeNextChar, delay);
+    }
+    
+    typeNextChar();
   }
   
   // Tips テキストのフォーマット
@@ -356,12 +505,271 @@ document.addEventListener('DOMContentLoaded', () => {
         <h4>エラーが発生しました</h4>
         <p>旅行プランの生成中にエラーが発生しました: ${error}</p>
         <p>しばらく待ってから再度お試しください。</p>
+        <button class="button" onclick="generateTravelPlan()" style="margin-top: 1rem;">
+          <i class="fas fa-redo"></i> 再試行
+        </button>
       </div>
     `;
     
     travelStory.innerHTML = errorHtml;
     travelTips.innerHTML = '';
     outputContainer.style.display = 'block';
+  }
+  
+  // フォールバックコンテンツ表示
+  function showFallbackContent() {
+    const purposeMap = {
+      healing: '癒し・リラックス系',
+      adventure: '冒険・アクティブ系',
+      gourmet: 'グルメ・食文化中心',
+      culture: '歴史・文化探訪'
+    };
+    
+    const companionMap = {
+      solo: 'ひとり旅',
+      couple: '恋人・パートナーとの旅',
+      family: '家族旅行',
+      friends: '友人・グループ旅行'
+    };
+    
+    const destinationMap = {
+      domestic: '日本国内',
+      asia: 'アジア',
+      europe: 'ヨーロッパ',
+      other: 'その他の地域'
+    };
+    
+    const fallbackStory = generateFallbackStory(selections);
+    const fallbackTips = generateFallbackTips(selections);
+    
+    displayTravelPlan(fallbackStory, fallbackTips);
+    
+    // フォールバック表示の警告
+    const warningHtml = `
+      <div class="warning" style="margin-bottom: 1rem;">
+        <i class="fas fa-exclamation-triangle"></i>
+        ネットワークエラーのため、基本的な旅行プランを表示しています。詳細なプランをご希望の場合は、ネットワーク接続を確認して再度お試しください。
+      </div>
+    `;
+    
+    travelStory.insertAdjacentHTML('afterbegin', warningHtml);
+  }
+  
+  // フォールバック旅行ストーリー生成
+  function generateFallbackStory(selections) {
+    const templates = {
+      healing: {
+        domestic: '静寂に包まれた温泉地で、日常の喧騒を忘れる贅沢な時間を過ごします。露天風呂から眺める四季折々の風景は、心を穏やかにしてくれるでしょう。',
+        asia: 'アジアの癒しスポットで、伝統的なスパやマッサージを体験。異国の地で心身ともにリフレッシュする特別な旅になります。',
+        europe: 'ヨーロッパの美しい田園地帯で、ゆったりとした時間を過ごします。歴史ある温泉地や自然豊かなリゾートで、日頃の疲れを癒やしましょう。',
+        other: '世界の癒しスポットで、その土地ならではのリラクゼーションを体験。美しい自然と共に過ごす、忘れられない癒しの旅です。'
+      },
+      adventure: {
+        domestic: '日本の大自然を舞台に、スリリングなアクティビティを楽しみます。山登りや川遊び、地域ならではのアドベンチャーが待っています。',
+        asia: 'アジアの大自然で冒険の旅！トレッキングやラフティング、現地ガイドと共に新たな発見に満ちた体験をお楽しみください。',
+        europe: 'ヨーロッパの壮大な自然でアクティブな体験を。アルプスの山々やフィヨルドなど、息をのむような景色の中での冒険が待っています。',
+        other: '世界各地のユニークなアドベンチャーを体験。その土地ならではの自然環境で、スリリングで忘れられない冒険の旅を楽しみましょう。'
+      },
+      gourmet: {
+        domestic: '日本各地の名物料理を堪能する美食の旅。地元の食材を活かした伝統料理から、革新的な創作料理まで、味覚の冒険をお楽しみください。',
+        asia: 'アジアの多彩な食文化を体験する美食巡り。屋台料理から高級レストランまで、本場の味を存分に楽しむ旅です。',
+        europe: 'ヨーロッパの伝統的な美食文化を堪能。ワインやチーズ、地方料理など、長い歴史に培われた味の世界を探求します。',
+        other: '世界各地の独特な食文化を体験。その土地ならではの調理法や食材で作られる、驚きと感動の美食体験が待っています。'
+      },
+      culture: {
+        domestic: '日本の歴史と文化を深く学ぶ知的な旅。古い寺社仏閣や伝統工芸、地域の文化に触れ、日本の奥深さを再発見します。',
+        asia: 'アジアの古い文明と現代文化の融合を体験。遺跡探訪から現代アートまで、多層的な文化体験の旅です。',
+        europe: 'ヨーロッパの豊かな歴史と芸術を巡る文化的な旅。美術館や歴史的建造物で、西洋文明の足跡を辿ります。',
+        other: '世界各地の独特な文化遺産を探訪。その土地ならではの歴史や伝統、芸術に触れる、知的好奇心を満たす旅です。'
+      }
+    };
+    
+    return templates[selections.purpose]?.[selections.destination] || 
+           '選択いただいた条件に基づいて、素晴らしい旅行体験をお楽しみいただけます。';
+  }
+  
+  // フォールバックTips生成
+  function generateFallbackTips(selections) {
+    return `
+      <li><strong>事前準備:</strong> 旅行前に現地の気候や文化について調べておきましょう</li>
+      <li><strong>予算管理:</strong> 想定予算の10-20%を予備費として準備しておくと安心です</li>
+      <li><strong>安全対策:</strong> 旅行保険への加入と緊急連絡先の確認をお忘れなく</li>
+      <li><strong>地元体験:</strong> 観光地だけでなく、地元の人との交流も旅の醍醐味です</li>
+      <li><strong>記録保存:</strong> 写真や日記で旅の思い出を残しましょう</li>
+    `;
+  }
+  
+  // 画像生成機能
+  function generateTravelImages() {
+    if (!validateSelections()) {
+      alert('旅行プランを先に生成してください。');
+      return;
+    }
+    
+    generateImageBtn.disabled = true;
+    generateImageBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
+    
+    // ローディング表示
+    travelImages.innerHTML = `
+      <div class="image-loading">
+        <div class="loading-spinner"></div>
+        <span>AI画像生成中...</span>
+      </div>
+    `;
+    
+    // 画像プロンプトを生成
+    const imagePrompts = createImagePrompts(selections);
+    
+    // 複数の画像を順次生成
+    generateImagesSequentially(imagePrompts);
+  }
+  
+  // 画像プロンプト作成
+  function createImagePrompts(selections) {
+    const baseStyle = "beautiful landscape, photorealistic, high quality, scenic view";
+    
+    const destinationPrompts = {
+      domestic: [
+        `Japanese traditional hot spring resort with mountain view, ${baseStyle}`,
+        `Beautiful Japanese garden with cherry blossoms, ${baseStyle}`,
+        `Traditional Japanese village in countryside, ${baseStyle}`
+      ],
+      asia: [
+        `Stunning Asian temple complex with sunset, ${baseStyle}`,
+        `Tropical beach in Southeast Asia with crystal clear water, ${baseStyle}`,
+        `Asian city skyline at night with modern buildings, ${baseStyle}`
+      ],
+      europe: [
+        `European medieval castle on hilltop with surrounding landscape, ${baseStyle}`,
+        `Charming European village with cobblestone streets, ${baseStyle}`,
+        `European cathedral with gothic architecture, ${baseStyle}`
+      ],
+      other: [
+        `Exotic tropical paradise with pristine beaches, ${baseStyle}`,
+        `Majestic mountain range with snow-capped peaks, ${baseStyle}`,
+        `Desert landscape with sand dunes at golden hour, ${baseStyle}`
+      ]
+    };
+    
+    const purposeModifiers = {
+      healing: ", peaceful, serene, relaxing atmosphere",
+      adventure: ", dramatic, exciting, outdoor adventure",
+      gourmet: ", food markets, restaurants, culinary scene",
+      culture: ", historical, cultural heritage, traditional architecture"
+    };
+    
+    const selectedPrompts = destinationPrompts[selections.destination] || destinationPrompts.other;
+    const modifier = purposeModifiers[selections.purpose] || "";
+    
+    return selectedPrompts.map(prompt => prompt + modifier);
+  }
+  
+  // 画像を順次生成
+  async function generateImagesSequentially(prompts) {
+    try {
+      const imageElements = [];
+      
+      for (let i = 0; i < Math.min(prompts.length, 3); i++) {
+        try {
+          const imageData = await generateSingleImage(prompts[i]);
+          if (imageData) {
+            imageElements.push(createImageElement(imageData, `風景${i + 1}`));
+          }
+        } catch (error) {
+          console.error(`画像${i + 1}の生成エラー:`, error);
+          // エラーが発生した場合はプレースホルダーを表示
+          imageElements.push(createImagePlaceholder(`風景${i + 1}（生成失敗）`));
+        }
+      }
+      
+      // 生成結果を表示
+      if (imageElements.length > 0) {
+        travelImages.innerHTML = imageElements.join('');
+      } else {
+        showImageGenerationError();
+      }
+      
+    } catch (error) {
+      console.error('画像生成エラー:', error);
+      showImageGenerationError();
+    } finally {
+      generateImageBtn.disabled = false;
+      generateImageBtn.innerHTML = '<i class="fas fa-magic"></i> 風景画像を生成';
+    }
+  }
+  
+  // 単一画像生成
+  async function generateSingleImage(prompt) {
+    // Unsplash APIを使用してサンプル画像を取得
+    // 実際のAI画像生成APIに置き換え可能
+    try {
+      const searchTerms = extractSearchTerms(prompt);
+      const unsplashUrl = `https://source.unsplash.com/800x600/?${searchTerms}`;
+      
+      // 画像の存在確認
+      const response = await fetch(unsplashUrl);
+      if (response.ok) {
+        return {
+          url: unsplashUrl,
+          caption: prompt
+        };
+      }
+      throw new Error('画像取得失敗');
+    } catch (error) {
+      console.error('Unsplash API エラー:', error);
+      return null;
+    }
+  }
+  
+  // プロンプトから検索キーワードを抽出
+  function extractSearchTerms(prompt) {
+    const keywords = [];
+    
+    if (prompt.includes('Japanese')) keywords.push('japan');
+    if (prompt.includes('temple')) keywords.push('temple');
+    if (prompt.includes('beach')) keywords.push('beach');
+    if (prompt.includes('mountain')) keywords.push('mountain');
+    if (prompt.includes('castle')) keywords.push('castle');
+    if (prompt.includes('village')) keywords.push('village');
+    if (prompt.includes('garden')) keywords.push('garden');
+    if (prompt.includes('hot spring')) keywords.push('onsen');
+    if (prompt.includes('desert')) keywords.push('desert');
+    if (prompt.includes('tropical')) keywords.push('tropical');
+    
+    return keywords.length > 0 ? keywords.join(',') : 'landscape';
+  }
+  
+  // 画像要素作成
+  function createImageElement(imageData, caption) {
+    return `
+      <div class="generated-image">
+        <img src="${imageData.url}" alt="${caption}" loading="lazy">
+        <div class="image-caption">${caption}</div>
+      </div>
+    `;
+  }
+  
+  // 画像プレースホルダー作成
+  function createImagePlaceholder(caption) {
+    return `
+      <div class="image-placeholder">
+        <i class="fas fa-exclamation-triangle"></i>
+        <p>${caption}</p>
+      </div>
+    `;
+  }
+  
+  // 画像生成エラー表示
+  function showImageGenerationError() {
+    travelImages.innerHTML = `
+      <div class="image-placeholder">
+        <i class="fas fa-exclamation-triangle"></i>
+        <p>画像の生成に失敗しました</p>
+        <button class="button" onclick="generateTravelImages()" style="margin-top: 1rem;">
+          <i class="fas fa-redo"></i> 再試行
+        </button>
+      </div>
+    `;
   }
   
   // コピー機能
@@ -386,9 +794,159 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // PDF出力機能（将来の実装用）
-  function exportToPDF() {
-    alert('PDF出力機能は今後のアップデートで実装予定です。現在はコピー機能をご利用ください。');
+  // PDF出力機能
+  async function exportToPDF() {
+    if (!travelStory.textContent.trim()) {
+      alert('旅行プランを先に生成してください。');
+      return;
+    }
+    
+    exportBtn.disabled = true;
+    exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PDF作成中...';
+    
+    try {
+      // jsPDFインスタンスを作成
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // フォント設定（日本語対応）
+      pdf.setFont('helvetica');
+      
+      // タイトル
+      pdf.setFontSize(20);
+      pdf.text('AI旅行プランナー - あなたの旅行記', 20, 30);
+      
+      // 選択条件
+      pdf.setFontSize(12);
+      let y = 50;
+      
+      const conditions = [
+        `旅の目的: ${getPurposeText(selections.purpose)}`,
+        `同行者: ${getCompanionText(selections.companion)}`,
+        `行き先: ${getDestinationText(selections.destination)}`,
+        `予算: ${getBudgetText(selections.budget)}`
+      ];
+      
+      conditions.forEach(condition => {
+        pdf.text(condition, 20, y);
+        y += 8;
+      });
+      
+      y += 10;
+      
+      // 旅行ストーリー
+      pdf.setFontSize(16);
+      pdf.text('旅行ストーリー', 20, y);
+      y += 10;
+      
+      pdf.setFontSize(10);
+      const storyText = travelStory.textContent || travelStory.innerText;
+      const storyLines = pdf.splitTextToSize(storyText, 170);
+      
+      storyLines.forEach(line => {
+        if (y > 270) {
+          pdf.addPage();
+          y = 20;
+        }
+        pdf.text(line, 20, y);
+        y += 5;
+      });
+      
+      y += 10;
+      
+      // Tips
+      if (y > 250) {
+        pdf.addPage();
+        y = 20;
+      }
+      
+      pdf.setFontSize(16);
+      pdf.text('旅のTips・豆知識', 20, y);
+      y += 10;
+      
+      pdf.setFontSize(10);
+      const tipsText = travelTips.textContent || travelTips.innerText;
+      const tipsLines = pdf.splitTextToSize(tipsText, 170);
+      
+      tipsLines.forEach(line => {
+        if (y > 270) {
+          pdf.addPage();
+          y = 20;
+        }
+        pdf.text(line, 20, y);
+        y += 5;
+      });
+      
+      // フッター
+      const pageCount = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.text(`Generated by AI Travel Planner - Page ${i}/${pageCount}`, 20, 290);
+      }
+      
+      // PDFをダウンロード
+      const today = new Date().toISOString().split('T')[0];
+      pdf.save(`travel-plan-${today}.pdf`);
+      
+      // 成功メッセージ
+      exportBtn.classList.add('copy-success');
+      exportBtn.innerHTML = '<i class="fas fa-check"></i> PDF作成完了！';
+      
+      setTimeout(() => {
+        exportBtn.classList.remove('copy-success');
+        exportBtn.innerHTML = '<i class="fas fa-file-pdf"></i> PDF出力';
+        exportBtn.disabled = false;
+      }, 3000);
+      
+    } catch (error) {
+      console.error('PDF出力エラー:', error);
+      alert('PDF出力中にエラーが発生しました。しばらく待ってから再度お試しください。');
+      
+      exportBtn.innerHTML = '<i class="fas fa-file-pdf"></i> PDF出力';
+      exportBtn.disabled = false;
+    }
+  }
+  
+  // 選択項目のテキスト変換関数
+  function getPurposeText(purpose) {
+    const map = {
+      healing: '癒し・リラックス系',
+      adventure: '冒険・アクティブ系',
+      gourmet: 'グルメ・食文化中心',
+      culture: '歴史・文化探訪'
+    };
+    return map[purpose] || purpose;
+  }
+  
+  function getCompanionText(companion) {
+    const map = {
+      solo: 'ひとり旅',
+      couple: '恋人・パートナーとの旅',
+      family: '家族旅行',
+      friends: '友人・グループ旅行'
+    };
+    return map[companion] || companion;
+  }
+  
+  function getDestinationText(destination) {
+    const map = {
+      domestic: '日本国内',
+      asia: 'アジア',
+      europe: 'ヨーロッパ',
+      other: 'その他の地域'
+    };
+    return map[destination] || destination;
+  }
+  
+  function getBudgetText(budget) {
+    const map = {
+      budget: 'エコノミー（節約型）',
+      standard: 'スタンダード（一般的）',
+      luxury: 'ラグジュアリー（贅沢型）',
+      unlimited: 'プレミアム（最高級）'
+    };
+    return map[budget] || budget;
   }
   
   // シェア機能
@@ -418,6 +976,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     currentStep = 1;
     
+    // ローカルストレージからも削除
+    try {
+      localStorage.removeItem('travelPlannerSelections');
+    } catch (error) {
+      console.warn('保存データの削除に失敗:', error);
+    }
+    
     // 選択状態のクリア
     document.querySelectorAll('.option-card').forEach(card => {
       card.classList.remove('selected');
@@ -444,10 +1009,18 @@ document.addEventListener('DOMContentLoaded', () => {
   copyBtn.addEventListener('click', copyTravelPlan);
   exportBtn.addEventListener('click', exportToPDF);
   shareBtn.addEventListener('click', shareTravel);
+  generateImageBtn.addEventListener('click', generateTravelImages);
   
   // 初期化
-  updateProgress();
-  showCurrentStep();
+  // 保存された選択状態を復元
+  const restored = loadSelections();
+  
+  if (!restored) {
+    // 保存データがない場合は初期表示
+    updateProgress();
+    step1.style.display = 'block';
+    step1.classList.add('show');
+  }
   
   console.log('旅行・冒険プランナー初期化完了');
 });

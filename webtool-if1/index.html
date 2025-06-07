@@ -327,6 +327,124 @@
             visibility: visible;
             opacity: 1;
         }
+
+        /* ローディングアニメーション */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 誤解警告スタイル */
+        .misunderstanding-warning {
+            background: linear-gradient(45deg, #ff9a9e, #fecfef);
+            border: 2px solid #ff6b6b;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #d63031;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 107, 107, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+        }
+
+        /* Diffスタイル */
+        .diff-removed {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 2px 4px;
+            border-left: 3px solid #f44336;
+            margin: 2px 0;
+        }
+
+        .diff-added {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+            padding: 2px 4px;
+            border-left: 3px solid #4caf50;
+            margin: 2px 0;
+        }
+
+        /* ダッシュボードスタイル */
+        .dashboard-tab {
+            padding: 10px 20px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .dashboard-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .dashboard-tab:hover {
+            background: #5a67d8;
+            color: white;
+        }
+
+        .analytics-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .analytics-card h4 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .analytics-chart {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .analytics-chart h4 {
+            margin: 0 0 15px 0;
+            color: #667eea;
+        }
+
+        .heatmap-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .language-distribution {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .language-distribution h4 {
+            margin: 0 0 15px 0;
+            color: #667eea;
+        }
+
+        /* ナビゲーションリンク */
+        .nav-links a:hover {
+            background: #667eea;
+            color: white !important;
+        }
     </style>
 </head>
 <body>
@@ -335,6 +453,11 @@
         <div class="header fade-in">
             <h1>共感スペクトラム・メッセンジャー</h1>
             <p class="subtitle">心の温度を可視化するAI翻訳対話ツール</p>
+            <div class="nav-links" style="margin-top: 15px;">
+                <a href="future-memory.html" style="color: #667eea; text-decoration: none; margin: 0 15px; padding: 8px 16px; border-radius: 20px; transition: all 0.3s;">
+                    未来記憶の共創ツール →
+                </a>
+            </div>
         </div>
 
         <!-- メインコンテンツ -->
@@ -351,8 +474,19 @@
                     <select id="inputLang">
                         <option value="ja">日本語</option>
                         <option value="en">English</option>
-                        <option value="zh">中文</option>
+                        <option value="zh">中文（简体）</option>
+                        <option value="zh-tw">中文（繁體）</option>
                         <option value="ko">한국어</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                        <option value="it">Italiano</option>
+                        <option value="pt">Português</option>
+                        <option value="ru">Русский</option>
+                        <option value="ar">العربية</option>
+                        <option value="hi">हिन्दी</option>
+                        <option value="th">ไทย</option>
+                        <option value="vi">Tiếng Việt</option>
                     </select>
                 </div>
 
@@ -371,13 +505,26 @@
                     </button>
                 </div>
 
-                <!-- 音声入力（モック） -->
+                <!-- 音声入力 -->
                 <div class="button-group">
-                    <button class="secondary-btn" onclick="startVoiceRecording()">
+                    <button class="secondary-btn" id="voiceBtn" onclick="toggleVoiceRecording()">
                         <span>🎤</span>
                         音声入力
                     </button>
                 </div>
+
+                <!-- データ管理 -->
+                <div class="button-group" style="margin-top: 15px;">
+                    <button class="secondary-btn" onclick="exportData()">
+                        <span>📤</span>
+                        データ出力
+                    </button>
+                    <button class="secondary-btn" onclick="importData()">
+                        <span>📥</span>
+                        データ読込
+                    </button>
+                </div>
+                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleFileImport(event)">
             </div>
 
             <!-- 出力セクション -->
@@ -441,14 +588,61 @@
             </div>
         </div>
 
-        <!-- 会話履歴 -->
+        <!-- ダッシュボード -->
         <div class="conversation-history fade-in">
             <h2 class="section-title">
-                <span class="icon">📚</span>
-                会話履歴
+                <span class="icon">📊</span>
+                ダッシュボード
             </h2>
-            <div id="historyList">
-                <p style="color: #999; text-align: center;">まだ会話履歴がありません</p>
+            
+            <!-- ダッシュボードタブ -->
+            <div class="dashboard-tabs" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <button class="dashboard-tab active" onclick="switchDashboardTab('history')">履歴</button>
+                <button class="dashboard-tab" onclick="switchDashboardTab('analytics')">分析</button>
+                <button class="dashboard-tab" onclick="switchDashboardTab('heatmap')">ヒートマップ</button>
+            </div>
+
+            <!-- 履歴タブ -->
+            <div id="historyTab" class="dashboard-content">
+                <div id="historyList">
+                    <p style="color: #999; text-align: center;">まだ会話履歴がありません</p>
+                </div>
+            </div>
+
+            <!-- 分析タブ -->
+            <div id="analyticsTab" class="dashboard-content" style="display: none;">
+                <div class="analytics-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div class="analytics-card">
+                        <h4>平均共感度</h4>
+                        <div class="metric-value" id="avgEmpathy">-</div>
+                    </div>
+                    <div class="analytics-card">
+                        <h4>総会話数</h4>
+                        <div class="metric-value" id="totalConversations">0</div>
+                    </div>
+                </div>
+                
+                <div class="analytics-chart">
+                    <h4>共感度推移グラフ</h4>
+                    <canvas id="empathyChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- ヒートマップタブ -->
+            <div id="heatmapTab" class="dashboard-content" style="display: none;">
+                <div class="heatmap-container">
+                    <h4>感情分布ヒートマップ</h4>
+                    <div id="emotionHeatmap" style="height: 300px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 25%, #90caf9 50%, #42a5f5 75%, #1976d2 100%); border-radius: 10px; position: relative; overflow: hidden;">
+                        <div class="heatmap-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                            データが蓄積されるとヒートマップが表示されます
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="language-distribution" style="margin-top: 20px;">
+                    <h4>言語使用分布</h4>
+                    <div id="languageChart" style="height: 200px;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -458,6 +652,8 @@
         let currentMode = 'original';
         let conversationHistory = [];
         let currentAnalysis = null;
+        let isRecording = false;
+        let recognition = null;
 
         // 感情分析用のキーワード辞書（簡易版）
         const emotionKeywords = {
@@ -493,7 +689,7 @@
         };
 
         // メッセージ分析関数
-        function analyzeMessage() {
+        async function analyzeMessage() {
             const input = document.getElementById('messageInput').value;
             const lang = document.getElementById('inputLang').value;
             
@@ -502,35 +698,280 @@
                 return;
             }
 
-            // 感情分析（簡易版）
-            const analysis = performEmotionAnalysis(input, lang);
-            currentAnalysis = {
-                original: input,
-                language: lang,
-                translation: translateMessage(input, lang),
-                emotions: analysis.emotions,
-                culturalNotes: analysis.culturalNotes,
-                timestamp: new Date()
-            };
+            // ローディング表示開始
+            showLoading();
 
-            // 結果を表示
-            displayAnalysis(currentAnalysis);
-            
-            // 履歴に追加
-            addToHistory(currentAnalysis);
-            
-            // 感情スペクトラムを表示
-            document.getElementById('emotionSpectrum').style.display = 'block';
-            updateEmotionBars(analysis.emotions);
-            
-            // 文化的注釈を表示
-            if (analysis.culturalNotes) {
-                document.getElementById('culturalNotes').style.display = 'block';
-                document.getElementById('culturalNotesText').textContent = analysis.culturalNotes;
+            try {
+                // AI感情分析とその他の処理を並行実行
+                const [emotionAnalysis, translation] = await Promise.all([
+                    performAIEmotionAnalysis(input, lang),
+                    translateMessageAI(input, lang)
+                ]);
+
+                currentAnalysis = {
+                    original: input,
+                    language: lang,
+                    translation: translation,
+                    emotions: emotionAnalysis.emotions,
+                    culturalNotes: emotionAnalysis.culturalNotes,
+                    misunderstandingRisk: emotionAnalysis.misunderstandingRisk,
+                    timestamp: new Date()
+                };
+
+                // 結果を表示
+                displayAnalysis(currentAnalysis);
+                
+                // 履歴に追加
+                addToHistory(currentAnalysis);
+                
+                // 感情スペクトラムを表示
+                document.getElementById('emotionSpectrum').style.display = 'block';
+                updateEmotionBars(emotionAnalysis.emotions);
+                
+                // 文化的注釈を表示
+                if (emotionAnalysis.culturalNotes) {
+                    document.getElementById('culturalNotes').style.display = 'block';
+                    document.getElementById('culturalNotesText').innerHTML = emotionAnalysis.culturalNotes;
+                }
+
+                // 誤解警告を表示
+                if (emotionAnalysis.misunderstandingRisk && emotionAnalysis.misunderstandingRisk.level > 3) {
+                    showMisunderstandingWarning(emotionAnalysis.misunderstandingRisk);
+                }
+
+            } catch (error) {
+                console.error('分析エラー:', error);
+                alert('分析中にエラーが発生しました: ' + error.message);
+            } finally {
+                hideLoading();
             }
         }
 
-        // 簡易感情分析
+        // AI感情分析
+        async function performAIEmotionAnalysis(text, lang) {
+            const prompt = createEmotionAnalysisPrompt(text, lang);
+            
+            try {
+                const response = await callLLMAPI(prompt);
+                return parseEmotionAnalysisResponse(response);
+            } catch (error) {
+                console.warn('AI感情分析に失敗、フォールバックモードを使用:', error);
+                return performEmotionAnalysis(text, lang);
+            }
+        }
+
+        // 感情分析プロンプト作成
+        function createEmotionAnalysisPrompt(text, lang) {
+            const langMap = {
+                'ja': '日本語',
+                'en': '英語',
+                'zh': '中国語（簡体字）',
+                'zh-tw': '中国語（繁体字）',
+                'ko': '韓国語',
+                'es': 'スペイン語',
+                'fr': 'フランス語',
+                'de': 'ドイツ語',
+                'it': 'イタリア語',
+                'pt': 'ポルトガル語',
+                'ru': 'ロシア語',
+                'ar': 'アラビア語',
+                'hi': 'ヒンディー語',
+                'th': 'タイ語',
+                'vi': 'ベトナム語'
+            };
+
+            return [
+                {
+                    role: "system",
+                    content: `あなたは感情分析と文化的理解の専門家です。与えられたテキストを分析し、以下の形式のJSONで回答してください：
+
+{
+  "emotions": {
+    "sincerity": 数値(0-100), // 本心度（表面的0～本心100）
+    "politeness": 数値(0-100), // 礼儀正しさ（カジュアル0～礼儀正しい100）
+    "intensity": 数値(0-100) // 感情の強さ（穏やか0～強い100）
+  },
+  "culturalNotes": "文化的背景や注意点の詳細な説明",
+  "misunderstandingRisk": {
+    "level": 数値(1-5), // 誤解リスクレベル
+    "reasons": ["理由1", "理由2", ...],
+    "suggestions": ["改善提案1", "改善提案2", ...]
+  }
+}
+
+文化的な文脈、言語のニュアンス、非言語的要素も考慮して分析してください。`
+                },
+                {
+                    role: "user",
+                    content: `以下の${langMap[lang] || ''}テキストを分析してください：\n\n「${text}」`
+                }
+            ];
+        }
+
+        // 感情分析レスポンス解析
+        function parseEmotionAnalysisResponse(response) {
+            try {
+                const parsed = JSON.parse(response);
+                return {
+                    emotions: parsed.emotions || { sincerity: 50, politeness: 50, intensity: 50 },
+                    culturalNotes: parsed.culturalNotes || '',
+                    misunderstandingRisk: parsed.misunderstandingRisk || { level: 1, reasons: [], suggestions: [] }
+                };
+            } catch (error) {
+                console.error('感情分析レスポンス解析エラー:', error);
+                return {
+                    emotions: { sincerity: 50, politeness: 50, intensity: 50 },
+                    culturalNotes: '',
+                    misunderstandingRisk: { level: 1, reasons: [], suggestions: [] }
+                };
+            }
+        }
+
+        // AI翻訳
+        async function translateMessageAI(text, sourceLang) {
+            // 多言語に対応した翻訳先言語の決定
+            let targetLang;
+            if (sourceLang === 'ja') {
+                targetLang = 'en';  // 日本語の場合は英語に翻訳
+            } else {
+                targetLang = 'ja';  // その他の言語は日本語に翻訳
+            }
+            
+            const prompt = createTranslationPrompt(text, sourceLang, targetLang);
+            
+            try {
+                const response = await callLLMAPI(prompt);
+                return response.trim();
+            } catch (error) {
+                console.warn('AI翻訳に失敗、フォールバックモードを使用:', error);
+                return translateMessage(text, sourceLang);
+            }
+        }
+
+        // 翻訳プロンプト作成
+        function createTranslationPrompt(text, sourceLang, targetLang) {
+            const langMap = {
+                'ja': '日本語',
+                'en': '英語',
+                'zh': '中国語（簡体字）',
+                'zh-tw': '中国語（繁体字）',
+                'ko': '韓国語',
+                'es': 'スペイン語',
+                'fr': 'フランス語',
+                'de': 'ドイツ語',
+                'it': 'イタリア語',
+                'pt': 'ポルトガル語',
+                'ru': 'ロシア語',
+                'ar': 'アラビア語',
+                'hi': 'ヒンディー語',
+                'th': 'タイ語',
+                'vi': 'ベトナム語'
+            };
+
+            return [
+                {
+                    role: "system",
+                    content: `あなたは高度な翻訳エンジンです。文化的ニュアンスと感情的な意味も保持しながら、${langMap[sourceLang]}から${langMap[targetLang]}に翻訳してください。翻訳結果のみを返答し、説明や注釈は含めないでください。`
+                },
+                {
+                    role: "user",
+                    content: `以下のテキストを翻訳してください：\n\n${text}`
+                }
+            ];
+        }
+
+        // LLM API呼び出し
+        async function callLLMAPI(messages) {
+            const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+            const requestData = {
+                model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+                temperature: 0.3,
+                stream: false,
+                max_completion_tokens: 2000,
+                messages: messages
+            };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`API呼び出しエラー: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                return data.choices[0].message.content;
+            } else if (data.answer) {
+                return data.answer;
+            } else {
+                throw new Error('API応答に期待されるフィールドがありません');
+            }
+        }
+
+        // ローディング表示
+        function showLoading() {
+            // 既存のローディング要素があれば使用、なければ新規作成
+            let loadingEl = document.getElementById('analysisLoading');
+            if (!loadingEl) {
+                loadingEl = document.createElement('div');
+                loadingEl.id = 'analysisLoading';
+                loadingEl.innerHTML = `
+                    <div style="text-align: center; padding: 20px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; margin: 10px 0;">
+                        <div style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                        <p style="margin: 10px 0 0 0; color: #667eea;">AI分析中...</p>
+                    </div>
+                `;
+                document.querySelector('.output-section').insertBefore(loadingEl, document.getElementById('outputDisplay'));
+            }
+            loadingEl.style.display = 'block';
+        }
+
+        // ローディング非表示
+        function hideLoading() {
+            const loadingEl = document.getElementById('analysisLoading');
+            if (loadingEl) {
+                loadingEl.style.display = 'none';
+            }
+        }
+
+        // 誤解警告表示
+        function showMisunderstandingWarning(risk) {
+            let warningEl = document.getElementById('misunderstandingWarning');
+            if (!warningEl) {
+                warningEl = document.createElement('div');
+                warningEl.id = 'misunderstandingWarning';
+                warningEl.style.cssText = `
+                    background: linear-gradient(45deg, #ff9a9e, #fecfef);
+                    border: 2px solid #ff6b6b;
+                    border-radius: 10px;
+                    padding: 15px;
+                    margin: 10px 0;
+                    color: #d63031;
+                `;
+                document.querySelector('.output-section').appendChild(warningEl);
+            }
+
+            warningEl.innerHTML = `
+                <h4 style="margin: 0 0 10px 0; color: #d63031;">⚠️ 誤解リスク: レベル ${risk.level}/5</h4>
+                <div style="margin-bottom: 10px;">
+                    <strong>懸念点:</strong>
+                    <ul style="margin: 5px 0;">${risk.reasons.map(reason => `<li>${reason}</li>`).join('')}</ul>
+                </div>
+                <div>
+                    <strong>改善提案:</strong>
+                    <ul style="margin: 5px 0;">${risk.suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}</ul>
+                </div>
+            `;
+            warningEl.style.display = 'block';
+        }
+
+        // 簡易感情分析（フォールバック用）
         function performEmotionAnalysis(text, lang) {
             const lowerText = text.toLowerCase();
             
@@ -728,4 +1169,720 @@
             });
         }
 
-        // 履歴から読
+        // 履歴から読み込み
+        function loadFromHistory(index) {
+            const item = conversationHistory[index];
+            if (item) {
+                document.getElementById('messageInput').value = item.original;
+                document.getElementById('inputLang').value = item.language;
+                currentAnalysis = item;
+                displayAnalysis(item);
+                updateEmotionBars(item.emotions);
+                
+                if (item.culturalNotes) {
+                    document.getElementById('culturalNotes').style.display = 'block';
+                    document.getElementById('culturalNotesText').innerHTML = item.culturalNotes;
+                }
+                
+                document.getElementById('emotionSpectrum').style.display = 'block';
+            }
+        }
+
+        // 言語名取得
+        function getLanguageName(lang) {
+            const names = {
+                'ja': '日本語',
+                'en': '英語',
+                'zh': '中国語（簡体字）',
+                'zh-tw': '中国語（繁体字）',
+                'ko': '韓国語',
+                'es': 'スペイン語',
+                'fr': 'フランス語',
+                'de': 'ドイツ語',
+                'it': 'イタリア語',
+                'pt': 'ポルトガル語',
+                'ru': 'ロシア語',
+                'ar': 'アラビア語',
+                'hi': 'ヒンディー語',
+                'th': 'タイ語',
+                'vi': 'ベトナム語'
+            };
+            return names[lang] || lang;
+        }
+
+        // ページ読み込み時に履歴を復元
+        window.addEventListener('load', () => {
+            const saved = localStorage.getItem('conversationHistory');
+            if (saved) {
+                try {
+                    conversationHistory = JSON.parse(saved);
+                    updateHistoryDisplay();
+                } catch (error) {
+                    console.error('履歴の復元に失敗:', error);
+                }
+            }
+        });
+
+        // 表示モード切り替え
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // タブの表示を更新
+            document.querySelectorAll('.mode-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            const modes = ['original', 'translation', 'spectrum'];
+            const index = modes.indexOf(mode);
+            document.querySelectorAll('.mode-tab')[index].classList.add('active');
+            
+            // 分析結果がある場合は再表示
+            if (currentAnalysis) {
+                displayAnalysis(currentAnalysis);
+            }
+        }
+
+        // 入力クリア
+        function clearInput() {
+            document.getElementById('messageInput').value = '';
+            document.getElementById('outputDisplay').innerHTML = '<p style="color: #999; text-align: center;">メッセージを入力して分析ボタンを押してください</p>';
+            document.getElementById('emotionSpectrum').style.display = 'none';
+            document.getElementById('culturalNotes').style.display = 'none';
+            
+            // 警告表示も非表示
+            const warningEl = document.getElementById('misunderstandingWarning');
+            if (warningEl) {
+                warningEl.style.display = 'none';
+            }
+        }
+
+        // 音声入力機能
+        function initializeSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                console.warn('Speech Recognition APIがサポートされていません');
+                return false;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+
+            // 設定
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 1;
+
+            // 言語設定
+            const currentLang = document.getElementById('inputLang').value;
+            const speechLangMap = {
+                'ja': 'ja-JP',
+                'en': 'en-US',
+                'zh': 'zh-CN',
+                'zh-tw': 'zh-TW',
+                'ko': 'ko-KR',
+                'es': 'es-ES',
+                'fr': 'fr-FR',
+                'de': 'de-DE',
+                'it': 'it-IT',
+                'pt': 'pt-PT',
+                'ru': 'ru-RU',
+                'ar': 'ar-SA',
+                'hi': 'hi-IN',
+                'th': 'th-TH',
+                'vi': 'vi-VN'
+            };
+            recognition.lang = speechLangMap[currentLang] || 'ja-JP';
+
+            // イベントハンドラ
+            recognition.onstart = function() {
+                console.log('音声認識開始');
+                isRecording = true;
+                updateVoiceButton();
+            };
+
+            recognition.onresult = function(event) {
+                let finalTranscript = '';
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                // 入力欄に結果を表示
+                const inputArea = document.getElementById('messageInput');
+                if (finalTranscript) {
+                    inputArea.value += finalTranscript;
+                }
+
+                // リアルタイム表示（グレーアウト）
+                if (interimTranscript) {
+                    showInterimResult(interimTranscript);
+                }
+            };
+
+            recognition.onerror = function(event) {
+                console.error('音声認識エラー:', event.error);
+                isRecording = false;
+                updateVoiceButton();
+                
+                if (event.error === 'not-allowed') {
+                    alert('マイクへのアクセスが拒否されました。ブラウザの設定でマイクのアクセスを許可してください。');
+                } else if (event.error === 'no-speech') {
+                    alert('音声が検出されませんでした。もう一度お試しください。');
+                } else {
+                    alert('音声認識エラーが発生しました: ' + event.error);
+                }
+            };
+
+            recognition.onend = function() {
+                console.log('音声認識終了');
+                isRecording = false;
+                updateVoiceButton();
+                hideInterimResult();
+            };
+
+            return true;
+        }
+
+        // 音声録音開始/停止
+        function toggleVoiceRecording() {
+            if (!recognition && !initializeSpeechRecognition()) {
+                alert('お使いのブラウザは音声認識機能に対応していません。');
+                return;
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                // 言語設定を更新
+                const currentLang = document.getElementById('inputLang').value;
+                const speechLangMap = {
+                    'ja': 'ja-JP',
+                    'en': 'en-US',
+                    'zh': 'zh-CN',
+                    'zh-tw': 'zh-TW',
+                    'ko': 'ko-KR',
+                    'es': 'es-ES',
+                    'fr': 'fr-FR',
+                    'de': 'de-DE',
+                    'it': 'it-IT',
+                    'pt': 'pt-PT',
+                    'ru': 'ru-RU',
+                    'ar': 'ar-SA',
+                    'hi': 'hi-IN',
+                    'th': 'th-TH',
+                    'vi': 'vi-VN'
+                };
+                recognition.lang = speechLangMap[currentLang] || 'ja-JP';
+                recognition.start();
+            }
+        }
+
+        // 音声ボタンの表示更新
+        function updateVoiceButton() {
+            const voiceBtn = document.getElementById('voiceBtn');
+            if (isRecording) {
+                voiceBtn.innerHTML = '<span>🔴</span> 録音停止';
+                voiceBtn.classList.add('recording');
+                voiceBtn.style.background = '#ff6b6b';
+                voiceBtn.style.color = 'white';
+            } else {
+                voiceBtn.innerHTML = '<span>🎤</span> 音声入力';
+                voiceBtn.classList.remove('recording');
+                voiceBtn.style.background = '';
+                voiceBtn.style.color = '';
+            }
+        }
+
+        // リアルタイム音声認識結果表示
+        function showInterimResult(transcript) {
+            let interimEl = document.getElementById('interimResult');
+            if (!interimEl) {
+                interimEl = document.createElement('div');
+                interimEl.id = 'interimResult';
+                interimEl.style.cssText = `
+                    position: absolute;
+                    background: rgba(102, 126, 234, 0.1);
+                    border: 1px dashed #667eea;
+                    border-radius: 5px;
+                    padding: 10px;
+                    margin-top: 5px;
+                    color: #667eea;
+                    font-style: italic;
+                    opacity: 0.7;
+                    z-index: 1000;
+                `;
+                document.querySelector('.input-area').appendChild(interimEl);
+            }
+            interimEl.textContent = '認識中: ' + transcript;
+            interimEl.style.display = 'block';
+        }
+
+        // リアルタイム結果非表示
+        function hideInterimResult() {
+            const interimEl = document.getElementById('interimResult');
+            if (interimEl) {
+                interimEl.style.display = 'none';
+            }
+        }
+
+        // 言語選択変更時の処理
+        document.getElementById('inputLang').addEventListener('change', function() {
+            if (recognition && isRecording) {
+                recognition.stop();
+                setTimeout(() => {
+                    if (!isRecording) {
+                        toggleVoiceRecording();
+                    }
+                }, 100);
+            }
+        });
+
+        // ダッシュボードタブ切り替え
+        function switchDashboardTab(tabName) {
+            // タブボタンの表示を更新
+            document.querySelectorAll('.dashboard-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // コンテンツの表示を更新
+            document.querySelectorAll('.dashboard-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            document.getElementById(tabName + 'Tab').style.display = 'block';
+
+            // タブごとの初期化
+            if (tabName === 'analytics') {
+                updateAnalytics();
+            } else if (tabName === 'heatmap') {
+                updateHeatmap();
+            }
+        }
+
+        // 分析データ更新
+        function updateAnalytics() {
+            if (conversationHistory.length === 0) return;
+
+            // 総会話数
+            document.getElementById('totalConversations').textContent = conversationHistory.length;
+
+            // 平均共感度計算
+            const avgEmpathy = conversationHistory.reduce((sum, item) => {
+                return sum + calculateEmpathyScore(item.emotions);
+            }, 0) / conversationHistory.length;
+            document.getElementById('avgEmpathy').textContent = Math.round(avgEmpathy) + '%';
+
+            // 共感度推移グラフ
+            drawEmpathyChart();
+        }
+
+        // 共感度推移グラフ描画
+        function drawEmpathyChart() {
+            const canvas = document.getElementById('empathyChart');
+            const ctx = canvas.getContext('2d');
+            
+            // キャンバスをクリア
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (conversationHistory.length === 0) {
+                ctx.fillStyle = '#999';
+                ctx.textAlign = 'center';
+                ctx.fillText('データがありません', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            const data = conversationHistory.slice(-10).map(item => calculateEmpathyScore(item.emotions));
+            const maxValue = 100;
+            const padding = 40;
+            const chartWidth = canvas.width - padding * 2;
+            const chartHeight = canvas.height - padding * 2;
+
+            // グリッド線を描画
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + (chartHeight / 5) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(padding + chartWidth, y);
+                ctx.stroke();
+            }
+
+            // データ線を描画
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 3;
+            ctx.fillStyle = 'rgba(102, 126, 234, 0.1)';
+            
+            ctx.beginPath();
+            data.forEach((value, index) => {
+                const x = padding + (chartWidth / (data.length - 1)) * index;
+                const y = padding + chartHeight - (value / maxValue) * chartHeight;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+
+            // データポイントを描画
+            ctx.fillStyle = '#667eea';
+            data.forEach((value, index) => {
+                const x = padding + (chartWidth / (data.length - 1)) * index;
+                const y = padding + chartHeight - (value / maxValue) * chartHeight;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // Y軸ラベル
+            ctx.fillStyle = '#666';
+            ctx.textAlign = 'right';
+            ctx.fillText('100%', padding - 10, padding + 5);
+            ctx.fillText('50%', padding - 10, padding + chartHeight / 2 + 5);
+            ctx.fillText('0%', padding - 10, padding + chartHeight + 5);
+        }
+
+        // ヒートマップ更新
+        function updateHeatmap() {
+            if (conversationHistory.length === 0) return;
+
+            // 感情分布データを集計
+            const emotionData = {
+                sincerity: [],
+                politeness: [],
+                intensity: []
+            };
+
+            conversationHistory.forEach(item => {
+                emotionData.sincerity.push(item.emotions.sincerity);
+                emotionData.politeness.push(item.emotions.politeness);
+                emotionData.intensity.push(item.emotions.intensity);
+            });
+
+            // ヒートマップビジュアル更新
+            updateEmotionHeatmap(emotionData);
+            
+            // 言語分布チャート更新
+            updateLanguageDistribution();
+        }
+
+        // 感情ヒートマップ更新
+        function updateEmotionHeatmap(emotionData) {
+            const heatmapEl = document.getElementById('emotionHeatmap');
+            const overlay = heatmapEl.querySelector('.heatmap-overlay');
+            
+            if (conversationHistory.length < 5) {
+                overlay.textContent = `データ蓄積中... (${conversationHistory.length}/5)`;
+                return;
+            }
+
+            // ヒートマップの詳細表示
+            const avgSincerity = emotionData.sincerity.reduce((a, b) => a + b, 0) / emotionData.sincerity.length;
+            const avgPoliteness = emotionData.politeness.reduce((a, b) => a + b, 0) / emotionData.politeness.length;
+            const avgIntensity = emotionData.intensity.reduce((a, b) => a + b, 0) / emotionData.intensity.length;
+
+            overlay.innerHTML = `
+                <div style="text-align: center;">
+                    <h3 style="margin: 0 0 20px 0;">感情分布パターン</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                        <div>
+                            <div style="font-size: 24px; font-weight: bold;">${Math.round(avgSincerity)}%</div>
+                            <div style="font-size: 14px;">本心度</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: bold;">${Math.round(avgPoliteness)}%</div>
+                            <div style="font-size: 14px;">礼儀正しさ</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: bold;">${Math.round(avgIntensity)}%</div>
+                            <div style="font-size: 14px;">感情強度</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 言語分布チャート更新
+        function updateLanguageDistribution() {
+            const languageCounts = {};
+            conversationHistory.forEach(item => {
+                const lang = getLanguageName(item.language);
+                languageCounts[lang] = (languageCounts[lang] || 0) + 1;
+            });
+
+            const chartEl = document.getElementById('languageChart');
+            const total = conversationHistory.length;
+            
+            chartEl.innerHTML = Object.entries(languageCounts)
+                .map(([lang, count]) => {
+                    const percentage = Math.round((count / total) * 100);
+                    return `
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <div style="width: 100px; font-size: 14px;">${lang}</div>
+                            <div style="flex: 1; height: 20px; background: #e0e0e0; border-radius: 10px; margin: 0 10px; overflow: hidden;">
+                                <div style="width: ${percentage}%; height: 100%; background: linear-gradient(45deg, #667eea, #764ba2); border-radius: 10px;"></div>
+                            </div>
+                            <div style="width: 50px; text-align: right; font-size: 14px;">${percentage}%</div>
+                        </div>
+                    `;
+                })
+                .join('');
+        }
+
+        // 履歴表示を更新（ダッシュボード対応）
+        function updateHistoryDisplay() {
+            const historyList = document.getElementById('historyList');
+            
+            if (conversationHistory.length === 0) {
+                historyList.innerHTML = '<p style="color: #999; text-align: center;">まだ会話履歴がありません</p>';
+                return;
+            }
+            
+            historyList.innerHTML = conversationHistory.map((item, index) => `
+                <div class="history-item" onclick="loadFromHistory(${index})">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${item.original.substring(0, 30)}${item.original.length > 30 ? '...' : ''}</strong>
+                            <span class="timestamp">${formatTimestamp(item.timestamp)}</span>
+                        </div>
+                        <span class="empathy-score">${calculateEmpathyScore(item.emotions)}%</span>
+                    </div>
+                </div>
+            `).join('');
+
+            // 分析タブが表示されている場合は更新
+            if (document.getElementById('analyticsTab').style.display !== 'none') {
+                updateAnalytics();
+            }
+        }
+
+        // データエクスポート
+        function exportData() {
+            const exportData = {
+                conversationHistory: conversationHistory,
+                timestamp: new Date().toISOString(),
+                version: "1.0",
+                appName: "共感スペクトラム・メッセンジャー"
+            };
+
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `empathy-spectrum-data-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            alert('データが正常にエクスポートされました');
+        }
+
+        // データインポート
+        function importData() {
+            document.getElementById('importFile').click();
+        }
+
+        // ファイルインポート処理
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    // データの検証
+                    if (!importedData.conversationHistory || !Array.isArray(importedData.conversationHistory)) {
+                        throw new Error('無効なデータ形式です');
+                    }
+
+                    // インポート確認
+                    const currentCount = conversationHistory.length;
+                    const importCount = importedData.conversationHistory.length;
+                    
+                    if (currentCount > 0) {
+                        const confirmMsg = `既存のデータ(${currentCount}件)を上書きして、${importCount}件のデータをインポートしますか？`;
+                        if (!confirm(confirmMsg)) return;
+                    }
+
+                    // データをインポート
+                    conversationHistory = importedData.conversationHistory;
+                    localStorage.setItem('conversationHistory', JSON.stringify(conversationHistory));
+                    
+                    // 表示を更新
+                    updateHistoryDisplay();
+                    
+                    alert(`${importCount}件のデータが正常にインポートされました`);
+                    
+                } catch (error) {
+                    console.error('インポートエラー:', error);
+                    alert('データのインポートに失敗しました: ' + error.message);
+                }
+            };
+            
+            reader.readAsText(file);
+            
+            // ファイル選択をリセット
+            event.target.value = '';
+        }
+
+        // データ自動バックアップ
+        function autoBackup() {
+            if (conversationHistory.length > 0) {
+                const backupData = {
+                    data: conversationHistory,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('empathy_backup', JSON.stringify(backupData));
+            }
+        }
+
+        // バックアップからの復旧
+        function restoreFromBackup() {
+            try {
+                const backup = localStorage.getItem('empathy_backup');
+                if (backup) {
+                    const backupData = JSON.parse(backup);
+                    const backupAge = Date.now() - backupData.timestamp;
+                    
+                    // 24時間以内のバックアップのみ復旧対象
+                    if (backupAge < 24 * 60 * 60 * 1000 && backupData.data && backupData.data.length > 0) {
+                        if (confirm('前回のセッションデータが見つかりました。復旧しますか？')) {
+                            conversationHistory = backupData.data;
+                            localStorage.setItem('conversationHistory', JSON.stringify(conversationHistory));
+                            updateHistoryDisplay();
+                            console.log('バックアップから復旧しました');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('バックアップ復旧エラー:', error);
+            }
+        }
+
+        // データストレージ管理
+        function manageStorage() {
+            const storageStats = {
+                total: 0,
+                conversationHistory: 0,
+                other: 0
+            };
+
+            // ストレージ使用量を計算
+            for (let key in localStorage) {
+                if (localStorage.hasOwnProperty(key)) {
+                    const size = JSON.stringify(localStorage[key]).length;
+                    storageStats.total += size;
+                    
+                    if (key === 'conversationHistory') {
+                        storageStats.conversationHistory = size;
+                    } else {
+                        storageStats.other += size;
+                    }
+                }
+            }
+
+            // 使用量が5MBを超えた場合の警告
+            if (storageStats.total > 5 * 1024 * 1024) {
+                console.warn('ローカルストレージの使用量が大きくなっています:', storageStats);
+                
+                // 古いデータの自動削除
+                if (conversationHistory.length > 100) {
+                    conversationHistory = conversationHistory.slice(0, 50); // 最新50件のみ保持
+                    localStorage.setItem('conversationHistory', JSON.stringify(conversationHistory));
+                    updateHistoryDisplay();
+                    alert('ストレージ容量の最適化のため、古いデータを削除しました。');
+                }
+            }
+        }
+
+        // 履歴に追加（強化版）
+        function addToHistory(analysis) {
+            // 重複チェック
+            const isDuplicate = conversationHistory.some(item => 
+                item.original === analysis.original && 
+                Math.abs(new Date(item.timestamp) - analysis.timestamp) < 5000
+            );
+            
+            if (!isDuplicate) {
+                conversationHistory.unshift(analysis);
+                
+                // データ検証
+                conversationHistory = conversationHistory.filter(item => 
+                    item && item.original && item.emotions && item.timestamp
+                );
+                
+                // 最大100件まで保持
+                if (conversationHistory.length > 100) {
+                    conversationHistory = conversationHistory.slice(0, 100);
+                }
+                
+                // ローカルストレージに保存
+                localStorage.setItem('conversationHistory', JSON.stringify(conversationHistory));
+                
+                // 履歴表示を更新
+                updateHistoryDisplay();
+                
+                // 自動バックアップ
+                autoBackup();
+                
+                // ストレージ管理
+                manageStorage();
+            }
+        }
+
+        // ページ読み込み時の初期化（強化版）
+        window.addEventListener('load', () => {
+            // バックアップからの復旧チェック
+            restoreFromBackup();
+            
+            // 通常の履歴復元
+            const saved = localStorage.getItem('conversationHistory');
+            if (saved) {
+                try {
+                    const parsedHistory = JSON.parse(saved);
+                    if (Array.isArray(parsedHistory)) {
+                        // データの検証とクリーニング
+                        conversationHistory = parsedHistory.filter(item => 
+                            item && 
+                            item.original && 
+                            item.emotions && 
+                            item.timestamp &&
+                            typeof item.original === 'string' &&
+                            typeof item.emotions === 'object'
+                        );
+                        updateHistoryDisplay();
+                    }
+                } catch (error) {
+                    console.error('履歴の復元に失敗:', error);
+                    // 破損したデータをクリア
+                    localStorage.removeItem('conversationHistory');
+                }
+            }
+            
+            // ストレージ管理
+            manageStorage();
+        });
+
+        // ページ離脱時の自動バックアップ
+        window.addEventListener('beforeunload', () => {
+            autoBackup();
+        });
+
+        // ページ読み込み時に音声認識を初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSpeechRecognition();
+        });
+    </script>
+</body>
+</html>

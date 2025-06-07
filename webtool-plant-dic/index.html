@@ -589,13 +589,13 @@
       display: block;
     }
 
-    .collection-grid {
+    .collection-grid, .saved-images-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
       gap: 1rem;
     }
 
-    .collection-item {
+    .collection-item, .saved-image-item {
       background: white;
       border-radius: 12px;
       padding: 1rem;
@@ -603,12 +603,12 @@
       transition: all var(--transition-speed);
     }
 
-    .collection-item:hover {
+    .collection-item:hover, .saved-image-item:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
     }
 
-    .collection-image {
+    .collection-image, .saved-image {
       width: 100%;
       aspect-ratio: 1 / 1; /* 1:1の比率を強制 */
       object-fit: cover; /* アスペクト比を保持しながらコンテナにフィット */
@@ -617,20 +617,20 @@
       margin-bottom: 0.5rem;
     }
 
-    .collection-name {
+    .collection-name, .saved-image-name {
       font-weight: 600;
       color: var(--primary);
       margin-bottom: 0.3rem;
     }
 
-    .collection-scientific {
+    .collection-scientific, .saved-image-scientific {
       font-size: 0.8rem;
       color: var(--text-secondary);
       font-style: italic;
       margin-bottom: 0.5rem;
     }
 
-    .collection-actions {
+    .collection-actions, .saved-image-actions {
       display: flex;
       gap: 0.5rem;
     }
@@ -648,6 +648,22 @@
 
     .remove-btn:hover {
       background: linear-gradient(135deg, #d84315, #ff7043);
+    }
+
+    .saved-image-timestamp {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      opacity: 0.8;
+    }
+
+    .saved-image-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      background: #f5f5f5;
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
     }
 
     /* エラー・警告メッセージ */
@@ -1274,6 +1290,278 @@
       background: linear-gradient(135deg, #1976D2, #2196F3);
       transform: translateY(-1px);
     }
+
+    /* ストレージ情報モーダル */
+    .storage-info-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1001;
+      padding: 1rem;
+    }
+
+    .storage-info-modal.active {
+      display: flex;
+    }
+
+    .storage-info-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .storage-info-header {
+      background: linear-gradient(135deg, #607D8B, #78909C);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .storage-info-body {
+      padding: 1.5rem;
+    }
+
+    .storage-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.8rem;
+      margin-bottom: 0.5rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid var(--primary);
+    }
+
+    .storage-stat-label {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .storage-stat-value {
+      color: var(--text-secondary);
+      font-family: monospace;
+    }
+
+    /* 保存画像履歴セクション */
+    .saved-images-section {
+      background: var(--background);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .saved-images-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .saved-image-item {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .saved-image-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .saved-image-container {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .saved-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #f5f5f5;
+    }
+
+    .saved-image-delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(244, 67, 54, 0.9);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.8rem;
+      opacity: 0;
+    }
+
+    .saved-image-item:hover .saved-image-delete-btn {
+      opacity: 1;
+    }
+
+    .saved-image-delete-btn:hover {
+      background: rgba(244, 67, 54, 1);
+      transform: scale(1.1);
+    }
+
+    .saved-image-info {
+      font-size: 0.9rem;
+    }
+
+    .saved-image-meta {
+      margin: 0.5rem 0;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.3rem 0;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+
+    .meta-item i {
+      width: 12px;
+      color: var(--primary);
+    }
+
+    .saved-image-prompt {
+      margin-top: 1rem;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 1rem;
+    }
+
+    .prompt-toggle-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .prompt-toggle-btn:hover {
+      background: #1976D2;
+    }
+
+    .prompt-content {
+      margin-top: 0.5rem;
+      padding: 0.8rem;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border-left: 3px solid var(--primary);
+    }
+
+    .prompt-text {
+      font-size: 0.8rem;
+      line-height: 1.4;
+      color: #333;
+      white-space: pre-wrap;
+    }
+
+    /* ストレージ統計情報 */
+    .storage-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .storage-stat {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .stat-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .stat-info {
+      flex: 1;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.2rem;
+    }
+
+    .stat-value {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .storage-info-notes {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .storage-info-notes h4 {
+      margin-bottom: 1rem;
+      color: var(--primary);
+      font-size: 1rem;
+    }
+
+    .storage-info-notes ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .storage-info-notes li {
+      padding: 0.3rem 0;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      position: relative;
+      padding-left: 1.5rem;
+    }
+
+    .storage-info-notes li:before {
+      content: '•';
+      color: var(--primary);
+      position: absolute;
+      left: 0;
+    }
   </style>
 </head>
 <body>
@@ -1398,11 +1686,40 @@
           <button class="btn btn-secondary" onclick="app.clearAllCollection()" style="margin-left: 0.5rem; background: #ff7043;">
             <i class="fas fa-trash"></i> 全削除
           </button>
+          <button class="btn btn-secondary" onclick="app.showSavedImages()" style="margin-left: 0.5rem; background: #2196F3;">
+            <i class="fas fa-images"></i> 保存画像履歴
+          </button>
         </div>
       </div>
 
       <div class="collection-grid" id="collection-grid">
         <!-- 保存された植物が動的に生成される -->
+      </div>
+    </section>
+
+    <!-- 保存画像履歴セクション -->
+    <section class="saved-images-section" id="saved-images-section" style="display: none;">
+      <div class="results-header">
+        <h2 class="results-title">
+          <i class="fas fa-images"></i> 保存画像履歴
+        </h2>
+        <p class="results-count" id="saved-images-count">保存された画像はありません</p>
+        
+        <div class="collection-actions" style="margin-top: 1rem;">
+          <button class="btn btn-secondary" onclick="app.showMyCollection()" style="background: var(--primary);">
+            <i class="fas fa-arrow-left"></i> マイ図鑑に戻る
+          </button>
+          <button class="btn btn-secondary" onclick="app.clearAllSavedImages()" style="margin-left: 0.5rem; background: #ff7043;">
+            <i class="fas fa-trash"></i> 全削除
+          </button>
+          <button class="btn btn-secondary" onclick="app.showStorageInfo()" style="margin-left: 0.5rem; background: #607D8B;">
+            <i class="fas fa-info-circle"></i> ストレージ情報
+          </button>
+        </div>
+      </div>
+
+      <div class="saved-images-grid" id="saved-images-grid">
+        <!-- 保存された画像が動的に生成される -->
       </div>
     </section>
 
@@ -1556,6 +1873,21 @@
     </div>
   </div>
 
+  <!-- ストレージ情報モーダル -->
+  <div class="storage-info-modal" id="storage-info-modal">
+    <div class="storage-info-content">
+      <div class="storage-info-header">
+        <h3><i class="fas fa-database"></i> ストレージ情報</h3>
+        <button class="modal-close-btn" onclick="app.closeStorageInfoModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="storage-info-body" id="storage-info-body">
+        <!-- ストレージ情報がここに動的に挿入される -->
+      </div>
+    </div>
+  </div>
+
   <script>
     // 全体のアプリケーション状態管理
     class PlantDictionaryApp {
@@ -1570,6 +1902,7 @@
         
         this.searchLLM = new PlantSearchLLM();
         this.imageGenerationAttempts = {}; // 画像生成試行回数を追跡
+        this.imageStorage = new PlantImageStorage(); // 画像ストレージ管理
         this.init();
       }
 
@@ -1649,11 +1982,19 @@
           }
         });
 
+        // ストレージ情報モーダル関連
+        document.getElementById('storage-info-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'storage-info-modal') {
+            this.closeStorageInfoModal();
+          }
+        });
+
         // ESCキーでモーダルを閉じる
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
             this.closeDetailsModal();
             this.closePromptModal();
+            this.closeStorageInfoModal();
           }
         });
 
@@ -2972,6 +3313,251 @@
           this.updateCollectionDisplay();
           this.showMessage('すべての植物データを削除しました', 'success');
         }
+      }
+
+      // 保存画像履歴セクションを表示する関数
+      showSavedImages() {
+        // 全てのセクションを非表示にする
+        document.getElementById('search-section').style.display = 'none';
+        document.getElementById('results-section').classList.remove('active');
+        document.getElementById('my-collection-section').classList.remove('active');
+        document.getElementById('settings-section').classList.remove('active');
+        
+        // 保存画像セクションを表示
+        document.getElementById('saved-images-section').style.display = 'block';
+        
+        // タブの状態をリセット（どのタブもアクティブにしない）
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        
+        // 保存画像を更新表示
+        this.updateSavedImagesDisplay();
+      }
+
+      // マイ図鑑セクションに戻る関数
+      showMyCollection() {
+        // 保存画像セクションを非表示にする
+        document.getElementById('saved-images-section').style.display = 'none';
+        
+        // マイ図鑑タブに切り替え
+        this.switchTab('collection');
+      }
+
+      // 保存された画像を表示する関数
+      updateSavedImagesDisplay() {
+        const savedImages = this.imageStorage.getSavedImages();
+        const container = document.getElementById('saved-images-grid');
+        const countElement = document.getElementById('saved-images-count');
+        
+        // カウント表示を更新
+        if (savedImages.length === 0) {
+          countElement.textContent = '保存された画像はありません';
+          container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-secondary);"><i class="fas fa-images" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i><br>まだ保存された画像がありません</div>';
+          return;
+        }
+        
+        countElement.textContent = `${savedImages.length}件の保存画像`;
+        
+        // 画像カードを生成
+        container.innerHTML = '';
+        savedImages.forEach((imageData, index) => {
+          const card = this.createSavedImageCard(imageData, index);
+          container.appendChild(card);
+        });
+      }
+
+      // 保存画像カードを作成
+      createSavedImageCard(imageData, index) {
+        const card = document.createElement('div');
+        card.className = 'saved-image-item fade-in';
+        card.style.animationDelay = `${index * 0.1}s`;
+        
+        // 保存日時をフォーマット
+        const saveDate = new Date(imageData.timestamp);
+        const formattedDate = saveDate.toLocaleDateString('ja-JP', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        // スタイル表示名を取得
+        const styleNames = {
+          'botanical': '植物画',
+          'anime': 'アニメ風',
+          'realistic': '写実的'
+        };
+        const styleName = styleNames[imageData.style] || imageData.style;
+        
+        // モデル表示名を取得
+        const modelNames = {
+          'bytedance/sdxl-lightning-4step': 'SDXL Lightning',
+          'minimax/image-01': 'Minimax Image-01',
+          'sdxl-lightning': 'SDXL Lightning',
+          'minimax': 'Minimax Image-01'
+        };
+        const modelName = modelNames[imageData.model] || imageData.model;
+        
+        card.innerHTML = `
+          <div class="saved-image-container">
+            <img src="${imageData.base64Data}" alt="${imageData.plantName}" class="saved-image">
+            <button class="saved-image-delete-btn" onclick="app.deleteSavedImage('${imageData.id}')" title="この画像を削除">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+          
+          <div class="saved-image-info">
+            <div class="plant-names">
+              <div class="plant-common-name">${imageData.commonName || imageData.plantName}</div>
+              ${imageData.scientificName ? `<div class="plant-scientific-name">${imageData.scientificName}</div>` : ''}
+            </div>
+            
+            <div class="saved-image-meta">
+              <div class="meta-item">
+                <i class="fas fa-calendar"></i>
+                <span>${formattedDate}</span>
+              </div>
+              <div class="meta-item">
+                <i class="fas fa-palette"></i>
+                <span>${styleName}</span>
+              </div>
+              <div class="meta-item">
+                <i class="fas fa-robot"></i>
+                <span>${modelName}</span>
+              </div>
+            </div>
+            
+            ${imageData.prompt ? `
+              <div class="saved-image-prompt">
+                <button class="prompt-toggle-btn" onclick="app.toggleSavedImagePrompt('${imageData.id}')">
+                  <i class="fas fa-eye"></i> プロンプトを表示
+                </button>
+                <div class="prompt-content" id="prompt-${imageData.id}" style="display: none;">
+                  <div class="prompt-text">${imageData.prompt}</div>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+        
+        return card;
+      }
+
+      // 保存画像の削除
+      deleteSavedImage(imageId) {
+        if (confirm('この画像を削除しますか？')) {
+          const success = this.imageStorage.deleteImage(imageId);
+          if (success) {
+            this.updateSavedImagesDisplay();
+            this.showMessage('画像を削除しました', 'success');
+          } else {
+            this.showMessage('画像の削除に失敗しました', 'error');
+          }
+        }
+      }
+
+      // 保存画像のプロンプト表示切り替え
+      toggleSavedImagePrompt(imageId) {
+        const promptElement = document.getElementById(`prompt-${imageId}`);
+        const button = promptElement.previousElementSibling;
+        
+        if (promptElement.style.display === 'none') {
+          promptElement.style.display = 'block';
+          button.innerHTML = '<i class="fas fa-eye-slash"></i> プロンプトを隠す';
+        } else {
+          promptElement.style.display = 'none';
+          button.innerHTML = '<i class="fas fa-eye"></i> プロンプトを表示';
+        }
+      }
+
+      // 全ての保存画像を削除する関数
+      clearAllSavedImages() {
+        if (confirm('全ての保存画像を削除しますか？この操作は取り消せません。')) {
+          const success = this.imageStorage.clearAllImages();
+          if (success) {
+            this.updateSavedImagesDisplay();
+            this.showMessage('全ての保存画像を削除しました', 'success');
+          } else {
+            this.showMessage('削除に失敗しました', 'error');
+          }
+        }
+      }
+
+      // ストレージ情報を表示する関数
+      showStorageInfo() {
+        const storageInfo = this.imageStorage.getStorageInfo();
+        const modal = document.getElementById('storage-info-modal');
+        const body = document.getElementById('storage-info-body');
+        
+        // ストレージ使用量の警告レベルを判定
+        const usagePercent = (storageInfo.totalSize / (10 * 1024 * 1024)) * 100; // 10MBを基準とした使用率
+        let usageClass = 'normal';
+        let usageIcon = 'fas fa-check-circle';
+        let usageColor = '#4CAF50';
+        
+        if (usagePercent > 80) {
+          usageClass = 'warning';
+          usageIcon = 'fas fa-exclamation-triangle';
+          usageColor = '#FF9800';
+        } else if (usagePercent > 95) {
+          usageClass = 'danger';
+          usageIcon = 'fas fa-exclamation-circle';
+          usageColor = '#F44336';
+        }
+        
+        body.innerHTML = `
+          <div class="storage-stats">
+            <div class="storage-stat">
+              <div class="stat-icon">
+                <i class="fas fa-images"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-label">保存画像数</div>
+                <div class="stat-value">${storageInfo.totalImages} / ${storageInfo.maxItems}</div>
+              </div>
+            </div>
+            
+            <div class="storage-stat">
+              <div class="stat-icon">
+                <i class="fas fa-database"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-label">使用容量</div>
+                <div class="stat-value">${storageInfo.totalSizeMB} MB</div>
+              </div>
+            </div>
+            
+            <div class="storage-stat">
+              <div class="stat-icon" style="color: ${usageColor};">
+                <i class="${usageIcon}"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-label">ストレージ状況</div>
+                <div class="stat-value" style="color: ${usageColor};">
+                  ${usagePercent.toFixed(1)}% 使用中
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="storage-info-notes">
+            <h4><i class="fas fa-info-circle"></i> ストレージについて</h4>
+            <ul>
+              <li>画像は最大${storageInfo.maxItems}件まで保存可能です</li>
+              <li>古い画像から自動削除されます</li>
+              <li>各画像は5MBまでサポートしています</li>
+              <li>データはブラウザのローカルストレージに保存されます</li>
+            </ul>
+          </div>
+        `;
+        
+        modal.classList.add('active');
+      }
+
+      // ストレージ情報モーダルを閉じる関数
+      closeStorageInfoModal() {
+        const modal = document.getElementById('storage-info-modal');
+        modal.classList.remove('active');
       }
     }
 

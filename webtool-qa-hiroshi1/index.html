@@ -292,6 +292,111 @@
             transform: translateY(-2px);
         }
 
+        /* 深層心理分析結果のスタイル */
+        .response-journey {
+            margin: 2rem 0;
+        }
+
+        .journey-item {
+            background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+            border: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .journey-item:hover {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border-color: rgba(255,255,255,0.15);
+        }
+
+        .journey-item h4 {
+            color: #70a0ff;
+            margin-bottom: 0.8rem;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .journey-question {
+            color: #a0a0a0;
+            font-style: italic;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .journey-answer {
+            color: #d0d0d0;
+            border-left: 3px solid rgba(112,160,255,0.3);
+            padding-left: 1rem;
+            margin: 0;
+        }
+
+        .psychological-analysis {
+            margin-top: 3rem;
+            background: linear-gradient(135deg, rgba(112,160,255,0.05) 0%, rgba(112,160,255,0.02) 100%);
+            border: 1px solid rgba(112,160,255,0.1);
+            padding: 2rem;
+            border-radius: 15px;
+        }
+
+        .psychological-analysis h3 {
+            color: #70a0ff;
+            margin-bottom: 2rem;
+            text-align: center;
+            font-size: 1.4rem;
+        }
+
+        .psychological-analysis h4 {
+            color: #e0e0e0;
+            margin: 1.5rem 0 1rem 0;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 0.5rem;
+        }
+
+        .psychological-analysis p {
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+
+        /* 処理中スタイル */
+        .processing {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .processing .submit-button {
+            background: linear-gradient(135deg, #666 0%, #555 100%);
+            cursor: not-allowed;
+        }
+
+        /* ローディングインジケータ */
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            margin: 1rem 0;
+            color: #70a0ff;
+        }
+
+        .loading-indicator.active {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(112,160,255,0.3);
+            border-radius: 50%;
+            border-top-color: #70a0ff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* アニメーション */
         @keyframes fadeInUp {
             from {
@@ -307,6 +412,15 @@
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .thinking {
+            animation: pulse 2s ease-in-out infinite;
         }
 
         /* レスポンシブ対応 */
@@ -372,6 +486,11 @@
                     id="answerInput" 
                     placeholder="あなたの答えをここに書いてください..."
                 ></textarea>
+            </div>
+            
+            <div class="loading-indicator" id="loadingIndicator">
+                <div class="spinner"></div>
+                <span>深層から次の問いを生成中...</span>
             </div>
             
             <button class="submit-button" id="submitButton" onclick="submitAnswer()">

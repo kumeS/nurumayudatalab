@@ -143,6 +143,133 @@ ${draftPrompt}`;
   }
 }
 
+// ローカルストレージ管理クラス
+class PlantImageStorage {
+  constructor() {
+    this.storageKey = 'plantDictionary_savedImages';
+    this.maxItems = 50; // 最大保存件数
+    this.maxSizePerImage = 5 * 1024 * 1024; // 5MB per image
+  }
+
+  // 画像をローカルストレージに保存
+  async saveImage(imageData) {
+    try {
+      const savedImages = this.getSavedImages();
+      
+      // 画像データをBase64に変換
+      const base64Data = await this.convertImageToBase64(imageData.imageUrl);
+      
+      if (!base64Data) {
+        console.warn('🗂️ 画像のBase64変換に失敗しました');
+        return false;
+      }
+
+      // データサイズチェック
+      if (base64Data.length > this.maxSizePerImage) {
+        console.warn('🗂️ 画像サイズが大きすぎます（5MB制限）');
+        return false;
+      }
+
+      const newImageData = {
+        id: Date.now() + '_' + Math.random().toString(36).substring(2, 11),
+        timestamp: new Date().toISOString(),
+        plantName: imageData.plantName || 'Unknown Plant',
+        scientificName: imageData.scientificName || '',
+        commonName: imageData.commonName || '',
+        imageUrl: imageData.imageUrl,
+        base64Data: base64Data,
+        prompt: imageData.prompt || '',
+        style: imageData.style || 'botanical',
+        model: imageData.model || '',
+        confidence: imageData.confidence || 0
+      };
+
+      savedImages.unshift(newImageData);
+
+      // 最大件数を超えた場合、古いものを削除
+      if (savedImages.length > this.maxItems) {
+        savedImages.splice(this.maxItems);
+      }
+
+      localStorage.setItem(this.storageKey, JSON.stringify(savedImages));
+      console.log('🗂️ 画像を保存しました:', newImageData.plantName);
+      return true;
+    } catch (error) {
+      console.error('🗂️ 画像保存エラー:', error);
+      return false;
+    }
+  }
+
+  // 画像URLをBase64に変換
+  async convertImageToBase64(imageUrl) {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('🗂️ Base64変換エラー:', error);
+      return null;
+    }
+  }
+
+  // 保存された画像一覧を取得
+  getSavedImages() {
+    try {
+      const saved = localStorage.getItem(this.storageKey);
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error('🗂️ 保存画像取得エラー:', error);
+      return [];
+    }
+  }
+
+  // 特定の画像を削除
+  deleteImage(imageId) {
+    try {
+      const savedImages = this.getSavedImages();
+      const filtered = savedImages.filter(img => img.id !== imageId);
+      localStorage.setItem(this.storageKey, JSON.stringify(filtered));
+      console.log('🗂️ 画像を削除しました:', imageId);
+      return true;
+    } catch (error) {
+      console.error('🗂️ 画像削除エラー:', error);
+      return false;
+    }
+  }
+
+  // 全ての保存画像を削除
+  clearAllImages() {
+    try {
+      localStorage.removeItem(this.storageKey);
+      console.log('🗂️ 全ての保存画像を削除しました');
+      return true;
+    } catch (error) {
+      console.error('🗂️ 全削除エラー:', error);
+      return false;
+    }
+  }
+
+  // ストレージ使用量を取得
+  getStorageInfo() {
+    const savedImages = this.getSavedImages();
+    const totalSize = JSON.stringify(savedImages).length;
+    const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+    
+    return {
+      totalImages: savedImages.length,
+      totalSize: totalSize,
+      totalSizeMB: totalSizeMB,
+      maxItems: this.maxItems
+    };
+  }
+}
+
 // 植物画像生成専用の便利関数
 async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, model = 'minimax', imageOptions = {}) {
   console.log('🌱 植物画像生成開始:', {
@@ -185,7 +312,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
       result = await client.generateImageSDXL(optimizedPrompt, sdxlOptions);
       
       if (result.output && Array.isArray(result.output) && result.output.length > 0) {
-        return {
+        const imageResult = {
           success: true,
           imageUrl: result.output[0],
           prompt: optimizedPrompt,
@@ -193,8 +320,13 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
           model: 'bytedance/sdxl-lightning-4step',
           options: sdxlOptions
         };
+        
+        // 自動保存
+        await saveImageToStorage(imageResult, plantInfo, style);
+        
+        return imageResult;
       } else if (result.output) {
-        return {
+        const imageResult = {
           success: true,
           imageUrl: result.output,
           prompt: optimizedPrompt,
@@ -202,6 +334,11 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
           model: 'bytedance/sdxl-lightning-4step',
           options: sdxlOptions
         };
+        
+        // 自動保存
+        await saveImageToStorage(imageResult, plantInfo, style);
+        
+        return imageResult;
         } else {
         throw new Error('画像URLが返されませんでした');
       }
@@ -216,7 +353,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
       result = await client.generateImageMinimax(optimizedPrompt, minimaxOptions);
       
       if (result.output && Array.isArray(result.output) && result.output.length > 0) {
-        return {
+        const imageResult = {
           success: true,
           imageUrl: result.output[0],
           prompt: optimizedPrompt,
@@ -224,8 +361,13 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
           model: 'minimax/image-01',
           options: minimaxOptions
         };
+        
+        // 自動保存
+        await saveImageToStorage(imageResult, plantInfo, style);
+        
+        return imageResult;
       } else if (result.output) {
-        return {
+        const imageResult = {
           success: true,
           imageUrl: result.output,
           prompt: optimizedPrompt,
@@ -233,6 +375,11 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
           model: 'minimax/image-01',
           options: minimaxOptions
         };
+        
+        // 自動保存
+        await saveImageToStorage(imageResult, plantInfo, style);
+        
+        return imageResult;
         } else {
         throw new Error('画像URLが返されませんでした');
       }
@@ -267,6 +414,30 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
       prompt: optimizedPrompt || draftPrompt,
       draftPrompt: draftPrompt
     };
+  }
+}
+
+// 画像をストレージに保存するヘルパー関数
+async function saveImageToStorage(imageResult, plantInfo, style) {
+  try {
+    const storage = new PlantImageStorage();
+    const saveData = {
+      imageUrl: imageResult.imageUrl,
+      plantName: plantInfo.commonName || plantInfo.scientificName,
+      scientificName: plantInfo.scientificName,
+      commonName: plantInfo.commonName,
+      prompt: imageResult.prompt,
+      style: style,
+      model: imageResult.model,
+      confidence: plantInfo.confidence
+    };
+    
+    const saved = await storage.saveImage(saveData);
+    if (saved) {
+      console.log('🗂️ 画像が自動保存されました');
+    }
+  } catch (error) {
+    console.warn('🗂️ 自動保存に失敗しました:', error);
   }
 }
 
@@ -1010,4 +1181,6 @@ if (typeof window !== 'undefined') {
   window.parsePlantSearchResponse = parsePlantSearchResponse;
   window.PlantSearchLLM = PlantSearchLLM;
   window.PlantImagePromptHelper = PlantImagePromptHelper;
+  window.PlantImageStorage = PlantImageStorage;
+  window.saveImageToStorage = saveImageToStorage;
 } 

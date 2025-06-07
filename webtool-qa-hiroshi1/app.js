@@ -1,643 +1,551 @@
 /**
- * ぬるっと翻訳・校閲ツール JavaScript
- * LLMを活用したテキスト処理ツール
+ * なぜを4回問い続ける - 深層心理探求システム
+ * LLMを活用した動的質問生成による自己探求ツール
  */
+
 document.addEventListener('DOMContentLoaded', () => {
-  // 要素の参照を取得
-  const tabs = document.querySelectorAll('.tabs .tab');
-  const inputArea = document.getElementById('inputArea');
-  const finalOutput = document.getElementById('final');
-  const reviewOutput = document.getElementById('review');
-  const runBtn = document.getElementById('runBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const copyBtn = document.getElementById('copyBtn');
-  const speakBtn = document.getElementById('speakBtn');
-  const toInputBtn = document.getElementById('toInputBtn');
-  const loadingIndicator = document.getElementById('loadingIndicator');
-  
-  // ---- BEGIN MODIFICATION: Load saved input text ----
-  // Load saved input text from localStorage, clearing a specific erroneous string if present
-  let savedInputText = localStorage.getItem('inputText');
-  if (savedInputText === "This will ensure that your input text is preserved even if you refresh the page.") {
-    localStorage.removeItem('inputText');
-    savedInputText = null; // Prevent loading this specific string
-  }
-  if (savedInputText) {
-    inputArea.value = savedInputText;
-  } else {
-    inputArea.value = ''; // Ensure it's empty if nothing valid is loaded or after clearing the specific string
-  }
-  // ---- END MODIFICATION ----
+    // グローバル変数
+    let currentTheme = '';
+    let questionLevel = 0;
+    let conversationHistory = [];
+    let customTheme = '';
+    let isLLMMode = true; // LLM活用モード
 
-  // ---- BEGIN MODIFICATION: Save input text on change ----
-  // Save input text to localStorage whenever it changes
-  inputArea.addEventListener('input', () => {
-    localStorage.setItem('inputText', inputArea.value);
-  });
-  // ---- END MODIFICATION ----
-  
-  // 現在のモード（デフォルト：日本語→英語）
-  let currentMode = 'jaen';
-  
-  // 起動時にタブの状態を明示的に確認
-  console.log('初期タブ状態:');
-  tabs.forEach(tab => {
-    console.log(`${tab.id}: ${tab.classList.contains('active') ? 'active' : 'inactive'}`);
-    // スタイル確認のためのデバッグコード追加
-    const computedStyle = window.getComputedStyle(tab);
-    console.log(`${tab.id} スタイル: 背景色=${computedStyle.backgroundColor}, 色=${computedStyle.color}, ボーダー=${computedStyle.borderBottom}`);
-  });
-  
-  // すべてのタブの表示を更新する関数
-  function updateTabDisplay() {
-    tabs.forEach(tab => {
-      if (tab.classList.contains('active')) {
-        // アクティブなタブのスタイル
-        tab.style.cssText = `
-          background-color: #fff;
-          color: var(--primary);
-          font-weight: bold;
-          border-bottom: 3px solid var(--primary);
-          box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
-        `;
-      } else {
-        // 非アクティブなタブのスタイル
-        tab.style.cssText = `
-          background-color: #f8f9fa;
-          color: var(--text-secondary);
-          font-weight: normal;
-          border-bottom: none;
-          box-shadow: none;
-        `;
-      }
-    });
-  }
-  
-  // タブ切り替え関数
-  function switchTab(selectedTab) {
-    // 前のタブから active クラスを削除
-    tabs.forEach(tab => tab.classList.remove('active'));
-    
-    // 選択されたタブに active クラスを追加
-    selectedTab.classList.add('active');
-    
-    // タブの表示を更新
-    updateTabDisplay();
-    
-    // IDからモードを取得
-    currentMode = selectedTab.id.replace('tab-', '');
-    console.log('モード切替:', currentMode);
-    
-    // タブ切り替え時は結果だけをクリア（入力は保持）
-    clearResults();
-  }
-  
-  // タブ切り替え
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      switchTab(tab);
-      
-      // タブの状態を確認
-      console.log('タブ切り替え後の状態:');
-      tabs.forEach(t => {
-        console.log(`${t.id}: ${t.classList.contains('active') ? 'active' : 'inactive'}`);
-        const computedStyle = window.getComputedStyle(t);
-        console.log(`${t.id} スタイル: 背景色=${computedStyle.backgroundColor}, 色=${computedStyle.color}, ボーダー=${computedStyle.borderBottom}`);
-      });
-    });
-  });
-  
-  // 初期表示時にタブの表示を更新
-  updateTabDisplay();
-  
-  // ページ離脱時に読み上げを停止
-  window.addEventListener('beforeunload', () => {
-    if (currentSpeech) {
-      speechSynthesis.cancel();
-    }
-  });
-  
-  // コピー禁止制御（校閲結果）
-  reviewOutput.addEventListener('copy', e => {
-    e.preventDefault();
-  });
-  
-  // 最終結果コピー機能
-  copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(finalOutput.value).then(() => {
-      // コピー成功時の処理
-      copyBtn.classList.add('copy-success');
-      
-      // 2秒後に元に戻す
-      setTimeout(() => {
-        copyBtn.classList.remove('copy-success');
-      }, 2000);
-    }).catch(err => {
-      console.error('コピーに失敗しました', err);
-      alert('コピーできませんでした。');
-    });
-  });
-  
-  // 読み上げ機能
-  let currentSpeech = null;
-  
-  speakBtn.addEventListener('click', () => {
-    const text = finalOutput.value.trim();
-    
-    if (!text) {
-      alert('読み上げるテキストがありません。');
-      return;
-    }
-    
-    // Web Speech API対応チェック
-    if (!('speechSynthesis' in window)) {
-      alert('お使いのブラウザは音声読み上げ機能に対応していません。');
-      return;
-    }
-    
-    // 現在の読み上げを停止
-    if (currentSpeech) {
-      speechSynthesis.cancel();
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
-      return;
-    }
-    
-    // 新しい読み上げを開始
-    currentSpeech = new SpeechSynthesisUtterance(text);
-    
-    // 言語を自動判定
-    const language = detectLanguageForSpeech(text);
-    currentSpeech.lang = language;
-    
-    // 読み上げ設定
-    currentSpeech.rate = 0.9; // 読み上げ速度
-    currentSpeech.pitch = 1.0; // 音の高さ
-    currentSpeech.volume = 1.0; // 音量
-    
-    // イベントリスナー
-    currentSpeech.onstart = () => {
-      speakBtn.classList.add('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-stop"></i> 停止';
-    };
-    
-    currentSpeech.onend = () => {
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
-    };
-    
-    currentSpeech.onerror = (event) => {
-      console.error('読み上げエラー:', event.error);
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
-      alert('読み上げ中にエラーが発生しました。');
-    };
-    
-    // 読み上げ開始
-    speechSynthesis.speak(currentSpeech);
-  });
-  
-  // 言語自動判定関数（読み上げ用）
-  function detectLanguageForSpeech(text) {
-    // 日本語文字が含まれている場合は日本語
-    if (containsJapaneseChars(text)) {
-      return 'ja-JP';
-    }
-    // 英語文字のみの場合は英語
-    else if (containsLatinChars(text)) {
-      return 'en-US';
-    }
-    // デフォルトは日本語
-    return 'ja-JP';
-  }
-  
-  // リセットボタン
-  resetBtn.addEventListener('click', resetUI);
-  
-  // 実行ボタン
-  runBtn.addEventListener('click', runLLM);
-  
-  // 入力欄に戻すボタン
-  toInputBtn.addEventListener('click', () => {
-    // 最終結果を入力欄に設定
-    inputArea.value = finalOutput.value;
-    
-    // スクロールを入力欄の先頭に移動
-    inputArea.scrollTop = 0;
-    
-    // 入力欄にフォーカスを当てる
-    inputArea.focus();
-    
-    // アニメーション効果（オプション）
-    inputArea.classList.add('highlight-input');
-    setTimeout(() => {
-      inputArea.classList.remove('highlight-input');
-    }, 1000);
-  });
-  
-  // 結果のみクリア（タブ切り替え時に使用）
-  function clearResults() {
-    finalOutput.value = '';
-    reviewOutput.innerHTML = '';
-  }
-  
-  // UI初期化（全てクリア）
-  function resetUI() {
-    inputArea.value = '';
-    clearResults();
-  }
-  
-  // ---- BEGIN MODIFICATION: Helper functions for language detection ----
-  // Helper function to detect Japanese characters
-  function containsJapaneseChars(text) {
-    const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
-    return japaneseRegex.test(text);
-  }
+    // DOM要素の取得
+    const themeSelection = document.getElementById('themeSelection');
+    const questionSection = document.getElementById('questionSection');
+    const completionSection = document.getElementById('completionSection');
+    const conversationHistory_el = document.getElementById('conversationHistory');
+    const currentQuestion_el = document.getElementById('currentQuestion');
+    const questionLevel_el = document.getElementById('questionLevel');
+    const answerInput = document.getElementById('answerInput');
+    const submitButton = document.getElementById('submitButton');
+    const insightContent = document.getElementById('insightContent');
+    const loadingIndicator = document.getElementById('loadingIndicator');
 
-  // Helper function to detect Latin characters
-  function containsLatinChars(text) {
-    const latinRegex = /[a-zA-Z]/;
-    return latinRegex.test(text);
-  }
-  // ---- END MODIFICATION ----
-  
-  // 使い方表示トグル
-  const toggleGuide = document.querySelector('.toggle-guide');
-  const guideContent = document.querySelector('.guide-content');
-  
-  if (toggleGuide && guideContent) {
-    toggleGuide.addEventListener('click', function() {
-      guideContent.style.display = guideContent.style.display === 'none' ? 'block' : 'none';
-      this.classList.toggle('active');
-      
-      // テキストを切り替え
-      const heading = this.querySelector('h3');
-      if (heading) {
-        if (guideContent.style.display === 'block') {
-          heading.textContent = '使い方を隠す';
-        } else {
-          heading.textContent = '使い方を表示';
+    // API設定
+    const API_URL = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+    const MODEL_NAME = "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8";
+
+    // 深層心理探求テーマ
+    const advancedThemes = {
+        'existential': {
+            title: '存在の意味',
+            description: 'なぜあなたは存在しているのか、その根源的意味を探ります',
+            initialPrompt: 'あなたが生きている理由や存在する意味について、まず思い浮かぶことを教えてください。'
+        },
+        'identity': {
+            title: '自己同一性',
+            description: 'あなたが「あなた」である理由、アイデンティティの核心を見つめます',
+            initialPrompt: 'あなたを「あなた」たらしめているものは何だと思いますか？'
+        },
+        'values': {
+            title: '価値観の起源',
+            description: 'あなたの価値観がどのように形成されたか、その深層を探ります',
+            initialPrompt: 'あなたが最も大切にしている価値観は何ですか？'
+        },
+        'fears': {
+            title: '恐れと不安',
+            description: 'あなたが抱く恐れや不安の根本的な原因を探求します',
+            initialPrompt: 'あなたが最も恐れていることは何ですか？'
+        },
+        'desires': {
+            title: '欲望と願望',
+            description: 'あなたの欲望や願望の本質的な動機を見つめます',
+            initialPrompt: 'あなたが心から望んでいることは何ですか？'
+        },
+        'relationships': {
+            title: '人間関係の根源',
+            description: 'なぜあなたが他者との関係を求めるのか、その本質を探ります',
+            initialPrompt: 'なぜあなたは他の人とのつながりを求めるのでしょうか？'
+        },
+        'purpose': {
+            title: '人生の目的',
+            description: 'あなたの人生における真の目的や使命を探求します',
+            initialPrompt: 'あなたの人生の目的は何だと思いますか？'
+        },
+        'suffering': {
+            title: '苦悩の意味',
+            description: 'なぜ苦しみが存在するのか、その意味を探ります',
+            initialPrompt: 'あなたにとって苦しみとは何ですか？なぜ苦しみがあると思いますか？'
+        },
+        'free_inquiry': {
+            title: '自由探求',
+            description: 'あなたが深く探求したい任意のテーマを設定できます',
+            initialPrompt: null // カスタム入力
         }
-      }
-    });
-  } else {
-    console.error('使い方表示/非表示の要素が見つかりません');
-  }
-  
-  // LLM実行
-  function runLLM() {
-    const input = inputArea.value.trim();
-    if (!input) {
-      alert('テキストを入力してください');
-      return;
-    }
-    
-    // ---- BEGIN MODIFICATION: Language check for proofreading modes ----
-    if (currentMode === 'jajarev') {
-      if (!containsJapaneseChars(input)) {
-        loadingIndicator.classList.remove('active'); // Ensure loading is off
-        finalOutput.value = ''; 
-        if (containsLatinChars(input)) {
-          reviewOutput.innerHTML = `<div class='error'>入力されたテキストには日本語の文字が含まれていないようです。英語のようなラテン文字ベースのテキストが検出されました。<br>日本語校閲モードでは日本語のテキストを入力してください。英語の校閲が必要な場合は、英語校閲モードに切り替えてください。</div>`;
-        } else {
-          reviewOutput.innerHTML = `<div class='error'>入力されたテキストに日本語の文字が見当たりません。日本語校閲モードでは、日本語のテキストを入力してください。</div>`;
-        }
-        return;
-      }
-    } else if (currentMode === 'enrev') {
-      if (containsJapaneseChars(input)) {
-        loadingIndicator.classList.remove('active'); // Ensure loading is off
-        finalOutput.value = '';
-        reviewOutput.innerHTML = `<div class='error'>入力されたテキストに日本語の文字が含まれています。<br>英語校閲モードでは、主に英語のテキストを対象としています。日本語の校閲が必要な場合は、日本語校閲モードをご利用ください。</div>`;
-        return;
-      }
-    }
-    // ---- END MODIFICATION ----
-    
-    // UI更新
-    loadingIndicator.classList.add('active');
-    finalOutput.value = '';
-    reviewOutput.innerHTML = '';
-    
-    // モードに応じたプロンプト作成
-    const messages = createMessages(currentMode, input);
-    
-    // APIリクエスト（非ストリーミングモードを使用）
-    // ストリーミングモードで問題が続いているため、一旦非ストリーミングモードに切り替え
-    fallbackNonStreamingAPI(messages);
-  }
-  
-  // モードごとのメッセージ作成
-  function createMessages(mode, input) {
-    const messagesMap = {
-      'jaen': [
-        { role: "system", content: "あなたは翻訳エンジンです。日本語テキストを英語に翻訳するだけです。挨拶や説明、コメントは一切含めないでください。入力テキストの英訳だけを返してください。必ず文章全体を完全に翻訳し、途中で切れないようにしてください。思考過程や翻訳に関する考察は絶対に出力しないでください。" },
-        { role: "user", content: `以下の日本語文を英語に翻訳してください。必ず全体を完全に翻訳し、途中で切れないように注意してください：\n\n『${input}』` }
-      ],
-      'enja': [
-        { role: "system", content: "あなたは翻訳エンジンです。英語テキストを日本語に翻訳するだけです。挨拶や説明、コメントは一切含めないでください。入力テキストの日本語訳だけを返してください。必ず完全な文章全体を翻訳してください。部分訳や省略は行わないでください。思考過程や翻訳に関する考察は絶対に出力しないでください。" },
-        { role: "user", content: `以下の英文を日本語に翻訳してください。必ず全体を完全に翻訳し、部分的な訳は避けてください：\n\n『${input}』` }
-      ],
-      'jajarev': [
-        { role: "system", content: "あなたは日本語校閲エンジンです。入力された日本語文を詳細に校閲し、3つの部分に分けて出力してください。\n\n1. まず「校閲結果:」で始まる校閲コメントを書いてください。以下の点を詳しく解説してください：\n- 文法・表現の誤りや改善点\n- 語彙の選択や言い回しの提案\n- 文章構造や論理展開の改善点\n- 読みやすさや自然さの向上のためのアドバイス\n\n2. 次に「変更箇所:」で始まるセクションに、元の文章から変更した箇所を以下の形式で示してください：\n```diff\n- 削除された文や単語\n+ 追加または変更された文や単語\n```\n特に重要な変更箇所を3〜5か所程度ピックアップしてください。\n\n3. 最後に「最終案:」で始まる改善された文章全体を提示してください。\n\n文章の種類や内容に応じて適切な校閲を行い、具体的な改善理由も示してください。自己紹介や余計な説明は含めないでください。" },
-        { role: "user", content: input }
-      ],
-      'enrev': [
-        { role: "system", content: "あなたは英語校閲エンジンです。入力された英語文を詳細に校閲し、3つの部分に分けて出力してください。\n\n1. まず「校閲結果:」で始まる日本語での校閲コメントを書いてください。以下の点を詳しく解説してください：\n- 文法・表現の誤りや改善点\n- 語彙の選択や言い回しの提案\n- 文章構造や論理展開の改善点\n- 英語表現としての自然さや適切さの向上のためのアドバイス\n\n2. 次に「変更箇所:」で始まるセクションに、元の文章から変更した箇所を以下の形式で示してください：\n```diff\n- 削除された文や単語（原文）\n+ 追加または変更された文や単語（修正後）\n```\n特に重要な変更箇所を3〜5か所程度ピックアップしてください。\n\n3. 最後に「最終案:」で始まる改善された英語文全体を提示してください。\n\n文章の種類や内容に応じて適切な校閲を行い、なぜその修正が必要なのかも日本語で分かりやすく説明してください。自己紹介や余計な説明は含めないでください。" },
-        { role: "user", content: input }
-      ]
     };
-    
-    return messagesMap[mode] || messagesMap['jaen'];
-  }
-  
-  // 余計な説明テキストを除去する関数
-  function cleanResponse(text, mode) {
-    console.log("入力テキスト(元):", text);
-    console.log("モード:", mode);
 
-    if (mode === 'jaen' || mode === 'enja') {
-      let cleaned = text;
-      console.log("引用符チェック前:", cleaned);
+    // レベルごとの説明
+    const levelDescriptions = [
+        "第1の問い - 表面的な理由",
+        "第2の問い - 個人的な動機", 
+        "第3の問い - 深層の信念",
+        "第4の問い - 存在の根源"
+    ];
 
-      // Remove surrounding quotes
-      if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
-        console.log("ダブルクォート検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
-        console.log("シングルクォート検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith('「') && cleaned.endsWith('」')) {
-        console.log("鉤括弧検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith('『') && cleaned.endsWith('』')) {
-        console.log("二重鉤括弧検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      }
-      console.log("引用符除去後:", cleaned);
+    // 初期化
+    init();
 
-      // Remove common prefixes
-      const exactPrefixes = [
-        "Translation: ",
-        "Translated text: ",
-        "翻訳結果: ",
-        "翻訳: ",
-        "訳文: ",
-        "英訳: ",
-        "和訳: "
-      ];
-
-      for (const prefix of exactPrefixes) {
-        if (cleaned.startsWith(prefix)) {
-          cleaned = cleaned.substring(prefix.length);
-          console.log(`プレフィックス "${prefix}" を除去`);
-          break; // Stop after removing the first found prefix
-        }
-      }
-      
-      console.log("最終クリーニング結果:", cleaned);
-      return cleaned.trim();
+    function init() {
+        setupThemeButtons();
+        setupEventListeners();
     }
 
-    return text; // For non-translation modes, return as is
-  }
-  
-  // エラー発生時のフォールバックモード
-  function fallbackNonStreamingAPI(messages) {
-    // 非ストリーミングモードでのAPIリクエスト
-    console.log("非ストリーミングモードでAPIリクエスト送信", messages);
-    
-    const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
-    const requestData = {
-      model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-      temperature: 0.7,
-      stream: false,
-      max_completion_tokens: 1500,  // トークン上限を増やして長文対応
-      messages: messages
-    };
-    
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestData)
-    })
-    .then(response => response.json())
-    .then(data => {
-      loadingIndicator.classList.remove('active');
-      
-      console.log("非ストリーミングAPIレスポンス:", data);
-      
-      if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-        const text = data.choices[0].message.content;
-        console.log("LLMレスポンス:", text);
+    // テーマボタンの設定
+    function setupThemeButtons() {
+        const themeButtonsContainer = document.querySelector('.theme-buttons');
+        if (!themeButtonsContainer) return;
+
+        themeButtonsContainer.innerHTML = '';
         
-        // 余計な説明文が含まれていないか確認して処理
-        const cleanedResponse = cleanResponse(text, currentMode);
-        console.log("クリーニング後:", cleanedResponse);
-        
-        if (currentMode === 'jajarev' || currentMode === 'enrev') {
-          processReviewOutput(cleanedResponse);
-        } else {
-          // 翻訳結果の欠落チェック
-          if (currentMode === 'enja' && isPossiblyTruncatedResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 翻訳の先頭部分が欠落している可能性があります。翻訳全体を確認してください。</div>`;
-          } else if (currentMode === 'jaen' && isPossiblyTruncatedEnglishResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 英語翻訳が不完全である可能性があります。翻訳全体を確認してください。</div>`;
-          } else {
-            finalOutput.value = cleanedResponse;
-          }
-        }
-      } else if (data.answer) {
-        const text = data.answer;
-        console.log("LLMレスポンス(answer):", text);
-        
-        // 余計な説明文が含まれていないか確認して処理
-        const cleanedResponse = cleanResponse(text, currentMode);
-        console.log("クリーニング後:", cleanedResponse);
-        
-        if (currentMode === 'jajarev' || currentMode === 'enrev') {
-          processReviewOutput(cleanedResponse);
-        } else {
-          // 翻訳結果の欠落チェック
-          if (currentMode === 'enja' && isPossiblyTruncatedResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 翻訳の先頭部分が欠落している可能性があります。翻訳全体を確認してください。</div>`;
-          } else if (currentMode === 'jaen' && isPossiblyTruncatedEnglishResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 英語翻訳が不完全である可能性があります。翻訳全体を確認してください。</div>`;
-          } else {
-            finalOutput.value = cleanedResponse;
-          }
-        }
-      } else {
-        throw new Error('レスポンスに期待されるフィールドがありません');
-      }
-    })
-    .catch(error => {
-      console.error('非ストリーミングAPI呼び出しエラー:', error);
-      loadingIndicator.classList.remove('active');
-      reviewOutput.innerHTML = `<div class="error">エラーが発生しました: ${error.message}</div>`;
-    });
-  }
-  
-  // 翻訳が先頭欠落している可能性を判定する関数
-  function isPossiblyTruncatedResponse(text) {
-    // 日本語の文が「が」「は」「を」「に」「で」「と」から始まっていたら、
-    // 先頭が欠落している可能性が高いと判定
-    const truncationIndicators = /^[がはをにでと]/;
-    
-    if (truncationIndicators.test(text)) {
-      console.log('翻訳の先頭欠落を検出:', text);
-      return true;
-    }
-    
-    // 先頭が小文字から始まる場合も怪しい
-    if (/^[a-z]/.test(text)) {
-      console.log('翻訳の先頭欠落の可能性あり (小文字から始まる):', text);
-      return true;
-    }
-    
-    return false;
-  }
-  
-  // 英語翻訳結果が不完全である可能性を判定する関数
-  function isPossiblyTruncatedEnglishResponse(text) {
-    // 文章が途中で終わっている可能性のあるパターン
-    if (text.endsWith(',') || text.endsWith(';') || 
-        /[a-z]$/.test(text) || // 小文字で終わる
-        /[^\.\?\!]$/.test(text)) { // 句読点なしで終わる
-      console.log('英語翻訳の末尾欠落を検出:', text);
-      return true;
-    }
-    
-    // 単語数と文字数の比率が異常に小さい場合（短い単語が多すぎる）
-    const words = text.split(/\s+/).filter(w => w.length > 0);
-    const chars = text.replace(/\s+/g, '').length;
-    if (words.length > 5 && chars / words.length < 3) {
-      console.log('英語翻訳の異常を検出 (単語/文字比率):', text);
-      return true;
-    }
-    
-    return false;
-  }
-  
-  // 校閲結果の処理
-  function processReviewOutput(text) {
-    // 新しいパターン：校閲結果、変更箇所、最終案の3つのセクションを抽出
-    const reviewPattern = /校閲結果[:：]([\s\S]+?)(変更箇所[:：]([\s\S]+?))?最終案[:：]([\s\S]+)/i;
-    const match = text.match(reviewPattern);
-    
-    if (match) {
-      // 校閲結果の抽出と構造化
-      let reviewText = match[1].trim();
-      
-      // 数字リストのフォーマット強化（1. 2. 3.など）
-      reviewText = reviewText.replace(/(\d+)\.\s+/g, '<strong>$1.</strong> ');
-      
-      // カテゴリ見出しのフォーマット強化（「文法：」「語彙：」など）
-      reviewText = reviewText.replace(/(文法|語彙|表現|構文|読みやすさ|論理展開|構造|自然さ|その他)(の問題|について|に関して)?[:：]/g, '<h4>$1</h4>');
-      
-      // 改行を段落に変換
-      reviewText = '<p>' + reviewText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
-      
-      // 重要な単語を強調
-      reviewText = reviewText.replace(/(問題点|誤り|改善点|推奨|提案|修正|不自然|適切でない)/g, '<strong>$1</strong>');
-      
-      // 変更箇所の処理（あれば）
-      let diffHtml = '';
-      if (match[3]) {
-        diffHtml = '<h4>変更箇所ハイライト</h4>';
-        
-        // diff形式の処理
-        const diffLines = match[3].trim().split('\n');
-        let inDiffBlock = false;
-        
-        diffLines.forEach(line => {
-          // diffブロックの開始と終了を検出
-          if (line.trim() === '```diff') {
-            inDiffBlock = true;
-            return;
-          } else if (line.trim() === '```' && inDiffBlock) {
-            inDiffBlock = false;
-            return;
-          }
-          
-          // diffブロック内の行を処理
-          if (inDiffBlock) {
-            if (line.startsWith('-')) {
-              // 削除された行
-              diffHtml += `<div class="diff-removed">${line.substring(1).trim()}</div>`;
-            } else if (line.startsWith('+')) {
-              // 追加された行
-              diffHtml += `<div class="diff-added">${line.substring(1).trim()}</div>`;
-            } else if (line.trim()) {
-              // コンテキスト行（内容があれば表示）
-              diffHtml += `<div>${line.trim()}</div>`;
-            }
-          } else if (line.trim()) {
-            // diffブロック外の説明文
-            diffHtml += `<p>${line.trim()}</p>`;
-          }
+        Object.entries(advancedThemes).forEach(([key, theme]) => {
+            const button = document.createElement('button');
+            button.className = 'theme-button';
+            button.onclick = () => startQuestioning(key);
+            
+            button.innerHTML = `
+                <h3>${theme.title}</h3>
+                <p>${theme.description}</p>
+            `;
+            
+            themeButtonsContainer.appendChild(button);
         });
-      }
-      
-      // 最終案
-      let determinedFinalText = match[4] ? match[4].trim() : '';
-      if (currentMode === 'enrev' && determinedFinalText) {
-        const lines = determinedFinalText.split('\n');
-        const englishPortion = [];
-        for (const line of lines) {
-          if (containsJapaneseChars(line) && !containsLatinChars(line)) {
-            break; // Likely a purely Japanese explanatory line
-          }
-          englishPortion.push(line);
-        }
-        determinedFinalText = englishPortion.join('\n').trim();
-      }
-      
-      // 最終的な表示内容を構築
-      reviewOutput.innerHTML = reviewText + (diffHtml ? '<hr>' + diffHtml : '');
-      finalOutput.value = determinedFinalText;
-    } else {
-      // 旧パターンとのフォールバック互換性（2セクション版）
-      const oldPattern = /校閲結果[:：]([\s\S]+?)最終案[:：]([\s\S]+)/i;
-      const oldMatch = text.match(oldPattern);
-      
-      if (oldMatch) {
-        // 旧パターンで処理
-        let reviewText = oldMatch[1].trim();
-        reviewText = reviewText.replace(/(\d+)\.\s+/g, '<strong>$1.</strong> ');
-        reviewText = reviewText.replace(/(文法|語彙|表現|構文|読みやすさ|論理展開|構造|自然さ|その他)(の問題|について|に関して)?[:：]/g, '<h4>$1</h4>');
-        reviewText = '<p>' + reviewText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
-        reviewText = reviewText.replace(/(問題点|誤り|改善点|推奨|提案|修正|不自然|適切でない)/g, '<strong>$1</strong>');
-        
-        reviewOutput.innerHTML = reviewText;
-        
-        let determinedOldFinalText = oldMatch[2] ? oldMatch[2].trim() : '';
-        if (currentMode === 'enrev' && determinedOldFinalText) {
-          const lines = determinedOldFinalText.split('\n');
-          const englishPortion = [];
-          for (const line of lines) {
-            if (containsJapaneseChars(line) && !containsLatinChars(line)) {
-              break; 
-            }
-            englishPortion.push(line);
-          }
-          determinedOldFinalText = englishPortion.join('\n').trim();
-        }
-        finalOutput.value = determinedOldFinalText;
-      } else {
-        // どちらのパターンにも一致しない場合
-        reviewOutput.innerHTML = '校閲結果が期待される形式で見つかりませんでした。最終案も表示できません。';
-        finalOutput.value = ''; // Ensure finalOutput is empty if structure is not found
-      }
     }
-  }
-}); 
+
+    // イベントリスナーの設定
+    function setupEventListeners() {
+        // Enterキーで送信
+        if (answerInput) {
+            answerInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    submitAnswer();
+                }
+            });
+        }
+
+        // 送信ボタン
+        if (submitButton) {
+            submitButton.onclick = submitAnswer;
+        }
+
+        // リスタートボタン
+        const restartButton = document.querySelector('.restart-button');
+        if (restartButton) {
+            restartButton.onclick = restart;
+        }
+    }
+
+    // 質問セッション開始
+    async function startQuestioning(theme) {
+        currentTheme = theme;
+        questionLevel = 0;
+        conversationHistory = [];
+        
+        if (theme === 'free_inquiry') {
+            customTheme = prompt('探求したいテーマや質問を入力してください：\n例：「なぜ私は愛されたいと思うのか」「なぜ私は成功を恐れるのか」');
+            if (!customTheme || customTheme.trim() === '') {
+                return;
+            }
+        }
+        
+        // UI切り替え
+        if (themeSelection) themeSelection.style.display = 'none';
+        if (questionSection) {
+            questionSection.style.display = 'block';
+            questionSection.classList.add('active');
+        }
+        
+        // 最初の質問を生成
+        await generateFirstQuestion();
+    }
+
+    // 最初の質問を生成
+    async function generateFirstQuestion() {
+        const theme = advancedThemes[currentTheme];
+        let questionText;
+
+        if (currentTheme === 'free_inquiry') {
+            questionText = customTheme;
+        } else {
+            questionText = theme.initialPrompt;
+        }
+
+        displayQuestion(questionText);
+    }
+
+    // 質問を表示
+    function displayQuestion(questionText) {
+        if (currentQuestion_el) {
+            currentQuestion_el.textContent = questionText;
+        }
+        if (questionLevel_el) {
+            questionLevel_el.textContent = levelDescriptions[questionLevel];
+        }
+        if (answerInput) {
+            answerInput.value = '';
+            answerInput.focus();
+        }
+    }
+
+    // 回答送信
+    async function submitAnswer() {
+        if (!answerInput) return;
+        
+        const answer = answerInput.value.trim();
+        
+        if (!answer) {
+            alert('回答を入力してください。');
+            return;
+        }
+
+        // 送信ボタンを無効化とローディング表示
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = '処理中...';
+        }
+        if (loadingIndicator && questionLevel < 3) {
+            loadingIndicator.classList.add('active');
+        }
+
+        try {
+            // 回答を履歴に追加
+            const questionText = currentQuestion_el ? currentQuestion_el.textContent : '';
+            conversationHistory.push({
+                question: questionText,
+                answer: answer,
+                level: questionLevel
+            });
+
+            // 履歴を表示
+            updateConversationHistory();
+
+            // 次のレベルへ
+            questionLevel++;
+
+            if (questionLevel >= 4) {
+                // 4回の質問が完了 - 深層分析を実行
+                await performPsychologicalAnalysis();
+            } else {
+                // 回答の質を評価
+                const qualityCheck = await evaluateAnswerQuality(answer);
+                
+                if (qualityCheck.needsDeepening) {
+                    // より深い探求を促す
+                    await generateDeepeningQuestion(answer, qualityCheck.suggestion);
+                } else {
+                    // 次の質問をLLMで生成
+                    await generateNextQuestion(answer);
+                }
+            }
+        } catch (error) {
+            console.error('エラーが発生しました:', error);
+            alert('エラーが発生しました。もう一度お試しください。');
+        } finally {
+            // 送信ボタンを有効化とローディング非表示
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = '答える';
+            }
+            if (loadingIndicator) {
+                loadingIndicator.classList.remove('active');
+            }
+        }
+    }
+
+    // 回答の質を評価
+    async function evaluateAnswerQuality(answer) {
+        // 簡易的な質の評価（表面的な回答かどうか）
+        const shallowIndicators = [
+            /^(はい|いいえ|そうです|そうではない)/,
+            /^.{1,20}$/,  // 20文字以下
+            /^(普通|特に|別に|なんとなく|よくわからない)/,
+            /^(お金|給料|収入)/,  // 表面的な動機
+        ];
+
+        const isShallow = shallowIndicators.some(pattern => pattern.test(answer));
+        
+        return {
+            needsDeepening: isShallow,
+            suggestion: isShallow ? "より具体的で深い内容" : null
+        };
+    }
+
+    // より深い探求を促す質問を生成
+    async function generateDeepeningQuestion(answer, suggestion) {
+        const deepeningPrompts = [
+            `「${answer}」について、もう少し詳しく聞かせてください。なぜそう感じるのでしょうか？`,
+            `「${answer}」という答えの背景には、どのような体験や思いがありますか？`,
+            `「${answer}」と感じるようになったきっかけや原因は何だと思いますか？`,
+            `「${answer}」ということについて、さらに深く考えてみてください。本当の理由は何でしょうか？`
+        ];
+
+        const question = deepeningPrompts[Math.floor(Math.random() * deepeningPrompts.length)];
+        
+        // レベルを戻して再度質問
+        questionLevel--;
+        displayQuestion(question);
+    }
+
+    // 次の質問をLLMで生成
+    async function generateNextQuestion(previousAnswer) {
+        const prompt = createQuestionGenerationPrompt(previousAnswer);
+        
+        try {
+            const response = await callLLM(prompt);
+            const nextQuestion = parseQuestionFromResponse(response);
+            displayQuestion(nextQuestion);
+        } catch (error) {
+            console.error('質問生成エラー:', error);
+            // フォールバック: 固定質問を使用
+            displayFallbackQuestion(previousAnswer);
+        }
+    }
+
+    // 質問生成用プロンプト作成
+    function createQuestionGenerationPrompt(previousAnswer) {
+        const context = conversationHistory.map(item => 
+            `Q${item.level + 1}: ${item.question}\nA${item.level + 1}: ${item.answer}`
+        ).join('\n\n');
+
+        const levelNames = [
+            "表面的な理由を深掘りし、より根本的な動機",
+            "個人的な体験や価値観の形成過程", 
+            "信念や価値観の根源的な起源",
+            "存在論的・哲学的な本質"
+        ];
+
+        const currentLevelDescription = levelNames[questionLevel - 1] || "深層心理";
+
+        return `あなたは深層心理を探求する専門家です。以下の会話履歴を分析し、回答者の${currentLevelDescription}に迫る鋭い質問を1つだけ生成してください。
+
+会話履歴:
+${context}
+
+最新の回答: "${previousAnswer}"
+
+質問生成の指針:
+- 第${questionLevel + 1}レベルの質問として、より深層に迫る内容にする
+- 回答者が無意識に持っている前提や価値観を問う
+- 「なぜ」を基調とした問いかけにする
+- 哲学的・実存的な視点を含める
+- 回答者が困惑し、深く考え込むような質問にする
+- 質問のみを出力し、説明や前置きは不要
+
+質問:`;
+    }
+
+    // LLM応答から質問を抽出
+    function parseQuestionFromResponse(response) {
+        // "質問:" の後の部分を抽出するか、全体を質問として扱う
+        const lines = response.split('\n').filter(line => line.trim());
+        const questionLine = lines.find(line => line.includes('質問:')) || lines[lines.length - 1];
+        
+        return questionLine.replace(/^質問:\s*/, '').trim();
+    }
+
+    // フォールバック質問
+    function displayFallbackQuestion(previousAnswer) {
+        const fallbackQuestions = [
+            `なぜ「${previousAnswer.substring(0, 30)}...」が、あなたにとって重要なのですか？`,
+            `なぜあなたはそのような考えを持つようになったのですか？`,
+            `なぜあなたは、そもそもそのような価値観を持っているのですか？`,
+            `なぜあなたという存在がそのように感じるのですか？`
+        ];
+
+        const question = fallbackQuestions[questionLevel - 1] || fallbackQuestions[3];
+        displayQuestion(question);
+    }
+
+    // 会話履歴を更新
+    function updateConversationHistory() {
+        if (!conversationHistory_el) return;
+        
+        conversationHistory_el.innerHTML = '';
+        
+        conversationHistory.forEach((item, index) => {
+            const qaPair = document.createElement('div');
+            qaPair.className = 'qa-pair';
+            qaPair.style.animationDelay = `${index * 0.1}s`;
+            
+            qaPair.innerHTML = `
+                <div class="question">${item.question}</div>
+                <div class="answer">${item.answer}</div>
+            `;
+            
+            conversationHistory_el.appendChild(qaPair);
+        });
+    }
+
+    // 深層心理分析を実行
+    async function performPsychologicalAnalysis() {
+        const analysisPrompt = createAnalysisPrompt();
+        
+        try {
+            const analysis = await callLLM(analysisPrompt);
+            showCompletion(analysis);
+        } catch (error) {
+            console.error('分析エラー:', error);
+            showCompletion(generateFallbackAnalysis());
+        }
+    }
+
+    // 分析用プロンプト作成
+    function createAnalysisPrompt() {
+        const context = conversationHistory.map(item => 
+            `Q${item.level + 1}: ${item.question}\nA${item.level + 1}: ${item.answer}`
+        ).join('\n\n');
+
+        return `あなたは深層心理学の専門家です。以下の4段階の質問と回答を分析し、この人の深層心理を洞察してください。
+
+探求テーマ: ${advancedThemes[currentTheme]?.title || 'カスタムテーマ'}
+
+会話履歴:
+${context}
+
+以下の構造で分析結果を出力してください:
+
+## 心理的パターンの分析
+この人の回答に見られる心理的傾向や無意識のパターンを指摘してください。
+
+## 根源的動機の解明  
+4つの質問を通じて明らかになった、この人の根源的な動機や価値観の起源を分析してください。
+
+## 自己理解への洞察
+この探求によって、この人が自分自身について新たに気づけることを指摘してください。
+
+## 成長への示唆
+この気づきを踏まえて、さらなる自己成長や人生の充実に向けた示唆を提供してください。
+
+分析は共感的で建設的な視点から行い、批判的ではなく理解促進を重視してください。`;
+    }
+
+    // フォールバック分析
+    function generateFallbackAnalysis() {
+        return `## 心理的パターンの分析
+あなたの回答からは、自己への深い洞察を求める姿勢が感じられます。
+
+## 根源的動機の解明
+4つの質問を通じて、あなたの価値観や行動の根底にある動機が明らかになりました。
+
+## 自己理解への洞察
+この探求により、普段意識していない自分自身の側面に気づくことができました。
+
+## 成長への示唆
+この気づきを大切にし、さらなる自己理解を深めることで、より充実した人生を歩むことができるでしょう。`;
+    }
+
+    // 完了画面を表示
+    function showCompletion(analysis) {
+        if (questionSection) {
+            questionSection.style.display = 'none';
+            questionSection.classList.remove('active');
+        }
+        if (completionSection) {
+            completionSection.style.display = 'block';
+            completionSection.classList.add('active');
+        }
+        
+        generateInsight(analysis);
+    }
+
+    // 洞察を生成・表示
+    function generateInsight(analysis) {
+        if (!insightContent) return;
+        
+        let insight = '<h3>あなたの探求の軌跡</h3>';
+        insight += '<div class="response-journey">';
+        
+        conversationHistory.forEach((item, index) => {
+            const levelName = levelDescriptions[index].split(' - ')[1];
+            insight += `
+                <div class="journey-item">
+                    <h4>${levelName}</h4>
+                    <p class="journey-question">${item.question}</p>
+                    <p class="journey-answer">"${item.answer}"</p>
+                </div>
+            `;
+        });
+        
+        insight += '</div>';
+        
+        // LLM分析結果を追加
+        insight += '<div class="psychological-analysis">';
+        insight += '<h3>深層心理分析</h3>';
+        insight += analysis.replace(/\n/g, '<br>').replace(/##\s*/g, '<h4>').replace(/<h4>/g, '</p><h4>').replace(/^<\/p>/, '');
+        insight += '</div>';
+        
+        insightContent.innerHTML = insight;
+    }
+
+    // LLM API呼び出し
+    async function callLLM(prompt) {
+        const requestData = {
+            model: MODEL_NAME,
+            temperature: 0.8,
+            stream: false,
+            max_completion_tokens: 1000,
+            messages: [
+                { role: "system", content: "あなたは深層心理学の専門家として、人々の自己理解を深める手助けをします。共感的で洞察に富んだ質問や分析を提供してください。" },
+                { role: "user", content: prompt }
+            ]
+        };
+
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+            return data.choices[0].message.content;
+        } else if (data.answer) {
+            return data.answer;
+        } else {
+            throw new Error('Unexpected API response format');
+        }
+    }
+
+    // リスタート
+    function restart() {
+        if (completionSection) {
+            completionSection.style.display = 'none';
+            completionSection.classList.remove('active');
+        }
+        if (questionSection) {
+            questionSection.style.display = 'none';
+            questionSection.classList.remove('active');
+        }
+        if (themeSelection) {
+            themeSelection.style.display = 'block';
+        }
+        
+        // 変数をリセット
+        currentTheme = '';
+        questionLevel = 0;
+        conversationHistory = [];
+        customTheme = '';
+        
+        // 履歴をクリア
+        if (conversationHistory_el) {
+            conversationHistory_el.innerHTML = '';
+        }
+        if (insightContent) {
+            insightContent.innerHTML = '';
+        }
+    }
+
+    // グローバル関数として露出（HTMLから呼び出し用）
+    window.startQuestioning = startQuestioning;
+    window.submitAnswer = submitAnswer;
+    window.restart = restart;
+});

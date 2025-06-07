@@ -1,643 +1,244 @@
-/**
- * ぬるっと翻訳・校閲ツール JavaScript
- * LLMを活用したテキスト処理ツール
- */
 document.addEventListener('DOMContentLoaded', () => {
-  // 要素の参照を取得
-  const tabs = document.querySelectorAll('.tabs .tab');
-  const inputArea = document.getElementById('inputArea');
-  const finalOutput = document.getElementById('final');
-  const reviewOutput = document.getElementById('review');
-  const runBtn = document.getElementById('runBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const copyBtn = document.getElementById('copyBtn');
-  const speakBtn = document.getElementById('speakBtn');
-  const toInputBtn = document.getElementById('toInputBtn');
-  const loadingIndicator = document.getElementById('loadingIndicator');
-  
-  // ---- BEGIN MODIFICATION: Load saved input text ----
-  // Load saved input text from localStorage, clearing a specific erroneous string if present
-  let savedInputText = localStorage.getItem('inputText');
-  if (savedInputText === "This will ensure that your input text is preserved even if you refresh the page.") {
-    localStorage.removeItem('inputText');
-    savedInputText = null; // Prevent loading this specific string
-  }
-  if (savedInputText) {
-    inputArea.value = savedInputText;
-  } else {
-    inputArea.value = ''; // Ensure it's empty if nothing valid is loaded or after clearing the specific string
-  }
-  // ---- END MODIFICATION ----
+    // 禁止ワードリスト（薬事法・広告規制対応）
+    const prohibitedWords = [
+        // 薬事法関連
+        '治る', '治す', '治療', '完治', '即効', '特効', '万能', '効く', '効果',
+        '医薬品', '処方箋', '診断', '病名', '病気', '疾患', '症候群',
+        // 効果効能の誇張
+        '確実に', '必ず', '絶対', '100%', '劇的に', '驚異的', '奇跡',
+        '痩せる', 'ダイエット効果', '脂肪燃焼', '減量効果',
+        '精力増強', '性機能向上', 'ED改善', '媚薬',
+        // 医療行為関連
+        '処方', '投薬', '服用', '用法', '用量', '副作用',
+        // 商品宣伝関連
+        'サプリメント名', '製薬会社名', 'ブランド名', '商品名',
+        // 重大疾患関連
+        '癌', 'がん', '腫瘍', '重病', '死', '致命的',
+        // その他誇張表現
+        '革命的', '画期的', '世界初', '業界初', '特許'
+    ];
 
-  // ---- BEGIN MODIFICATION: Save input text on change ----
-  // Save input text to localStorage whenever it changes
-  inputArea.addEventListener('input', () => {
-    localStorage.setItem('inputText', inputArea.value);
-  });
-  // ---- END MODIFICATION ----
-  
-  // 現在のモード（デフォルト：日本語→英語）
-  let currentMode = 'jaen';
-  
-  // 起動時にタブの状態を明示的に確認
-  console.log('初期タブ状態:');
-  tabs.forEach(tab => {
-    console.log(`${tab.id}: ${tab.classList.contains('active') ? 'active' : 'inactive'}`);
-    // スタイル確認のためのデバッグコード追加
-    const computedStyle = window.getComputedStyle(tab);
-    console.log(`${tab.id} スタイル: 背景色=${computedStyle.backgroundColor}, 色=${computedStyle.color}, ボーダー=${computedStyle.borderBottom}`);
-  });
-  
-  // すべてのタブの表示を更新する関数
-  function updateTabDisplay() {
-    tabs.forEach(tab => {
-      if (tab.classList.contains('active')) {
-        // アクティブなタブのスタイル
-        tab.style.cssText = `
-          background-color: #fff;
-          color: var(--primary);
-          font-weight: bold;
-          border-bottom: 3px solid var(--primary);
-          box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
-        `;
-      } else {
-        // 非アクティブなタブのスタイル
-        tab.style.cssText = `
-          background-color: #f8f9fa;
-          color: var(--text-secondary);
-          font-weight: normal;
-          border-bottom: none;
-          box-shadow: none;
-        `;
-      }
-    });
-  }
-  
-  // タブ切り替え関数
-  function switchTab(selectedTab) {
-    // 前のタブから active クラスを削除
-    tabs.forEach(tab => tab.classList.remove('active'));
-    
-    // 選択されたタブに active クラスを追加
-    selectedTab.classList.add('active');
-    
-    // タブの表示を更新
-    updateTabDisplay();
-    
-    // IDからモードを取得
-    currentMode = selectedTab.id.replace('tab-', '');
-    console.log('モード切替:', currentMode);
-    
-    // タブ切り替え時は結果だけをクリア（入力は保持）
-    clearResults();
-  }
-  
-  // タブ切り替え
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      switchTab(tab);
-      
-      // タブの状態を確認
-      console.log('タブ切り替え後の状態:');
-      tabs.forEach(t => {
-        console.log(`${t.id}: ${t.classList.contains('active') ? 'active' : 'inactive'}`);
-        const computedStyle = window.getComputedStyle(t);
-        console.log(`${t.id} スタイル: 背景色=${computedStyle.backgroundColor}, 色=${computedStyle.color}, ボーダー=${computedStyle.borderBottom}`);
-      });
-    });
-  });
-  
-  // 初期表示時にタブの表示を更新
-  updateTabDisplay();
-  
-  // ページ離脱時に読み上げを停止
-  window.addEventListener('beforeunload', () => {
-    if (currentSpeech) {
-      speechSynthesis.cancel();
-    }
-  });
-  
-  // コピー禁止制御（校閲結果）
-  reviewOutput.addEventListener('copy', e => {
-    e.preventDefault();
-  });
-  
-  // 最終結果コピー機能
-  copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(finalOutput.value).then(() => {
-      // コピー成功時の処理
-      copyBtn.classList.add('copy-success');
-      
-      // 2秒後に元に戻す
-      setTimeout(() => {
-        copyBtn.classList.remove('copy-success');
-      }, 2000);
-    }).catch(err => {
-      console.error('コピーに失敗しました', err);
-      alert('コピーできませんでした。');
-    });
-  });
-  
-  // 読み上げ機能
-  let currentSpeech = null;
-  
-  speakBtn.addEventListener('click', () => {
-    const text = finalOutput.value.trim();
-    
-    if (!text) {
-      alert('読み上げるテキストがありません。');
-      return;
-    }
-    
-    // Web Speech API対応チェック
-    if (!('speechSynthesis' in window)) {
-      alert('お使いのブラウザは音声読み上げ機能に対応していません。');
-      return;
-    }
-    
-    // 現在の読み上げを停止
-    if (currentSpeech) {
-      speechSynthesis.cancel();
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
-      return;
-    }
-    
-    // 新しい読み上げを開始
-    currentSpeech = new SpeechSynthesisUtterance(text);
-    
-    // 言語を自動判定
-    const language = detectLanguageForSpeech(text);
-    currentSpeech.lang = language;
-    
-    // 読み上げ設定
-    currentSpeech.rate = 0.9; // 読み上げ速度
-    currentSpeech.pitch = 1.0; // 音の高さ
-    currentSpeech.volume = 1.0; // 音量
-    
-    // イベントリスナー
-    currentSpeech.onstart = () => {
-      speakBtn.classList.add('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-stop"></i> 停止';
-    };
-    
-    currentSpeech.onend = () => {
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
-    };
-    
-    currentSpeech.onerror = (event) => {
-      console.error('読み上げエラー:', event.error);
-      currentSpeech = null;
-      speakBtn.classList.remove('speak-active');
-      speakBtn.innerHTML = '<i class="fas fa-volume-up"></i> 読み上げ';
-      alert('読み上げ中にエラーが発生しました。');
-    };
-    
-    // 読み上げ開始
-    speechSynthesis.speak(currentSpeech);
-  });
-  
-  // 言語自動判定関数（読み上げ用）
-  function detectLanguageForSpeech(text) {
-    // 日本語文字が含まれている場合は日本語
-    if (containsJapaneseChars(text)) {
-      return 'ja-JP';
-    }
-    // 英語文字のみの場合は英語
-    else if (containsLatinChars(text)) {
-      return 'en-US';
-    }
-    // デフォルトは日本語
-    return 'ja-JP';
-  }
-  
-  // リセットボタン
-  resetBtn.addEventListener('click', resetUI);
-  
-  // 実行ボタン
-  runBtn.addEventListener('click', runLLM);
-  
-  // 入力欄に戻すボタン
-  toInputBtn.addEventListener('click', () => {
-    // 最終結果を入力欄に設定
-    inputArea.value = finalOutput.value;
-    
-    // スクロールを入力欄の先頭に移動
-    inputArea.scrollTop = 0;
-    
-    // 入力欄にフォーカスを当てる
-    inputArea.focus();
-    
-    // アニメーション効果（オプション）
-    inputArea.classList.add('highlight-input');
-    setTimeout(() => {
-      inputArea.classList.remove('highlight-input');
-    }, 1000);
-  });
-  
-  // 結果のみクリア（タブ切り替え時に使用）
-  function clearResults() {
-    finalOutput.value = '';
-    reviewOutput.innerHTML = '';
-  }
-  
-  // UI初期化（全てクリア）
-  function resetUI() {
-    inputArea.value = '';
-    clearResults();
-  }
-  
-  // ---- BEGIN MODIFICATION: Helper functions for language detection ----
-  // Helper function to detect Japanese characters
-  function containsJapaneseChars(text) {
-    const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
-    return japaneseRegex.test(text);
-  }
-
-  // Helper function to detect Latin characters
-  function containsLatinChars(text) {
-    const latinRegex = /[a-zA-Z]/;
-    return latinRegex.test(text);
-  }
-  // ---- END MODIFICATION ----
-  
-  // 使い方表示トグル
-  const toggleGuide = document.querySelector('.toggle-guide');
-  const guideContent = document.querySelector('.guide-content');
-  
-  if (toggleGuide && guideContent) {
-    toggleGuide.addEventListener('click', function() {
-      guideContent.style.display = guideContent.style.display === 'none' ? 'block' : 'none';
-      this.classList.toggle('active');
-      
-      // テキストを切り替え
-      const heading = this.querySelector('h3');
-      if (heading) {
-        if (guideContent.style.display === 'block') {
-          heading.textContent = '使い方を隠す';
-        } else {
-          heading.textContent = '使い方を表示';
-        }
-      }
-    });
-  } else {
-    console.error('使い方表示/非表示の要素が見つかりません');
-  }
-  
-  // LLM実行
-  function runLLM() {
-    const input = inputArea.value.trim();
-    if (!input) {
-      alert('テキストを入力してください');
-      return;
-    }
-    
-    // ---- BEGIN MODIFICATION: Language check for proofreading modes ----
-    if (currentMode === 'jajarev') {
-      if (!containsJapaneseChars(input)) {
-        loadingIndicator.classList.remove('active'); // Ensure loading is off
-        finalOutput.value = ''; 
-        if (containsLatinChars(input)) {
-          reviewOutput.innerHTML = `<div class='error'>入力されたテキストには日本語の文字が含まれていないようです。英語のようなラテン文字ベースのテキストが検出されました。<br>日本語校閲モードでは日本語のテキストを入力してください。英語の校閲が必要な場合は、英語校閲モードに切り替えてください。</div>`;
-        } else {
-          reviewOutput.innerHTML = `<div class='error'>入力されたテキストに日本語の文字が見当たりません。日本語校閲モードでは、日本語のテキストを入力してください。</div>`;
-        }
-        return;
-      }
-    } else if (currentMode === 'enrev') {
-      if (containsJapaneseChars(input)) {
-        loadingIndicator.classList.remove('active'); // Ensure loading is off
-        finalOutput.value = '';
-        reviewOutput.innerHTML = `<div class='error'>入力されたテキストに日本語の文字が含まれています。<br>英語校閲モードでは、主に英語のテキストを対象としています。日本語の校閲が必要な場合は、日本語校閲モードをご利用ください。</div>`;
-        return;
-      }
-    }
-    // ---- END MODIFICATION ----
-    
-    // UI更新
-    loadingIndicator.classList.add('active');
-    finalOutput.value = '';
-    reviewOutput.innerHTML = '';
-    
-    // モードに応じたプロンプト作成
-    const messages = createMessages(currentMode, input);
-    
-    // APIリクエスト（非ストリーミングモードを使用）
-    // ストリーミングモードで問題が続いているため、一旦非ストリーミングモードに切り替え
-    fallbackNonStreamingAPI(messages);
-  }
-  
-  // モードごとのメッセージ作成
-  function createMessages(mode, input) {
-    const messagesMap = {
-      'jaen': [
-        { role: "system", content: "あなたは翻訳エンジンです。日本語テキストを英語に翻訳するだけです。挨拶や説明、コメントは一切含めないでください。入力テキストの英訳だけを返してください。必ず文章全体を完全に翻訳し、途中で切れないようにしてください。思考過程や翻訳に関する考察は絶対に出力しないでください。" },
-        { role: "user", content: `以下の日本語文を英語に翻訳してください。必ず全体を完全に翻訳し、途中で切れないように注意してください：\n\n『${input}』` }
-      ],
-      'enja': [
-        { role: "system", content: "あなたは翻訳エンジンです。英語テキストを日本語に翻訳するだけです。挨拶や説明、コメントは一切含めないでください。入力テキストの日本語訳だけを返してください。必ず完全な文章全体を翻訳してください。部分訳や省略は行わないでください。思考過程や翻訳に関する考察は絶対に出力しないでください。" },
-        { role: "user", content: `以下の英文を日本語に翻訳してください。必ず全体を完全に翻訳し、部分的な訳は避けてください：\n\n『${input}』` }
-      ],
-      'jajarev': [
-        { role: "system", content: "あなたは日本語校閲エンジンです。入力された日本語文を詳細に校閲し、3つの部分に分けて出力してください。\n\n1. まず「校閲結果:」で始まる校閲コメントを書いてください。以下の点を詳しく解説してください：\n- 文法・表現の誤りや改善点\n- 語彙の選択や言い回しの提案\n- 文章構造や論理展開の改善点\n- 読みやすさや自然さの向上のためのアドバイス\n\n2. 次に「変更箇所:」で始まるセクションに、元の文章から変更した箇所を以下の形式で示してください：\n```diff\n- 削除された文や単語\n+ 追加または変更された文や単語\n```\n特に重要な変更箇所を3〜5か所程度ピックアップしてください。\n\n3. 最後に「最終案:」で始まる改善された文章全体を提示してください。\n\n文章の種類や内容に応じて適切な校閲を行い、具体的な改善理由も示してください。自己紹介や余計な説明は含めないでください。" },
-        { role: "user", content: input }
-      ],
-      'enrev': [
-        { role: "system", content: "あなたは英語校閲エンジンです。入力された英語文を詳細に校閲し、3つの部分に分けて出力してください。\n\n1. まず「校閲結果:」で始まる日本語での校閲コメントを書いてください。以下の点を詳しく解説してください：\n- 文法・表現の誤りや改善点\n- 語彙の選択や言い回しの提案\n- 文章構造や論理展開の改善点\n- 英語表現としての自然さや適切さの向上のためのアドバイス\n\n2. 次に「変更箇所:」で始まるセクションに、元の文章から変更した箇所を以下の形式で示してください：\n```diff\n- 削除された文や単語（原文）\n+ 追加または変更された文や単語（修正後）\n```\n特に重要な変更箇所を3〜5か所程度ピックアップしてください。\n\n3. 最後に「最終案:」で始まる改善された英語文全体を提示してください。\n\n文章の種類や内容に応じて適切な校閲を行い、なぜその修正が必要なのかも日本語で分かりやすく説明してください。自己紹介や余計な説明は含めないでください。" },
-        { role: "user", content: input }
-      ]
-    };
-    
-    return messagesMap[mode] || messagesMap['jaen'];
-  }
-  
-  // 余計な説明テキストを除去する関数
-  function cleanResponse(text, mode) {
-    console.log("入力テキスト(元):", text);
-    console.log("モード:", mode);
-
-    if (mode === 'jaen' || mode === 'enja') {
-      let cleaned = text;
-      console.log("引用符チェック前:", cleaned);
-
-      // Remove surrounding quotes
-      if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
-        console.log("ダブルクォート検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
-        console.log("シングルクォート検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith('「') && cleaned.endsWith('」')) {
-        console.log("鉤括弧検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      } else if (cleaned.startsWith('『') && cleaned.endsWith('』')) {
-        console.log("二重鉤括弧検出");
-        cleaned = cleaned.substring(1, cleaned.length - 1);
-      }
-      console.log("引用符除去後:", cleaned);
-
-      // Remove common prefixes
-      const exactPrefixes = [
-        "Translation: ",
-        "Translated text: ",
-        "翻訳結果: ",
-        "翻訳: ",
-        "訳文: ",
-        "英訳: ",
-        "和訳: "
-      ];
-
-      for (const prefix of exactPrefixes) {
-        if (cleaned.startsWith(prefix)) {
-          cleaned = cleaned.substring(prefix.length);
-          console.log(`プレフィックス "${prefix}" を除去`);
-          break; // Stop after removing the first found prefix
-        }
-      }
-      
-      console.log("最終クリーニング結果:", cleaned);
-      return cleaned.trim();
-    }
-
-    return text; // For non-translation modes, return as is
-  }
-  
-  // エラー発生時のフォールバックモード
-  function fallbackNonStreamingAPI(messages) {
-    // 非ストリーミングモードでのAPIリクエスト
-    console.log("非ストリーミングモードでAPIリクエスト送信", messages);
-    
-    const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
-    const requestData = {
-      model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-      temperature: 0.7,
-      stream: false,
-      max_completion_tokens: 1500,  // トークン上限を増やして長文対応
-      messages: messages
-    };
-    
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestData)
-    })
-    .then(response => response.json())
-    .then(data => {
-      loadingIndicator.classList.remove('active');
-      
-      console.log("非ストリーミングAPIレスポンス:", data);
-      
-      if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-        const text = data.choices[0].message.content;
-        console.log("LLMレスポンス:", text);
-        
-        // 余計な説明文が含まれていないか確認して処理
-        const cleanedResponse = cleanResponse(text, currentMode);
-        console.log("クリーニング後:", cleanedResponse);
-        
-        if (currentMode === 'jajarev' || currentMode === 'enrev') {
-          processReviewOutput(cleanedResponse);
-        } else {
-          // 翻訳結果の欠落チェック
-          if (currentMode === 'enja' && isPossiblyTruncatedResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 翻訳の先頭部分が欠落している可能性があります。翻訳全体を確認してください。</div>`;
-          } else if (currentMode === 'jaen' && isPossiblyTruncatedEnglishResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 英語翻訳が不完全である可能性があります。翻訳全体を確認してください。</div>`;
-          } else {
-            finalOutput.value = cleanedResponse;
-          }
-        }
-      } else if (data.answer) {
-        const text = data.answer;
-        console.log("LLMレスポンス(answer):", text);
-        
-        // 余計な説明文が含まれていないか確認して処理
-        const cleanedResponse = cleanResponse(text, currentMode);
-        console.log("クリーニング後:", cleanedResponse);
-        
-        if (currentMode === 'jajarev' || currentMode === 'enrev') {
-          processReviewOutput(cleanedResponse);
-        } else {
-          // 翻訳結果の欠落チェック
-          if (currentMode === 'enja' && isPossiblyTruncatedResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 翻訳の先頭部分が欠落している可能性があります。翻訳全体を確認してください。</div>`;
-          } else if (currentMode === 'jaen' && isPossiblyTruncatedEnglishResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 英語翻訳が不完全である可能性があります。翻訳全体を確認してください。</div>`;
-          } else {
-            finalOutput.value = cleanedResponse;
-          }
-        }
-      } else {
-        throw new Error('レスポンスに期待されるフィールドがありません');
-      }
-    })
-    .catch(error => {
-      console.error('非ストリーミングAPI呼び出しエラー:', error);
-      loadingIndicator.classList.remove('active');
-      reviewOutput.innerHTML = `<div class="error">エラーが発生しました: ${error.message}</div>`;
-    });
-  }
-  
-  // 翻訳が先頭欠落している可能性を判定する関数
-  function isPossiblyTruncatedResponse(text) {
-    // 日本語の文が「が」「は」「を」「に」「で」「と」から始まっていたら、
-    // 先頭が欠落している可能性が高いと判定
-    const truncationIndicators = /^[がはをにでと]/;
-    
-    if (truncationIndicators.test(text)) {
-      console.log('翻訳の先頭欠落を検出:', text);
-      return true;
-    }
-    
-    // 先頭が小文字から始まる場合も怪しい
-    if (/^[a-z]/.test(text)) {
-      console.log('翻訳の先頭欠落の可能性あり (小文字から始まる):', text);
-      return true;
-    }
-    
-    return false;
-  }
-  
-  // 英語翻訳結果が不完全である可能性を判定する関数
-  function isPossiblyTruncatedEnglishResponse(text) {
-    // 文章が途中で終わっている可能性のあるパターン
-    if (text.endsWith(',') || text.endsWith(';') || 
-        /[a-z]$/.test(text) || // 小文字で終わる
-        /[^\.\?\!]$/.test(text)) { // 句読点なしで終わる
-      console.log('英語翻訳の末尾欠落を検出:', text);
-      return true;
-    }
-    
-    // 単語数と文字数の比率が異常に小さい場合（短い単語が多すぎる）
-    const words = text.split(/\s+/).filter(w => w.length > 0);
-    const chars = text.replace(/\s+/g, '').length;
-    if (words.length > 5 && chars / words.length < 3) {
-      console.log('英語翻訳の異常を検出 (単語/文字比率):', text);
-      return true;
-    }
-    
-    return false;
-  }
-  
-  // 校閲結果の処理
-  function processReviewOutput(text) {
-    // 新しいパターン：校閲結果、変更箇所、最終案の3つのセクションを抽出
-    const reviewPattern = /校閲結果[:：]([\s\S]+?)(変更箇所[:：]([\s\S]+?))?最終案[:：]([\s\S]+)/i;
-    const match = text.match(reviewPattern);
-    
-    if (match) {
-      // 校閲結果の抽出と構造化
-      let reviewText = match[1].trim();
-      
-      // 数字リストのフォーマット強化（1. 2. 3.など）
-      reviewText = reviewText.replace(/(\d+)\.\s+/g, '<strong>$1.</strong> ');
-      
-      // カテゴリ見出しのフォーマット強化（「文法：」「語彙：」など）
-      reviewText = reviewText.replace(/(文法|語彙|表現|構文|読みやすさ|論理展開|構造|自然さ|その他)(の問題|について|に関して)?[:：]/g, '<h4>$1</h4>');
-      
-      // 改行を段落に変換
-      reviewText = '<p>' + reviewText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
-      
-      // 重要な単語を強調
-      reviewText = reviewText.replace(/(問題点|誤り|改善点|推奨|提案|修正|不自然|適切でない)/g, '<strong>$1</strong>');
-      
-      // 変更箇所の処理（あれば）
-      let diffHtml = '';
-      if (match[3]) {
-        diffHtml = '<h4>変更箇所ハイライト</h4>';
-        
-        // diff形式の処理
-        const diffLines = match[3].trim().split('\n');
-        let inDiffBlock = false;
-        
-        diffLines.forEach(line => {
-          // diffブロックの開始と終了を検出
-          if (line.trim() === '```diff') {
-            inDiffBlock = true;
-            return;
-          } else if (line.trim() === '```' && inDiffBlock) {
-            inDiffBlock = false;
-            return;
-          }
-          
-          // diffブロック内の行を処理
-          if (inDiffBlock) {
-            if (line.startsWith('-')) {
-              // 削除された行
-              diffHtml += `<div class="diff-removed">${line.substring(1).trim()}</div>`;
-            } else if (line.startsWith('+')) {
-              // 追加された行
-              diffHtml += `<div class="diff-added">${line.substring(1).trim()}</div>`;
-            } else if (line.trim()) {
-              // コンテキスト行（内容があれば表示）
-              diffHtml += `<div>${line.trim()}</div>`;
+    // 禁止ワードチェック関数
+    function checkProhibitedWords(text) {
+        const foundWords = [];
+        prohibitedWords.forEach(word => {
+            if (text.includes(word)) {
+                foundWords.push(word);
             }
-          } else if (line.trim()) {
-            // diffブロック外の説明文
-            diffHtml += `<p>${line.trim()}</p>`;
-          }
         });
-      }
-      
-      // 最終案
-      let determinedFinalText = match[4] ? match[4].trim() : '';
-      if (currentMode === 'enrev' && determinedFinalText) {
-        const lines = determinedFinalText.split('\n');
-        const englishPortion = [];
-        for (const line of lines) {
-          if (containsJapaneseChars(line) && !containsLatinChars(line)) {
-            break; // Likely a purely Japanese explanatory line
-          }
-          englishPortion.push(line);
-        }
-        determinedFinalText = englishPortion.join('\n').trim();
-      }
-      
-      // 最終的な表示内容を構築
-      reviewOutput.innerHTML = reviewText + (diffHtml ? '<hr>' + diffHtml : '');
-      finalOutput.value = determinedFinalText;
-    } else {
-      // 旧パターンとのフォールバック互換性（2セクション版）
-      const oldPattern = /校閲結果[:：]([\s\S]+?)最終案[:：]([\s\S]+)/i;
-      const oldMatch = text.match(oldPattern);
-      
-      if (oldMatch) {
-        // 旧パターンで処理
-        let reviewText = oldMatch[1].trim();
-        reviewText = reviewText.replace(/(\d+)\.\s+/g, '<strong>$1.</strong> ');
-        reviewText = reviewText.replace(/(文法|語彙|表現|構文|読みやすさ|論理展開|構造|自然さ|その他)(の問題|について|に関して)?[:：]/g, '<h4>$1</h4>');
-        reviewText = '<p>' + reviewText.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
-        reviewText = reviewText.replace(/(問題点|誤り|改善点|推奨|提案|修正|不自然|適切でない)/g, '<strong>$1</strong>');
-        
-        reviewOutput.innerHTML = reviewText;
-        
-        let determinedOldFinalText = oldMatch[2] ? oldMatch[2].trim() : '';
-        if (currentMode === 'enrev' && determinedOldFinalText) {
-          const lines = determinedOldFinalText.split('\n');
-          const englishPortion = [];
-          for (const line of lines) {
-            if (containsJapaneseChars(line) && !containsLatinChars(line)) {
-              break; 
-            }
-            englishPortion.push(line);
-          }
-          determinedOldFinalText = englishPortion.join('\n').trim();
-        }
-        finalOutput.value = determinedOldFinalText;
-      } else {
-        // どちらのパターンにも一致しない場合
-        reviewOutput.innerHTML = '校閲結果が期待される形式で見つかりませんでした。最終案も表示できません。';
-        finalOutput.value = ''; // Ensure finalOutput is empty if structure is not found
-      }
+        return foundWords;
     }
-  }
-}); 
+
+    // 出力フィルタリング関数
+    function filterProhibitedContent(text) {
+        let filteredText = text;
+        
+        prohibitedWords.forEach(word => {
+            const regex = new RegExp(word, 'gi');
+            filteredText = filteredText.replace(regex, '***');
+        });
+        
+        return filteredText;
+    }
+
+    // システムプロンプト（東洋医学・漢方の観点を含む）
+    const systemPrompt = `あなたは栄養学と東洋医学（漢方・中医学）の知識を持つ健康アドバイザーです。
+ユーザーの体調症状から、不足している可能性のある栄養素やビタミンを分析し、適切な食材を提案してください。
+
+【重要な制約事項】
+1. 医療診断や治療に関する発言は絶対に避ける
+2. 薬事法に抵触する表現（治る、効く、確実など）を使わない
+3. 商品名、メーカー名、ブランド名は一切出さない
+4. 効果効能を誇張する表現は使わない
+5. あくまで一般的な栄養学的・食事指導の範囲に留める
+6. 発熱、激しい痛み、急性症状については何もアドバイスしない
+
+【分析の観点】
+- 現代栄養学に基づく栄養素分析
+- 東洋医学の「気・血・水」「五臓六腑」の考え方
+- 漢方の「証」（体質・症状パターン）の概念
+- 食材の性質（温・涼・平、五味など）
+
+【回答形式】
+【体調の分析】
+- 東洋医学的観点から見た体調パターン
+- 気血水のバランス状態
+
+【不足の可能性がある栄養素】
+- 栄養素名：理由と一般的な働き
+
+【おすすめの食材】
+- 食材名：含まれる栄養素と期待される一般的な働き
+- 東洋医学的性質も考慮した食材選択
+
+【生活習慣のアドバイス】
+- 食事のタイミングや調理法
+- 一般的な生活習慣の提案
+
+※注意：これは一般的な栄養学的・食事指導の情報です。体調不良が続く場合は医療機関を受診してください。`;
+
+    // 分析実行関数
+    async function analyzeSymptoms() {
+        const apiKey = document.getElementById('apiKey').value;
+        if (!apiKey) {
+            alert('OpenAI APIキーを入力してください');
+            return;
+        }
+
+        // 選択された症状を取得
+        const selectedItems = document.querySelectorAll('.symptom-item.selected');
+        if (selectedItems.length === 0) {
+            alert('少なくとも1つの症状を選択してください');
+            return;
+        }
+
+        const symptoms = Array.from(selectedItems).map(item => item.getAttribute('data-value'));
+        const symptomText = symptoms.join('、');
+
+        // UI更新
+        const analyzeButton = document.querySelector('.analyze-button');
+        const loadingDiv = document.querySelector('.loading');
+        const resultContainer = document.querySelector('.result-container');
+        const resultContent = document.querySelector('.result-content');
+
+        analyzeButton.disabled = true;
+        loadingDiv.style.display = 'block';
+        resultContainer.style.display = 'none';
+
+        try {
+            // OpenAI API呼び出し
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-3.5-turbo',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { 
+                            role: 'user', 
+                            content: `以下の体調症状があります：${symptomText}\n\n東洋医学と現代栄養学の観点から、これらの症状から考えられる栄養素の不足と、おすすめの食材を教えてください。薬事法に注意して、一般的な栄養学的アドバイスの範囲でお答えください。` 
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1500
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`API Error: ${errorData.error?.message || 'Unknown error'}`);
+            }
+
+            const data = await response.json();
+            let result = data.choices[0].message.content;
+
+            // 禁止ワードチェック
+            const foundProhibitedWords = checkProhibitedWords(result);
+            if (foundProhibitedWords.length > 0) {
+                console.warn('禁止ワードが検出されました:', foundProhibitedWords);
+                
+                // 禁止ワードをフィルタリング
+                result = filterProhibitedContent(result);
+                
+                // 警告メッセージを追加
+                result += '\n\n※ 一部の表現が適切な表現に変更されています。';
+            }
+
+            // 体調に関わらない質問への対応チェック
+            if (!containsHealthRelatedContent(symptomText, result)) {
+                result = '申し訳ございませんが、体調や栄養に関わらない内容については回答できません。体調の症状を選択してご利用ください。';
+            }
+
+            // 結果表示
+            resultContent.textContent = result;
+            resultContainer.style.display = 'block';
+
+            // 結果をログに記録（モニタリング用）
+            logAnalysisResult(symptoms, result, foundProhibitedWords);
+
+        } catch (error) {
+            console.error('分析エラー:', error);
+            
+            let errorMessage = '分析中にエラーが発生しました。';
+            if (error.message.includes('API Key')) {
+                errorMessage = 'APIキーが無効です。正しいOpenAI APIキーを入力してください。';
+            } else if (error.message.includes('quota')) {
+                errorMessage = 'APIの利用制限に達しています。時間をおいて再度お試しください。';
+            } else if (error.message.includes('rate limit')) {
+                errorMessage = 'リクエストが多すぎます。少し時間をおいて再度お試しください。';
+            }
+            
+            alert(errorMessage);
+        } finally {
+            analyzeButton.disabled = false;
+            loadingDiv.style.display = 'none';
+        }
+    }
+
+    // 健康関連コンテンツかどうかをチェック
+    function containsHealthRelatedContent(symptoms, result) {
+        // 体調症状が選択されている場合は健康関連とみなす
+        if (symptoms && symptoms.trim().length > 0) {
+            return true;
+        }
+        
+        // 結果に健康・栄養関連のキーワードが含まれているかチェック
+        const healthKeywords = ['栄養', 'ビタミン', 'ミネラル', '食材', '体調', '健康', '食事'];
+        return healthKeywords.some(keyword => result.includes(keyword));
+    }
+
+    // 分析結果のログ記録（モニタリング用）
+    function logAnalysisResult(symptoms, result, prohibitedWords) {
+        const logData = {
+            timestamp: new Date().toISOString(),
+            symptoms: symptoms,
+            resultLength: result.length,
+            prohibitedWordsFound: prohibitedWords,
+            userAgent: navigator.userAgent
+        };
+        
+        console.log('分析結果ログ:', logData);
+        
+        // 実際の実装では、サーバーサイドのログシステムに送信することを推奨
+        // fetch('/api/log-analysis', { method: 'POST', body: JSON.stringify(logData) });
+    }
+
+    // エンターキーでの誤送信を防ぐ
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
+            e.preventDefault();
+        }
+    });
+
+    // APIキー入力フィールドでのエンターキー処理
+    const apiKeyInput = document.getElementById('apiKey');
+    if (apiKeyInput) {
+        apiKeyInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                analyzeSymptoms();
+            }
+        });
+    }
+
+    // 分析ボタンのイベントリスナーを設定
+    const analyzeButton = document.querySelector('.analyze-button');
+    if (analyzeButton) {
+        analyzeButton.addEventListener('click', analyzeSymptoms);
+    }
+
+    // 症状選択ボタンのイベントリスナーを設定
+    const symptomItems = document.querySelectorAll('.symptom-item');
+    symptomItems.forEach(item => {
+        item.addEventListener('click', function() {
+            // 選択状態をトグル
+            this.classList.toggle('selected');
+        });
+    });
+
+    // グローバル関数として公開（HTMLから呼び出し可能にする）
+    window.analyzeSymptoms = analyzeSymptoms;
+});

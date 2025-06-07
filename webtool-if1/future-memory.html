@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>未来記憶の共創ツール</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #764ba2;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .nav-links {
+            margin-top: 15px;
+        }
+
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 15px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            color: #764ba2;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            width: 30px;
+            height: 30px;
+            background: #764ba2;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #764ba2;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .primary-btn {
+            background: #764ba2;
+            color: white;
+        }
+
+        .primary-btn:hover {
+            background: #6a3d91;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4);
+        }
+
+        .secondary-btn {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .secondary-btn:hover {
+            background: #d0d0d0;
+        }
+
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .scenario-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .scenario-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .scenario-card.selected {
+            border-color: #764ba2;
+            background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+        }
+
+        .scenario-card h4 {
+            color: #764ba2;
+            margin-bottom: 10px;
+        }
+
+        .scenario-card p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .memory-output {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 200px;
+            margin-top: 20px;
+        }
+
+        .memory-output h3 {
+            color: #764ba2;
+            margin-bottom: 15px;
+        }
+
+        .memory-timeline {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .timeline-item {
+            display: flex;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #764ba2;
+        }
+
+        .timeline-content {
+            flex: 1;
+        }
+
+        .timeline-date {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .timeline-description {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #764ba2;
+        }
+
+        .loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #764ba2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .scenario-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <div class="header fade-in">
+            <h1>未来記憶の共創ツール</h1>
+            <p class="subtitle">"もしも"の人生をAIと創り、他者と交換できる仮想体験プラットフォーム</p>
+            <div class="nav-links">
+                <a href="index.html">← 共感スペクトラム・メッセンジャー</a>
+                <a href="#timeline">タイムライン</a>
+                <a href="#sharing">共有機能</a>
+            </div>
+        </div>
+
+        <!-- メインコンテンツ -->
+        <div class="main-content">
+            <!-- 現実記憶入力 -->
+            <div class="section fade-in">
+                <h2 class="section-title">
+                    <span class="icon">💭</span>
+                    現実記憶の入力
+                </h2>
+
+                <div class="form-group">
+                    <label for="realMemory">大切な記憶やエピソード</label>
+                    <textarea id="realMemory" placeholder="あなたの大切な記憶や体験を詳しく書いてください。例：初めての家族旅行、卒業式の日、重要な出会いなど..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="memoryCategory">記憶のカテゴリ</label>
+                    <select id="memoryCategory">
+                        <option value="family">家族・親族</option>
+                        <option value="education">教育・学習</option>
+                        <option value="friendship">友人・人間関係</option>
+                        <option value="achievement">達成・成功体験</option>
+                        <option value="challenge">困難・挫折体験</option>
+                        <option value="travel">旅行・冒険</option>
+                        <option value="work">仕事・キャリア</option>
+                        <option value="love">恋愛・結婚</option>
+                        <option value="creative">創作・表現</option>
+                        <option value="other">その他</option>
+                    </select>
+                </div>
+
+                <div class="button-group">
+                    <button class="primary-btn" onclick="analyzeRealMemory()">
+                        <span>🔍</span>
+                        記憶を分析
+                    </button>
+                    <button class="secondary-btn" onclick="clearMemoryInput()">
+                        <span>🗑️</span>
+                        クリア
+                    </button>
+                </div>
+            </div>
+
+            <!-- if世界設定 -->
+            <div class="section fade-in">
+                <h2 class="section-title">
+                    <span class="icon">🌍</span>
+                    "if世界"パラメータ設定
+                </h2>
+
+                <div class="form-group">
+                    <label>事前設定シナリオ</label>
+                    <div class="scenario-grid">
+                        <div class="scenario-card" onclick="selectScenario('different-era')">
+                            <h4>異なる時代</h4>
+                            <p>江戸時代、明治時代、未来社会などで同じ体験をしたら？</p>
+                        </div>
+                        <div class="scenario-card" onclick="selectScenario('different-culture')">
+                            <h4>異文化圏</h4>
+                            <p>アメリカ、ヨーロッパ、アフリカなど異なる文化で育ったら？</p>
+                        </div>
+                        <div class="scenario-card" onclick="selectScenario('different-family')">
+                            <h4>異なる家族構成</h4>
+                            <p>一人っ子、大家族、国際結婚家庭などで育ったら？</p>
+                        </div>
+                        <div class="scenario-card" onclick="selectScenario('different-socioeconomic')">
+                            <h4>異なる社会階層</h4>
+                            <p>富裕層、中間層、労働者階級など異なる環境で育ったら？</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="customScenario">カスタムシナリオ</label>
+                    <textarea id="customScenario" placeholder="独自の「もしも」シナリオを自由に設定してください..."></textarea>
+                </div>
+
+                <div class="button-group">
+                    <button class="primary-btn" onclick="generateIfMemory()">
+                        <span>✨</span>
+                        if記憶を生成
+                    </button>
+                    <button class="secondary-btn" onclick="randomScenario()">
+                        <span>🎲</span>
+                        ランダム生成
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 生成結果表示 -->
+        <div class="section fade-in">
+            <h2 class="section-title">
+                <span class="icon">📖</span>
+                生成されたif記憶
+            </h2>
+            <div class="memory-output" id="memoryOutput">
+                <p style="color: #999; text-align: center;">記憶を入力してif記憶生成ボタンを押してください</p>
+            </div>
+        </div>
+
+        <!-- タイムライン -->
+        <div class="memory-timeline fade-in" id="timeline">
+            <h2 class="section-title">
+                <span class="icon">⏰</span>
+                if記憶タイムライン
+            </h2>
+            <div id="timelineContent">
+                <p style="color: #999; text-align: center;">まだif記憶が生成されていません</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // グローバル変数
+        let currentRealMemory = null;
+        let currentScenario = null;
+        let ifMemoryHistory = [];
+
+        // 現実記憶分析
+        async function analyzeRealMemory() {
+            const realMemory = document.getElementById('realMemory').value.trim();
+            const category = document.getElementById('memoryCategory').value;
+
+            if (!realMemory) {
+                alert('記憶を入力してください');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const analysis = await analyzeMemoryWithAI(realMemory, category);
+                currentRealMemory = {
+                    content: realMemory,
+                    category: category,
+                    analysis: analysis,
+                    timestamp: new Date()
+                };
+
+                alert('記憶の分析が完了しました。if世界を設定してif記憶を生成してください。');
+            } catch (error) {
+                console.error('記憶分析エラー:', error);
+                alert('記憶分析中にエラーが発生しました: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // AI記憶分析
+        async function analyzeMemoryWithAI(memory, category) {
+            const prompt = [
+                {
+                    role: "system",
+                    content: `あなたは記憶分析の専門家です。与えられた記憶を分析し、以下の形式のJSONで回答してください：
+
+{
+  "keyElements": ["重要な要素1", "重要な要素2", ...],
+  "emotions": ["感情1", "感情2", ...],
+  "culturalContext": "文化的背景の説明",
+  "relationships": ["関係性1", "関係性2", ...],
+  "values": ["価値観1", "価値観2", ...],
+  "setting": {
+    "time": "時期・時代",
+    "place": "場所・環境",
+    "social": "社会的状況"
+  }
+}`
+                },
+                {
+                    role: "user",
+                    content: `以下の記憶を分析してください（カテゴリ: ${category}）：\n\n${memory}`
+                }
+            ];
+
+            const response = await callLLMAPI(prompt);
+            return JSON.parse(response);
+        }
+
+        // シナリオ選択
+        function selectScenario(scenarioType) {
+            // 既存の選択をクリア
+            document.querySelectorAll('.scenario-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+
+            // 新しい選択をマーク
+            event.target.closest('.scenario-card').classList.add('selected');
+
+            const scenarios = {
+                'different-era': {
+                    type: '異なる時代',
+                    options: ['江戸時代末期', '明治維新期', '大正ロマン', '戦後復興期', '高度経済成長期', '2050年の未来社会']
+                },
+                'different-culture': {
+                    type: '異文化圏',
+                    options: ['アメリカ中西部', 'フランス田舎町', 'インド大都市', 'アフリカ部族社会', '中東砂漠地帯', '北欧森林地域']
+                },
+                'different-family': {
+                    type: '異なる家族構成',
+                    options: ['大家族(祖父母・親戚同居)', '一人っ子家庭', '国際結婚家庭', 'ひとり親家庭', '養子縁組家庭', '共同体育児']
+                },
+                'different-socioeconomic': {
+                    type: '異なる社会階層',
+                    options: ['富裕層(財閥家系)', '知識階級(学者家系)', '商工業者階級', '農業従事者', '芸術家コミュニティ', '遊牧民社会']
+                }
+            };
+
+            currentScenario = scenarios[scenarioType];
+            
+            // カスタムシナリオ欄を更新
+            const randomOption = currentScenario.options[Math.floor(Math.random() * currentScenario.options.length)];
+            document.getElementById('customScenario').value = 
+                `${currentScenario.type}: ${randomOption}で同じ体験をした場合`;
+        }
+
+        // ランダムシナリオ生成
+        function randomScenario() {
+            const allScenarios = ['different-era', 'different-culture', 'different-family', 'different-socioeconomic'];
+            const randomScenario = allScenarios[Math.floor(Math.random() * allScenarios.length)];
+            selectScenario(randomScenario);
+        }
+
+        // if記憶生成
+        async function generateIfMemory() {
+            if (!currentRealMemory) {
+                alert('まず現実の記憶を入力・分析してください');
+                return;
+            }
+
+            const customScenario = document.getElementById('customScenario').value.trim();
+            if (!customScenario) {
+                alert('ifシナリオを設定してください');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const ifMemory = await generateIfMemoryWithAI(currentRealMemory, customScenario);
+                displayIfMemory(ifMemory);
+                addToTimeline(ifMemory);
+            } catch (error) {
+                console.error('if記憶生成エラー:', error);
+                alert('if記憶生成中にエラーが発生しました: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // AIによるif記憶生成
+        async function generateIfMemoryWithAI(realMemory, scenario) {
+            const prompt = [
+                {
+                    role: "system",
+                    content: `あなたはif記憶生成の専門家です。現実の記憶を異なる条件下でのシミュレーションとして再構築してください。
+
+以下の形式のJSONで回答してください：
+{
+  "ifStory": "if記憶の詳細なストーリー",
+  "culturalDifferences": ["文化的違い1", "文化的違い2", ...],
+  "valueChanges": ["価値観の変化1", "価値観の変化2", ...],
+  "newPerspectives": ["新しい視点1", "新しい視点2", ...],
+  "emotionalImpact": "感情的な影響の分析",
+  "lessonsLearned": ["学び1", "学び2", ...],
+  "comparisonWithReality": "現実との比較・考察"
+}`
+                },
+                {
+                    role: "user",
+                    content: `現実記憶: ${realMemory.content}
+分析結果: ${JSON.stringify(realMemory.analysis)}
+ifシナリオ: ${scenario}
+
+この条件でif記憶を生成してください。`
+                }
+            ];
+
+            const response = await callLLMAPI(prompt);
+            const ifMemory = JSON.parse(response);
+            
+            return {
+                ...ifMemory,
+                originalMemory: realMemory,
+                scenario: scenario,
+                timestamp: new Date()
+            };
+        }
+
+        // if記憶表示
+        function displayIfMemory(ifMemory) {
+            const output = document.getElementById('memoryOutput');
+            
+            output.innerHTML = `
+                <h3>生成されたif記憶</h3>
+                <div style="margin: 20px 0; padding: 15px; background: white; border-radius: 10px; border-left: 4px solid #764ba2;">
+                    <p style="line-height: 1.6; margin-bottom: 15px;">${ifMemory.ifStory}</p>
+                </div>
+                
+                <h4 style="color: #764ba2; margin: 20px 0 10px 0;">文化的違い</h4>
+                <ul style="margin-left: 20px; line-height: 1.6;">
+                    ${ifMemory.culturalDifferences.map(diff => `<li>${diff}</li>`).join('')}
+                </ul>
+                
+                <h4 style="color: #764ba2; margin: 20px 0 10px 0;">価値観の変化</h4>
+                <ul style="margin-left: 20px; line-height: 1.6;">
+                    ${ifMemory.valueChanges.map(change => `<li>${change}</li>`).join('')}
+                </ul>
+                
+                <h4 style="color: #764ba2; margin: 20px 0 10px 0;">新しい視点</h4>
+                <ul style="margin-left: 20px; line-height: 1.6;">
+                    ${ifMemory.newPerspectives.map(perspective => `<li>${perspective}</li>`).join('')}
+                </ul>
+                
+                <h4 style="color: #764ba2; margin: 20px 0 10px 0;">現実との比較</h4>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; line-height: 1.6;">
+                    ${ifMemory.comparisonWithReality}
+                </div>
+            `;
+        }
+
+        // タイムラインに追加
+        function addToTimeline(ifMemory) {
+            ifMemoryHistory.unshift(ifMemory);
+            updateTimeline();
+            
+            // ローカルストレージに保存
+            localStorage.setItem('ifMemoryHistory', JSON.stringify(ifMemoryHistory));
+        }
+
+        // タイムライン更新
+        function updateTimeline() {
+            const timelineContent = document.getElementById('timelineContent');
+            
+            if (ifMemoryHistory.length === 0) {
+                timelineContent.innerHTML = '<p style="color: #999; text-align: center;">まだif記憶が生成されていません</p>';
+                return;
+            }
+
+            timelineContent.innerHTML = ifMemoryHistory.map((memory, index) => `
+                <div class="timeline-item fade-in">
+                    <div class="timeline-content">
+                        <div class="timeline-date">${formatTimestamp(memory.timestamp)}</div>
+                        <div class="timeline-title">if記憶 #${ifMemoryHistory.length - index}</div>
+                        <div class="timeline-description">
+                            <strong>シナリオ:</strong> ${memory.scenario}<br>
+                            <strong>元記憶:</strong> ${memory.originalMemory.content.substring(0, 100)}...
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // LLM API呼び出し（共感スペクトラム・メッセンジャーと共通）
+        async function callLLMAPI(messages) {
+            const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+            const requestData = {
+                model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+                temperature: 0.7,
+                stream: false,
+                max_completion_tokens: 2000,
+                messages: messages
+            };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`API呼び出しエラー: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                return data.choices[0].message.content;
+            } else if (data.answer) {
+                return data.answer;
+            } else {
+                throw new Error('API応答に期待されるフィールドがありません');
+            }
+        }
+
+        // ユーティリティ関数
+        function showLoading() {
+            const output = document.getElementById('memoryOutput');
+            output.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>AI処理中...</p>
+                </div>
+            `;
+        }
+
+        function hideLoading() {
+            // showLoading後に結果が表示されるので、特別な処理は不要
+        }
+
+        function clearMemoryInput() {
+            document.getElementById('realMemory').value = '';
+            document.getElementById('customScenario').value = '';
+            document.querySelectorAll('.scenario-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            currentRealMemory = null;
+            currentScenario = null;
+        }
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('ja-JP', { 
+                month: 'short', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+
+        // ページ読み込み時の初期化
+        window.addEventListener('load', () => {
+            const saved = localStorage.getItem('ifMemoryHistory');
+            if (saved) {
+                try {
+                    ifMemoryHistory = JSON.parse(saved);
+                    updateTimeline();
+                } catch (error) {
+                    console.error('if記憶履歴の復元に失敗:', error);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
