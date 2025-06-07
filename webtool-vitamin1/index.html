@@ -332,6 +332,26 @@
             }
         }
 
+        /* キーボードフォーカス対応 */
+        .symptom-item:focus {
+            outline: 3px solid #4a90e2;
+            outline-offset: 2px;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
+        }
+
+        .analyze-button:focus {
+            outline: 3px solid #4a90e2;
+            outline-offset: 2px;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
+        }
+
+        .api-input:focus {
+            outline: 3px solid #4a90e2;
+            outline-offset: 2px;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
+        }
+
         /* ホバー効果をタッチデバイスで無効化 */
         @media (hover: none) and (pointer: coarse) {
             .symptom-item:hover {
@@ -373,133 +393,133 @@
             <div class="symptoms-grid">
                 <div class="symptom-category">
                     <div class="category-title">全身症状</div>
-                    <div class="symptom-item" data-value="疲れやすい">
+                    <div class="symptom-item" data-value="疲れやすい" tabindex="0" role="button" aria-pressed="false">
                         疲れやすい
                     </div>
-                    <div class="symptom-item" data-value="だるさが続く">
+                    <div class="symptom-item" data-value="だるさが続く" tabindex="0" role="button" aria-pressed="false">
                         だるさが続く
                     </div>
-                    <div class="symptom-item" data-value="階段の上り下りが辛い">
+                    <div class="symptom-item" data-value="階段の上り下りが辛い" tabindex="0" role="button" aria-pressed="false">
                         階段の上り下りが辛い
                     </div>
-                    <div class="symptom-item" data-value="疲労回復が遅い">
+                    <div class="symptom-item" data-value="疲労回復が遅い" tabindex="0" role="button" aria-pressed="false">
                         疲労回復が遅い
                     </div>
-                    <div class="symptom-item" data-value="冷え性">
+                    <div class="symptom-item" data-value="冷え性" tabindex="0" role="button" aria-pressed="false">
                         冷え性
                     </div>
                 </div>
 
                 <div class="symptom-category">
                     <div class="category-title">代謝・体重</div>
-                    <div class="symptom-item" data-value="最近太りやすい">
+                    <div class="symptom-item" data-value="最近太りやすい" tabindex="0" role="button" aria-pressed="false">
                         最近太りやすい
                     </div>
-                    <div class="symptom-item" data-value="代謝が落ちた">
+                    <div class="symptom-item" data-value="代謝が落ちた" tabindex="0" role="button" aria-pressed="false">
                         代謝が落ちた
                     </div>
-                    <div class="symptom-item" data-value="食欲不振">
+                    <div class="symptom-item" data-value="食欲不振" tabindex="0" role="button" aria-pressed="false">
                         食欲不振
                     </div>
-                    <div class="symptom-item" data-value="お腹が張りやすい">
+                    <div class="symptom-item" data-value="お腹が張りやすい" tabindex="0" role="button" aria-pressed="false">
                         お腹が張りやすい
                     </div>
-                    <div class="symptom-item" data-value="便秘気味">
+                    <div class="symptom-item" data-value="便秘気味" tabindex="0" role="button" aria-pressed="false">
                         便秘気味
                     </div>
                 </div>
 
                 <div class="symptom-category">
                     <div class="category-title">睡眠・精神</div>
-                    <div class="symptom-item" data-value="寝つきが悪い">
+                    <div class="symptom-item" data-value="寝つきが悪い" tabindex="0" role="button" aria-pressed="false">
                         寝つきが悪い
                     </div>
-                    <div class="symptom-item" data-value="眠りが浅い">
+                    <div class="symptom-item" data-value="眠りが浅い" tabindex="0" role="button" aria-pressed="false">
                         眠りが浅い
                     </div>
-                    <div class="symptom-item" data-value="イライラしやすい">
+                    <div class="symptom-item" data-value="イライラしやすい" tabindex="0" role="button" aria-pressed="false">
                         イライラしやすい
                     </div>
-                    <div class="symptom-item" data-value="集中力が続かない">
+                    <div class="symptom-item" data-value="集中力が続かない" tabindex="0" role="button" aria-pressed="false">
                         集中力が続かない
                     </div>
-                    <div class="symptom-item" data-value="気分の落ち込み">
+                    <div class="symptom-item" data-value="気分の落ち込み" tabindex="0" role="button" aria-pressed="false">
                         気分の落ち込み
                     </div>
                 </div>
 
                 <div class="symptom-category">
                     <div class="category-title">皮膚・髪・爪</div>
-                    <div class="symptom-item" data-value="肌の乾燥">
+                    <div class="symptom-item" data-value="肌の乾燥" tabindex="0" role="button" aria-pressed="false">
                         肌の乾燥
                     </div>
-                    <div class="symptom-item" data-value="肌荒れしやすい">
+                    <div class="symptom-item" data-value="肌荒れしやすい" tabindex="0" role="button" aria-pressed="false">
                         肌荒れしやすい
                     </div>
-                    <div class="symptom-item" data-value="髪の毛が抜けやすい">
+                    <div class="symptom-item" data-value="髪の毛が抜けやすい" tabindex="0" role="button" aria-pressed="false">
                         髪の毛が抜けやすい
                     </div>
-                    <div class="symptom-item" data-value="爪が割れやすい">
+                    <div class="symptom-item" data-value="爪が割れやすい" tabindex="0" role="button" aria-pressed="false">
                         爪が割れやすい
                     </div>
-                    <div class="symptom-item" data-value="傷の治りが遅い">
+                    <div class="symptom-item" data-value="傷の治りが遅い" tabindex="0" role="button" aria-pressed="false">
                         傷の治りが遅い
                     </div>
                 </div>
 
                 <div class="symptom-category">
                     <div class="category-title">目・口</div>
-                    <div class="symptom-item" data-value="目の疲れ">
+                    <div class="symptom-item" data-value="目の疲れ" tabindex="0" role="button" aria-pressed="false">
                         目の疲れ
                     </div>
-                    <div class="symptom-item" data-value="目の乾燥">
+                    <div class="symptom-item" data-value="目の乾燥" tabindex="0" role="button" aria-pressed="false">
                         目の乾燥
                     </div>
-                    <div class="symptom-item" data-value="口内炎ができやすい">
+                    <div class="symptom-item" data-value="口内炎ができやすい" tabindex="0" role="button" aria-pressed="false">
                         口内炎ができやすい
                     </div>
-                    <div class="symptom-item" data-value="口の渇き">
+                    <div class="symptom-item" data-value="口の渇き" tabindex="0" role="button" aria-pressed="false">
                         口の渇き
                     </div>
-                    <div class="symptom-item" data-value="味覚の変化">
+                    <div class="symptom-item" data-value="味覚の変化" tabindex="0" role="button" aria-pressed="false">
                         味覚の変化
                     </div>
                 </div>
 
                 <div class="symptom-category">
                     <div class="category-title">筋肉・関節</div>
-                    <div class="symptom-item" data-value="筋肉がつりやすい">
+                    <div class="symptom-item" data-value="筋肉がつりやすい" tabindex="0" role="button" aria-pressed="false">
                         筋肉がつりやすい
                     </div>
-                    <div class="symptom-item" data-value="関節の痛み">
+                    <div class="symptom-item" data-value="関節の痛み" tabindex="0" role="button" aria-pressed="false">
                         関節の痛み
                     </div>
-                    <div class="symptom-item" data-value="筋力低下">
+                    <div class="symptom-item" data-value="筋力低下" tabindex="0" role="button" aria-pressed="false">
                         筋力低下
                     </div>
-                    <div class="symptom-item" data-value="体の硬さ・こわばり">
+                    <div class="symptom-item" data-value="体の硬さ・こわばり" tabindex="0" role="button" aria-pressed="false">
                         体の硬さ・こわばり
                     </div>
-                    <div class="symptom-item" data-value="肩こり・腰痛">
+                    <div class="symptom-item" data-value="肩こり・腰痛" tabindex="0" role="button" aria-pressed="false">
                         肩こり・腰痛
                     </div>
                 </div>
 
                 <div class="symptom-category">
                     <div class="category-title">その他</div>
-                    <div class="symptom-item" data-value="頭痛がよくある">
+                    <div class="symptom-item" data-value="頭痛がよくある" tabindex="0" role="button" aria-pressed="false">
                         頭痛がよくある
                     </div>
-                    <div class="symptom-item" data-value="めまいがする">
+                    <div class="symptom-item" data-value="めまいがする" tabindex="0" role="button" aria-pressed="false">
                         めまいがする
                     </div>
-                    <div class="symptom-item" data-value="風邪をひきやすい">
+                    <div class="symptom-item" data-value="風邪をひきやすい" tabindex="0" role="button" aria-pressed="false">
                         風邪をひきやすい
                     </div>
-                    <div class="symptom-item" data-value="むくみやすい">
+                    <div class="symptom-item" data-value="むくみやすい" tabindex="0" role="button" aria-pressed="false">
                         むくみやすい
                     </div>
-                    <div class="symptom-item" data-value="動悸がする">
+                    <div class="symptom-item" data-value="動悸がする" tabindex="0" role="button" aria-pressed="false">
                         動悸がする
                     </div>
                 </div>

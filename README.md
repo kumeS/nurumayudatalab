@@ -23,45 +23,58 @@ Nurumayu Data Lab is a comprehensive web-based toolkit designed to enhance the e
 
 ## Provided Tools
 
-### [Keyword Formatting Tool](https://nurumayudatalab.com/webtool-keyword-tool/index.html)
-- **Automatic Duplicate Removal**: Intelligently identifies and eliminates duplicate keywords to optimize your content
-- **Byte-Based Splitting**: Precisely divides keyword lists into specified byte lengths (250 bytes, 500 bytes) for platform compatibility
-- **Format Conversion**: Seamlessly converts space-separated keywords to line-separated format for better organization
+### General Tools
 
-### [A+ Content Line Break Generator](https://nurumayudatalab.com/webtool-aplus-br-generator/index.html)
-- **Smart Line Breaking**: Automatically processes product descriptions with intelligent line break insertion
-- **Flexible Character Limits**: Supports multiple character count options (50, 60, 70, 80 characters) for various platform requirements
-- **Paragraph Optimization**: Automatically converts and optimizes paragraph breaks for enhanced readability
-
-### [Nurumayu Translation & Proofreading Tool](https://nurumayudatalab.com/webtool-LLMworker-translator/index.html)
-- **AI-Powered Translation**: Advanced translation capabilities with context-aware accuracy for professional content
-- **Integrated Proofreading**: Real-time grammar and style checking to ensure polished, error-free translations
-- **Multi-Language Support**: Seamless translation between multiple language pairs with cultural nuance preservation
-
-### [AI Training Quiz Auto-Generator](https://nurumayudatalab.com/webtool-aiquiz/index.html)
-- **Automated Content Creation**: Instantly generates comprehensive training quizzes from any input material or topic
-- **Customizable Difficulty Levels**: Adjustable complexity settings to match different skill levels and learning objectives
-- **Performance Analytics**: Built-in tracking and assessment features to monitor learning progress and identify knowledge gaps
-
-### [Educational Quiz Generator for K-12](https://nurumayudatalab.com/webtool-quiz/index.html)
-- **Age-Appropriate Content**: Automatically creates engaging quizzes tailored to elementary, middle, and high school curricula
-- **Subject-Specific Templates**: Pre-configured formats for various subjects including math, science, language arts, and social studies
-- **Interactive Learning Elements**: Gamification features and visual aids to enhance student engagement and retention
-
-### [Multi-LLM System](https://nurumayudatalab.com/webtool-multiLLM/index.html)
+#### [Multi-LLM System](https://nurumayudatalab.com/webtool-multiLLM/index.html)
 - **Multiple AI Models**: Access to various large language models for diverse tasks and specialized use cases
 - **Intelligent Model Selection**: Automatic routing to the most suitable AI model based on task requirements and content type
 - **Unified Interface**: Single platform to interact with different AI systems without switching between multiple tools
 
-### [Keyword Integration Checker](https://nurumayudatalab.com/webtool-matching-machine/index.html)
-- **SEO Optimization Validation**: Verifies proper keyword placement and density across your content for maximum search visibility
-- **Content Analysis**: Deep scanning of text to ensure natural keyword integration without over-optimization penalties
-- **Compliance Reporting**: Detailed reports on keyword usage patterns with recommendations for improvement
+#### [Nurumayu Translation & Proofreading Tool](https://nurumayudatalab.com/webtool-LLMworker-translator/index.html)
+- **AI-Powered Translation**: Advanced translation capabilities with context-aware accuracy for professional content
+- **Integrated Proofreading**: Real-time grammar and style checking to ensure polished, error-free translations
+- **Multi-Language Support**: Seamless translation between multiple language pairs with cultural nuance preservation
 
-### [LLM Weather Forecast Web Tool](https://nurumayudatalab.com/webtool-whether/index.html)
+### Lifestyle Tools
+
+#### [LLM Weather Forecast Web Tool](https://nurumayudatalab.com/webtool-whether/index.html)
 - **AI-Enhanced Predictions**: Combines traditional weather data with AI analysis for more accurate and detailed forecasts
 - **Conversational Interface**: Natural language queries to get weather information in an intuitive, chat-like format
 - **Personalized Insights**: Customized weather advice and recommendations based on user preferences and activities
+
+#### [AI Cooking Suggestion System](https://nurumayudatalab.com/webtool-aicooking/index.html)
+- **Ingredient-Based Menu Suggestions**: Proposes recipes based on available ingredients in your refrigerator
+- **Simple Recipe Generation**: Creates easy-to-follow recipes by simply selecting ingredients
+- **Culinary Support Tool**: Helps reduce food waste and discover new meal ideas effortlessly
+
+### Educational Specialized AI Systems
+
+#### [AI Training Quiz Auto-Generator](https://nurumayudatalab.com/webtool-aiquiz/index.html)
+- **Automated Content Creation**: Instantly generates comprehensive training quizzes from any input material or topic
+- **Customizable Difficulty Levels**: Adjustable complexity settings to match different skill levels and learning objectives
+- **Performance Analytics**: Built-in tracking and assessment features to monitor learning progress and identify knowledge gaps
+
+#### [Educational Quiz Generator for K-12](https://nurumayudatalab.com/webtool-quiz/index.html)
+- **Age-Appropriate Content**: Automatically creates engaging quizzes tailored to elementary, middle, and high school curricula
+- **Subject-Specific Templates**: Pre-configured formats for various subjects including math, science, language arts, and social studies
+- **Interactive Learning Elements**: Gamification features and visual aids to enhance student engagement and retention
+
+### E-commerce Tools
+
+#### [Keyword Formatting Tool](https://nurumayudatalab.com/webtool-keyword-tool/index.html)
+- **Automatic Duplicate Removal**: Intelligently identifies and eliminates duplicate keywords to optimize your content
+- **Byte-Based Splitting**: Precisely divides keyword lists into specified byte lengths (250 bytes, 500 bytes) for platform compatibility
+- **Format Conversion**: Seamlessly converts space-separated keywords to line-separated format for better organization
+
+#### [A+ Content Line Break Generator](https://nurumayudatalab.com/webtool-aplus-br-generator/index.html)
+- **Smart Line Breaking**: Automatically processes product descriptions with intelligent line break insertion
+- **Flexible Character Limits**: Supports multiple character count options (50, 60, 70, 80 characters) for various platform requirements
+- **Paragraph Optimization**: Automatically converts and optimizes paragraph breaks for enhanced readability
+
+#### [Keyword Integration Checker](https://nurumayudatalab.com/webtool-matching-machine/index.html)
+- **SEO Optimization Validation**: Verifies proper keyword placement and density across your content for maximum search visibility
+- **Content Analysis**: Deep scanning of text to ensure natural keyword integration without over-optimization penalties
+- **Compliance Reporting**: Detailed reports on keyword usage patterns with recommendations for improvement
 
 ## Tools in Development
 

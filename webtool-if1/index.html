@@ -276,10 +276,132 @@
         @media (max-width: 768px) {
             .main-content {
                 grid-template-columns: 1fr;
+                gap: 15px;
             }
             
             .display-modes {
                 grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .input-section, .output-section {
+                padding: 20px;
+            }
+
+            .button-group {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            button {
+                padding: 14px 20px;
+                font-size: 16px;
+                min-height: 48px; /* タッチターゲット最小サイズ */
+            }
+
+            textarea {
+                min-height: 120px;
+                font-size: 16px; /* iOS Safari対応 */
+            }
+
+            select, input {
+                font-size: 16px; /* iOS Safari対応 */
+                min-height: 44px;
+            }
+
+            .analytics-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .dashboard-tabs {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .dashboard-tab {
+                padding: 12px 16px;
+                font-size: 16px;
+            }
+
+            /* モバイル用のスクロール改善 */
+            .conversation-history {
+                max-height: 60vh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* タッチ操作の改善 */
+            .history-item {
+                padding: 16px;
+                margin-bottom: 12px;
+                min-height: 48px;
+            }
+
+            /* モバイル向けのエラー表示調整 */
+            #detailedError {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+                font-size: 14px;
+            }
+
+            #fallbackNotification {
+                top: 60px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+                font-size: 14px;
+            }
+        }
+
+        /* 追加のモバイル対応 */
+        @media (max-width: 480px) {
+            .header {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .subtitle {
+                font-size: 1em;
+            }
+
+            .input-section, .output-section {
+                padding: 15px;
+            }
+
+            .section-title {
+                font-size: 1.3em;
+            }
+
+            .mode-tab {
+                padding: 8px;
+                font-size: 14px;
+            }
+
+            .analytics-card {
+                padding: 15px;
+            }
+
+            .metric-value {
+                font-size: 28px;
             }
         }
 
@@ -698,6 +820,9 @@
                 return;
             }
 
+            // アクションを記録（再試行用）
+            setLastAction('analyzeMessage', { input, lang });
+
             // ローディング表示開始
             showLoading();
 
@@ -741,13 +866,17 @@
 
             } catch (error) {
                 console.error('分析エラー:', error);
-                alert('分析中にエラーが発生しました: ' + error.message);
+                if (error instanceof APIError) {
+                    showDetailedError(error);
+                } else {
+                    alert('分析中にエラーが発生しました: ' + error.message);
+                }
             } finally {
                 hideLoading();
             }
         }
 
-        // AI感情分析
+        // AI感情分析（改善版フォールバック）
         async function performAIEmotionAnalysis(text, lang) {
             const prompt = createEmotionAnalysisPrompt(text, lang);
             
@@ -756,7 +885,23 @@
                 return parseEmotionAnalysisResponse(response);
             } catch (error) {
                 console.warn('AI感情分析に失敗、フォールバックモードを使用:', error);
-                return performEmotionAnalysis(text, lang);
+                
+                // フォールバック時の通知
+                showFallbackNotification('AI分析', 'ベーシック分析');
+                
+                // シンプルな分析を実行
+                const fallbackResult = performEmotionAnalysis(text, lang);
+                
+                // フォールバック用の追加情報
+                return {
+                    emotions: fallbackResult.emotions,
+                    culturalNotes: fallbackResult.culturalNotes || '（オフライン分析）基本的な分析結果です。詳細分析にはネットワーク接続が必要です。',
+                    misunderstandingRisk: {
+                        level: 2,
+                        reasons: ['オフライン分析のため詳細な検出はできません'],
+                        suggestions: ['ネットワーク接続を確認してAI分析をお試しください']
+                    }
+                };
             }
         }
 
@@ -827,7 +972,7 @@
             }
         }
 
-        // AI翻訳
+        // AI翻訳（改善版フォールバック）
         async function translateMessageAI(text, sourceLang) {
             // 多言語に対応した翻訳先言語の決定
             let targetLang;
@@ -844,7 +989,12 @@
                 return response.trim();
             } catch (error) {
                 console.warn('AI翻訳に失敗、フォールバックモードを使用:', error);
-                return translateMessage(text, sourceLang);
+                
+                // フォールバック時の通知
+                showFallbackNotification('AI翻訳', 'ベーシック翻訳');
+                
+                const fallbackTranslation = translateMessage(text, sourceLang);
+                return fallbackTranslation + ' （ベーシック翻訳）';
             }
         }
 
@@ -880,9 +1030,31 @@
             ];
         }
 
-        // LLM API呼び出し
-        async function callLLMAPI(messages) {
+        // 詳細エラー情報管理
+        let apiErrorHistory = [];
+        let isOnline = navigator.onLine;
+
+        // オンライン状態監視
+        window.addEventListener('online', () => {
+            isOnline = true;
+            hideOfflineIndicator();
+        });
+
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            showOfflineIndicator();
+        });
+
+        // LLM API呼び出し（強化版エラーハンドリング）
+        async function callLLMAPI(messages, retryCount = 0) {
+            const maxRetries = 3;
             const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+            
+            // オフライン状態チェック
+            if (!isOnline) {
+                throw new APIError('オフライン状態です。インターネット接続を確認してください。', 'OFFLINE', 0);
+            }
+
             const requestData = {
                 model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
                 temperature: 0.3,
@@ -891,26 +1063,421 @@
                 messages: messages
             };
 
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            });
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒タイムアウト
 
-            if (!response.ok) {
-                throw new Error(`API呼び出しエラー: ${response.status}`);
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                // 詳細なステータスコード処理
+                if (!response.ok) {
+                    let errorMessage = '';
+                    let errorType = 'UNKNOWN';
+                    
+                    switch (response.status) {
+                        case 400:
+                            errorMessage = 'リクエストが無効です。入力内容を確認してください。';
+                            errorType = 'BAD_REQUEST';
+                            break;
+                        case 401:
+                            errorMessage = 'API認証に失敗しました。';
+                            errorType = 'UNAUTHORIZED';
+                            break;
+                        case 403:
+                            errorMessage = 'APIアクセスが拒否されました。';
+                            errorType = 'FORBIDDEN';
+                            break;
+                        case 429:
+                            errorMessage = 'APIリクエスト制限に達しました。しばらくお待ちください。';
+                            errorType = 'RATE_LIMITED';
+                            // レート制限の場合はリトライ
+                            if (retryCount < maxRetries) {
+                                const delay = Math.pow(2, retryCount) * 1000; // 指数バックオフ
+                                console.warn(`レート制限です。${delay}ms後にリトライします...`);
+                                await new Promise(resolve => setTimeout(resolve, delay));
+                                return callLLMAPI(messages, retryCount + 1);
+                            }
+                            break;
+                        case 500:
+                            errorMessage = 'サーバー内部エラーが発生しました。';
+                            errorType = 'SERVER_ERROR';
+                            break;
+                        case 502:
+                        case 503:
+                        case 504:
+                            errorMessage = 'サーバーが一時的に利用できません。';
+                            errorType = 'SERVER_UNAVAILABLE';
+                            // サーバーエラーの場合はリトライ
+                            if (retryCount < maxRetries) {
+                                const delay = Math.pow(2, retryCount) * 1000;
+                                console.warn(`サーバーエラーです。${delay}ms後にリトライします...`);
+                                await new Promise(resolve => setTimeout(resolve, delay));
+                                return callLLMAPI(messages, retryCount + 1);
+                            }
+                            break;
+                        default:
+                            errorMessage = `予期しないエラーが発生しました (ステータス: ${response.status})`;
+                    }
+                    
+                    throw new APIError(errorMessage, errorType, response.status);
+                }
+
+                const data = await response.json();
+                
+                if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                    return data.choices[0].message.content;
+                } else if (data.answer) {
+                    return data.answer;
+                } else {
+                    throw new APIError('API応答に期待されるフィールドがありません', 'INVALID_RESPONSE', response.status);
+                }
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    throw new APIError('リクエストがタイムアウトしました。ネットワーク状況を確認してください。', 'TIMEOUT', 0);
+                }
+                
+                if (error instanceof APIError) {
+                    // ログに記録
+                    logAPIError(error);
+                    throw error;
+                }
+                
+                // ネットワークエラーなどの場合
+                if (retryCount < maxRetries && error.message.includes('fetch')) {
+                    const delay = Math.pow(2, retryCount) * 1000;
+                    console.warn(`ネットワークエラーです。${delay}ms後にリトライします...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return callLLMAPI(messages, retryCount + 1);
+                }
+                
+                const apiError = new APIError(
+                    'ネットワーク接続に問題があります。インターネット接続を確認してください。', 
+                    'NETWORK_ERROR', 
+                    0
+                );
+                logAPIError(apiError);
+                throw apiError;
+            }
+        }
+
+        // カスタムAPIエラークラス
+        class APIError extends Error {
+            constructor(message, type, status) {
+                super(message);
+                this.name = 'APIError';
+                this.type = type;
+                this.status = status;
+                this.timestamp = new Date();
+            }
+        }
+
+        // APIエラーログ記録
+        function logAPIError(error) {
+            const errorLog = {
+                message: error.message,
+                type: error.type,
+                status: error.status,
+                timestamp: error.timestamp,
+                userAgent: navigator.userAgent,
+                url: window.location.href
+            };
+            
+            apiErrorHistory.unshift(errorLog);
+            
+            // 最大50件まで保持
+            if (apiErrorHistory.length > 50) {
+                apiErrorHistory = apiErrorHistory.slice(0, 50);
+            }
+            
+            // ローカルストレージに保存
+            localStorage.setItem('apiErrorHistory', JSON.stringify(apiErrorHistory));
+            
+            console.error('API Error logged:', errorLog);
+        }
+
+        // エラー表示関数
+        function showDetailedError(error) {
+            let errorEl = document.getElementById('detailedError');
+            if (!errorEl) {
+                errorEl = document.createElement('div');
+                errorEl.id = 'detailedError';
+                errorEl.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: linear-gradient(45deg, #ff6b6b, #feca57);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                    max-width: 400px;
+                    z-index: 10000;
+                    animation: slideIn 0.3s ease;
+                `;
+                document.body.appendChild(errorEl);
             }
 
-            const data = await response.json();
+            const troubleshootingTips = getTroubleshootingTips(error.type);
             
-            if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-                return data.choices[0].message.content;
-            } else if (data.answer) {
-                return data.answer;
-            } else {
-                throw new Error('API応答に期待されるフィールドがありません');
+            errorEl.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">⚠️ エラーが発生しました</h3>
+                    <button onclick="hideDetailedError()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">×</button>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <strong>エラー内容:</strong><br>
+                    ${error.message}
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <strong>エラータイプ:</strong> ${error.type}<br>
+                    <strong>ステータス:</strong> ${error.status || 'N/A'}<br>
+                    <strong>発生時刻:</strong> ${error.timestamp.toLocaleString()}
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <strong>解決方法:</strong>
+                    <ul style="margin: 5px 0; padding-left: 20px;">
+                        ${troubleshootingTips.map(tip => `<li>${tip}</li>`).join('')}
+                    </ul>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="retryLastAction()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer;">
+                        🔄 再試行
+                    </button>
+                    <button onclick="showErrorHistory()" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer;">
+                        📋 履歴
+                    </button>
+                </div>
+            `;
+
+            // 10秒後に自動で隠す
+            setTimeout(() => {
+                if (errorEl && errorEl.parentNode) {
+                    hideDetailedError();
+                }
+            }, 10000);
+        }
+
+        // トラブルシューティングのヒント
+        function getTroubleshootingTips(errorType) {
+            const tips = {
+                'OFFLINE': [
+                    'インターネット接続を確認してください',
+                    'Wi-Fiまたはモバイルデータ接続をリセットしてみてください',
+                    'しばらく時間をおいてから再試行してください'
+                ],
+                'TIMEOUT': [
+                    'ネットワーク接続が不安定な可能性があります',
+                    'しばらく時間をおいてから再試行してください',
+                    'モバイルデータからWi-Fiに切り替えてみてください'
+                ],
+                'RATE_LIMITED': [
+                    '短時間に多くのリクエストが送信されました',
+                    '1-2分待ってから再試行してください',
+                    '入力内容を短くしてみてください'
+                ],
+                'SERVER_ERROR': [
+                    'サーバー側で一時的な問題が発生しています',
+                    'しばらく時間をおいてから再試行してください',
+                    '問題が続く場合はサポートまでお問い合わせください'
+                ],
+                'NETWORK_ERROR': [
+                    'ネットワーク接続を確認してください',
+                    'ファイアウォールやアンチウイルスソフトを確認してください',
+                    'VPN接続をオフにしてみてください'
+                ]
+            };
+            
+            return tips[errorType] || [
+                'ページを再読み込みしてみてください',
+                'ブラウザのキャッシュをクリアしてみてください',
+                '問題が続く場合はサポートまでお問い合わせください'
+            ];
+        }
+
+        // エラー表示を隠す
+        function hideDetailedError() {
+            const errorEl = document.getElementById('detailedError');
+            if (errorEl) {
+                errorEl.remove();
+            }
+        }
+
+        // オフラインインジケーター
+        function showOfflineIndicator() {
+            let indicator = document.getElementById('offlineIndicator');
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.id = 'offlineIndicator';
+                indicator.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    background: #ff6b6b;
+                    color: white;
+                    padding: 10px;
+                    text-align: center;
+                    z-index: 10001;
+                    font-weight: bold;
+                `;
+                indicator.textContent = '⚠️ オフライン状態です。一部の機能が制限されます。';
+                document.body.appendChild(indicator);
+            }
+        }
+
+        function hideOfflineIndicator() {
+            const indicator = document.getElementById('offlineIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        // エラー履歴表示
+        function showErrorHistory() {
+            const historyEl = document.createElement('div');
+            historyEl.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 30px;
+                border-radius: 15px;
+                box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+                max-width: 600px;
+                max-height: 500px;
+                overflow-y: auto;
+                z-index: 10002;
+                color: #333;
+            `;
+            
+            historyEl.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0; color: #667eea;">📋 エラー履歴</h3>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; font-size: 20px; cursor: pointer;">×</button>
+                </div>
+                
+                ${apiErrorHistory.length === 0 ? 
+                    '<p style="text-align: center; color: #999;">エラー履歴はありません</p>' :
+                    apiErrorHistory.map((log, index) => `
+                        <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
+                            <div style="font-weight: bold; color: #ff6b6b; margin-bottom: 5px;">
+                                ${log.type} - ${new Date(log.timestamp).toLocaleString()}
+                            </div>
+                            <div style="margin-bottom: 5px;">${log.message}</div>
+                            <div style="font-size: 12px; color: #666;">ステータス: ${log.status || 'N/A'}</div>
+                        </div>
+                    `).join('')
+                }
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <button onclick="clearErrorHistory()" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                        履歴をクリア
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(historyEl);
+        }
+
+        // エラー履歴クリア
+        function clearErrorHistory() {
+            apiErrorHistory = [];
+            localStorage.removeItem('apiErrorHistory');
+            alert('エラー履歴をクリアしました');
+            // モーダルを閉じる
+            const modal = document.querySelector('[style*="position: fixed"][style*="transform: translate(-50%, -50%)"]');
+            if (modal) modal.remove();
+        }
+
+        // フォールバック通知表示
+        function showFallbackNotification(originalFeature, fallbackFeature) {
+            let notificationEl = document.getElementById('fallbackNotification');
+            if (!notificationEl) {
+                notificationEl = document.createElement('div');
+                notificationEl.id = 'fallbackNotification';
+                notificationEl.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 20px;
+                    background: linear-gradient(45deg, #ffa726, #ffcc02);
+                    color: #333;
+                    padding: 15px 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+                    max-width: 350px;
+                    z-index: 9999;
+                    animation: slideIn 0.3s ease;
+                `;
+                document.body.appendChild(notificationEl);
+            }
+
+            notificationEl.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 20px;">⚡</span>
+                    <div>
+                        <div style="font-weight: bold;">${originalFeature}が利用できません</div>
+                        <div style="font-size: 14px;">${fallbackFeature}に切り替えました</div>
+                    </div>
+                    <button onclick="hideFallbackNotification()" style="background: none; border: none; font-size: 16px; cursor: pointer; margin-left: auto;">×</button>
+                </div>
+            `;
+
+            // 5秒後に自動で隠す
+            setTimeout(() => {
+                hideFallbackNotification();
+            }, 5000);
+        }
+
+        // フォールバック通知を隠す
+        function hideFallbackNotification() {
+            const notificationEl = document.getElementById('fallbackNotification');
+            if (notificationEl) {
+                notificationEl.remove();
+            }
+        }
+
+        // 最後のアクション情報を保存
+        let lastAction = null;
+
+        function setLastAction(action, params) {
+            lastAction = { action, params, timestamp: new Date() };
+        }
+
+        function retryLastAction() {
+            if (!lastAction) {
+                alert('再試行できるアクションがありません');
+                return;
+            }
+
+            const timeSinceLastAction = Date.now() - lastAction.timestamp.getTime();
+            if (timeSinceLastAction > 5 * 60 * 1000) { // 5分以上前
+                alert('アクションが古すぎます。改めて実行してください');
+                return;
+            }
+
+            hideDetailedError();
+            
+            switch (lastAction.action) {
+                case 'analyzeMessage':
+                    analyzeMessage();
+                    break;
+                default:
+                    alert('このアクションは再試行できません');
             }
         }
 
@@ -1256,15 +1823,20 @@
             }
         }
 
-        // 音声入力機能
+        // 音声入力機能（改善版）
         function initializeSpeechRecognition() {
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                 console.warn('Speech Recognition APIがサポートされていません');
                 return false;
             }
 
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
+            try {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+            } catch (error) {
+                console.error('音声認識初期化エラー:', error);
+                return false;
+            }
 
             // 設定
             recognition.continuous = true;
@@ -1340,45 +1912,73 @@
 
             recognition.onend = function() {
                 console.log('音声認識終了');
-                isRecording = false;
-                updateVoiceButton();
-                hideInterimResult();
+                if (!isLanguageChanging) {
+                    isRecording = false;
+                    updateVoiceButton();
+                    hideInterimResult();
+                }
             };
 
             return true;
         }
 
-        // 音声録音開始/停止
+        // 音声録音開始/停止（モバイル対応改善）
         function toggleVoiceRecording() {
             if (!recognition && !initializeSpeechRecognition()) {
-                alert('お使いのブラウザは音声認識機能に対応していません。');
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                const message = isMobile ? 
+                    'お使いのブラウザは音声認識機能に対応していません。Chrome または Firefox をお試しください。' :
+                    'お使いのブラウザは音声認識機能に対応していません。';
+                alert(message);
                 return;
             }
 
             if (isRecording) {
-                recognition.stop();
+                try {
+                    recognition.stop();
+                } catch (error) {
+                    console.error('音声認識停止エラー:', error);
+                    isRecording = false;
+                    updateVoiceButton();
+                }
             } else {
-                // 言語設定を更新
-                const currentLang = document.getElementById('inputLang').value;
-                const speechLangMap = {
-                    'ja': 'ja-JP',
-                    'en': 'en-US',
-                    'zh': 'zh-CN',
-                    'zh-tw': 'zh-TW',
-                    'ko': 'ko-KR',
-                    'es': 'es-ES',
-                    'fr': 'fr-FR',
-                    'de': 'de-DE',
-                    'it': 'it-IT',
-                    'pt': 'pt-PT',
-                    'ru': 'ru-RU',
-                    'ar': 'ar-SA',
-                    'hi': 'hi-IN',
-                    'th': 'th-TH',
-                    'vi': 'vi-VN'
-                };
-                recognition.lang = speechLangMap[currentLang] || 'ja-JP';
-                recognition.start();
+                try {
+                    // iOS Safari対応: ユーザージェスチャー内で実行することを確認
+                    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                    if (isSafari) {
+                        console.log('Safari検出: 音声認識開始');
+                    }
+
+                    // 言語設定を更新
+                    const currentLang = document.getElementById('inputLang').value;
+                    const speechLangMap = {
+                        'ja': 'ja-JP',
+                        'en': 'en-US',
+                        'zh': 'zh-CN',
+                        'zh-tw': 'zh-TW',
+                        'ko': 'ko-KR',
+                        'es': 'es-ES',
+                        'fr': 'fr-FR',
+                        'de': 'de-DE',
+                        'it': 'it-IT',
+                        'pt': 'pt-PT',
+                        'ru': 'ru-RU',
+                        'ar': 'ar-SA',
+                        'hi': 'hi-IN',
+                        'th': 'th-TH',
+                        'vi': 'vi-VN'
+                    };
+                    recognition.lang = speechLangMap[currentLang] || 'ja-JP';
+                    
+                    // 短時間の遅延でブラウザの準備を待つ
+                    setTimeout(() => {
+                        recognition.start();
+                    }, 100);
+                    
+                } catch (error) {
+                    console.error('音声認識開始エラー:', error);
+                    alert('音声認識の開始に失敗しました。しばらく時間をおいてから再試行してください。');
+                }
             }
         }
 
@@ -1430,15 +2030,45 @@
             }
         }
 
-        // 言語選択変更時の処理
+        // 言語選択変更時の処理（改善版）
+        let isLanguageChanging = false;
+        
         document.getElementById('inputLang').addEventListener('change', function() {
             if (recognition && isRecording) {
-                recognition.stop();
+                isLanguageChanging = true;
+                console.log('言語切り替え開始:', this.value);
+                
+                // 現在の認識を安全に停止
+                try {
+                    recognition.stop();
+                } catch (error) {
+                    console.warn('音声認識停止エラー:', error);
+                }
+                
+                // 少し待ってから新しい言語で再開
                 setTimeout(() => {
-                    if (!isRecording) {
-                        toggleVoiceRecording();
+                    if (isLanguageChanging) {
+                        try {
+                            // 音声認識を再初期化
+                            recognition = null;
+                            if (initializeSpeechRecognition()) {
+                                recognition.start();
+                                console.log('言語切り替え完了:', this.value);
+                            } else {
+                                console.error('音声認識の再初期化に失敗');
+                                isRecording = false;
+                                updateVoiceButton();
+                            }
+                        } catch (error) {
+                            console.error('言語切り替えエラー:', error);
+                            isRecording = false;
+                            updateVoiceButton();
+                            alert('言語切り替え中にエラーが発生しました。音声入力を再開してください。');
+                        } finally {
+                            isLanguageChanging = false;
+                        }
                     }
-                }, 100);
+                }, 500);
             }
         });
 

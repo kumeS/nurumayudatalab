@@ -120,6 +120,35 @@
             line-height: 1.5;
         }
 
+        /* プログレスインジケータ */
+        .progress-container {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #70a0ff 0%, #4a69bd 100%);
+            width: 0%;
+            transition: width 0.8s ease-out;
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            color: #70a0ff;
+            font-weight: 500;
+        }
+
         /* 質問セクション */
         .question-section {
             display: none;
@@ -452,27 +481,20 @@
         <section class="theme-selection" id="themeSelection">
             <h2 class="theme-title">探求したいテーマを選んでください</h2>
             <div class="theme-buttons">
-                <button class="theme-button" onclick="startQuestioning('career')">
-                    <h3>キャリア・仕事</h3>
-                    <p>なぜその仕事を選ぶのか、その本質的な動機を探ります</p>
-                </button>
-                <button class="theme-button" onclick="startQuestioning('relationship')">
-                    <h3>人間関係・パートナー</h3>
-                    <p>なぜその人と共にいたいのか、関係性の根源を見つめます</p>
-                </button>
-                <button class="theme-button" onclick="startQuestioning('purpose')">
-                    <h3>人生の目的・夢</h3>
-                    <p>なぜそれを成し遂げたいのか、人生の意味を問います</p>
-                </button>
-                <button class="theme-button" onclick="startQuestioning('custom')">
-                    <h3>自由なテーマ</h3>
-                    <p>あなたが深く探求したい任意のテーマを設定できます</p>
-                </button>
+                <!-- テーマボタンはapp.jsで動的に生成されます -->
             </div>
         </section>
 
         <!-- 質問セクション -->
         <section class="question-section" id="questionSection">
+            <!-- プログレスインジケータ -->
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">質問 1/4</div>
+            </div>
+            
             <div class="conversation-history" id="conversationHistory"></div>
             
             <div class="current-question">
@@ -493,7 +515,7 @@
                 <span>深層から次の問いを生成中...</span>
             </div>
             
-            <button class="submit-button" id="submitButton" onclick="submitAnswer()">
+            <button class="submit-button" id="submitButton">
                 答える
             </button>
         </section>
@@ -511,214 +533,12 @@
                 <div class="insight-content" id="insightContent"></div>
             </div>
             
-            <button class="restart-button" onclick="restart()">
+            <button class="restart-button" id="restartButton">
                 新たな探求を始める
             </button>
         </section>
     </main>
 
-    <script>
-        // グローバル変数
-        let currentTheme = '';
-        let questionLevel = 0;
-        let conversationHistory = [];
-        let customTheme = '';
-
-        // テーマごとの質問テンプレート
-        const questionTemplates = {
-            career: [
-                "なぜその仕事・キャリアを選びたいのですか？",
-                "なぜ「{previous}」ということが、あなたにとって重要なのですか？",
-                "なぜその重要性をあなたは重視するようになったのですか？",
-                "なぜあなたはそもそも、そのような価値観を持つようになったのですか？"
-            ],
-            relationship: [
-                "なぜその人と共にいたい、あるいは関係を持ちたいのですか？",
-                "なぜ「{previous}」ということが、あなたにとって意味を持つのですか？",
-                "なぜその意味があなたの人生において必要だと感じるのですか？",
-                "なぜあなたは、そもそもそのような関係性を求めているのですか？"
-            ],
-            purpose: [
-                "なぜそれを成し遂げたい、あるいは追求したいのですか？",
-                "なぜ「{previous}」ということが、あなたを動かすのですか？",
-                "なぜその動機があなたの存在にとって本質的なのですか？",
-                "なぜあなたは、そもそもそのような目的を持つに至ったのですか？"
-            ],
-            custom: [
-                "{customQuestion}",
-                "なぜ「{previous}」なのですか？",
-                "なぜそれがあなたにとって根本的に重要なのですか？",
-                "なぜあなたは、そもそもそのような考えを持つようになったのですか？"
-            ]
-        };
-
-        // レベルごとの説明
-        const levelDescriptions = [
-            "第1の問い - 表面的な理由",
-            "第2の問い - 個人的な動機",
-            "第3の問い - 深層の信念",
-            "第4の問い - 存在の根源"
-        ];
-
-        // 質問を開始
-        function startQuestioning(theme) {
-            currentTheme = theme;
-            questionLevel = 0;
-            conversationHistory = [];
-            
-            if (theme === 'custom') {
-                customTheme = prompt('探求したいテーマを入力してください：\n例：「なぜ私は成功したいのか」「なぜ私は孤独を恐れるのか」');
-                if (!customTheme) {
-                    return;
-                }
-            }
-            
-            document.getElementById('themeSelection').style.display = 'none';
-            document.getElementById('questionSection').classList.add('active');
-            
-            showNextQuestion();
-        }
-
-        // 次の質問を表示
-        function showNextQuestion() {
-            const questions = questionTemplates[currentTheme];
-            let questionText = questions[questionLevel];
-            
-            // カスタムテーマの場合
-            if (currentTheme === 'custom' && questionLevel === 0) {
-                questionText = customTheme;
-            }
-            
-            // 前の回答を参照する場合
-            if (questionLevel > 0 && questionText.includes('{previous}')) {
-                const previousAnswer = conversationHistory[conversationHistory.length - 1].answer;
-                // 前の回答から核心部分を抽出（最初の20文字程度）
-                const coreAnswer = previousAnswer.length > 40 
-                    ? previousAnswer.substring(0, 40) + '...' 
-                    : previousAnswer;
-                questionText = questionText.replace('{previous}', coreAnswer);
-            }
-            
-            document.getElementById('currentQuestion').textContent = questionText;
-            document.getElementById('questionLevel').textContent = levelDescriptions[questionLevel];
-            document.getElementById('answerInput').value = '';
-            document.getElementById('answerInput').focus();
-        }
-
-        // 回答を送信
-        function submitAnswer() {
-            const answerInput = document.getElementById('answerInput');
-            const answer = answerInput.value.trim();
-            
-            if (!answer) {
-                alert('回答を入力してください。');
-                return;
-            }
-            
-            // 回答を履歴に追加
-            const questionText = document.getElementById('currentQuestion').textContent;
-            conversationHistory.push({
-                question: questionText,
-                answer: answer,
-                level: questionLevel
-            });
-            
-            // 履歴を表示
-            updateConversationHistory();
-            
-            // 次のレベルへ
-            questionLevel++;
-            
-            if (questionLevel >= 4) {
-                // 4回の質問が完了
-                showCompletion();
-            } else {
-                // 次の質問を表示
-                showNextQuestion();
-            }
-        }
-
-        // 会話履歴を更新
-        function updateConversationHistory() {
-            const historyContainer = document.getElementById('conversationHistory');
-            historyContainer.innerHTML = '';
-            
-            conversationHistory.forEach((item, index) => {
-                const qaPair = document.createElement('div');
-                qaPair.className = 'qa-pair';
-                qaPair.style.animationDelay = `${index * 0.1}s`;
-                
-                qaPair.innerHTML = `
-                    <div class="question">${item.question}</div>
-                    <div class="answer">${item.answer}</div>
-                `;
-                
-                historyContainer.appendChild(qaPair);
-            });
-        }
-
-        // 完了画面を表示
-        function showCompletion() {
-            document.getElementById('questionSection').classList.remove('active');
-            document.getElementById('completionSection').classList.add('active');
-            
-            // 洞察を生成
-            generateInsight();
-        }
-
-        // 洞察を生成
-        function generateInsight() {
-            const insightContent = document.getElementById('insightContent');
-            let insight = '<p>あなたの回答の変遷：</p><ul style="list-style: none; padding: 0;">';
-            
-            conversationHistory.forEach((item, index) => {
-                const levelName = levelDescriptions[index].split(' - ')[1];
-                insight += `<li style="margin-bottom: 1rem;">
-                    <strong>${levelName}：</strong><br>
-                    「${item.answer}」
-                </li>`;
-            });
-            
-            insight += '</ul>';
-            
-            // 最後の回答に基づく考察
-            const lastAnswer = conversationHistory[3].answer;
-            if (lastAnswer.length < 20 || lastAnswer.includes('わからない') || lastAnswer.includes('分からない')) {
-                insight += `<p style="margin-top: 2rem; font-style: italic;">
-                    言葉にできない領域に到達しました。<br>
-                    それは、あなたが自己の根源的な不可知性に触れた証かもしれません。
-                </p>`;
-            } else {
-                insight += `<p style="margin-top: 2rem; font-style: italic;">
-                    4つの問いを通じて、あなたは自己の深層に隠された真実に近づきました。<br>
-                    この探求が、あなたの人生に新たな視点をもたらすことを願っています。
-                </p>`;
-            }
-            
-            insightContent.innerHTML = insight;
-        }
-
-        // リスタート
-        function restart() {
-            document.getElementById('completionSection').classList.remove('active');
-            document.getElementById('questionSection').classList.remove('active');
-            document.getElementById('themeSelection').style.display = 'block';
-            
-            // アニメーションのリセット
-            setTimeout(() => {
-                document.getElementById('conversationHistory').innerHTML = '';
-                document.getElementById('completionSection').style.display = 'none';
-                document.getElementById('questionSection').style.display = 'none';
-            }, 500);
-        }
-
-        // Enterキーで送信
-        document.getElementById('answerInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                submitAnswer();
-            }
-        });
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>

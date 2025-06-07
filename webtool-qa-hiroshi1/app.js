@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitButton = document.getElementById('submitButton');
     const insightContent = document.getElementById('insightContent');
     const loadingIndicator = document.getElementById('loadingIndicator');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
 
     // API設定
     const API_URL = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
@@ -90,6 +92,73 @@ document.addEventListener('DOMContentLoaded', () => {
     function init() {
         setupThemeButtons();
         setupEventListeners();
+        createNotificationContainer();
+    }
+
+    // 通知コンテナを作成
+    function createNotificationContainer() {
+        const container = document.createElement('div');
+        container.id = 'notificationContainer';
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            pointer-events: none;
+        `;
+        document.body.appendChild(container);
+    }
+
+    // 通知表示機能
+    function showNotification(message, type = 'info', duration = 4000) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            background: ${getNotificationColor(type)};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            pointer-events: auto;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            font-size: 14px;
+            max-width: 300px;
+            word-wrap: break-word;
+        `;
+        notification.textContent = message;
+
+        const container = document.getElementById('notificationContainer');
+        container.appendChild(notification);
+
+        // アニメーション表示
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            notification.style.transform = 'translateX(0)';
+        }, 10);
+
+        // 自動削除
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, duration);
+    }
+
+    // 通知の色を取得
+    function getNotificationColor(type) {
+        const colors = {
+            'info': '#70a0ff',
+            'success': '#27ae60',
+            'warning': '#f39c12',
+            'error': '#e74c3c'
+        };
+        return colors[type] || colors.info;
     }
 
     // テーマボタンの設定
@@ -131,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // リスタートボタン
-        const restartButton = document.querySelector('.restart-button');
+        const restartButton = document.getElementById('restartButton');
         if (restartButton) {
             restartButton.onclick = restart;
         }
@@ -146,6 +215,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (theme === 'free_inquiry') {
             customTheme = prompt('探求したいテーマや質問を入力してください：\n例：「なぜ私は愛されたいと思うのか」「なぜ私は成功を恐れるのか」');
             if (!customTheme || customTheme.trim() === '') {
+                showNotification('テーマが入力されませんでした。', 'warning');
+                return;
+            }
+            if (customTheme.length < 5) {
+                showNotification('テーマをもう少し詳しく入力してください。', 'warning');
                 return;
             }
         }
@@ -175,6 +249,20 @@ document.addEventListener('DOMContentLoaded', () => {
         displayQuestion(questionText);
     }
 
+    // プログレスインジケータ更新
+    function updateProgress() {
+        const currentStep = questionLevel + 1;
+        const totalSteps = 4;
+        const percentage = (currentStep / totalSteps) * 100;
+        
+        if (progressFill) {
+            progressFill.style.width = `${percentage}%`;
+        }
+        if (progressText) {
+            progressText.textContent = `質問 ${currentStep}/4`;
+        }
+    }
+
     // 質問を表示
     function displayQuestion(questionText) {
         if (currentQuestion_el) {
@@ -187,6 +275,9 @@ document.addEventListener('DOMContentLoaded', () => {
             answerInput.value = '';
             answerInput.focus();
         }
+        
+        // プログレス更新
+        updateProgress();
     }
 
     // 回答送信
@@ -196,7 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const answer = answerInput.value.trim();
         
         if (!answer) {
-            alert('回答を入力してください。');
+            showNotification('回答を入力してください。', 'warning');
+            answerInput.focus();
             return;
         }
 
@@ -226,6 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (questionLevel >= 4) {
                 // 4回の質問が完了 - 深層分析を実行
+                showNotification('探求完了！深層心理分析を生成中...', 'success');
                 await performPsychologicalAnalysis();
             } else {
                 // 回答の質を評価
@@ -241,7 +334,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('エラーが発生しました:', error);
-            alert('エラーが発生しました。もう一度お試しください。');
+            
+            // エラータイプに応じたメッセージ
+            let errorMessage = 'エラーが発生しました。';
+            if (error.message.includes('fetch')) {
+                errorMessage = '接続に問題があります。インターネット接続を確認してください。';
+            } else if (error.message.includes('timeout')) {
+                errorMessage = '処理に時間がかかっています。しばらく待ってから再度お試しください。';
+            } else if (error.message.includes('API')) {
+                errorMessage = 'AIサービスに一時的な問題があります。しばらく待ってから再度お試しください。';
+            }
+            
+            showNotification(errorMessage, 'error', 6000);
         } finally {
             // 送信ボタンを有効化とローディング非表示
             if (submitButton) {
@@ -541,6 +645,14 @@ ${context}
         }
         if (insightContent) {
             insightContent.innerHTML = '';
+        }
+        
+        // プログレスをリセット
+        if (progressFill) {
+            progressFill.style.width = '0%';
+        }
+        if (progressText) {
+            progressText.textContent = '質問 1/4';
         }
     }
 

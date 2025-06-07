@@ -451,29 +451,55 @@ document.addEventListener('DOMContentLoaded', () => {
   function typewriterEffect(element, text, callback) {
     element.innerHTML = '';
     
-    // プレーンテキストとして処理
-    const plainText = text.replace(/\n\n/g, '\n').replace(/\n/g, ' ');
+    // HTMLタグを除去してプレーンテキスト化
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = text;
+    const plainText = tempDiv.textContent || tempDiv.innerText || '';
+    
     let currentIndex = 0;
+    let typingInterval;
     
     function typeNextChar() {
       if (currentIndex >= plainText.length) {
         // タイピング完了後、最終的なフォーマットを適用
         const formattedText = text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
         element.innerHTML = `<p>${formattedText}</p>`;
+        clearInterval(typingInterval);
         if (callback) callback();
         return;
       }
       
       const currentText = plainText.substring(0, currentIndex + 1);
-      element.innerHTML = `<p>${currentText}<span class="typing-cursor">|</span></p>`;
-      currentIndex++;
+      // XSS対策: textContentを使用
+      const displayElement = document.createElement('p');
+      displayElement.textContent = currentText;
+      displayElement.innerHTML += '<span class="typing-cursor">|</span>';
+      element.innerHTML = displayElement.outerHTML;
       
-      // ランダムなタイピング速度で自然な感じに
-      const delay = Math.random() * 30 + 20;
-      setTimeout(typeNextChar, delay);
+      currentIndex++;
     }
     
-    typeNextChar();
+    // setIntervalを使用してメモリリークを防止
+    typingInterval = setInterval(typeNextChar, 30);
+    
+    // 長すぎる場合はスキップ機能を追加
+    if (plainText.length > 1000) {
+      element.addEventListener('click', function skipTyping() {
+        clearInterval(typingInterval);
+        const formattedText = text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
+        element.innerHTML = `<p>${formattedText}</p>`;
+        element.removeEventListener('click', skipTyping);
+        if (callback) callback();
+      }, { once: true });
+      
+      // スキップヒントを表示
+      const skipHint = document.createElement('div');
+      skipHint.className = 'skip-hint';
+      skipHint.textContent = 'クリックでスキップ';
+      skipHint.style.cssText = 'position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;';
+      element.style.position = 'relative';
+      element.appendChild(skipHint);
+    }
   }
   
   // Tips テキストのフォーマット
@@ -700,23 +726,53 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 単一画像生成
   async function generateSingleImage(prompt) {
-    // Unsplash APIを使用してサンプル画像を取得
-    // 実際のAI画像生成APIに置き換え可能
     try {
       const searchTerms = extractSearchTerms(prompt);
       const unsplashUrl = `https://source.unsplash.com/800x600/?${searchTerms}`;
       
-      // 画像の存在確認
-      const response = await fetch(unsplashUrl);
-      if (response.ok) {
-        return {
-          url: unsplashUrl,
-          caption: prompt
+      // タイムアウト付きでfetch実行
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒タイムアウト
+      
+      const response = await fetch(unsplashUrl, {
+        signal: controller.signal,
+        mode: 'no-cors' // CORS問題回避
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // no-corsモードでは詳細なレスポンス情報が取得できないため、
+      // URLが有効かどうかをImageオブジェクトで確認
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          resolve({
+            url: unsplashUrl,
+            caption: prompt,
+            width: img.width,
+            height: img.height
+          });
         };
-      }
-      throw new Error('画像取得失敗');
+        img.onerror = () => {
+          console.warn('画像読み込み失敗:', searchTerms);
+          resolve(null); // nullを返してフォールバック処理に委ねる
+        };
+        img.src = unsplashUrl;
+        
+        // 追加のタイムアウト
+        setTimeout(() => {
+          img.onload = null;
+          img.onerror = null;
+          resolve(null);
+        }, 5000);
+      });
+      
     } catch (error) {
-      console.error('Unsplash API エラー:', error);
+      if (error.name === 'AbortError') {
+        console.warn('画像取得タイムアウト:', prompt);
+      } else {
+        console.error('画像生成エラー:', error);
+      }
       return null;
     }
   }
@@ -753,8 +809,39 @@ document.addEventListener('DOMContentLoaded', () => {
   function createImagePlaceholder(caption) {
     return `
       <div class="image-placeholder">
-        <i class="fas fa-exclamation-triangle"></i>
+        <i class="fas fa-image"></i>
         <p>${caption}</p>
+        <small>画像を読み込めませんでした</small>
+      </div>
+    `;
+  }
+  
+  // フォールバック画像生成
+  function createFallbackImage(caption, type = 'landscape') {
+    const gradients = {
+      landscape: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      culture: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      gourmet: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      adventure: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+    };
+    
+    const gradient = gradients[type] || gradients.landscape;
+    
+    return `
+      <div class="generated-image fallback-image">
+        <div style="
+          width: 100%;
+          height: 200px;
+          background: ${gradient};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 3rem;
+        ">
+          <i class="fas fa-mountain"></i>
+        </div>
+        <div class="image-caption">${caption} (サンプル画像)</div>
       </div>
     `;
   }

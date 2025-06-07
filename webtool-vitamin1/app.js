@@ -233,11 +233,61 @@ document.addEventListener('DOMContentLoaded', () => {
     // 症状選択ボタンのイベントリスナーを設定
     const symptomItems = document.querySelectorAll('.symptom-item');
     symptomItems.forEach(item => {
+        // クリックイベント
         item.addEventListener('click', function() {
-            // 選択状態をトグル
-            this.classList.toggle('selected');
+            toggleSymptomSelection(this);
+        });
+        
+        // キーボードイベント（Enter、Space）
+        item.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleSymptomSelection(this);
+            }
         });
     });
+
+    // 症状選択状態をトグルする関数
+    function toggleSymptomSelection(element) {
+        // 選択状態をトグル
+        element.classList.toggle('selected');
+        
+        // アクセシビリティ属性の更新
+        const isSelected = element.classList.contains('selected');
+        element.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        
+        // 選択状態をユーザーに音声で通知（スクリーンリーダー用）
+        const symptomName = element.getAttribute('data-value');
+        const action = isSelected ? '選択されました' : '選択解除されました';
+        
+        // アクセシブルな状態通知（aria-live）
+        announceSelection(symptomName, action);
+    }
+
+    // 選択状態の音声通知
+    function announceSelection(symptomName, action) {
+        // 動的にaria-live領域を作成・更新
+        let announcer = document.getElementById('selection-announcer');
+        if (!announcer) {
+            announcer = document.createElement('div');
+            announcer.id = 'selection-announcer';
+            announcer.setAttribute('aria-live', 'polite');
+            announcer.setAttribute('aria-atomic', 'true');
+            announcer.style.position = 'absolute';
+            announcer.style.left = '-10000px';
+            announcer.style.width = '1px';
+            announcer.style.height = '1px';
+            announcer.style.overflow = 'hidden';
+            document.body.appendChild(announcer);
+        }
+        
+        announcer.textContent = `${symptomName}が${action}`;
+        
+        // 1秒後にクリア（連続選択時の混乱を避ける）
+        setTimeout(() => {
+            announcer.textContent = '';
+        }, 1000);
+    }
 
     // グローバル関数として公開（HTMLから呼び出し可能にする）
     window.analyzeSymptoms = analyzeSymptoms;

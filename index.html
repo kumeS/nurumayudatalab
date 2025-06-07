@@ -515,7 +515,7 @@
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
           <h2 class="text-2xl md:text-3xl font-bold mb-2">ミニ Web ツール集</h2>
-          <p class="text-gray-600">現在提供中のツールを確認できます。</p>
+          <p class="text-gray-600">カテゴリー別に分類されたツールを確認できます。</p>
         </div>      
       </div>
       
@@ -525,9 +525,51 @@
         <div class="loading-dot"></div>
         <div class="loading-dot"></div>
       </div>
-      
-      <!-- Tool Cards Container -->
-      <div id="toolGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 opacity-0 transition-opacity duration-500"></div>
+
+      <!-- General Tools Category -->
+      <div class="category-section mb-12">
+        <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-orange-300 pb-2">
+          <i class="fas fa-tools mr-3 text-orange-500"></i>一般ツール
+        </h3>
+        <div id="generalToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      </div>
+
+      <!-- Lifestyle Tools Category -->
+      <div class="category-section mb-12">
+        <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-green-300 pb-2">
+          <i class="fas fa-home mr-3 text-green-500"></i>生活系
+        </h3>
+        <div id="lifestyleToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      </div>
+
+      <!-- Educational AI Systems Category -->
+      <div class="category-section mb-12">
+        <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-blue-300 pb-2">
+          <i class="fas fa-graduation-cap mr-3 text-blue-500"></i>教育系AIシステム
+        </h3>
+        <div id="educationalToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      </div>
+
+      <!-- E-commerce Tools Category -->
+      <div class="category-section mb-12">
+        <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-purple-300 pb-2">
+          <i class="fas fa-shopping-cart mr-3 text-purple-500"></i>EC系
+        </h3>
+        <div id="ecommerceToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      </div>
+
+      <!-- Specialized AI Systems Category (In Development) -->
+      <div class="category-section mb-12">
+        <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-gray-300 pb-2">
+          <i class="fas fa-cogs mr-3 text-gray-500"></i>分野特化AIシステム
+          <span class="text-sm font-normal text-gray-500 ml-2">(開発中)</span>
+        </h3>
+        <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+          <i class="fas fa-hammer text-4xl text-gray-400 mb-4"></i>
+          <h4 class="text-lg font-semibold text-gray-600 mb-2">開発中</h4>
+          <p class="text-gray-500">専門分野に特化したAIシステムを開発中です。<br>近日公開予定です。</p>
+        </div>
+      </div>
       
       <!-- No Results Message -->
       <div id="noResults" class="hidden py-16 text-center">
@@ -627,72 +669,78 @@
     //--------------------------------------------------------------
     // ❶ フォールバック用：index.html だけで完結したい場合はここを書き換える
     //--------------------------------------------------------------
-    const fallbackTools = [
-      {
-        "title": "ぬるっと翻訳・校閲ツール",
-        "desc": "日本語と英語の相互翻訳、および各言語の文章校閲をサポートします。",
-        "url": "./webtool-LLMworker-translator/index.html",
-        "icon": "fa-language"
-      },
-      {
-        "title": "キーワードマネージャー",
-        "desc": "広告・SEO向け重複排除/バイト分割ツール。キーワードを整理してコピーも簡単",
-        "url": "./webtool-keyword-tool/index.html",
-        "icon": "fa-keyboard"
-      },
-      {
-        "title": "A+ コンテンツジェネレーター",
-        "desc": "40〜50文字で自動改行 & 段落を<br>に変換",
-        "url": "./webtool-aplus-br-generator/index.html",
-        "icon": "fa-edit"
-      },
-      {
-        "title": "AI研修クイズ自動作成ツール",
-        "desc": "AI技術・生成AIに関するクイズを理解度レベル別に自動生成。LLM活用学習支援ツール",
-        "url": "./webtool-aiquiz/index.html",
-        "icon": "fa-brain"
-      },
-      {
-        "title": "小中高生向けクイズ自動作成ツール",
-        "desc": "小中高生の学習内容からクイズを自動生成。2択〜4択問題に対応した学習支援ツール",
-        "url": "./webtool-quiz/index.html",
-        "icon": "fa-question-circle"
-      },
-      {
-        "title": "AI料理提案システム",
-        "desc": "冷蔵庫の具材からメニューを提案。食材を選ぶだけで簡単にレシピを生成できる料理支援ツール",
-        "url": "./webtool-aicooking/index.html",
-        "icon": "fa-utensils"
-      },
-      {
-        "title": "マルチLLMシステム",
-        "desc": "30種類の最新LLMモデルから選択し、1つのプロンプトで複数モデルを同時実行・比較できるAIツール",
-        "url": "./webtool-multiLLM/index.html",
-        "icon": "fa-robot"
-      },
-      {
-        "title": "キーワード組み込みチェックマシーン",
-        "desc": "LLM活用による高度なキーワード最適化。メーカー名検出・形容詞判定・Amazon検索最適化を自動実行",
-        "url": "./webtool-matching-machine/index.html",
-        "icon": "fa-search"
-      },
-      {
-        "title": "LLMと天気予報ウェブツール",
-        "desc": "気象庁APIとLLMを統合した高機能天気予報システム。全国・関西版地図表示、音声読み上げ、要約生成機能付き",
-        "url": "./webtool-whether/index.html",
-        "icon": "fa-cloud-sun"
-      }
-    ];
+    // カテゴリー別ツール定義
+    const toolCategories = {
+      general: [
+        {
+          "title": "マルチLLMシステム",
+          "desc": "30種類の最新LLMモデルから選択し、1つのプロンプトで複数モデルを同時実行・比較できるAIツール",
+          "url": "./webtool-multiLLM/index.html",
+          "icon": "fa-robot"
+        },
+        {
+          "title": "ぬるっと翻訳・校閲ツール",
+          "desc": "日本語と英語の相互翻訳、および各言語の文章校閲をサポートします。",
+          "url": "./webtool-LLMworker-translator/index.html",
+          "icon": "fa-language"
+        }
+      ],
+      lifestyle: [
+        {
+          "title": "LLMと天気予報ウェブツール",
+          "desc": "気象庁APIとLLMを統合した高機能天気予報システム。全国・関西版地図表示、音声読み上げ、要約生成機能付き",
+          "url": "./webtool-whether/index.html",
+          "icon": "fa-cloud-sun"
+        },
+        {
+          "title": "AI料理提案システム",
+          "desc": "冷蔵庫の具材からメニューを提案。食材を選ぶだけで簡単にレシピを生成できる料理支援ツール",
+          "url": "./webtool-aicooking/index.html",
+          "icon": "fa-utensils"
+        }
+      ],
+      educational: [
+        {
+          "title": "小中高生向けクイズ自動作成ツール",
+          "desc": "小中高生の学習内容からクイズを自動生成。2択〜4択問題に対応した学習支援ツール",
+          "url": "./webtool-quiz/index.html",
+          "icon": "fa-question-circle"
+        },
+        {
+          "title": "AI研修クイズ自動作成ツール",
+          "desc": "AI技術・生成AIに関するクイズを理解度レベル別に自動生成。LLM活用学習支援ツール",
+          "url": "./webtool-aiquiz/index.html",
+          "icon": "fa-brain"
+        }
+      ],
+      ecommerce: [
+        {
+          "title": "キーワードマネージャー",
+          "desc": "広告・SEO向け重複排除/バイト分割ツール。キーワードを整理してコピーも簡単",
+          "url": "./webtool-keyword-tool/index.html",
+          "icon": "fa-keyboard"
+        },
+        {
+          "title": "A+ コンテンツジェネレーター",
+          "desc": "40〜50文字で自動改行 & 段落を<br>に変換",
+          "url": "./webtool-aplus-br-generator/index.html",
+          "icon": "fa-edit"
+        },
+        {
+          "title": "キーワード組み込みチェックマシーン",
+          "desc": "LLM活用による高度なキーワード最適化。メーカー名検出・形容詞判定・Amazon検索最適化を自動実行",
+          "url": "./webtool-matching-machine/index.html",
+          "icon": "fa-search"
+        }
+      ]
+    };
 
     //--------------------------------------------------------------
     // ❷ tools.json があれば読み込み、なければフォールバックを使用
     //--------------------------------------------------------------
     document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
-        fetch('./tools.json')
-          .then(r => r.ok ? r.json() : Promise.reject())
-          .then(renderTools)
-          .catch(() => renderTools(fallbackTools));
+        renderCategorizedTools();
       }, 500); // 読み込み中の表示のため少し遅延
       
       setupEventListeners();
@@ -701,21 +749,37 @@
     });
 
     //--------------------------------------------------------------
-    // ❸ 画面描画
+    // ❸ カテゴリー別画面描画
     //--------------------------------------------------------------
-    function renderTools(arr) {
+    function renderCategorizedTools() {
       const loadingIndicator = document.getElementById('loadingIndicator');
-      const toolGrid = document.getElementById('toolGrid');
       
+      // カテゴリー別のグリッドコンテナを取得
+      const generalGrid = document.getElementById('generalToolsGrid');
+      const lifestyleGrid = document.getElementById('lifestyleToolsGrid');
+      const educationalGrid = document.getElementById('educationalToolsGrid');
+      const ecommerceGrid = document.getElementById('ecommerceToolsGrid');
+      
+      // 各カテゴリーをレンダリング
+      renderCategoryTools(generalGrid, toolCategories.general);
+      renderCategoryTools(lifestyleGrid, toolCategories.lifestyle);
+      renderCategoryTools(educationalGrid, toolCategories.educational);
+      renderCategoryTools(ecommerceGrid, toolCategories.ecommerce);
+      
+      // ローディング表示を非表示にする
+      loadingIndicator.style.display = 'none';
+    }
+
+    function renderCategoryTools(container, tools) {
       // Default icons if not provided
       const defaultIcons = [
         'fa-tools', 'fa-chart-bar', 'fa-calculator', 'fa-cogs', 
         'fa-database', 'fa-edit', 'fa-keyboard', 'fa-search'
       ];
       
-      toolGrid.innerHTML = '';
+      container.innerHTML = '';
       
-      arr.forEach((t, index) => {
+      tools.forEach((t, index) => {
         // Use provided icon or select from default icons
         const icon = t.icon || defaultIcons[index % defaultIcons.length];
         
@@ -735,12 +799,51 @@
         `;
         card.dataset.title = t.title.toLowerCase();
         card.dataset.description = t.desc.toLowerCase();
-        toolGrid.appendChild(card);
+        container.appendChild(card);
       });
+    }
+
+    // 後方互換性のための従来のrenderTools関数（必要に応じて）
+    function renderTools(arr) {
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      const toolGrid = document.getElementById('toolGrid');
       
-      // Hide loading indicator and show content
-      loadingIndicator.style.display = 'none';
-      toolGrid.classList.remove('opacity-0');
+      // Default icons if not provided
+      const defaultIcons = [
+        'fa-tools', 'fa-chart-bar', 'fa-calculator', 'fa-cogs', 
+        'fa-database', 'fa-edit', 'fa-keyboard', 'fa-search'
+      ];
+      
+      if(toolGrid) {
+        toolGrid.innerHTML = '';
+        
+        arr.forEach((t, index) => {
+          // Use provided icon or select from default icons
+          const icon = t.icon || defaultIcons[index % defaultIcons.length];
+          
+          const card = document.createElement('div');
+          card.className = 'tool-card';
+          card.innerHTML = `
+            <div class="card-header">
+              <i class="fas ${icon} mr-2"></i>
+              <span>${t.title}</span>
+            </div>
+            <div class="p-6 flex-1 bg-white">
+              <p class="text-gray-600 mb-6 text-lg">${t.desc}</p>
+              <a href="${t.url}" target="_blank" class="btn-primary text-lg px-5 py-2">
+                <i class="fas fa-external-link-alt mr-2"></i> 開く
+              </a>
+            </div>
+          `;
+          card.dataset.title = t.title.toLowerCase();
+          card.dataset.description = t.desc.toLowerCase();
+          toolGrid.appendChild(card);
+        });
+        
+        // Hide loading indicator and show content
+        loadingIndicator.style.display = 'none';
+        toolGrid.classList.remove('opacity-0');
+      }
     }
 
     //--------------------------------------------------------------
