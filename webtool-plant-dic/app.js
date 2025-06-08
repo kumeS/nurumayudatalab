@@ -532,7 +532,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
   });
   
   // LLMでプロンプトを最適化（植物検索と同じWorkerを使用）
-  const llmWorkerUrl = 'https://nurumayu-ai-api.skume-bioinfo.workers.dev/';
+  const llmWorkerUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
   console.log('🔄 [OPTIMIZATION_START] プロンプト最適化開始:', {
     sessionId: sessionId,
     llmWorkerUrl: llmWorkerUrl,

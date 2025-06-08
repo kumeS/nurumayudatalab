@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI植物辞典 - 曖昧な言葉から植物を発見</title>
+  <title>AI妖怪辞典 - 曖昧な言葉から妖怪を発見</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <style>
     :root {
-      --primary: #4CAF50;
-      --secondary: #81C784;
-      --accent: #FFA726;
-      --text-primary: #2E7D32;
+      --primary: #6A1B9A;
+      --secondary: #8E24AA;
+      --accent: #FF5722;
+      --text-primary: #4A148C;
       --text-secondary: #616161;
-      --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       --transition-speed: 0.3s;
-      --success: #4CAF50;
-      --error: #f44336;
-      --warning: #ff9800;
-      --bg-gradient: linear-gradient(135deg, #E8F5E8 0%, #F1F8E9 50%, #E0F2E1 100%);
+      --success: #8E24AA;
+      --error: #D32F2F;
+      --warning: #FF5722;
+      --bg-gradient: linear-gradient(135deg, #1A1A2E 0%, #16213E 50%, #0F3460 100%);
     }
 
     * {
@@ -30,7 +30,7 @@
       font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
       background: var(--bg-gradient);
       min-height: 100vh;
-      color: var(--text-primary);
+      color: white;
       line-height: 1.6;
     }
 
@@ -296,8 +296,8 @@
       color: var(--text-secondary);
     }
 
-    /* 植物候補カード */
-    .plant-candidates {
+    /* 妖怪候補カード */
+    .yokai-candidates {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
       gap: 1.5rem;
@@ -307,7 +307,7 @@
       margin-right: auto;
     }
 
-    .plant-card {
+    .yokai-card {
       background: white;
       border-radius: 16px;
       padding: 1.5rem;
@@ -317,29 +317,29 @@
       border: 2px solid transparent;
     }
 
-    .plant-card:hover {
+    .yokai-card:hover {
       transform: translateY(-4px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
       border-color: var(--primary);
     }
 
-    .plant-card.selected {
+    .yokai-card.selected {
       border-color: var(--primary);
       background: linear-gradient(135deg, #E8F5E8, #F1F8E9);
     }
 
-    .plant-header {
+    .yokai-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       margin-bottom: 1rem;
     }
 
-    .plant-names {
+    .yokai-names {
       flex: 1;
     }
 
-    .plant-scientific-name {
+    .yokai-scientific-name {
       font-size: 1.1rem;
       font-weight: 600;
       color: var(--primary);
@@ -347,13 +347,13 @@
       font-style: italic;
     }
 
-    .plant-common-name {
+    .yokai-common-name {
       font-size: 1rem;
       color: var(--text-primary);
       font-weight: 500;
     }
 
-    .plant-aliases {
+    .yokai-aliases {
       font-size: 0.85rem;
       color: var(--text-secondary);
       margin-top: 0.2rem;
@@ -446,8 +446,8 @@
       margin-bottom: 0.8rem;
     }
 
-    /* 植物画像 */
-    .plant-image-container {
+    /* 妖怪画像 */
+    .yokai-image-container {
       position: relative;
       margin-bottom: 1rem;
       border-radius: 12px;
@@ -460,7 +460,7 @@
       justify-content: center;
     }
 
-    .plant-image {
+    .yokai-image {
       width: 100%;
       height: 100%;
       object-fit: cover; /* アスペクト比を保持しながらコンテナにフィット */
@@ -468,7 +468,7 @@
       transition: all var(--transition-speed);
     }
 
-    .plant-image:hover {
+    .yokai-image:hover {
       transform: scale(1.05);
     }
 
@@ -500,8 +500,8 @@
       transform: translateY(-1px);
     }
 
-    /* 植物画像生成ローディング */
-    .plant-image-loading {
+    /* 妖怪画像生成ローディング */
+    .yokai-image-loading {
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -512,33 +512,33 @@
       border: 2px dashed var(--primary);
     }
 
-    .plant-loading-icon {
+    .yokai-loading-icon {
       font-size: 3rem;
       color: var(--primary);
       margin-bottom: 1rem;
       animation: grow 2s ease-in-out infinite;
     }
 
-    .plant-loading-text {
+    .yokai-loading-text {
       color: var(--primary);
       font-weight: 600;
       font-size: 1.1rem;
       margin-bottom: 0.5rem;
     }
 
-    .plant-loading-subtext {
+    .yokai-loading-subtext {
       color: var(--text-secondary);
       font-size: 0.9rem;
       text-align: center;
       line-height: 1.4;
     }
 
-    .plant-loading-dots {
+    .yokai-loading-dots {
       display: inline-block;
       margin-left: 0.5rem;
     }
 
-    .plant-loading-dots::after {
+    .yokai-loading-dots::after {
       content: '';
       animation: dots 2s steps(4, end) infinite;
     }
@@ -560,16 +560,16 @@
       100% { content: ''; }
     }
 
-    /* 植物詳細情報 */
-    .plant-details {
+    /* 妖怪詳細情報 */
+    .yokai-details {
       display: none;
     }
 
-    .plant-details.active {
+    .yokai-details.active {
       display: block;
     }
 
-    .plant-features {
+    .yokai-features {
       margin-bottom: 1rem;
     }
 
@@ -604,7 +604,7 @@
     }
 
     /* アクションボタン */
-    .plant-actions {
+    .yokai-actions {
       display: flex;
       gap: 0.5rem;
       flex-wrap: wrap;
@@ -636,7 +636,7 @@
       background: linear-gradient(135deg, #FF7043, #FF8A65);
     }
 
-    /* マイ図鑑セクション */
+    /* マイ妖怪集セクション */
     .my-collection-section {
       display: none;
     }
@@ -762,12 +762,12 @@
         padding: 1.5rem;
       }
 
-      .plant-candidates {
+      .yokai-candidates {
         grid-template-columns: 1fr;
         gap: 1rem;
       }
 
-      .plant-card {
+      .yokai-card {
         padding: 1rem;
       }
 
@@ -795,11 +795,11 @@
         font-size: 1.7rem;
       }
 
-      .plant-image-container {
+      .yokai-image-container {
         height: 150px;
       }
 
-      .plant-actions {
+      .yokai-actions {
         justify-content: center;
       }
     }
@@ -1243,7 +1243,7 @@
 
 
     /* 詳細表示モーダル */
-    .plant-details-modal {
+    .yokai-details-modal {
       position: fixed;
       top: 0;
       left: 0;
@@ -1257,11 +1257,11 @@
       padding: 1rem;
     }
 
-    .plant-details-modal.active {
+    .yokai-details-modal.active {
       display: flex;
     }
 
-    .plant-details-content {
+    .yokai-details-content {
       background: white;
       border-radius: 16px;
       max-width: 600px;
@@ -1295,14 +1295,14 @@
       color: var(--primary);
     }
 
-    .modal-plant-header {
+    .modal-yokai-header {
       text-align: center;
       margin-bottom: 2rem;
       padding-bottom: 1rem;
       border-bottom: 2px solid #f0f0f0;
     }
 
-    .modal-plant-image {
+    .modal-yokai-image {
       width: 200px;
       height: 200px;
       object-fit: cover;
@@ -1312,7 +1312,7 @@
       box-shadow: var(--card-shadow);
     }
 
-    .modal-plant-names {
+    .modal-yokai-names {
       margin-bottom: 1rem;
     }
 
@@ -1624,21 +1624,21 @@
   <div class="container">
     <!-- ヘッダー -->
     <header class="header">
-      <h1><i class="fas fa-seedling"></i> AI植物辞典</h1>
-      <p class="subtitle">曖昧な言葉から植物を発見する楽しみ</p>
+      <h1><i class="fas fa-ghost"></i> AI妖怪辞典</h1>
+      <p class="subtitle">曖昧な言葉から妖怪を発見する楽しみ</p>
       <div class="description">
-        <span class="highlight">俗名や特徴、見た目の印象</span>など、<span class="highlight">どんな曖昧な言葉でも大丈夫</span>。<span class="highlight">AIが該当する植物候補を提案</span>し、
-        それぞれの特徴や生き物とのつながりを<span class="highlight">美しいイラスト</span>と共に解説します。
+        <span class="highlight">俗名や特徴、見た目の印象</span>など、<span class="highlight">どんな曖昧な言葉でも大丈夫</span>。<span class="highlight">AIが該当する妖怪候補を提案</span>し、
+        それぞれの特徴や伝承、生息地を<span class="highlight">美しいイラスト</span>と共に解説します。
       </div>
     </header>
 
     <!-- タブナビゲーション -->
     <nav class="tab-navigation">
       <button class="tab active" id="search-tab">
-        <i class="fas fa-search"></i> 植物を探す
+        <i class="fas fa-search"></i> 妖怪を探す
       </button>
       <button class="tab" id="collection-tab">
-        <i class="fas fa-book"></i> マイ図鑑
+        <i class="fas fa-book"></i> マイ妖怪集
       </button>
       <button class="tab" id="settings-tab">
         <i class="fas fa-cog"></i> 設定
@@ -1648,7 +1648,7 @@
     <!-- 検索セクション -->
     <section class="search-section" id="search-section">
       <label for="search-input" class="search-label">
-        <i class="fas fa-seedling"></i> どんな植物をお探しですか？
+        <i class="fas fa-ghost"></i> どんな妖怪をお探しですか？
       </label>
       
       <div class="search-input-container">
@@ -1657,7 +1657,7 @@
           type="text" 
           id="search-input" 
           class="search-input" 
-          placeholder="例：ねこじゃらし、白い道端の花、紫の小さい花..."
+                      placeholder="例：赤い目、夜に現れる、水辺で見かけた、白い影..."
           autocomplete="off"
         >
       </div>
@@ -1665,34 +1665,34 @@
       <div class="search-examples">
         <div class="search-examples-title">よく検索されるキーワード：</div>
                   <div class="example-tags">
-            <button class="example-tag" data-query="ねこじゃらし">ねこじゃらし</button>
-            <button class="example-tag" data-query="白い道端の花">白い道端の花</button>
-            <button class="example-tag" data-query="紫の小さい花">紫の小さい花</button>
-            <button class="example-tag" data-query="桜に似た花">桜に似た花</button>
-            <button class="example-tag" data-query="畑でよく見る根菜">畑でよく見る根菜</button>
-            <button class="example-tag" data-query="道端で見かける果実">道端で見かける果実</button>
-            <button class="example-tag" data-query="樹海で現れる苔">樹海で現れる苔</button>
-            <button class="example-tag" data-query="樹海で遭遇するシダ植物">樹海で遭遇するシダ植物</button>
-            <button class="example-tag" data-query="トゲのある植物">トゲのある植物</button>
-            <button class="example-tag" data-query="つる性の植物">つる性の植物</button>
-            <button class="example-tag" data-query="ふわふわした花">ふわふわした花</button>
-            <button class="example-tag" data-query="ヒラヒラしてる">ヒラヒラしてる</button>
-            <button class="example-tag" data-query="葉っぱがハート型">葉っぱがハート型</button>
-            <button class="example-tag" data-query="赤い実がなる">赤い実がなる</button>
-            <button class="example-tag" data-query="いい匂いの花">いい匂いの花</button>
-            <button class="example-tag" data-query="毛深い葉っぱ">毛深い葉っぱ</button>
-            <button class="example-tag" data-query="多肉っぽい">多肉っぽい</button>
-            <button class="example-tag" data-query="ギザギザの葉">ギザギザの葉</button>
-            <button class="example-tag" data-query="よく見る雑草">よく見る雑草</button>
-            <button class="example-tag" data-query="垂れ下がってる">垂れ下がってる</button>
-            <button class="example-tag" data-query="星みたいな花">星みたいな花</button>
-            <button class="example-tag" data-query="シダっぽい">シダっぽい</button>
-            <button class="example-tag" data-query="でかい葉っぱ">でかい葉っぱ</button>
-            <button class="example-tag" data-query="コケみたい">コケみたい</button>
-            <button class="example-tag" data-query="黄色くて小さい">黄色くて小さい</button>
-            <button class="example-tag" data-query="ベタベタする">ベタベタする</button>
-            <button class="example-tag" data-query="虫がよく来る">虫がよく来る</button>
-            <button class="example-tag" data-query="水辺にある">水辺にある</button>
+            <button class="example-tag" data-query="赤い目">赤い目</button>
+            <button class="example-tag" data-query="毛深い">毛深い</button>
+            <button class="example-tag" data-query="白い影">白い影</button>
+            <button class="example-tag" data-query="水辺で見かけた">水辺で見かけた</button>
+            <button class="example-tag" data-query="山で見た">山で見た</button>
+            <button class="example-tag" data-query="夜に現れる">夜に現れる</button>
+            <button class="example-tag" data-query="長い髪">長い髪</button>
+            <button class="example-tag" data-query="角がある">角がある</button>
+            <button class="example-tag" data-query="猫のような">猫のような</button>
+            <button class="example-tag" data-query="鳥のような">鳥のような</button>
+            <button class="example-tag" data-query="首が長い">首が長い</button>
+            <button class="example-tag" data-query="顔がない">顔がない</button>
+            <button class="example-tag" data-query="川や池にいる">川や池にいる</button>
+            <button class="example-tag" data-query="雪と関係ある">雪と関係ある</button>
+            <button class="example-tag" data-query="小さな子供のような">小さな子供のような</button>
+            <button class="example-tag" data-query="壁のような">壁のような</button>
+            <button class="example-tag" data-query="目が一つ">目が一つ</button>
+            <button class="example-tag" data-query="伸びる体">伸びる体</button>
+            <button class="example-tag" data-query="光る玉">光る玉</button>
+            <button class="example-tag" data-query="透明な">透明な</button>
+            <button class="example-tag" data-query="とても大きい">とても大きい</button>
+            <button class="example-tag" data-query="とても小さい">とても小さい</button>
+            <button class="example-tag" data-query="森にいる">森にいる</button>
+            <button class="example-tag" data-query="風のような">風のような</button>
+            <button class="example-tag" data-query="海や川にいる">海や川にいる</button>
+            <button class="example-tag" data-query="家にいる">家にいる</button>
+            <button class="example-tag" data-query="犬や狼のような">犬や狼のような</button>
+            <button class="example-tag" data-query="血を吸う">血を吸う</button>
           </div>
       </div>
 
@@ -1705,7 +1705,7 @@
         </button>
         <div class="loading" id="search-loading">
           <div class="loading-spinner"></div>
-          <span>植物を検索中...</span>
+          <span>妖怪を検索中...</span>
         </div>
       </div>
     </section>
@@ -1717,18 +1717,18 @@
         <p class="results-count" id="results-count"></p>
       </div>
 
-      <div class="plant-candidates" id="plant-candidates">
-        <!-- 植物候補カードが動的に生成される -->
+      <div class="yokai-candidates" id="yokai-candidates">
+        <!-- 妖怪候補カードが動的に生成される -->
       </div>
     </section>
 
-    <!-- マイ図鑑セクション -->
+    <!-- マイ妖怪集セクション -->
     <section class="my-collection-section" id="my-collection-section">
       <div class="results-header">
         <h2 class="results-title">
-          <i class="fas fa-book"></i> マイ図鑑
+          <i class="fas fa-book"></i> マイ妖怪集
         </h2>
-        <p class="results-count" id="collection-count">保存された植物はありません</p>
+        <p class="results-count" id="collection-count">保存された妖怪はありません</p>
         
         <!-- エクスポート・インポートボタン -->
         <div class="collection-actions" style="margin-top: 1rem;">
@@ -1749,7 +1749,7 @@
       </div>
 
       <div class="collection-grid" id="collection-grid">
-        <!-- 保存された植物が動的に生成される -->
+        <!-- 保存された妖怪が動的に生成される -->
       </div>
     </section>
 
@@ -1763,7 +1763,7 @@
         
         <div class="collection-actions" style="margin-top: 1rem;">
           <button class="btn btn-secondary" onclick="app.showMyCollection()" style="background: var(--primary);">
-            <i class="fas fa-arrow-left"></i> マイ図鑑に戻る
+            <i class="fas fa-arrow-left"></i> マイ妖怪集に戻る
           </button>
           <button class="btn btn-secondary" onclick="app.clearAllSavedImages()" style="margin-left: 0.5rem; background: #ff7043;">
             <i class="fas fa-trash"></i> 全削除
@@ -1784,28 +1784,28 @@
       <div class="settings-content">
         <div class="settings-group">
           <h3 class="settings-group-title">
-            <i class="fas fa-search"></i> 植物検索設定
+            <i class="fas fa-search"></i> 妖怪検索設定
           </h3>
           <div class="settings-options">
             <label class="settings-option">
               <input type="radio" name="region-setting" value="japan" checked>
               <div class="settings-option-content">
-                <div class="settings-option-label">日本で見られる植物を優先</div>
-                <div class="settings-option-desc">日本国内で見つかりやすい植物を重視した検索</div>
+                <div class="settings-option-label">日本で見られる妖怪を優先</div>
+                <div class="settings-option-desc">日本国内で見つかりやすい妖怪を重視した検索</div>
               </div>
             </label>
             <label class="settings-option">
               <input type="radio" name="region-setting" value="southeast-asia">
               <div class="settings-option-content">
-                <div class="settings-option-label">東南アジアで見られる植物を優先</div>
-                <div class="settings-option-desc">東南アジア地域の植物を重視した検索</div>
+                <div class="settings-option-label">東南アジアで見られる妖怪を優先</div>
+                <div class="settings-option-desc">東南アジア地域の妖怪を重視した検索</div>
               </div>
             </label>
             <label class="settings-option">
               <input type="radio" name="region-setting" value="north-america">
               <div class="settings-option-content">
-                <div class="settings-option-label">北米大陸で見られる植物を優先</div>
-                <div class="settings-option-desc">北米地域の植物を重視した検索</div>
+                <div class="settings-option-label">ヨーロッパ・北米大陸で見られる妖怪を優先</div>
+                <div class="settings-option-desc">ヨーロッパ・北米地域の妖怪を重視した検索</div>
               </div>
             </label>
           </div>
@@ -1817,33 +1817,33 @@
           </h3>
                      <div class="settings-options">
              <label class="settings-option">
-               <input type="radio" name="style-setting" value="botanical" checked>
+               <input type="radio" name="style-setting" value="traditional" checked>
                <div class="settings-option-content">
                  <div class="settings-option-label">
-                   植物画
-                   <i class="fas fa-info-circle prompt-info-icon" data-style="botanical" title="プロンプトを確認"></i>
+                   妖怪画
+                   <i class="fas fa-info-circle prompt-info-icon" data-style="traditional" title="プロンプトを確認"></i>
                  </div>
-                 <div class="settings-option-desc">古典的な植物学図鑑のスタイル</div>
+                 <div class="settings-option-desc">江戸時代の妖怪画を参考にしたスタイル</div>
                </div>
              </label>
              <label class="settings-option">
                <input type="radio" name="style-setting" value="anime">
                <div class="settings-option-content">
                  <div class="settings-option-label">
-                   アニメ風
+                   アニメ風妖怪画
                    <i class="fas fa-info-circle prompt-info-icon" data-style="anime" title="プロンプトを確認"></i>
                  </div>
-                 <div class="settings-option-desc">日本アニメ風の鮮やかなイラスト</div>
+                 <div class="settings-option-desc">アニメ・マンガ調の妖怪イラスト</div>
                </div>
              </label>
              <label class="settings-option">
                <input type="radio" name="style-setting" value="realistic">
                <div class="settings-option-content">
                  <div class="settings-option-label">
-                   写実的
+                   リアル妖怪写真
                    <i class="fas fa-info-circle prompt-info-icon" data-style="realistic" title="プロンプトを確認"></i>
                  </div>
-                 <div class="settings-option-desc">写真のようなリアルな描写</div>
+                 <div class="settings-option-desc">写真のようなリアルな妖怪描写</div>
                </div>
              </label>
            </div>
@@ -1907,23 +1907,23 @@
     </div>
   </div>
 
-  <!-- 植物詳細モーダル -->
-  <div class="plant-details-modal" id="plant-details-modal">
-    <div class="plant-details-content">
+  <!-- 妖怪詳細モーダル -->
+  <div class="yokai-details-modal" id="yokai-details-modal">
+    <div class="yokai-details-content">
       <button class="modal-close-btn" onclick="app.closeDetailsModal()">
         <i class="fas fa-times"></i>
       </button>
       
-      <div class="modal-plant-header">
-        <img id="modal-plant-image" class="modal-plant-image" src="" alt="" style="display: none;">
-        <div class="modal-plant-names">
+      <div class="modal-yokai-header">
+        <img id="modal-yokai-image" class="modal-yokai-image" src="" alt="" style="display: none;">
+        <div class="modal-yokai-names">
           <div class="modal-scientific-name" id="modal-scientific-name"></div>
           <div class="modal-common-name" id="modal-common-name"></div>
-          <div class="plant-aliases" id="modal-aliases"></div>
+          <div class="yokai-aliases" id="modal-aliases"></div>
         </div>
       </div>
 
-      <div id="modal-plant-details">
+      <div id="modal-yokai-details">
         <!-- 詳細情報がここに動的に挿入される -->
       </div>
     </div>
@@ -1946,7 +1946,7 @@
 
   <script>
     // 全体のアプリケーション状態管理
-    class PlantDictionaryApp {
+    class YokaiDictionaryApp {
       constructor() {
         this.currentTab = this.loadCurrentTab();
         this.searchResults = this.loadSearchResults();
@@ -1956,20 +1956,20 @@
         // 設定をロードし、なければデフォルト値を使用
         this.loadSettingsValues();
         
-        this.searchLLM = new PlantSearchLLM();
+        this.searchLLM = new YokaiSearchLLM();
         this.imageGenerationAttempts = {}; // 画像生成試行回数を追跡
         this.loadImageGenerationAttempts(); // 保存された再生成回数を読み込み
-        this.imageStorage = new PlantImageStorage(); // 画像ストレージ管理
+        this.imageStorage = new YokaiImageStorage(); // 画像ストレージ管理
         this.init();
       }
 
       // 設定値をロード（コンストラクタ用）
       loadSettingsValues() {
-        const saved = localStorage.getItem('plantAppSettings');
+        const saved = localStorage.getItem('yokaiAppSettings');
         if (saved) {
           try {
             const settings = JSON.parse(saved);
-            this.selectedStyle = settings.style || 'botanical';
+            this.selectedStyle = settings.style || 'traditional';
             this.selectedModel = settings.model || 'sdxl-lightning';
             this.selectedRegion = settings.region || 'japan';
           } catch (error) {
@@ -1983,7 +1983,7 @@
 
       // デフォルト設定を設定
       setDefaultSettings() {
-        this.selectedStyle = 'botanical';
+        this.selectedStyle = 'traditional';
         this.selectedModel = 'sdxl-lightning';
         this.selectedRegion = 'japan';
       }
@@ -2027,8 +2027,8 @@
 
 
         // モーダル関連
-        document.getElementById('plant-details-modal').addEventListener('click', (e) => {
-          if (e.target.id === 'plant-details-modal') {
+        document.getElementById('yokai-details-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'yokai-details-modal') {
             this.closeDetailsModal();
           }
         });
@@ -2124,9 +2124,9 @@
       // スタイルラベルを取得するヘルパー関数
       getStyleLabel(style) {
         const styleLabels = {
-          'botanical': '植物画',
-          'anime': 'アニメ風',
-          'realistic': '写実的'
+          'traditional': '妖怪画',
+          'anime': 'アニメ風妖怪画',
+          'realistic': 'リアル妖怪写真'
         };
         return styleLabels[style] || style;
       }
@@ -2167,14 +2167,14 @@
         this.hideMessage();
 
         try {
-          const results = await this.searchPlants(query);
+          const results = await this.searchYokai(query);
           this.searchResults = results;
           this.lastSearchQuery = query;
           this.saveSearchResults();
           this.saveLastSearchQuery();
           this.displaySearchResults(results, query, false); // isRestore = false（新しい検索）
           
-          // 「植物を探す」タブでのみ検索結果を表示
+          // 「妖怪を探す」タブでのみ検索結果を表示
           if (this.currentTab === 'search') {
             document.getElementById('results-section').classList.add('active');
           }
@@ -2186,16 +2186,16 @@
         }
       }
 
-      async searchPlants(query) {
-        // 新しいLLM処理システムを使用して植物候補を検索
-        const plants = await this.searchLLM.searchPlants(query, this.selectedRegion);
+      async searchYokai(query) {
+        // 新しいLLM処理システムを使用して妖怪候補を検索
+        const yokai = await this.searchLLM.searchYokai(query, this.selectedRegion);
         
         // データ形式を統一（confidence数値を文字列に変換）
-        return plants.map(plant => ({
-          ...plant,
-          confidence: plant.confidence > 0.8 ? '高い' : 
-                     plant.confidence > 0.5 ? '中程度' : '低い',
-          reason: plant.features // 理由として特徴を使用
+        return yokai.map(yokai => ({
+          ...yokai,
+          confidence: yokai.confidence > 0.8 ? '高い' : 
+                     yokai.confidence > 0.5 ? '中程度' : '低い',
+          reason: yokai.features // 理由として特徴を使用
         }));
       }
 
@@ -2204,7 +2204,7 @@
 
 
       displaySearchResults(results, query, isRestore = false) {
-        const container = document.getElementById('plant-candidates');
+        const container = document.getElementById('yokai-candidates');
         const title = document.getElementById('results-title');
         const count = document.getElementById('results-count');
 
@@ -2224,9 +2224,9 @@
 
         container.innerHTML = '';
 
-        results.forEach((plant, index) => {
-          const plantCard = this.createPlantCard(plant, index);
-          container.appendChild(plantCard);
+        results.forEach((yokai, index) => {
+          const yokaiCard = this.createYokaiCard(yokai, index);
+          container.appendChild(yokaiCard);
         });
 
         // DOM要素作成後に再生成ボタンの状態を更新
@@ -2235,41 +2235,41 @@
         }
       }
 
-      createPlantCard(plant, index) {
+      createYokaiCard(yokai, index) {
         const card = document.createElement('div');
-        card.className = 'plant-card fade-in';
+        card.className = 'yokai-card fade-in';
         card.style.animationDelay = `${index * 0.1}s`;
 
-        const aliases = plant.aliases && plant.aliases.length > 0 
-          ? `別名：${plant.aliases.join('、')}`
+        const aliases = yokai.aliases && yokai.aliases.length > 0 
+          ? `別名：${yokai.aliases.join('、')}`
           : '';
 
         const confidenceColor = {
           '高い': '#4CAF50',
           '中程度': '#FF9800',
           '低い': '#9E9E9E'
-        }[plant.confidence] || '#9E9E9E';
+        }[yokai.confidence] || '#9E9E9E';
 
         card.innerHTML = `
-          <div class="plant-header">
-            <div class="plant-names">
-              <div class="plant-scientific-name">${plant.scientificName}</div>
-              <div class="plant-common-name">${plant.commonName}</div>
-              ${aliases ? `<div class="plant-aliases">${aliases}</div>` : ''}
+          <div class="yokai-header">
+            <div class="yokai-names">
+              <div class="yokai-scientific-name">${yokai.scientificName}</div>
+              <div class="yokai-common-name">${yokai.commonName}</div>
+              ${aliases ? `<div class="yokai-aliases">${aliases}</div>` : ''}
             </div>
             <div class="confidence-badge" style="background: ${confidenceColor}">
-              一致度：${plant.confidence}
+              一致度：${yokai.confidence}
               <button class="confidence-info-btn" onclick="app.showConfidenceReason(${index})" title="一致度の根拠を表示">
                 <i class="fas fa-info-circle"></i>
               </button>
             </div>
           </div>
 
-          <div class="plant-image-container" id="image-container-${index}">
-            ${plant.generatedImageUrl ? 
+          <div class="yokai-image-container" id="image-container-${index}">
+            ${yokai.generatedImageUrl ? 
               `<div style="position: relative;">
-                <img src="${plant.generatedImageUrl}" alt="${plant.commonName}" class="plant-image">
-                ${plant.generatedImagePrompt ? 
+                <img src="${yokai.generatedImageUrl}" alt="${yokai.commonName}" class="yokai-image">
+                ${yokai.generatedImagePrompt ? 
                   `<button class="image-prompt-info-btn" onclick="app.showImagePrompt(${index})" title="使用されたプロンプトを表示">
                     <i class="fas fa-info"></i>
                   </button>` : ''}
@@ -2288,109 +2288,109 @@
             }
           </div>
 
-          <div class="plant-details" id="details-${index}">
-            ${plant.features ? `
-              <div class="plant-features">
+          <div class="yokai-details" id="details-${index}">
+            ${yokai.features ? `
+              <div class="yokai-features">
                 <div class="features-title">
-                  <i class="fas fa-leaf"></i> 総合的特徴
+                  <i class="fas fa-ghost"></i> 総合的特徴
                 </div>
-                <div class="features-content">${plant.features}</div>
+                <div class="features-content">${yokai.features}</div>
               </div>
             ` : ''}
 
-            ${plant.feature1 ? `
-              <div class="plant-features">
+            ${yokai.feature1 ? `
+              <div class="yokai-features">
                 <div class="features-title">
-                  <i class="fas fa-seedling"></i> 形態的特徴
+                  <i class="fas fa-eye"></i> 形態的特徴
                 </div>
-                <div class="features-content">${plant.feature1}</div>
+                <div class="features-content">${yokai.feature1}</div>
               </div>
             ` : ''}
 
-            ${plant.feature2 ? `
-              <div class="plant-features">
+            ${yokai.feature2 ? `
+              <div class="yokai-features">
                 <div class="features-title">
-                  <i class="fas fa-globe-americas"></i> 生態的特徴
+                  <i class="fas fa-magic"></i> 能力的特徴
                 </div>
-                <div class="features-content">${plant.feature2}</div>
+                <div class="features-content">${yokai.feature2}</div>
               </div>
             ` : ''}
 
-            ${plant.feature3 ? `
-              <div class="plant-features">
+            ${yokai.feature3 ? `
+              <div class="yokai-features">
                 <div class="features-title">
                   <i class="fas fa-search"></i> 識別特徴
                 </div>
-                <div class="features-content">${plant.feature3}</div>
+                <div class="features-content">${yokai.feature3}</div>
               </div>
             ` : ''}
 
-            ${plant.morphology ? `
-              <div class="plant-features">
+            ${yokai.morphology ? `
+              <div class="yokai-features">
                 <div class="features-title">
-                  <i class="fas fa-microscope"></i> 形態学的特徴
+                  <i class="fas fa-mask"></i> 外見的特徴
                 </div>
-                <div class="features-content">${plant.morphology}</div>
+                <div class="features-content">${yokai.morphology}</div>
               </div>
             ` : ''}
 
-            ${plant.physiology ? `
-              <div class="plant-features">
+            ${yokai.physiology ? `
+              <div class="yokai-features">
                 <div class="features-title">
                   <i class="fas fa-dna"></i> 生理的特徴
                 </div>
-                <div class="features-content">${plant.physiology}</div>
+                <div class="features-content">${yokai.physiology}</div>
               </div>
             ` : ''}
 
-            ${plant.taxonomy ? `
-              <div class="plant-features">
+            ${yokai.taxonomy ? `
+              <div class="yokai-features">
                 <div class="features-title">
-                  <i class="fas fa-sitemap"></i> 分類学的特徴
+                  <i class="fas fa-tags"></i> 種族的特徴
                 </div>
-                <div class="features-content">${plant.taxonomy}</div>
+                <div class="features-content">${yokai.taxonomy}</div>
               </div>
             ` : ''}
 
-            ${plant.habitat ? `
-              <div class="plant-features">
+            ${yokai.habitat ? `
+              <div class="yokai-features">
                 <div class="features-title">
                   <i class="fas fa-map-marker-alt"></i> 生育環境・分布
                 </div>
-                <div class="features-content">${plant.habitat}</div>
+                <div class="features-content">${yokai.habitat}</div>
               </div>
             ` : ''}
 
-            ${plant.season ? `
-              <div class="plant-features">
+            ${yokai.season ? `
+              <div class="yokai-features">
                 <div class="features-title">
                   <i class="fas fa-calendar-alt"></i> 季節
                 </div>
-                <div class="features-content">${plant.season}</div>
+                <div class="features-content">${yokai.season}</div>
               </div>
             ` : ''}
 
-            ${plant.wildlifeConnection ? `
+            ${yokai.humanConnection ? `
               <div class="wildlife-connection">
                 <div class="features-title">
-                  <i class="fas fa-paw"></i> 生き物とのつながり
+                  <i class="fas fa-users"></i> 人間とのつながり
                 </div>
-                <div class="features-content">${plant.wildlifeConnection}</div>
+                <div class="features-content">${yokai.humanConnection}</div>
               </div>
             ` : ''}
 
-            ${plant.culturalInfo ? `
+            ${yokai.culturalInfo ? `
               <div class="culture-info">
                 <div class="features-title">
                   <i class="fas fa-users"></i> 文化・暮らしとの関わり
                 </div>
-                <div class="features-content">${plant.culturalInfo}</div>
+                <div class="features-content">${yokai.culturalInfo}</div>
               </div>
             ` : ''}
 
-            <div class="plant-actions">
+            <div class="yokai-actions">
               <button class="action-btn save-btn" data-index="${index}">
-                <i class="fas fa-bookmark"></i> マイ図鑑に保存
+                <i class="fas fa-bookmark"></i> マイ妖怪集に保存
               </button>
             </div>
           </div>
@@ -2413,14 +2413,14 @@
         });
 
         // 詳細を最初から表示
-        card.querySelector('.plant-details').classList.add('active');
+        card.querySelector('.yokai-details').classList.add('active');
 
         // 画像生成ボタンのイベントリスナーを追加
         const imageGenerateBtn = card.querySelector('.image-generate-btn');
         if (imageGenerateBtn) {
           imageGenerateBtn.addEventListener('click', (e) => {
             const index = parseInt(e.target.closest('.image-generate-btn').dataset.index);
-            this.generatePlantImage(index);
+            this.generateYokaiImage(index);
           });
         }
 
@@ -2436,11 +2436,11 @@
         return card;
       }
 
-      async generatePlantImage(index) {
-        console.log('generatePlantImage called with index:', index);
+      async generateYokaiImage(index) {
+        console.log('generateYokaiImage called with index:', index);
         console.log('searchResults:', this.searchResults);
-        const plant = this.searchResults[index];
-        console.log('plant:', plant);
+        const yokai = this.searchResults[index];
+        console.log('yokai:', yokai);
         const container = document.getElementById(`image-container-${index}`);
         console.log('container:', container);
         
@@ -2465,20 +2465,22 @@
         // 再生成試行回数を更新
         const currentAttempt = this.updateRegenerationCount(index);
 
-        // ローディング表示
+        // プロンプト最適化中の表示
         const styleLabels = {
-          'botanical': '植物画',
-          'anime': 'アニメ風',
+          'traditional': '妖怪画',
+          'anime': '日本の妖怪マンガ風',
           'realistic': '写実的'
         };
         const styleLabel = styleLabels[selectedStyle] || selectedStyle;
 
+        // Phase 1: プロンプト最適化中
         container.innerHTML = `
-          <div class="plant-image-loading">
-            <div class="plant-loading-icon">🌱</div>
-            <div class="plant-loading-text">
-              植物画像生成中<span class="plant-loading-dots"></span>
+          <div class="yokai-image-loading">
+            <div class="yokai-loading-icon">🔮</div>
+            <div class="yokai-loading-text">
+              プロンプト最適化中<span class="yokai-loading-dots"></span>
             </div>
+            <div class="yokai-loading-subtext">妖怪の特徴を分析しています...</div>
           </div>
         `;
 
@@ -2487,7 +2489,7 @@
           const randomSeed = this.generateRandomSeed();
           
           console.log('🎨 [IMAGE_GENERATION] 画像生成開始:', {
-            plantName: plant.scientificName,
+            yokaiName: yokai.scientificName,
             selectedStyle: selectedStyle,
             styleLabel: this.getStyleLabel(selectedStyle),
             model: this.selectedModel,
@@ -2496,12 +2498,12 @@
             timestamp: new Date().toISOString()
           });
           
-          // 新しいLLM処理システムを使用して画像生成
-          const result = await this.searchLLM.generatePlantImage(plant, selectedStyle, this.selectedModel, {
+          // 2段階の画像生成プロセス
+          const result = await this.generateYokaiImageWithProgress(yokai, selectedStyle, this.selectedModel, {
             seed: randomSeed,
             width: 1024,
             height: 1024
-          });
+          }, container, styleLabel);
           
           if (result.success) {
             // 画像URLとプロンプトを検索結果に保存
@@ -2517,7 +2519,7 @@
             this.saveSearchResults();
             
             // 保存画像履歴に自動保存
-            await this.saveImageToHistory(result, plant, selectedStyle);
+            await this.saveImageToHistory(result, yokai, selectedStyle);
             
             // 再生成ボタンの状態を決定（モデル別）
             let regenButtonHtml = '';
@@ -2545,7 +2547,7 @@
             
             container.innerHTML = `
               <div style="position: relative;">
-                <img src="${result.imageUrl}" alt="${plant.commonName}" class="plant-image">
+                <img src="${result.imageUrl}" alt="${yokai.commonName}" class="yokai-image">
                 <button class="image-prompt-info-btn" onclick="app.showImagePrompt(${index})" title="使用されたプロンプトを表示">
                   <i class="fas fa-info"></i>
                 </button>
@@ -2558,7 +2560,7 @@
             if (successRegenBtn) {
               successRegenBtn.addEventListener('click', (e) => {
                 const index = parseInt(e.target.closest('.image-generate-btn').dataset.index);
-                this.generatePlantImage(index);
+                this.generateYokaiImage(index);
               });
             }
           } else {
@@ -2571,12 +2573,9 @@
         } catch (error) {
           console.error('画像生成エラー:', error);
           
-          // エラー時は試行回数をロールバック
-          this.imageGenerationAttempts[`plant-${index}`] = Math.max(0, (this.imageGenerationAttempts[`plant-${index}`] || 1) - 1);
-          this.saveImageGenerationAttempts(); // ロールバック後も保存
-          
-          // エラーメッセージを取得
+          // エラーメッセージを取得してサーバーエラーかどうかを判定
           let errorMessage = 'サーバーエラー';
+          let isServerError = false;
           
           // APIエラーの場合
           if (error.apiError) {
@@ -2586,29 +2585,49 @@
             const errorMsg = error.message.toLowerCase();
             if (errorMsg.includes('api接続エラー')) {
               errorMessage = 'API接続エラー';
+              isServerError = true;
             } else if (errorMsg.includes('replicate')) {
               errorMessage = 'Replicate APIエラー';
+              isServerError = true;
             } else if (errorMsg.includes('timeout')) {
               errorMessage = 'タイムアウト';
+              isServerError = true;
             } else if (errorMsg.includes('network')) {
               errorMessage = 'ネットワークエラー';
+              isServerError = true;
             } else if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
               errorMessage = 'API制限に達しました';
+              isServerError = false; // 制限エラーは再試行回数にカウント
             } else if (errorMsg.includes('画像生成失敗')) {
               errorMessage = 'API処理エラー';
+              isServerError = true;
             } else {
               errorMessage = 'サーバーエラー';
+              isServerError = true;
             }
           }
           
-          const canRetry = this.canRegenerate(index);
-          const retryButtonHtml = canRetry ? 
-            `<button class="image-generate-btn" data-index="${index}" style="margin-top: 1rem;">
-              <i class="fas fa-redo"></i> 再生成
-            </button>` :
-            `<div style="color: #666; font-size: 0.9rem; margin-top: 1rem;">
+          // サーバーエラーの場合は試行回数をロールバック（再実行可能にする）
+          if (isServerError) {
+            const key = this.getYokaiKey(index);
+            this.imageGenerationAttempts[key] = Math.max(0, (this.imageGenerationAttempts[key] || 1) - 1);
+            this.saveImageGenerationAttempts(); // ロールバック後も保存
+            console.log('🔄 サーバーエラーのため試行回数をロールバック:', key, this.imageGenerationAttempts[key]);
+          }
+          
+          // 再試行可能かチェック
+          const canRetry = this.canRegenerate(index) || isServerError;
+          
+          let retryButtonHtml;
+          if (canRetry) {
+            retryButtonHtml = `<button class="image-generate-btn" data-index="${index}" style="margin-top: 1rem;">
+              <i class="fas fa-redo"></i> ${isServerError ? '再実行' : '再生成'}
+            </button>`;
+          } else {
+            retryButtonHtml = `<div style="color: #666; font-size: 0.9rem; margin-top: 1rem;">
               再生成回数上限に達しました
             </div>`;
+          }
           
           container.innerHTML = `
             <div class="image-placeholder">
@@ -2616,6 +2635,7 @@
                 <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
                 <div style="font-weight: 600; margin-bottom: 0.5rem;">画像生成に失敗</div>
                 <div style="font-size: 0.9rem; color: #666;">${errorMessage}</div>
+                ${isServerError ? '<div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">サーバーエラーのため再実行できます</div>' : ''}
               </div>
               ${retryButtonHtml}
             </div>
@@ -2626,64 +2646,94 @@
           if (retryBtn) {
             retryBtn.addEventListener('click', (e) => {
               const index = parseInt(e.target.closest('.image-generate-btn').dataset.index);
-              this.generatePlantImage(index);
+              this.generateYokaiImage(index);
             });
           }
         }
       }
 
-
-
-
-
-
+      // プログレス表示付きの画像生成関数
+      async generateYokaiImageWithProgress(yokaiInfo, style, model, imageOptions, container, styleLabel) {
+        try {
+          // Phase 1: プロンプト最適化開始
+          console.log('🔮 [PROMPT_OPTIMIZATION] プロンプト最適化開始');
+          
+          // プロンプト最適化完了時のコールバックを設定
+          const optionsWithCallback = {
+            ...imageOptions,
+            onOptimizationComplete: (optimizedPrompt) => {
+              // Phase 2: プロンプト最適化完了後、画像生成フェーズに移行
+              if (container) {
+                console.log('🎨 [IMAGE_GENERATION] 画像生成フェーズ開始');
+                container.innerHTML = `
+                  <div class="yokai-image-loading">
+                    <div class="yokai-loading-icon">👹</div>
+                    <div class="yokai-loading-text">
+                      ${styleLabel}の生成中<span class="yokai-loading-dots"></span>
+                    </div>
+                    <div class="yokai-loading-subtext">妖怪の姿を描画しています...</div>
+                  </div>
+                `;
+              }
+            }
+          };
+          
+          // 実際の画像生成処理
+          const result = await this.searchLLM.generateYokaiImage(yokaiInfo, style, model, optionsWithCallback);
+          
+          return result;
+        } catch (error) {
+          console.error('🔮 プログレス付き画像生成エラー:', error);
+          throw error;
+        }
+      }
 
       toggleSaveToCollection(index) {
-        const plant = this.searchResults[index];
+        const yokai = this.searchResults[index];
         const saveBtn = document.querySelector(`#details-${index} .save-btn`);
         
         const isAlreadySaved = this.myCollection.some(item => 
-          item.scientificName === plant.scientificName
+          item.scientificName === yokai.scientificName
         );
 
         if (isAlreadySaved) {
           // 削除
           this.myCollection = this.myCollection.filter(item => 
-            item.scientificName !== plant.scientificName
+            item.scientificName !== yokai.scientificName
           );
-          saveBtn.innerHTML = '<i class="fas fa-bookmark"></i> マイ図鑑に保存';
+          saveBtn.innerHTML = '<i class="fas fa-bookmark"></i> マイ妖怪集に保存';
           saveBtn.classList.remove('saved');
-          this.showMessage(`${plant.commonName}をマイ図鑑から削除しました`, 'success');
+          this.showMessage(`${yokai.commonName}をマイ妖怪集から削除しました`, 'success');
         } else {
           // 保存
           const saveData = {
-            ...plant,
+            ...yokai,
             savedAt: new Date().toISOString(),
             imageUrl: null // 画像URLは別途保存
           };
           
           // 生成された画像URLを取得
           const imageContainer = document.getElementById(`image-container-${index}`);
-          const imageElement = imageContainer.querySelector('.plant-image');
+          const imageElement = imageContainer.querySelector('.yokai-image');
           if (imageElement) {
             saveData.imageUrl = imageElement.src;
             
-            // マイ図鑑に保存する際、保存画像履歴にも追加
-            this.saveToImageHistory(saveData, plant);
+            // マイ妖怪集に保存する際、保存画像履歴にも追加
+            this.saveToImageHistory(saveData, yokai);
           }
 
           this.myCollection.push(saveData);
           saveBtn.innerHTML = '<i class="fas fa-bookmark-slash"></i> 保存済み';
           saveBtn.classList.add('saved');
-          this.showMessage(`${plant.commonName}をマイ図鑑に保存しました`, 'success');
+          this.showMessage(`${yokai.commonName}をマイ妖怪集に保存しました`, 'success');
         }
 
         this.saveCollection();
         this.updateCollectionDisplay();
       }
 
-      // 画像を保存画像履歴に追加する関数（画像生成成功時・マイ図鑑保存時共通）
-      async saveImageToHistory(resultOrSaveData, plant, style = null) {
+      // 画像を保存画像履歴に追加する関数（画像生成成功時・マイ妖怪集保存時共通）
+      async saveImageToHistory(resultOrSaveData, yokai, style = null) {
         try {
           const imageStorage = this.imageStorage;
           let historyData;
@@ -2692,29 +2742,29 @@
           if (resultOrSaveData.success && resultOrSaveData.imageUrl) {
             historyData = {
               imageUrl: resultOrSaveData.imageUrl,
-              plantName: plant.commonName || plant.scientificName,
-              scientificName: plant.scientificName,
-              commonName: plant.commonName,
+              yokaiName: yokai.commonName || yokai.scientificName,
+              scientificName: yokai.scientificName,
+              commonName: yokai.commonName,
               prompt: resultOrSaveData.prompt || null,
-              style: style || 'botanical',
+              style: style || 'traditional',
               model: resultOrSaveData.model || this.selectedModel || 'unknown',
-              confidence: plant.confidence || '中程度'
+              confidence: yokai.confidence || '中程度'
             };
-            console.log('🗂️ [AUTO_SAVE] Saving generated image to history:', historyData.plantName);
+            console.log('🗂️ [AUTO_SAVE] Saving generated image to history:', historyData.yokaiName);
           } 
-          // マイ図鑑保存時の場合（saveData）
+          // マイ妖怪集保存時の場合（saveData）
           else {
             historyData = {
               imageUrl: resultOrSaveData.imageUrl,
-              plantName: plant.commonName || plant.scientificName,
-              scientificName: plant.scientificName,
-              commonName: plant.commonName,
-              prompt: plant.generatedImagePrompt || null,
-              style: plant.generatedImageStyle || style || 'botanical',
-              model: plant.generatedImageModel || 'unknown',
-              confidence: plant.confidence || '中程度'
+              yokaiName: yokai.commonName || yokai.scientificName,
+              scientificName: yokai.scientificName,
+              commonName: yokai.commonName,
+              prompt: yokai.generatedImagePrompt || null,
+              style: yokai.generatedImageStyle || style || 'traditional',
+              model: yokai.generatedImageModel || 'unknown',
+              confidence: yokai.confidence || '中程度'
             };
-            console.log('📚 [COLLECTION_SAVE] Saving collection image to history:', historyData.plantName);
+            console.log('📚 [COLLECTION_SAVE] Saving collection image to history:', historyData.yokaiName);
           }
           
           // 重複チェック: 同じ学名・画像URLの組み合わせが既に存在するかチェック
@@ -2727,13 +2777,13 @@
           if (!isDuplicate) {
             const saved = await imageStorage.saveImage(historyData);
             if (saved) {
-              console.log('✅ [SAVE_SUCCESS] Image saved to history:', historyData.plantName);
+              console.log('✅ [SAVE_SUCCESS] Image saved to history:', historyData.yokaiName);
               this.updateSavedImagesDisplay(); // 保存画像履歴表示を更新
             } else {
-              console.warn('❌ [SAVE_FAILED] Failed to save image to history:', historyData.plantName);
+              console.warn('❌ [SAVE_FAILED] Failed to save image to history:', historyData.yokaiName);
             }
           } else {
-            console.log('🔄 [DUPLICATE_SKIP] Image already exists in history:', historyData.plantName);
+            console.log('🔄 [DUPLICATE_SKIP] Image already exists in history:', historyData.yokaiName);
           }
         } catch (error) {
           console.error('🚨 [SAVE_ERROR] Failed to save to image history:', error);
@@ -2741,27 +2791,27 @@
       }
       
       // 後方互換性のためのエイリアス
-      async saveToImageHistory(saveData, plant) {
-        return await this.saveImageToHistory(saveData, plant);
+      async saveToImageHistory(saveData, yokai) {
+        return await this.saveImageToHistory(saveData, yokai);
       }
 
       saveCollection() {
-        localStorage.setItem('plantCollection', JSON.stringify(this.myCollection));
+        localStorage.setItem('yokaiCollection', JSON.stringify(this.myCollection));
       }
 
       loadCollection() {
-        const saved = localStorage.getItem('plantCollection');
+        const saved = localStorage.getItem('yokaiCollection');
         return saved ? JSON.parse(saved) : [];
       }
 
       // 検索結果の保存
       saveSearchResults() {
-        localStorage.setItem('plantSearchResults', JSON.stringify(this.searchResults));
+        localStorage.setItem('yokaiSearchResults', JSON.stringify(this.searchResults));
       }
 
       // 検索結果の読み込み
       loadSearchResults() {
-        const saved = localStorage.getItem('plantSearchResults');
+        const saved = localStorage.getItem('yokaiSearchResults');
         return saved ? JSON.parse(saved) : [];
       }
 
@@ -2799,7 +2849,7 @@
         if (this.searchResults.length > 0) {
           this.displaySearchResults(this.searchResults, this.lastSearchQuery, true); // isRestore = true
           
-          // 「植物を探す」タブでのみ検索結果を表示
+          // 「妖怪を探す」タブでのみ検索結果を表示
           if (this.currentTab === 'search') {
             document.getElementById('results-section').classList.add('active');
           }
@@ -2817,42 +2867,42 @@
         const exportBtn = document.getElementById('export-btn');
 
         if (this.myCollection.length === 0) {
-          count.textContent = '保存された植物はありません';
+          count.textContent = '保存された妖怪はありません';
           if (exportBtn) exportBtn.disabled = true;
           grid.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-secondary);">
-              <i class="fas fa-seedling" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-              <div>まだ植物が保存されていません</div>
-              <div style="margin-top: 0.5rem;">気になる植物を見つけたら「マイ図鑑に保存」ボタンを押してください</div>
+              <i class="fas fa-eye" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+              <div>まだ妖怪が保存されていません</div>
+              <div style="margin-top: 0.5rem;">気になる妖怪を見つけたら「マイ妖怪集に保存」ボタンを押してください</div>
             </div>
           `;
           return;
         }
 
-        count.textContent = `${this.myCollection.length}件の植物が保存されています`;
+        count.textContent = `${this.myCollection.length}件の妖怪が保存されています`;
         if (exportBtn) exportBtn.disabled = false;
         grid.innerHTML = '';
 
-        this.myCollection.forEach((plant, index) => {
+        this.myCollection.forEach((yokai, index) => {
           const item = document.createElement('div');
           item.className = 'collection-item fade-in';
           item.style.animationDelay = `${index * 0.1}s`;
 
           item.innerHTML = `
-            ${plant.imageUrl ? 
+            ${yokai.imageUrl ? 
               `<div style="position: relative;">
-                <img src="${plant.imageUrl}" alt="${plant.commonName}" class="collection-image">
-                ${plant.generatedImagePrompt ? 
+                <img src="${yokai.imageUrl}" alt="${yokai.commonName}" class="collection-image">
+                ${yokai.generatedImagePrompt ? 
                   `<button class="image-prompt-info-btn" onclick="app.showCollectionImagePrompt(${index})" title="使用されたプロンプトを表示">
                     <i class="fas fa-info"></i>
                   </button>` : ''}
               </div>` :
               `<div class="collection-image" style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); display: flex; align-items: center; justify-content: center;">
-                <i class="fas fa-seedling" style="font-size: 2rem; color: var(--text-secondary);"></i>
+                <i class="fas fa-eye" style="font-size: 2rem; color: var(--text-secondary);"></i>
               </div>`
             }
-            <div class="collection-name">${plant.commonName}</div>
-            <div class="collection-scientific">${plant.scientificName}</div>
+            <div class="collection-name">${yokai.commonName}</div>
+            <div class="collection-scientific">${yokai.scientificName}</div>
             <div class="collection-actions">
               <button class="details-btn" onclick="app.showPlantDetails(${index})">
                 <i class="fas fa-info-circle"></i> 詳細
@@ -2868,155 +2918,155 @@
       }
 
       removeFromCollection(index) {
-        const plant = this.myCollection[index];
+        const yokai = this.myCollection[index];
         this.myCollection.splice(index, 1);
         this.saveCollection();
         this.updateCollectionDisplay();
-        this.showMessage(`${plant.commonName}をマイ図鑑から削除しました`, 'success');
+        this.showMessage(`${yokai.commonName}をマイ妖怪集から削除しました`, 'success');
       }
 
-      // 植物詳細をモーダルで表示
+      // 妖怪詳細をモーダルで表示
       showPlantDetails(index) {
-        const plant = this.myCollection[index];
-        if (!plant) return;
+        const yokai = this.myCollection[index];
+        if (!yokai) return;
 
         // モーダルの内容を設定
-        document.getElementById('modal-scientific-name').textContent = plant.scientificName;
-        document.getElementById('modal-common-name').textContent = plant.commonName;
+        document.getElementById('modal-scientific-name').textContent = yokai.scientificName;
+        document.getElementById('modal-common-name').textContent = yokai.commonName;
         
         // 別名の表示
         const aliasesEl = document.getElementById('modal-aliases');
-        if (plant.aliases && plant.aliases.length > 0) {
-          aliasesEl.textContent = `別名：${plant.aliases.join('、')}`;
+        if (yokai.aliases && yokai.aliases.length > 0) {
+          aliasesEl.textContent = `別名：${yokai.aliases.join('、')}`;
           aliasesEl.style.display = 'block';
         } else {
           aliasesEl.style.display = 'none';
         }
 
         // 画像の表示
-        const imageEl = document.getElementById('modal-plant-image');
-        if (plant.imageUrl) {
-          imageEl.src = plant.imageUrl;
-          imageEl.alt = plant.commonName;
+        const imageEl = document.getElementById('modal-yokai-image');
+        if (yokai.imageUrl) {
+          imageEl.src = yokai.imageUrl;
+          imageEl.alt = yokai.commonName;
           imageEl.style.display = 'block';
         } else {
           imageEl.style.display = 'none';
         }
 
         // 詳細情報の表示
-        const detailsEl = document.getElementById('modal-plant-details');
+        const detailsEl = document.getElementById('modal-yokai-details');
         detailsEl.innerHTML = `
-          ${plant.features ? `
-            <div class="plant-features">
+          ${yokai.features ? `
+            <div class="yokai-features">
               <div class="features-title">
                 <i class="fas fa-leaf"></i> 総合的特徴
               </div>
-              <div class="features-content">${plant.features}</div>
+              <div class="features-content">${yokai.features}</div>
             </div>
           ` : ''}
 
-          ${plant.feature1 ? `
-            <div class="plant-features">
+          ${yokai.feature1 ? `
+            <div class="yokai-features">
               <div class="features-title">
-                <i class="fas fa-seedling"></i> 形態的特徴
+                <i class="fas fa-eye"></i> 形態的特徴
               </div>
-              <div class="features-content">${plant.feature1}</div>
+              <div class="features-content">${yokai.feature1}</div>
             </div>
           ` : ''}
 
-          ${plant.feature2 ? `
-            <div class="plant-features">
+          ${yokai.feature2 ? `
+            <div class="yokai-features">
               <div class="features-title">
                 <i class="fas fa-globe-americas"></i> 生態的特徴
               </div>
-              <div class="features-content">${plant.feature2}</div>
+              <div class="features-content">${yokai.feature2}</div>
             </div>
           ` : ''}
 
-          ${plant.feature3 ? `
-            <div class="plant-features">
+          ${yokai.feature3 ? `
+            <div class="yokai-features">
               <div class="features-title">
                 <i class="fas fa-search"></i> 識別特徴
               </div>
-              <div class="features-content">${plant.feature3}</div>
+              <div class="features-content">${yokai.feature3}</div>
             </div>
           ` : ''}
 
-          ${plant.morphology ? `
-            <div class="plant-features">
+          ${yokai.morphology ? `
+            <div class="yokai-features">
               <div class="features-title">
                 <i class="fas fa-microscope"></i> 形態学的特徴
               </div>
-              <div class="features-content">${plant.morphology}</div>
+              <div class="features-content">${yokai.morphology}</div>
             </div>
           ` : ''}
 
-          ${plant.physiology ? `
-            <div class="plant-features">
+          ${yokai.physiology ? `
+            <div class="yokai-features">
               <div class="features-title">
                 <i class="fas fa-dna"></i> 生理的特徴
               </div>
-              <div class="features-content">${plant.physiology}</div>
+              <div class="features-content">${yokai.physiology}</div>
             </div>
           ` : ''}
 
-          ${plant.taxonomy ? `
-            <div class="plant-features">
+          ${yokai.taxonomy ? `
+            <div class="yokai-features">
               <div class="features-title">
                 <i class="fas fa-sitemap"></i> 分類学的特徴
               </div>
-              <div class="features-content">${plant.taxonomy}</div>
+              <div class="features-content">${yokai.taxonomy}</div>
             </div>
           ` : ''}
 
-          ${plant.habitat ? `
-            <div class="plant-features">
+          ${yokai.habitat ? `
+            <div class="yokai-features">
               <div class="features-title">
                 <i class="fas fa-map-marker-alt"></i> 生育環境・分布
               </div>
-              <div class="features-content">${plant.habitat}</div>
+              <div class="features-content">${yokai.habitat}</div>
             </div>
           ` : ''}
 
-          ${plant.season ? `
-            <div class="plant-features">
+          ${yokai.season ? `
+            <div class="yokai-features">
               <div class="features-title">
                 <i class="fas fa-calendar-alt"></i> 季節
               </div>
-              <div class="features-content">${plant.season}</div>
+              <div class="features-content">${yokai.season}</div>
             </div>
           ` : ''}
 
-          ${plant.wildlifeConnection ? `
+          ${yokai.humanConnection ? `
             <div class="wildlife-connection">
               <div class="features-title">
                 <i class="fas fa-paw"></i> 生き物とのつながり
               </div>
-              <div class="features-content">${plant.wildlifeConnection}</div>
+              <div class="features-content">${yokai.humanConnection}</div>
             </div>
           ` : ''}
 
-          ${plant.culturalInfo ? `
+          ${yokai.culturalInfo ? `
             <div class="culture-info">
               <div class="features-title">
                 <i class="fas fa-users"></i> 文化・暮らしとの関わり
               </div>
-              <div class="features-content">${plant.culturalInfo}</div>
+              <div class="features-content">${yokai.culturalInfo}</div>
             </div>
           ` : ''}
 
           <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #f0f0f0; text-align: center; color: var(--text-secondary); font-size: 0.9rem;">
-            保存日時：${new Date(plant.savedAt).toLocaleString('ja-JP')}
+            保存日時：${new Date(yokai.savedAt).toLocaleString('ja-JP')}
           </div>
         `;
 
         // モーダルを表示
-        document.getElementById('plant-details-modal').classList.add('active');
+        document.getElementById('yokai-details-modal').classList.add('active');
       }
 
       // モーダルを閉じる
       closeDetailsModal() {
-        document.getElementById('plant-details-modal').classList.remove('active');
+        document.getElementById('yokai-details-modal').classList.remove('active');
       }
 
       clearSearch() {
@@ -3067,7 +3117,7 @@
       // 設定の保存（自動保存対応）
       saveSettings() {
         // ローカルストレージに保存
-        localStorage.setItem('plantAppSettings', JSON.stringify({
+        localStorage.setItem('yokaiAppSettings', JSON.stringify({
           style: this.selectedStyle,
           time: this.selectedTime,
           model: this.selectedModel,
@@ -3119,12 +3169,12 @@
 
       // 設定をデフォルトに戻す
       resetSettings() {
-        this.selectedStyle = 'botanical';
+        this.selectedStyle = 'traditional';
         this.selectedModel = 'sdxl-lightning';
         this.selectedRegion = 'japan';
 
         // UIに反映
-        const styleRadio = document.querySelector('input[name="style-setting"][value="botanical"]');
+        const styleRadio = document.querySelector('input[name="style-setting"][value="traditional"]');
         const modelRadio = document.querySelector('input[name="model-setting"][value="sdxl-lightning"]');
         const regionRadio = document.querySelector('input[name="region-setting"][value="japan"]');
         
@@ -3149,15 +3199,15 @@
         console.log('showPromptModal called with style:', style); // デバッグ用
         
         const styleTitles = {
-          'botanical': '植物画スタイル',
-          'anime': 'アニメ風スタイル',
-          'realistic': '写実的スタイル'
+          'traditional': '妖怪画スタイル',
+          'anime': 'アニメ風妖怪画スタイル',
+          'realistic': 'リアル妖怪写真スタイル'
         };
 
         const stylePrompts = {
-          'botanical': 'A highly detailed botanical illustration of a plant, in classical scientific style. The image features fine ink outlines combined with delicate watercolor shading using glazing techniques. Each leaf and bud is rendered with botanical accuracy, showing intricate vein patterns and subtle color gradients. The background is pure white, with no shadows or textures. The style is reminiscent of 18th to 19th century botanical field guides, with precise, academic aesthetics and clean composition.',
-          'anime': 'Illustrated in beautiful anime art style with vibrant colors and soft cel-shading. Clean vector-like lines with bright, saturated colors typical of Japanese animation. The plant maintains botanical accuracy while being stylized with artistic flair. Soft gradients, glowing effects on flowers, and a cheerful, appealing aesthetic. Background with soft bokeh or gradient effects. Digital art finish with smooth textures.',
-          'realistic': 'Captured as a highly detailed, photorealistic image with macro photography quality. Crystal clear focus showing minute details like leaf textures, petal surface patterns, stem structures, and natural imperfections. Professional nature photography with excellent depth of field, natural color reproduction, and lifelike appearance. Include environmental context showing the plant\'s natural growing conditions. Shot with high-end botanical photography techniques.'
+          'traditional': 'A highly detailed traditional Japanese yokai illustration, in classical folkloric style. The image features fine ink outlines combined with delicate watercolor shading using traditional glazing techniques. Each feature and form is rendered with folkloric accuracy, showing intricate details and subtle color gradients. The background is pure white, with no shadows or textures. The style is reminiscent of Edo to Meiji period yokai compendiums, with precise, academic aesthetics and clean composition.',
+          'anime': 'Illustrated in beautiful anime art style with vibrant colors and soft cel-shading. Clean vector-like lines with bright, saturated colors typical of Japanese animation. The yokai maintains folkloric accuracy while being stylized with artistic flair. Soft gradients, glowing effects, and a cheerful, appealing aesthetic. Background with soft bokeh or gradient effects. Digital art finish with smooth textures.',
+          'realistic': 'Captured as a highly detailed, photorealistic image with cinematic quality. Crystal clear focus showing minute details like texture, form, expressions, and natural characteristics. Professional supernatural photography with excellent depth of field, natural color reproduction, and lifelike appearance. Include environmental context showing the yokai\'s natural manifestation conditions. Shot with high-end paranormal photography techniques.'
         };
 
         const title = styleTitles[style] || '画像スタイル設定';
@@ -3178,23 +3228,23 @@
 
       // 画像生成プロンプトを表示
       showImagePrompt(index) {
-        const plant = this.searchResults[index];
-        if (!plant || !plant.generatedImagePrompt) {
+        const yokai = this.searchResults[index];
+        if (!yokai || !yokai.generatedImagePrompt) {
           this.showMessage('プロンプト情報が見つかりません', 'warning');
           return;
         }
 
         // スタイル情報も含めてタイトルを設定
         const styleLabel = this.getStyleLabel(this.selectedStyle);
-        document.getElementById('prompt-modal-title').textContent = `${plant.commonName} - 画像生成プロンプト（${styleLabel}スタイル）`;
-        document.getElementById('prompt-content').textContent = plant.generatedImagePrompt;
+        document.getElementById('prompt-modal-title').textContent = `${yokai.commonName} - 画像生成プロンプト（${styleLabel}スタイル）`;
+        document.getElementById('prompt-content').textContent = yokai.generatedImagePrompt;
         
         console.log('🔍 [PROMPT_VIEW] プロンプト表示:', {
-          plantName: plant.scientificName,
+          yokaiName: yokai.scientificName,
           style: this.selectedStyle,
           styleLabel: styleLabel,
-          promptLength: plant.generatedImagePrompt.length,
-          hasStyleKeywords: this.checkStyleKeywords(plant.generatedImagePrompt, this.selectedStyle),
+          promptLength: yokai.generatedImagePrompt.length,
+          hasStyleKeywords: this.checkStyleKeywords(yokai.generatedImagePrompt, this.selectedStyle),
           timestamp: new Date().toISOString()
         });
         
@@ -3203,10 +3253,10 @@
         const draftSection = document.getElementById('draft-prompt-section');
         const draftContent = document.getElementById('draft-prompt-content');
         
-        if (plant.generatedImageDraftPrompt) {
+        if (yokai.generatedImageDraftPrompt) {
           // 最適化が実際に成功したかを検証
-          const finalPrompt = plant.generatedImagePrompt;
-          const draftPrompt = plant.generatedImageDraftPrompt;
+          const finalPrompt = yokai.generatedImagePrompt;
+          const draftPrompt = yokai.generatedImageDraftPrompt;
           const hasJapanese = window.containsJapanese ? window.containsJapanese(finalPrompt) : /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(finalPrompt);
           const actuallyOptimized = finalPrompt !== draftPrompt;
           
@@ -3214,7 +3264,7 @@
             // 実際に最適化が成功した場合のみ表示
             optimizationInfo.style.display = 'block';
             draftSection.style.display = 'block';
-            draftContent.textContent = plant.generatedImageDraftPrompt;
+            draftContent.textContent = yokai.generatedImageDraftPrompt;
           } else {
             // 最適化が失敗または不完全な場合は表示しない
             optimizationInfo.style.display = 'none';
@@ -3222,7 +3272,7 @@
             console.warn('⚠️ Optimization label hidden due to incomplete optimization:', {
               hasJapanese: hasJapanese,
               actuallyOptimized: actuallyOptimized,
-              plantName: plant.scientificName
+              yokaiName: yokai.scientificName
             });
           }
         } else {
@@ -3235,17 +3285,17 @@
       }
 
       // プロンプト最適化状況を検証し、UIに反映する共通関数
-      checkOptimizationStatus(plant, optimizationInfo, draftSection, draftContent, context = '') {
-        if (plant.generatedImageDraftPrompt) {
+      checkOptimizationStatus(yokai, optimizationInfo, draftSection, draftContent, context = '') {
+        if (yokai.generatedImageDraftPrompt) {
           // 最適化が実際に成功したかを検証（imageResultの情報も考慮）
-          const finalPrompt = plant.generatedImagePrompt;
-          const draftPrompt = plant.generatedImageDraftPrompt;
+          const finalPrompt = yokai.generatedImagePrompt;
+          const draftPrompt = yokai.generatedImageDraftPrompt;
           let hasJapanese, actuallyOptimized;
           
           // imageResultに最適化情報がある場合はそれを優先使用
-          if (plant.wasActuallyOptimized !== undefined) {
-            actuallyOptimized = plant.wasActuallyOptimized;
-            hasJapanese = plant.hasJapanese || false;
+          if (yokai.wasActuallyOptimized !== undefined) {
+            actuallyOptimized = yokai.wasActuallyOptimized;
+            hasJapanese = yokai.hasJapanese || false;
           } else {
             // フォールバック：手動で検証
             hasJapanese = window.containsJapanese ? window.containsJapanese(finalPrompt) : /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(finalPrompt);
@@ -3256,13 +3306,13 @@
             // 実際に最適化が成功した場合のみ表示
             optimizationInfo.style.display = 'block';
             draftSection.style.display = 'block';
-            draftContent.textContent = plant.generatedImageDraftPrompt;
+            draftContent.textContent = yokai.generatedImageDraftPrompt;
             
             // スタイル強度情報があればログ表示
-            if (plant.styleStrength !== undefined) {
+            if (yokai.styleStrength !== undefined) {
               console.log(`✅ [UI_OPTIMIZATION] 最適化成功表示${context}:`, {
-                plantName: plant.scientificName,
-                styleStrength: plant.styleStrength,
+                yokaiName: yokai.scientificName,
+                styleStrength: yokai.styleStrength,
                 hasJapanese: hasJapanese
               });
             }
@@ -3273,7 +3323,7 @@
             console.warn(`⚠️ [UI_OPTIMIZATION] 最適化ラベル非表示${context}:`, {
               hasJapanese: hasJapanese,
               actuallyOptimized: actuallyOptimized,
-              plantName: plant.scientificName,
+              yokaiName: yokai.scientificName,
               reason: hasJapanese ? '日本語残存' : '最適化未実行'
             });
           }
@@ -3287,7 +3337,7 @@
       // スタイル関連キーワードが含まれているかチェック
       checkStyleKeywords(prompt, style) {
         const styleKeywords = {
-          'botanical': ['botanical', 'scientific style', 'field guide', 'watercolor', 'botanical illustration'],
+          'traditional': ['traditional', 'folkloric style', 'compendium', 'watercolor', 'yokai illustration'],
           'anime': ['Japanese anime', 'cel-shading', 'manga', 'kawaii', 'Studio Ghibli', 'shoujo', 'seinen', 'lineart', 'vibrant colors'],
           'realistic': ['photorealistic', 'macro photography', 'realistic', 'photography', 'lifelike']
         };
@@ -3316,7 +3366,7 @@
         const optimizedHasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(optimizedPrompt);
         
         // 技術用語の増加をチェック
-        const technicalTerms = ['botanical', 'scientific', 'detailed', 'photography', 'macro', 'realistic', 'illustration', 'accuracy', 'specimen'];
+        const technicalTerms = ['traditional', 'folkloric', 'detailed', 'photography', 'macro', 'realistic', 'illustration', 'accuracy', 'supernatural'];
         const draftTechnicalCount = technicalTerms.filter(term => draftPrompt.toLowerCase().includes(term)).length;
         const optimizedTechnicalCount = technicalTerms.filter(term => optimizedPrompt.toLowerCase().includes(term)).length;
         
@@ -3334,26 +3384,26 @@
         };
       }
 
-      // マイ図鑑の画像生成プロンプトを表示
+      // マイ妖怪集の画像生成プロンプトを表示
       showCollectionImagePrompt(index) {
-        const plant = this.myCollection[index];
-        if (!plant || !plant.generatedImagePrompt) {
+        const yokai = this.myCollection[index];
+        if (!yokai || !yokai.generatedImagePrompt) {
           this.showMessage('プロンプト情報が見つかりません', 'warning');
           return;
         }
 
-        document.getElementById('prompt-modal-title').textContent = `${plant.commonName} - 画像生成プロンプト`;
-        document.getElementById('prompt-content').textContent = plant.generatedImagePrompt;
+        document.getElementById('prompt-modal-title').textContent = `${yokai.commonName} - 画像生成プロンプト`;
+        document.getElementById('prompt-content').textContent = yokai.generatedImagePrompt;
         
         // 最適化情報を表示
         const optimizationInfo = document.getElementById('prompt-optimization-info');
         const draftSection = document.getElementById('draft-prompt-section');
         const draftContent = document.getElementById('draft-prompt-content');
         
-        if (plant.generatedImageDraftPrompt) {
+        if (yokai.generatedImageDraftPrompt) {
           // 最適化が実際に成功したかを検証
-          const finalPrompt = plant.generatedImagePrompt;
-          const draftPrompt = plant.generatedImageDraftPrompt;
+          const finalPrompt = yokai.generatedImagePrompt;
+          const draftPrompt = yokai.generatedImageDraftPrompt;
           const hasJapanese = window.containsJapanese ? window.containsJapanese(finalPrompt) : /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(finalPrompt);
           const actuallyOptimized = finalPrompt !== draftPrompt;
           
@@ -3361,7 +3411,7 @@
             // 実際に最適化が成功した場合のみ表示
             optimizationInfo.style.display = 'block';
             draftSection.style.display = 'block';
-            draftContent.textContent = plant.generatedImageDraftPrompt;
+            draftContent.textContent = yokai.generatedImageDraftPrompt;
           } else {
             // 最適化が失敗または不完全な場合は表示しない
             optimizationInfo.style.display = 'none';
@@ -3369,7 +3419,7 @@
             console.warn('⚠️ Optimization label hidden due to incomplete optimization:', {
               hasJapanese: hasJapanese,
               actuallyOptimized: actuallyOptimized,
-              plantName: plant.scientificName
+              yokaiName: yokai.scientificName
             });
           }
         } else {
@@ -3383,14 +3433,14 @@
 
       // 一致度の根拠を表示
       showConfidenceReason(index) {
-        const plant = this.searchResults[index];
-        if (!plant) {
-          this.showMessage('植物データが見つかりません', 'warning');
+        const yokai = this.searchResults[index];
+        if (!yokai) {
+          this.showMessage('妖怪データが見つかりません', 'warning');
           return;
         }
 
         // 一致度の意味を取得
-        const confidenceMeaning = this.getConfidenceMeaning(plant.confidence);
+        const confidenceMeaning = this.getConfidenceMeaning(yokai.confidence);
         
         // 一致度の色を取得
         const confidenceColor = {
@@ -3399,16 +3449,16 @@
           '中程度': '#FFC107',
           '低い': '#FF9800',
           '非常に低い': '#F44336'
-        }[plant.confidence] || '#9E9E9E';
+        }[yokai.confidence] || '#9E9E9E';
 
         // 各要素のA〜D判定を取得
-        const evaluations = this.getConfidenceEvaluations(plant);
+        const evaluations = this.getConfidenceEvaluations(yokai);
 
         // モーダルの内容を構築
         const modalBody = document.getElementById('confidence-modal-body');
         modalBody.innerHTML = `
           <div class="confidence-level-display">
-            <div class="confidence-value" style="color: ${confidenceColor}">${plant.confidence}</div>
+            <div class="confidence-value" style="color: ${confidenceColor}">${yokai.confidence}</div>
             <div class="confidence-meaning">${confidenceMeaning}</div>
           </div>
 
@@ -3420,7 +3470,7 @@
             </div>
             <div class="confidence-factor-content">
               <div class="evaluation-description">${evaluations.queryMatch.description}</div>
-              <div class="evaluation-reason">入力された特徴や検索語句が植物の特徴とどの程度一致しているかを評価します。特徴的な形態や生育環境の記述が正確に合致するほど一致度が向上します。</div>
+              <div class="evaluation-reason">入力された特徴や検索語句が妖怪の特徴とどの程度一致しているかを評価します。特徴的な形態や出現環境の記述が正確に合致するほど一致度が向上します。</div>
             </div>
           </div>
 
@@ -3432,7 +3482,7 @@
             </div>
             <div class="confidence-factor-content">
               <div class="evaluation-description">${evaluations.featureClarity.description}</div>
-              <div class="evaluation-reason">植物の形態的特徴（葉の形、花の色、茎の特徴など）や生態的特徴（開花時期、生育環境など）の記述が明確で詳細であるほど一致度が高くなります。</div>
+              <div class="evaluation-reason">妖怪の形態的特徴（姿かたち、色彩、大きさなど）や行動的特徴（出現時期、活動環境など）の記述が明確で詳細であるほど一致度が高くなります。</div>
             </div>
           </div>
 
@@ -3444,7 +3494,7 @@
             </div>
             <div class="confidence-factor-content">
               <div class="evaluation-description">${evaluations.regionalMatch.description}</div>
-              <div class="evaluation-reason">選択された地域（${this.getRegionDisplayName()}）に自生または栽培される植物であるかを評価します。地域特有の植物ほど一致度が向上します。</div>
+              <div class="evaluation-reason">選択された地域（${this.getRegionDisplayName()}）に伝承される妖怪であるかを評価します。地域特有の妖怪ほど一致度が向上します。</div>
             </div>
           </div>
 
@@ -3456,13 +3506,13 @@
             </div>
             <div class="confidence-factor-content">
               <div class="evaluation-description">${evaluations.dataReliability.description}</div>
-              <div class="evaluation-reason">植物学的に確立された分類体系や学名、一般的な呼称との整合性を評価します。正確な分類情報ほど信頼性が高くなります。</div>
+              <div class="evaluation-reason">民俗学的に確立された分類体系や名称、一般的な呼称との整合性を評価します。正確な分類情報ほど信頼性が高くなります。</div>
             </div>
           </div>
 
           <div class="confidence-note">
             <i class="fas fa-info-circle"></i>
-            <strong>注意：</strong> この一致度はAIによる推定であり、正確な植物同定には専門家による確認が必要です。フィールドワークや図鑑での詳細な照合も併せて行うことをお勧めします。
+            <strong>注意：</strong> この一致度はAIによる推定であり、正確な妖怪同定には専門家による確認が必要です。民俗学的研究や図鑑での詳細な照合も併せて行うことをお勧めします。
           </div>
         `;
 
@@ -3471,21 +3521,21 @@
       }
 
       // 一致度の各要素をA〜D判定で評価
-      getConfidenceEvaluations(plant) {
+      getConfidenceEvaluations(yokai) {
         // 基本的な一致度から各要素を推定
-        const baseScore = this.getConfidenceScore(plant.confidence);
+        const baseScore = this.getConfidenceScore(yokai.confidence);
         
         // 検索クエリとの一致度評価
-        const queryMatch = this.evaluateQueryMatch(plant, baseScore);
+        const queryMatch = this.evaluateQueryMatch(yokai, baseScore);
         
         // 特徴の明確性評価
-        const featureClarity = this.evaluateFeatureClarity(plant, baseScore);
+        const featureClarity = this.evaluateFeatureClarity(yokai, baseScore);
         
         // 地域との適合性評価
-        const regionalMatch = this.evaluateRegionalMatch(plant, baseScore);
+        const regionalMatch = this.evaluateRegionalMatch(yokai, baseScore);
         
         // データベース信頼性評価
-        const dataReliability = this.evaluateDataReliability(plant, baseScore);
+        const dataReliability = this.evaluateDataReliability(yokai, baseScore);
 
         return {
           queryMatch,
@@ -3508,27 +3558,27 @@
       }
 
       // 検索クエリとの一致度を評価
-      evaluateQueryMatch(plant, baseScore) {
+      evaluateQueryMatch(yokai, baseScore) {
         // 特徴の詳細度から推定
-        const hasDetailedFeatures = plant.feature1 && plant.feature2 && plant.feature3;
-        const featureLength = (plant.features || '').length + (plant.feature1 || '').length + (plant.feature2 || '').length;
+        const hasDetailedFeatures = yokai.feature1 && yokai.feature2 && yokai.feature3;
+        const featureLength = (yokai.features || '').length + (yokai.feature1 || '').length + (yokai.feature2 || '').length;
         
         let adjustedScore = baseScore;
         if (hasDetailedFeatures && featureLength > 200) adjustedScore += 0.1;
         if (featureLength < 100) adjustedScore -= 0.1;
         
         return this.scoreToGrade(adjustedScore, {
-          A: "検索語句と植物の特徴が非常によく一致している",
-          B: "検索語句と植物の特徴がよく一致している", 
-          C: "検索語句と植物の特徴が部分的に一致している",
-          D: "検索語句と植物の特徴の一致が限定的"
+          A: "検索語句と妖怪の特徴が非常によく一致している",
+          B: "検索語句と妖怪の特徴がよく一致している", 
+          C: "検索語句と妖怪の特徴が部分的に一致している",
+          D: "検索語句と妖怪の特徴の一致が限定的"
         });
       }
 
       // 特徴の明確性を評価
-      evaluateFeatureClarity(plant, baseScore) {
+      evaluateFeatureClarity(yokai, baseScore) {
         // 各特徴フィールドの充実度から評価
-        const featureFields = [plant.features, plant.feature1, plant.feature2, plant.feature3, plant.habitat, plant.season].filter(f => f && f.length > 20);
+        const featureFields = [yokai.features, yokai.feature1, yokai.feature2, yokai.feature3, yokai.habitat, yokai.season].filter(f => f && f.length > 20);
         const clarityScore = featureFields.length / 6; // 最大6フィールド
         
         let adjustedScore = baseScore * 0.7 + clarityScore * 0.3;
@@ -3542,17 +3592,17 @@
       }
 
       // 地域との適合性を評価
-      evaluateRegionalMatch(plant, baseScore) {
+      evaluateRegionalMatch(yokai, baseScore) {
         // 生息地情報の詳細度から推定
-        const hasHabitat = plant.habitat && plant.habitat.length > 10;
-        const hasRegionalInfo = plant.habitat && (
-          plant.habitat.includes('日本') || 
-          plant.habitat.includes('本州') || 
-          plant.habitat.includes('九州') ||
-          plant.habitat.includes('四国') ||
-          plant.habitat.includes('北海道') ||
-          plant.habitat.includes('東南アジア') ||
-          plant.habitat.includes('北米')
+        const hasHabitat = yokai.habitat && yokai.habitat.length > 10;
+        const hasRegionalInfo = yokai.habitat && (
+          yokai.habitat.includes('日本') || 
+          yokai.habitat.includes('本州') || 
+          yokai.habitat.includes('九州') ||
+          yokai.habitat.includes('四国') ||
+          yokai.habitat.includes('北海道') ||
+          yokai.habitat.includes('東南アジア') ||
+          yokai.habitat.includes('北米')
         );
         
         let adjustedScore = baseScore;
@@ -3561,29 +3611,29 @@
         
         const regionName = this.getRegionDisplayName();
         return this.scoreToGrade(adjustedScore, {
-          A: `${regionName}の代表的な植物で分布が確実`,
-          B: `${regionName}でよく見られる植物で分布が適合`,
+          A: `${regionName}の代表的な妖怪で伝承が確実`,
+          B: `${regionName}でよく見られる妖怪で伝承が適合`,
           C: `${regionName}での分布は限定的だが存在`,
           D: `${regionName}での分布情報が不明確`
         });
       }
 
       // データベース信頼性を評価
-      evaluateDataReliability(plant, baseScore) {
+      evaluateDataReliability(yokai, baseScore) {
         // 学名の形式と情報の充実度から評価
-        const hasValidScientificName = plant.scientificName && plant.scientificName.includes(' ') && !plant.scientificName.includes('Unknown');
-        const hasAliases = plant.aliases && plant.aliases.length > 0;
-        const hasCompleteInfo = plant.culturalInfo && plant.wildlifeConnection;
+        const hasValidScientificName = yokai.scientificName && yokai.scientificName.includes(' ') && !yokai.scientificName.includes('Unknown');
+        const hasAliases = yokai.aliases && yokai.aliases.length > 0;
+        const hasCompleteInfo = yokai.culturalInfo && yokai.humanConnection;
         
         let adjustedScore = baseScore;
         if (hasValidScientificName) adjustedScore += 0.05;
         if (hasAliases) adjustedScore += 0.05;
         if (hasCompleteInfo) adjustedScore += 0.1;
-        if (plant.scientificName === 'JSON解析エラー') adjustedScore = 0.1;
+        if (yokai.scientificName === 'JSON解析エラー') adjustedScore = 0.1;
         
         return this.scoreToGrade(adjustedScore, {
-          A: "植物学的分類が確立され学名・分類情報が正確",
-          B: "一般的に認知された植物で分類情報が信頼できる",
+          A: "民俗学的分類が確立され名称・分類情報が正確",
+          B: "一般的に認知された妖怪で分類情報が信頼できる",
           C: "基本的な分類情報は整っているが詳細が不足",
           D: "分類情報の信頼性に疑問がある"
         });
@@ -3613,11 +3663,11 @@
       // 一致度の意味を取得
       getConfidenceMeaning(confidence) {
         const meanings = {
-          '非常に高い': '特徴が非常によく一致しており、ほぼ確実に同じ植物です',
-          '高い': '特徴がよく一致しており、同じ植物である可能性が高いです',
+          '非常に高い': '特徴が非常によく一致しており、ほぼ確実に同じ妖怪です',
+          '高い': '特徴がよく一致しており、同じ妖怪である可能性が高いです',
           '中程度': '一部の特徴が一致していますが、他の候補も検討が必要です',
           '低い': '特徴の一致が限定的で、さらなる確認が必要です',
-          '非常に低い': '特徴の一致が少なく、別の植物である可能性があります'
+          '非常に低い': '特徴の一致が少なく、別の妖怪である可能性があります'
         };
         return meanings[confidence] || '一致度の評価が困難です';
       }
@@ -3637,24 +3687,24 @@
         document.getElementById('confidence-modal').classList.remove('active');
       }
 
-      // 植物に対して安定したキーを生成（学名ベース）
-      getPlantKey(index) {
+      // 妖怪に対して安定したキーを生成（学名ベース）
+      getYokaiKey(index) {
         if (!this.searchResults || !this.searchResults[index]) {
-          return `plant-${index}`; // フォールバック
+          return `yokai-${index}`; // フォールバック
         }
-        const plant = this.searchResults[index];
-        return `${plant.scientificName}-${plant.commonName}`.replace(/[^a-zA-Z0-9\-]/g, '');
+        const yokai = this.searchResults[index];
+        return `${yokai.scientificName}-${yokai.commonName}`.replace(/[^a-zA-Z0-9\-]/g, '');
       }
 
       // 再生成試行回数を取得
       getRegenerationCount(index) {
-        const key = this.getPlantKey(index);
+        const key = this.getYokaiKey(index);
         return this.imageGenerationAttempts[key] || 0;
       }
 
       // 再生成試行回数を更新
       updateRegenerationCount(index) {
-        const key = this.getPlantKey(index);
+        const key = this.getYokaiKey(index);
         this.imageGenerationAttempts[key] = (this.imageGenerationAttempts[key] || 0) + 1;
         this.saveImageGenerationAttempts(); // 即座に保存
         console.log(`🔢 再生成回数更新: ${key} -> ${this.imageGenerationAttempts[key]}`);
@@ -3683,7 +3733,7 @@
 
       // 再生成回数をローカルストレージに保存
       saveImageGenerationAttempts() {
-        localStorage.setItem('plantAppImageAttempts', JSON.stringify({
+        localStorage.setItem('yokaiAppImageAttempts', JSON.stringify({
           attempts: this.imageGenerationAttempts,
           savedAt: new Date().toISOString()
         }));
@@ -3692,7 +3742,7 @@
       // 再生成回数をローカルストレージから読み込み
       loadImageGenerationAttempts() {
         try {
-          const saved = localStorage.getItem('plantAppImageAttempts');
+          const saved = localStorage.getItem('yokaiAppImageAttempts');
           if (saved) {
             const data = JSON.parse(saved);
             this.imageGenerationAttempts = data.attempts || {};
@@ -3718,7 +3768,7 @@
           selectedModel: this.selectedModel
         });
 
-        this.searchResults.forEach((plant, index) => {
+        this.searchResults.forEach((yokai, index) => {
           const regenBtn = document.getElementById(`regen-btn-${index}`);
           const regenCount = document.getElementById(`regen-count-${index}`);
           
@@ -3764,10 +3814,10 @@
         }
       }
 
-      // マイ図鑑をエクスポート
+      // マイ妖怪集をエクスポート
       async exportCollection() {
         if (this.myCollection.length === 0) {
-          this.showMessage('エクスポートする植物がありません', 'warning');
+          this.showMessage('エクスポートする妖怪がありません', 'warning');
           return;
         }
 
@@ -3775,32 +3825,32 @@
 
         try {
           // 画像をBase64に変換
-          const exportData = await Promise.all(this.myCollection.map(async (plant) => {
-            const plantData = { ...plant };
+          const exportData = await Promise.all(this.myCollection.map(async (yokai) => {
+            const yokaiData = { ...yokai };
             
             // 画像URLがある場合はBase64に変換
-            if (plant.imageUrl) {
+            if (yokai.imageUrl) {
               try {
-                const base64Data = await this.convertImageToBase64(plant.imageUrl);
-                plantData.imageBase64 = base64Data;
+                const base64Data = await this.convertImageToBase64(yokai.imageUrl);
+                yokaiData.imageBase64 = base64Data;
               } catch (error) {
-                console.warn(`画像変換失敗 (${plant.commonName}):`, error);
-                plantData.imageBase64 = null;
+                console.warn(`画像変換失敗 (${yokai.commonName}):`, error);
+                yokaiData.imageBase64 = null;
               }
             }
             
-            return plantData;
+            return yokaiData;
           }));
 
           // エクスポートデータの構造
           const exportJson = {
             exportInfo: {
               version: "1.0",
-              appName: "AI植物辞典",
+              appName: "AI妖怪辞典",
               exportDate: new Date().toISOString(),
-              totalPlants: exportData.length
+              totalYokai: exportData.length
             },
-            plants: exportData
+            yokai: exportData
           };
 
           // JSONファイルとしてダウンロード
@@ -3815,20 +3865,20 @@
           const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
           const time = now.toTimeString().slice(0, 5).replace(':', ''); // HHMM
           
-          link.download = `AI植物図鑑_${date}-${time}.json`;
+          link.download = `AI妖怪図鑑_${date}-${time}.json`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
 
-          this.showMessage(`${exportData.length}件の植物をエクスポートしました`, 'success');
+          this.showMessage(`${exportData.length}件の妖怪をエクスポートしました`, 'success');
         } catch (error) {
           console.error('エクスポートエラー:', error);
           this.showMessage('エクスポートに失敗しました', 'error');
         }
       }
 
-      // マイ図鑑をインポート
+      // マイ妖怪集をインポート
       async importCollection(fileInput) {
         const file = fileInput.files[0];
         if (!file) return;
@@ -3838,23 +3888,23 @@
           const importData = JSON.parse(text);
 
           // データ形式の検証
-          if (!importData.plants || !Array.isArray(importData.plants)) {
+          if (!importData.yokais || !Array.isArray(importData.yokais)) {
             throw new Error('無効なファイル形式です');
           }
 
           let importedCount = 0;
           let skippedCount = 0;
 
-          for (const plantData of importData.plants) {
+          for (const yokaiData of importData.yokais) {
             // 必須フィールドの確認
-            if (!plantData.scientificName || !plantData.commonName) {
+            if (!yokaiData.scientificName || !yokaiData.commonName) {
               skippedCount++;
               continue;
             }
 
             // 既存データとの重複チェック
             const isDuplicate = this.myCollection.some(existing => 
-              existing.scientificName === plantData.scientificName
+              existing.scientificName === yokaiData.scientificName
             );
 
             if (isDuplicate) {
@@ -3863,12 +3913,12 @@
             }
 
             // 画像データの処理
-            const processedPlant = { ...plantData };
+            const processedPlant = { ...yokaiData };
             
             // Base64画像データがある場合の処理
-            if (plantData.imageBase64) {
+            if (yokaiData.imageBase64) {
               // Base64データをそのまま使用（ブラウザで表示可能）
-              processedPlant.imageUrl = plantData.imageBase64;
+              processedPlant.imageUrl = yokaiData.imageBase64;
             }
 
             // インポート日時を追加
@@ -3886,7 +3936,7 @@
           this.updateCollectionDisplay();
 
           // 結果メッセージ
-          let message = `${importedCount}件の植物をインポートしました`;
+          let message = `${importedCount}件の妖怪をインポートしました`;
           if (skippedCount > 0) {
             message += `（${skippedCount}件はスキップ）`;
           }
@@ -3904,11 +3954,11 @@
 
       // コレクションの完全消去（デバッグ用）
       clearAllCollection() {
-        if (confirm('すべての植物データを削除しますか？この操作は取り消せません。')) {
+        if (confirm('すべての妖怪データを削除しますか？この操作は取り消せません。')) {
           this.myCollection = [];
           this.saveCollection();
           this.updateCollectionDisplay();
-          this.showMessage('すべての植物データを削除しました', 'success');
+          this.showMessage('すべての妖怪データを削除しました', 'success');
         }
       }
 
@@ -3930,12 +3980,12 @@
         this.updateSavedImagesDisplay();
       }
 
-      // マイ図鑑セクションに戻る関数
+      // マイ妖怪集セクションに戻る関数
       showMyCollection() {
         // 保存画像セクションを非表示にする
         document.getElementById('saved-images-section').style.display = 'none';
         
-        // マイ図鑑タブに切り替え
+        // マイ妖怪集タブに切り替え
         this.switchTab('collection');
       }
 
@@ -3980,8 +4030,8 @@
         
         // スタイル表示名を取得
         const styleNames = {
-          'botanical': '植物画',
-          'anime': 'アニメ風',
+          'traditional': '妖怪画',
+          'anime': '日本の妖怪マンガ風',
           'realistic': '写実的'
         };
         const styleName = styleNames[imageData.style] || imageData.style;
@@ -3997,16 +4047,16 @@
         
         card.innerHTML = `
           <div class="saved-image-container">
-            <img src="${imageData.base64Data}" alt="${imageData.plantName}" class="saved-image">
+            <img src="${imageData.base64Data}" alt="${imageData.yokaiName}" class="saved-image">
             <button class="saved-image-delete-btn" onclick="app.deleteSavedImage('${imageData.id}')" title="この画像を削除">
               <i class="fas fa-trash"></i>
             </button>
           </div>
           
           <div class="saved-image-info">
-            <div class="plant-names">
-              <div class="plant-common-name">${imageData.commonName || imageData.plantName}</div>
-              ${imageData.scientificName ? `<div class="plant-scientific-name">${imageData.scientificName}</div>` : ''}
+            <div class="yokai-names">
+              <div class="yokai-common-name">${imageData.commonName || imageData.yokaiName}</div>
+              ${imageData.scientificName ? `<div class="yokai-scientific-name">${imageData.scientificName}</div>` : ''}
             </div>
             
             <div class="saved-image-meta">
@@ -4183,10 +4233,10 @@
   
   <script>
     // アプリケーション初期化
-    const app = new PlantDictionaryApp();
+    const app = new YokaiDictionaryApp();
     
     // グローバルからアクセスできるようにする
-    window.plantSearchLLM = app.searchLLM;
+    window.yokaiSearchLLM = app.searchLLM;
     
     // Replicate Worker URLを設定（app.jsでデフォルト値も設定済み）
     app.setReplicateWorkerUrl('https://nurumayu-replicate-api.skume-bioinfo.workers.dev/');
@@ -4226,4 +4276,4 @@
     }
   </script>
 </body>
-</html>
+</htmly

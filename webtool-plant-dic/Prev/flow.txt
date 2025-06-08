@@ -300,7 +300,6 @@ User Input → LLM Search → Style Generation → LLM Optimization → Image AP
 ```
 Worker URLs (Single Point of Failure)
 ├── nurumayu-worker.skume-bioinfo.workers.dev (植物検索)
-├── nurumayu-ai-api.skume-bioinfo.workers.dev (最適化)
 └── nurumayu-replicate-api.skume-bioinfo.workers.dev (画像生成)
 ```
 
