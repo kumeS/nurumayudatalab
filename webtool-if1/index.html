@@ -159,6 +159,30 @@
             background: #d0d0d0;
         }
 
+        /* サンプルテキストボタンのスタイル */
+        .sample-text-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .sample-btn {
+            flex: none;
+            padding: 6px 12px;
+            font-size: 14px;
+            background: #f8f9fa;
+            color: #667eea;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .sample-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-1px);
+        }
+
         .display-modes {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -613,7 +637,18 @@
                 </div>
 
                 <div class="input-area">
-                    <textarea id="messageInput" placeholder="メッセージを入力してください..."></textarea>
+                    <textarea id="messageInput" placeholder="例：ありがとうございます、よろしくお願いします / Thank you, I appreciate your help / 今日は忙しくて大変でした..."></textarea>
+                </div>
+
+                <!-- サンプルテキストボタン -->
+                <div class="sample-texts" style="margin: 10px 0;">
+                    <div style="font-size: 14px; color: #666; margin-bottom: 8px;">サンプルテキスト:</div>
+                    <div class="sample-text-buttons">
+                        <button class="sample-btn" onclick="insertSampleText('ja1')">日本語 敬語</button>
+                        <button class="sample-btn" onclick="insertSampleText('ja2')">日本語 感情</button>
+                        <button class="sample-btn" onclick="insertSampleText('en1')">English Formal</button>
+                        <button class="sample-btn" onclick="insertSampleText('en2')">English Casual</button>
+                    </div>
                 </div>
 
                 <div class="button-group">
@@ -824,15 +859,20 @@
             setLastAction('analyzeMessage', { input, lang });
 
             // ローディング表示開始
-            showLoading();
+            showLoading('init');
 
             try {
-                // AI感情分析とその他の処理を並行実行
-                const [emotionAnalysis, translation] = await Promise.all([
-                    performAIEmotionAnalysis(input, lang),
-                    translateMessageAI(input, lang)
-                ]);
-
+                // ステップ1: 感情分析開始
+                showLoading('emotion');
+                const emotionAnalysis = await performAIEmotionAnalysis(input, lang);
+                
+                // ステップ2: 翻訳処理開始
+                showLoading('translation');
+                const translation = await translateMessageAI(input, lang);
+                
+                // ステップ3: 文化的分析
+                showLoading('cultural');
+                
                 currentAnalysis = {
                     original: input,
                     language: lang,
@@ -843,6 +883,9 @@
                     timestamp: new Date()
                 };
 
+                // ステップ4: 完了
+                showLoading('complete');
+                
                 // 結果を表示
                 displayAnalysis(currentAnalysis);
                 
@@ -1482,7 +1525,7 @@
         }
 
         // ローディング表示
-        function showLoading() {
+        function showLoading(stage = 'init') {
             // 既存のローディング要素があれば使用、なければ新規作成
             let loadingEl = document.getElementById('analysisLoading');
             if (!loadingEl) {
@@ -1490,13 +1533,31 @@
                 loadingEl.id = 'analysisLoading';
                 loadingEl.innerHTML = `
                     <div style="text-align: center; padding: 20px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; margin: 10px 0;">
-                        <div style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                        <p style="margin: 10px 0 0 0; color: #667eea;">AI分析中...</p>
+                        <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                        <p id="loadingText" style="margin: 15px 0 5px 0; color: #667eea; font-weight: 500;">AI分析を開始しています...</p>
+                        <div id="loadingProgress" style="width: 100%; height: 4px; background: #e0e0e0; border-radius: 2px; margin: 10px 0; overflow: hidden;">
+                            <div id="progressBar" style="height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); width: 0%; transition: width 0.5s ease; border-radius: 2px;"></div>
+                        </div>
+                        <p id="loadingSubtext" style="margin: 5px 0 0 0; font-size: 12px; color: #999;">処理時間の目安: 3-5秒</p>
                     </div>
                 `;
                 document.querySelector('.output-section').insertBefore(loadingEl, document.getElementById('outputDisplay'));
             }
+            
             loadingEl.style.display = 'block';
+            
+            // ステージ別のメッセージとプログレス更新
+            const messages = {
+                'init': { text: 'AI分析を開始しています...', progress: 10 },
+                'emotion': { text: '感情分析を実行中...', progress: 40 },
+                'translation': { text: '翻訳処理中...', progress: 70 },
+                'cultural': { text: '文化的背景を分析中...', progress: 90 },
+                'complete': { text: '分析完了', progress: 100 }
+            };
+            
+            const stageInfo = messages[stage] || messages['init'];
+            document.getElementById('loadingText').textContent = stageInfo.text;
+            document.getElementById('progressBar').style.width = stageInfo.progress + '%';
         }
 
         // ローディング非表示
@@ -1820,6 +1881,31 @@
             const warningEl = document.getElementById('misunderstandingWarning');
             if (warningEl) {
                 warningEl.style.display = 'none';
+            }
+        }
+
+        // サンプルテキスト挿入
+        function insertSampleText(type) {
+            const sampleTexts = {
+                'ja1': 'いつもお忙しい中、お疲れ様です。この度はご丁寧にお返事をいただき、誠にありがとうございます。ご検討のほど、よろしくお願い申し上げます。',
+                'ja2': '今日は本当に疲れました。でも、みんなと一緒にプロジェクトが完成して、すごく嬉しいです！明日からまた頑張ります。',
+                'en1': 'Thank you for your time and consideration. I appreciate your prompt response to my inquiry. Please let me know if you need any additional information.',
+                'en2': "Hey there! Just wanted to say thanks for helping me out yesterday. You're awesome! Let's grab coffee sometime soon."
+            };
+
+            const messageInput = document.getElementById('messageInput');
+            const sampleText = sampleTexts[type];
+            
+            if (sampleText) {
+                messageInput.value = sampleText;
+                messageInput.focus();
+                
+                // 言語自動選択
+                if (type.startsWith('ja')) {
+                    document.getElementById('inputLang').value = 'ja';
+                } else if (type.startsWith('en')) {
+                    document.getElementById('inputLang').value = 'en';
+                }
             }
         }
 
@@ -2512,7 +2598,151 @@
         // ページ読み込み時に音声認識を初期化
         document.addEventListener('DOMContentLoaded', function() {
             initializeSpeechRecognition();
+            setupKeyboardAccessibility();
         });
+
+        // キーボードアクセシビリティの設定
+        function setupKeyboardAccessibility() {
+            // グローバルキーボードショートカット
+            document.addEventListener('keydown', function(event) {
+                // Ctrl+Enter: 分析実行
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                    event.preventDefault();
+                    analyzeMessage();
+                }
+                
+                // Ctrl+K: 入力欄にフォーカス
+                if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+                    event.preventDefault();
+                    document.getElementById('messageInput').focus();
+                }
+                
+                // Ctrl+L: 入力クリア
+                if ((event.ctrlKey || event.metaKey) && event.key === 'l') {
+                    event.preventDefault();
+                    clearInput();
+                }
+                
+                // Ctrl+Space: 音声入力切り替え
+                if (event.ctrlKey && event.code === 'Space') {
+                    event.preventDefault();
+                    toggleVoiceRecording();
+                }
+                
+                // Escape: 音声録音停止
+                if (event.key === 'Escape' && isRecording) {
+                    stopVoiceRecording();
+                }
+                
+                // 数字キー1-4: サンプルテキスト挿入
+                if (event.altKey && ['1', '2', '3', '4'].includes(event.key)) {
+                    event.preventDefault();
+                    const types = ['ja1', 'ja2', 'en1', 'en2'];
+                    insertSampleText(types[parseInt(event.key) - 1]);
+                }
+            });
+
+            // フォーカス管理の改善
+            addFocusManagement();
+            
+            // ARIA属性の追加
+            addAriaLabels();
+            
+            // ヘルプボタンの追加
+            addKeyboardHelpButton();
+        }
+
+        // フォーカス管理
+        function addFocusManagement() {
+            // 分析ボタンにエンターキーサポート
+            const analyzeBtn = document.querySelector('.primary-btn');
+            if (analyzeBtn) {
+                analyzeBtn.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        analyzeMessage();
+                    }
+                });
+            }
+
+            // タブキーでのナビゲーション改善
+            const interactiveElements = document.querySelectorAll('button, input, select, textarea');
+            interactiveElements.forEach((element, index) => {
+                element.setAttribute('tabindex', index + 1);
+            });
+
+            // メッセージ入力欄でのEnterキー処理
+            const messageInput = document.getElementById('messageInput');
+            messageInput.addEventListener('keydown', function(event) {
+                // Ctrl+Enter で分析実行
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                    event.preventDefault();
+                    analyzeMessage();
+                }
+            });
+        }
+
+        // ARIA属性の追加
+        function addAriaLabels() {
+            // メインの要素にARIA属性を追加
+            document.getElementById('messageInput').setAttribute('aria-label', 'メッセージ入力エリア。Ctrl+Enterで分析を実行します');
+            document.getElementById('inputLang').setAttribute('aria-label', '入力言語選択');
+            
+            // ボタンにARIA属性を追加
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(button => {
+                if (button.textContent.includes('分析')) {
+                    button.setAttribute('aria-label', '分析を実行 (Ctrl+Enter)');
+                } else if (button.textContent.includes('クリア')) {
+                    button.setAttribute('aria-label', '入力をクリア (Ctrl+L)');
+                } else if (button.textContent.includes('音声入力')) {
+                    button.setAttribute('aria-label', '音声入力切り替え (Ctrl+Space)');
+                }
+            });
+
+            // 結果表示エリアにlive regionを設定
+            const outputDisplay = document.getElementById('outputDisplay');
+            outputDisplay.setAttribute('aria-live', 'polite');
+            outputDisplay.setAttribute('aria-label', '分析結果表示エリア');
+
+            // ローディング表示もlive regionに
+            const loadingElements = document.querySelectorAll('#analysisLoading');
+            loadingElements.forEach(el => {
+                el.setAttribute('aria-live', 'assertive');
+                el.setAttribute('aria-label', '処理中');
+            });
+        }
+
+        // ヘルプ表示機能
+        function showKeyboardHelp() {
+            const helpText = `
+                キーボードショートカット:
+                Ctrl+Enter: 分析実行
+                Ctrl+K: 入力欄にフォーカス
+                Ctrl+L: 入力クリア
+                Ctrl+Space: 音声入力切り替え
+                Alt+1-4: サンプルテキスト挿入
+                Escape: 音声録音停止
+                Tab: 要素間の移動
+            `;
+            alert(helpText);
+        }
+
+        // ヘルプボタンの追加（初期化時に実行）
+        function addKeyboardHelpButton() {
+            const helpButton = document.createElement('button');
+            helpButton.textContent = '🎹 キーボードヘルプ';
+            helpButton.className = 'secondary-btn';
+            helpButton.style.position = 'fixed';
+            helpButton.style.bottom = '20px';
+            helpButton.style.right = '20px';
+            helpButton.style.zIndex = '1000';
+            helpButton.style.fontSize = '12px';
+            helpButton.style.padding = '8px 12px';
+            helpButton.onclick = showKeyboardHelp;
+            helpButton.setAttribute('aria-label', 'キーボードショートカットのヘルプを表示');
+            document.body.appendChild(helpButton);
+        }
     </script>
 </body>
 </html>

@@ -1,4 +1,22 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // APIキーの自動読み込み・保存機能
+    const apiKeyInput = document.getElementById('apiKey');
+    
+    // ページ読み込み時にAPIキーを復元
+    const savedApiKey = sessionStorage.getItem('openai_api_key');
+    if (savedApiKey) {
+        apiKeyInput.value = savedApiKey;
+    }
+    
+    // APIキー入力時に自動保存（セッション中のみ）
+    apiKeyInput.addEventListener('input', function() {
+        const apiKey = this.value.trim();
+        if (apiKey) {
+            sessionStorage.setItem('openai_api_key', apiKey);
+        } else {
+            sessionStorage.removeItem('openai_api_key');
+        }
+    });
     // 禁止ワードリスト（薬事法・広告規制対応）
     const prohibitedWords = [
         // 薬事法関連
@@ -156,22 +174,52 @@ document.addEventListener('DOMContentLoaded', () => {
             resultContent.textContent = result;
             resultContainer.style.display = 'block';
 
+            // 結果を保存（localStorage）
+            saveAnalysisResult(symptoms, result);
+
             // 結果をログに記録（モニタリング用）
             logAnalysisResult(symptoms, result, foundProhibitedWords);
 
         } catch (error) {
             console.error('分析エラー:', error);
             
-            let errorMessage = '分析中にエラーが発生しました。';
-            if (error.message.includes('API Key')) {
-                errorMessage = 'APIキーが無効です。正しいOpenAI APIキーを入力してください。';
-            } else if (error.message.includes('quota')) {
-                errorMessage = 'APIの利用制限に達しています。時間をおいて再度お試しください。';
+            let errorTitle = 'エラーが発生しました';
+            let errorMessage = '分析中に問題が発生しました。';
+            let suggestions = [];
+
+            if (error.message.includes('API Key') || error.message.includes('Unauthorized')) {
+                errorTitle = 'APIキーエラー';
+                errorMessage = 'OpenAI APIキーが無効または未設定です。';
+                suggestions = [
+                    '✓ 有効なOpenAI APIキーを入力してください',
+                    '✓ APIキーに課金設定がされているか確認してください',
+                    '✓ APIキーの権限設定を確認してください'
+                ];
+            } else if (error.message.includes('quota') || error.message.includes('insufficient_quota')) {
+                errorTitle = 'API利用制限';
+                errorMessage = 'APIの利用制限に達しています。';
+                suggestions = [
+                    '✓ OpenAIアカウントの課金状況を確認してください',
+                    '✓ 時間をおいて再度お試しください',
+                    '✓ API使用量の上限設定を確認してください'
+                ];
             } else if (error.message.includes('rate limit')) {
-                errorMessage = 'リクエストが多すぎます。少し時間をおいて再度お試しください。';
+                errorTitle = 'リクエスト制限';
+                errorMessage = 'リクエストが多すぎます。';
+                suggestions = [
+                    '✓ 1-2分お待ちください',
+                    '✓ 連続での分析は控えてください'
+                ];
+            } else if (!navigator.onLine) {
+                errorTitle = 'ネットワークエラー';
+                errorMessage = 'インターネット接続を確認してください。';
+                suggestions = [
+                    '✓ WiFi・モバイル通信の接続状況を確認',
+                    '✓ ページを再読み込みしてください'
+                ];
             }
             
-            alert(errorMessage);
+            showErrorModal(errorTitle, errorMessage, suggestions);
         } finally {
             analyzeButton.disabled = false;
             loadingDiv.style.display = 'none';
@@ -188,6 +236,74 @@ document.addEventListener('DOMContentLoaded', () => {
         // 結果に健康・栄養関連のキーワードが含まれているかチェック
         const healthKeywords = ['栄養', 'ビタミン', 'ミネラル', '食材', '体調', '健康', '食事'];
         return healthKeywords.some(keyword => result.includes(keyword));
+    }
+
+    // 分析結果の保存機能
+    function saveAnalysisResult(symptoms, result) {
+        try {
+            const analysisData = {
+                timestamp: new Date().toISOString(),
+                symptoms: symptoms,
+                result: result,
+                id: Date.now() // 簡易的なID
+            };
+            
+            // 既存の履歴を取得
+            let analysisHistory = JSON.parse(localStorage.getItem('analysis_history') || '[]');
+            
+            // 新しい結果を追加（最新10件まで保持）
+            analysisHistory.unshift(analysisData);
+            if (analysisHistory.length > 10) {
+                analysisHistory = analysisHistory.slice(0, 10);
+            }
+            
+            // 保存
+            localStorage.setItem('analysis_history', JSON.stringify(analysisHistory));
+            localStorage.setItem('latest_analysis', JSON.stringify(analysisData));
+            
+            // 保存成功の通知（控えめに）
+            showSaveNotification();
+            
+        } catch (error) {
+            console.warn('結果保存エラー:', error);
+            // 保存エラーは致命的ではないため、ユーザーには表示しない
+        }
+    }
+
+    // 保存成功の控えめな通知
+    function showSaveNotification() {
+        const notification = document.createElement('div');
+        notification.textContent = '結果を保存しました';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            z-index: 1001;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // フェードイン
+        setTimeout(() => {
+            notification.style.opacity = '1';
+        }, 100);
+        
+        // フェードアウトして削除
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 2000);
     }
 
     // 分析結果のログ記録（モニタリング用）
@@ -289,6 +405,166 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
-    // グローバル関数として公開（HTMLから呼び出し可能にする）
+    // エラーモーダル表示関数
+    function showErrorModal(title, message, suggestions) {
+        // 既存のモーダルがあれば削除
+        const existingModal = document.getElementById('error-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // モーダル要素を作成
+        const modal = document.createElement('div');
+        modal.id = 'error-modal';
+        modal.innerHTML = `
+            <div class="modal-backdrop">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title">${title}</h3>
+                        <button class="modal-close" onclick="closeErrorModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="error-message">${message}</p>
+                        ${suggestions.length > 0 ? `
+                            <div class="error-suggestions">
+                                <h4>解決方法:</h4>
+                                <ul>
+                                    ${suggestions.map(s => `<li>${s}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="modal-footer">
+                        <button class="modal-button" onclick="closeErrorModal()">閉じる</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // スタイルを動的に追加
+        const style = document.createElement('style');
+        style.textContent = `
+            .modal-backdrop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                padding: 20px;
+                box-sizing: border-box;
+            }
+            .modal-content {
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                max-width: 500px;
+                width: 100%;
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+            .modal-header {
+                padding: 20px;
+                border-bottom: 1px solid #eee;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .modal-title {
+                margin: 0;
+                color: #e74c3c;
+                font-size: 1.2rem;
+            }
+            .modal-close {
+                background: none;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+                color: #999;
+                padding: 0;
+                width: 30px;
+                height: 30px;
+            }
+            .modal-body {
+                padding: 20px;
+            }
+            .error-message {
+                margin: 0 0 15px 0;
+                color: #333;
+                font-size: 1rem;
+                line-height: 1.5;
+            }
+            .error-suggestions {
+                margin-top: 15px;
+            }
+            .error-suggestions h4 {
+                margin: 0 0 10px 0;
+                color: #2c3e50;
+                font-size: 0.95rem;
+            }
+            .error-suggestions ul {
+                margin: 0;
+                padding-left: 20px;
+            }
+            .error-suggestions li {
+                margin: 8px 0;
+                color: #555;
+                line-height: 1.4;
+            }
+            .modal-footer {
+                padding: 15px 20px;
+                border-top: 1px solid #eee;
+                text-align: right;
+            }
+            .modal-button {
+                background: #3498db;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 0.9rem;
+            }
+            .modal-button:hover {
+                background: #2980b9;
+            }
+            @media (max-width: 480px) {
+                .modal-backdrop {
+                    padding: 10px;
+                }
+                .modal-content {
+                    max-height: 90vh;
+                }
+                .modal-header, .modal-body, .modal-footer {
+                    padding: 15px;
+                }
+            }
+        `;
+        modal.appendChild(style);
+        
+        document.body.appendChild(modal);
+        
+        // 背景クリックで閉じる
+        modal.querySelector('.modal-backdrop').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeErrorModal();
+            }
+        });
+    }
+
+    // エラーモーダルを閉じる関数
+    function closeErrorModal() {
+        const modal = document.getElementById('error-modal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    // グローバル関数として公開
     window.analyzeSymptoms = analyzeSymptoms;
+    window.closeErrorModal = closeErrorModal;
 });

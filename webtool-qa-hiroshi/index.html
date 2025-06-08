@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a0a0a">
+    <title>なぜを問い続ける - 自己の深淵への探求</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Serif JP', serif;
+            background: #0a0a0a;
+            color: #f0f0f0; /* コントラスト比向上 */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            line-height: 1.8;
+            /* モバイル向けフォント最適化 */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        /* 背景の深淵を表現するグラデーション */
+        .background-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, 
+                rgba(20, 20, 40, 0.8) 0%, 
+                rgba(5, 5, 15, 0.95) 50%, 
+                rgba(0, 0, 0, 1) 100%);
+            z-index: -1;
+        }
+
+        /* タイトル部分 */
+        .header {
+            text-align: center;
+            padding: 3rem 2rem;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            margin-bottom: 1rem;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out forwards;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #c0c0c0; /* コントラスト比向上 */
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 0.3s forwards;
+        }
+
+        /* メインコンテナ */
+        .main-container {
+            width: 100%;
+            max-width: 700px;
+            padding: 0 2rem 4rem;
+            flex: 1;
+        }
+
+        /* 導入画面 */
+        .introduction-section {
+            text-align: center;
+            padding: 2rem 0;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 0.6s forwards;
+        }
+
+        .intro-title {
+            font-size: 2rem;
+            color: #e0e0e0;
+            margin-bottom: 1rem;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+        }
+
+        .intro-subtitle {
+            font-size: 1.2rem;
+            color: #70a0ff;
+            margin-bottom: 2rem;
+            font-weight: 400;
+        }
+
+        .intro-description {
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .intro-description p {
+            font-size: 1.1rem;
+            color: #c0c0c0;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .mystery-button {
+            background: linear-gradient(135deg, #70a0ff 0%, #4080ff 100%);
+            border: none;
+            color: white;
+            padding: 1.5rem 3rem;
+            font-size: 1.3rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(112, 160, 255, 0.3);
+            text-transform: none;
+            letter-spacing: 0.05em;
+        }
+
+        .mystery-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(112, 160, 255, 0.4);
+            background: linear-gradient(135deg, #80b0ff 0%, #5090ff 100%);
+        }
+
+        .mystery-button:active {
+            transform: translateY(-1px);
+        }
+
+        /* 4つの問い紹介画面 */
+        .four-questions-section {
+            text-align: center;
+            padding: 2rem 0;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out forwards;
+        }
+
+        .questions-title {
+            font-size: 1.8rem;
+            color: #e0e0e0;
+            margin-bottom: 2rem;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+        }
+
+        .questions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 2rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .question-card:hover {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            border-color: rgba(112, 160, 255, 0.5);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+
+        .question-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #70a0ff, #4080ff);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .question-card:hover::before {
+            opacity: 1;
+        }
+
+        .question-number {
+            font-size: 0.9rem;
+            color: #70a0ff;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .question-type {
+            font-size: 1.3rem;
+            color: #e0e0e0;
+            font-weight: 400;
+            margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+
+        .question-description {
+            font-size: 0.9rem;
+            color: #b0b0b0;
+            line-height: 1.5;
+        }
+
+        .proceed-container {
+            text-align: center;
+        }
+
+        .proceed-button {
+            background: linear-gradient(135deg, #70a0ff 0%, #4080ff 100%);
+            border: none;
+            color: white;
+            padding: 1.2rem 2.5rem;
+            font-size: 1.1rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(112, 160, 255, 0.3);
+        }
+
+        .proceed-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(112, 160, 255, 0.4);
+            background: linear-gradient(135deg, #80b0ff 0%, #5090ff 100%);
+        }
+
+        /* 戻るボタン */
+        .back-button-container {
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+
+        .back-button {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #e0e0e0;
+            padding: 0.8rem 1.5rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .back-button:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(112, 160, 255, 0.5);
+            transform: translateX(-3px);
+            color: #70a0ff;
+        }
+
+        .back-button:active {
+            transform: translateX(-1px);
+        }
+
+        /* 初期選択画面 */
+        .theme-selection {
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 0.6s forwards;
+        }
+
+        .theme-title {
+            text-align: center;
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            color: #d0d0d0; /* コントラスト比向上 */
+        }
+
+        .theme-buttons {
+            display: grid;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .theme-button {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #e0e0e0;
+            padding: 1.5rem 2rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 10px;
+            text-align: left;
+            backdrop-filter: blur(10px);
+            /* タッチインターフェース最適化 */
+            min-height: 44px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(112,160,255,0.2);
+            user-select: none;
+        }
+
+        .theme-button:hover {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            border-color: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .theme-button h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            font-weight: 400;
+        }
+
+        .theme-button p {
+            font-size: 0.9rem;
+            color: #b0b0b0; /* コントラスト比向上 */
+            line-height: 1.5;
+        }
+
+        /* 探求ガイドセクション */
+        .exploration-guide {
+            margin-top: 3rem;
+            margin-bottom: 2rem;
+        }
+
+        .guide-title {
+            font-size: 1.4rem;
+            color: #70a0ff;
+            text-align: center;
+            margin-bottom: 2rem;
+            font-weight: 400;
+            line-height: 1.6;
+        }
+
+        .guide-section {
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+            backdrop-filter: blur(5px);
+        }
+
+        .guide-summary {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #e0e0e0;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+        }
+
+        .guide-summary:hover {
+            color: #70a0ff;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .guide-summary:focus {
+            outline: 2px solid #70a0ff;
+            outline-offset: 2px;
+        }
+
+        .guide-content {
+            padding: 0 1.5rem 1.5rem;
+            color: #c0c0c0;
+            line-height: 1.7;
+        }
+
+        .guide-content h4 {
+            color: #70a0ff;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .guide-content h5 {
+            color: #e0e0e0;
+            font-size: 0.95rem;
+            margin: 1.2rem 0 0.5rem 0;
+            font-weight: 500;
+        }
+
+        .guide-content p {
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .guide-content ul {
+            margin: 0.5rem 0 1rem 1.5rem;
+            list-style-type: disc;
+        }
+
+        .guide-content li {
+            margin-bottom: 0.3rem;
+            font-size: 0.85rem;
+            color: #b0b0b0;
+        }
+
+        .guide-example {
+            background: rgba(112,160,255,0.05);
+            border-left: 3px solid #70a0ff;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        .guide-example p {
+            margin-bottom: 0.5rem;
+        }
+
+        .guide-note {
+            font-style: italic;
+            color: #a0a0a0;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+
+        .guide-value {
+            background: rgba(112,160,255,0.08);
+            border: 1px solid rgba(112,160,255,0.2);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 6px;
+        }
+
+        .guide-value h5 {
+            color: #70a0ff;
+            margin-top: 0;
+        }
+
+        /* プログレスインジケータ */
+        .progress-container {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #70a0ff 0%, #4a69bd 100%);
+            width: 0%;
+            transition: width 0.8s ease-out;
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            color: #70a0ff;
+            font-weight: 500;
+        }
+
+        /* 質問セクション */
+        .question-section {
+            display: none;
+            opacity: 0;
+        }
+
+        .question-section.active {
+            display: block;
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+
+        /* 質問履歴 */
+        .conversation-history {
+            margin-bottom: 3rem;
+        }
+
+        .qa-pair {
+            margin-bottom: 2rem;
+            opacity: 0;
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+
+        .question {
+            font-size: 1.1rem;
+            color: #70a0ff;
+            margin-bottom: 0.5rem;
+            font-style: italic;
+        }
+
+        .answer {
+            font-size: 1rem;
+            color: #c0c0c0;
+            padding-left: 1.5rem;
+            border-left: 2px solid rgba(255,255,255,0.1);
+        }
+
+        /* 現在の質問 */
+        .current-question {
+            background: linear-gradient(135deg, rgba(112,160,255,0.1) 0%, rgba(112,160,255,0.05) 100%);
+            border: 1px solid rgba(112,160,255,0.2);
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .question-text {
+            font-size: 1.3rem;
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+            line-height: 1.8;
+        }
+
+        .question-level {
+            font-size: 0.9rem;
+            color: #70a0ff;
+            opacity: 0.7;
+        }
+
+        /* 回答入力エリア */
+        .answer-input-area {
+            margin-bottom: 2rem;
+        }
+
+        .answer-input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #e0e0e0;
+            padding: 1.5rem;
+            font-size: 1.1rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 120px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            /* タッチインターフェース最適化 */
+            touch-action: manipulation;
+            -webkit-appearance: none;
+            -webkit-tap-highlight-color: rgba(112,160,255,0.1);
+        }
+
+        .answer-input:focus {
+            outline: none;
+            border-color: rgba(112,160,255,0.5);
+            background: rgba(255,255,255,0.08);
+        }
+
+        /* 送信ボタン */
+        .submit-button {
+            background: linear-gradient(135deg, #4a69bd 0%, #3c5aa6 100%);
+            color: white;
+            border: none;
+            padding: 1rem 3rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            letter-spacing: 0.05em;
+            /* タッチインターフェース最適化 */
+            min-height: 44px;
+            min-width: 44px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(74,105,189,0.3);
+            user-select: none;
+        }
+
+        .submit-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(74,105,189,0.3);
+        }
+
+        .submit-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 完了画面 */
+        .completion-section {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+            opacity: 0;
+        }
+
+        .completion-section.active {
+            display: block;
+            animation: fadeIn 1.5s ease-out forwards;
+        }
+
+        .completion-title {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: #70a0ff;
+        }
+
+        .completion-message {
+            font-size: 1.2rem;
+            line-height: 2;
+            color: #c0c0c0;
+            margin-bottom: 3rem;
+        }
+
+        .insight-box {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        .insight-title {
+            font-size: 1.2rem;
+            color: #e0e0e0;
+            margin-bottom: 1rem;
+        }
+
+        .insight-content {
+            color: #999;
+            line-height: 1.8;
+        }
+
+        /* リスタートボタン */
+        .restart-button {
+            background: transparent;
+            color: #70a0ff;
+            border: 1px solid #70a0ff;
+            padding: 1rem 2.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            /* タッチインターフェース最適化 */
+            min-height: 44px;
+            min-width: 44px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(112,160,255,0.2);
+            user-select: none;
+        }
+
+        .restart-button:hover {
+            background: rgba(112,160,255,0.1);
+            transform: translateY(-2px);
+        }
+
+        /* 深層心理分析結果のスタイル */
+        .response-journey {
+            margin: 2rem 0;
+        }
+
+        .journey-item {
+            background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+            border: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .journey-item:hover {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border-color: rgba(255,255,255,0.15);
+        }
+
+        .journey-item h4 {
+            color: #70a0ff;
+            margin-bottom: 0.8rem;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .journey-question {
+            color: #a0a0a0;
+            font-style: italic;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .journey-answer {
+            color: #d0d0d0;
+            border-left: 3px solid rgba(112,160,255,0.3);
+            padding-left: 1rem;
+            margin: 0;
+        }
+
+        .psychological-analysis {
+            margin-top: 3rem;
+            background: linear-gradient(135deg, rgba(112,160,255,0.05) 0%, rgba(112,160,255,0.02) 100%);
+            border: 1px solid rgba(112,160,255,0.1);
+            padding: 2rem;
+            border-radius: 15px;
+        }
+
+        .psychological-analysis h3 {
+            color: #70a0ff;
+            margin-bottom: 2rem;
+            text-align: center;
+            font-size: 1.4rem;
+        }
+
+        .psychological-analysis h4 {
+            color: #e0e0e0;
+            margin: 1.5rem 0 1rem 0;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 0.5rem;
+        }
+
+        .psychological-analysis p {
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+
+        /* 処理中スタイル */
+        .processing {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .processing .submit-button {
+            background: linear-gradient(135deg, #666 0%, #555 100%);
+            cursor: not-allowed;
+        }
+
+        /* ローディングインジケータ */
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            margin: 1rem 0;
+            color: #70a0ff;
+        }
+
+        .loading-indicator.active {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(112,160,255,0.3);
+            border-radius: 50%;
+            border-top-color: #70a0ff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* アニメーション */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .thinking {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* モバイル向け基本調整 */
+        @media (max-width: 1024px) {
+            .main-container {
+                max-width: 95%;
+                padding: 0 1rem 2rem;
+            }
+            
+            .header {
+                padding: 2rem 1rem;
+            }
+            
+            .theme-buttons {
+                gap: 1rem;
+            }
+        }
+
+        /* タブレット対応 */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.2rem;
+                letter-spacing: 0.1em;
+            }
+            
+            .subtitle {
+                font-size: 1rem;
+            }
+            
+            .theme-button {
+                padding: 1.3rem 1.8rem;
+                font-size: 1rem;
+            }
+            
+            .theme-button h3 {
+                font-size: 1.2rem;
+            }
+            
+            .current-question {
+                padding: 1.5rem;
+            }
+            
+            .question-text {
+                font-size: 1.15rem;
+                line-height: 1.7;
+            }
+            
+            .answer-input {
+                min-height: 100px;
+                font-size: 1rem;
+                padding: 1.2rem;
+            }
+        }
+
+        /* スマートフォン対応 */
+        @media (max-width: 480px) {
+            body {
+                font-size: 16px; /* アクセシビリティ向上のため16px以上に */
+                /* モバイル向けフォント設定 */
+                font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Noto Sans CJK JP', 'Noto Sans JP', sans-serif;
+            }
+            
+            .main-container {
+                padding: 0 0.8rem 1.5rem;
+            }
+            
+            .header {
+                padding: 1.5rem 0.8rem;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+                margin-bottom: 0.8rem;
+            }
+            
+            .subtitle {
+                font-size: 0.9rem;
+                line-height: 1.6;
+            }
+            
+            .theme-title {
+                font-size: 1.1rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .theme-button {
+                padding: 1rem 1.2rem;
+                font-size: 0.95rem;
+            }
+            
+            .theme-button h3 {
+                font-size: 1.1rem;
+                margin-bottom: 0.3rem;
+            }
+            
+            .theme-button p {
+                font-size: 0.85rem;
+                line-height: 1.4;
+            }
+            
+            .progress-container {
+                margin-bottom: 1.5rem;
+            }
+            
+            .progress-text {
+                font-size: 0.8rem;
+            }
+            
+            .current-question {
+                padding: 1.2rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .question-text {
+                font-size: 1rem;
+                line-height: 1.6;
+            }
+            
+            .question-level {
+                font-size: 0.8rem;
+            }
+            
+            .answer-input {
+                min-height: 80px;
+                font-size: 0.95rem;
+                padding: 1rem;
+            }
+            
+            .submit-button {
+                padding: 0.8rem 2.5rem;
+                font-size: 1rem;
+                width: 100%;
+                margin-top: 1rem;
+            }
+            
+            .qa-pair {
+                margin-bottom: 1.5rem;
+            }
+            
+            .question {
+                font-size: 1rem;
+                margin-bottom: 0.4rem;
+            }
+            
+            .answer {
+                font-size: 0.9rem;
+                padding-left: 1rem;
+            }
+            
+            .completion-title {
+                font-size: 1.6rem;
+            }
+            
+            .completion-message {
+                font-size: 1rem;
+                line-height: 1.8;
+                margin-bottom: 2rem;
+            }
+            
+            .insight-box {
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .restart-button {
+                padding: 0.8rem 2rem;
+                font-size: 0.95rem;
+                width: 100%;
+            }
+            
+            /* 探求ガイドのモバイル対応 */
+            .exploration-guide {
+                margin-top: 2rem;
+            }
+            
+            .guide-title {
+                font-size: 1.1rem;
+                margin-bottom: 1.5rem;
+                line-height: 1.5;
+            }
+            
+            .guide-summary {
+                padding: 0.8rem 1rem;
+                font-size: 1rem;
+            }
+            
+            .guide-content {
+                padding: 0 1rem 1rem;
+            }
+            
+            .guide-content h4 {
+                font-size: 0.9rem;
+            }
+            
+            .guide-content h5 {
+                font-size: 0.85rem;
+            }
+            
+            .guide-content p {
+                font-size: 0.85rem;
+            }
+            
+            .guide-content li {
+                font-size: 0.8rem;
+            }
+            
+            .guide-example {
+                padding: 0.8rem;
+                margin: 0.8rem 0;
+            }
+            
+            .guide-note {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* 横向き表示対応 */
+        @media (orientation: landscape) and (max-height: 600px) {
+            .header {
+                padding: 1rem;
+            }
+            
+            h1 {
+                font-size: 1.6rem;
+            }
+            
+            .subtitle {
+                font-size: 0.85rem;
+            }
+            
+            .current-question {
+                padding: 1rem;
+            }
+            
+            .answer-input {
+                min-height: 60px;
+            }
+        }
+
+        /* 高解像度ディスプレイ対応 */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .progress-bar {
+                height: 6px;
+            }
+            
+            .theme-button {
+                border-width: 0.5px;
+            }
+        }
+
+        /* アクセシビリティ向上 */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* フォーカス表示の改善 */
+        *:focus {
+            outline: 2px solid #70a0ff;
+            outline-offset: 2px;
+        }
+
+        .theme-button:focus,
+        .submit-button:focus,
+        .restart-button:focus {
+            outline: 2px solid #70a0ff;
+            outline-offset: 4px;
+        }
+
+        .answer-input:focus {
+            outline: 2px solid #70a0ff;
+            outline-offset: 2px;
+        }
+
+        /* 高コントラストモード対応 */
+        @media (prefers-contrast: high) {
+            :root {
+                --text-primary: #ffffff;
+                --text-secondary: #e0e0e0;
+                --accent-primary: #88b4ff;
+            }
+        }
+
+        /* 動きを減らす設定への対応 */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* レスポンシブ対応 - 導入画面と4つの問い画面 */
+        @media (max-width: 768px) {
+            .intro-title {
+                font-size: 1.6rem;
+            }
+
+            .intro-subtitle {
+                font-size: 1rem;
+            }
+
+            .intro-description p {
+                font-size: 1rem;
+            }
+
+            .mystery-button {
+                padding: 1.2rem 2rem;
+                font-size: 1.1rem;
+            }
+
+            .questions-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .question-card {
+                padding: 1.5rem 1rem;
+            }
+
+            .question-type {
+                font-size: 1.1rem;
+            }
+
+            .questions-title {
+                font-size: 1.5rem;
+            }
+
+            .proceed-button {
+                padding: 1rem 2rem;
+                font-size: 1rem;
+            }
+
+            .back-button {
+                padding: 0.7rem 1.3rem;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-gradient"></div>
+    
+    <header class="header">
+        <h1>なぜを問い続ける</h1>
+        <p class="subtitle">自己の深淵への探求 - 4つの「なぜ」があなたの本質を明らかにする</p>
+    </header>
+
+    <main class="main-container">
+        <!-- 導入画面 -->
+        <section class="introduction-section" id="introductionSection" role="main" aria-labelledby="intro-title">
+            <h2 class="intro-title" id="intro-title">自己の深淵への探求</h2>
+            <p class="intro-subtitle">4つの「なぜ」があなたの本質を明らかにする</p>
+            <div class="intro-description">
+                <p>あなたは自分自身について、どれほど知っていますか？</p>
+                <p>表面的な理由の奥に隠された、真の動機と信念の源泉を探る旅へと誘います。</p>
+            </div>
+            <button class="mystery-button" id="mysteryButton" type="button">
+                なぜを問い続けるかをもっと知りたいですか？
+            </button>
+        </section>
+
+        <!-- 4つの問い紹介画面 -->
+        <section class="four-questions-section" id="fourQuestionsSection" role="main" aria-labelledby="questions-title" style="display: none;">
+            <h2 class="questions-title" id="questions-title">4つの探求の階層</h2>
+            <div class="questions-grid">
+                <div class="question-card" data-level="1">
+                    <div class="question-number">第1の問い</div>
+                    <div class="question-type">表面的な理由</div>
+                    <div class="question-description">意識的に認識している、社会的に受け入れられやすい理由</div>
+                </div>
+                <div class="question-card" data-level="2">
+                    <div class="question-number">第2の問い</div>
+                    <div class="question-type">個人的な動機</div>
+                    <div class="question-description">あなた個人の体験や価値観に根ざした、より深い動機</div>
+                </div>
+                <div class="question-card" data-level="3">
+                    <div class="question-number">第3の問い</div>
+                    <div class="question-type">深層の信念</div>
+                    <div class="question-description">無意識レベルで形成された根深い信念や価値観</div>
+                </div>
+                <div class="question-card" data-level="4">
+                    <div class="question-number">第4の問い</div>
+                    <div class="question-type">存在の根源</div>
+                    <div class="question-description">存在そのものに関わる根源的で哲学的な探求</div>
+                </div>
+            </div>
+            <div class="proceed-container">
+                <button class="proceed-button" id="proceedButton" type="button">
+                    探求を始める
+                </button>
+            </div>
+        </section>
+
+                <!-- テーマ選択画面 -->
+        <section class="theme-selection" id="themeSelection" role="main" aria-labelledby="theme-title" style="display: none;">
+            <div class="back-button-container">
+                <button class="back-button" id="backToQuestionsButton" type="button">
+                    ← 4つの探求の階層に戻る
+                </button>
+            </div>
+            <h2 class="theme-title" id="theme-title">探求したいテーマをカテゴリーから選んでください</h2>
+            <div class="theme-buttons" role="list" aria-label="テーマ選択ボタン">
+                <!-- テーマボタンはapp.jsで動的に生成されます -->
+            </div>
+            
+ 
+        </section>
+
+        <!-- 質問セクション -->
+        <section class="question-section" id="questionSection" role="main" aria-labelledby="current-question">
+            <!-- 戻るボタン（質問開始時のみ表示） -->
+            <div class="back-button-container" id="questionBackButtonContainer" style="display: none;">
+                <button class="back-button" id="questionBackButton" type="button">
+                    ← テーマ選択に戻る
+                </button>
+            </div>
+            
+            <!-- プログレスインジケータ -->
+            <div class="progress-container" role="progressbar" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" aria-label="探求の進行状況">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">質問 1/4</div>
+            </div>
+            
+            <div class="conversation-history" id="conversationHistory" role="log" aria-label="会話履歴" aria-live="polite"></div>
+            
+            <div class="current-question" role="region" aria-labelledby="current-question">
+                <div class="question-text" id="currentQuestion" aria-live="assertive"></div>
+                <div class="question-level" id="questionLevel" aria-live="polite"></div>
+            </div>
+            
+            <div class="answer-input-area">
+                <label for="answerInput" class="sr-only">回答を入力</label>
+                <textarea 
+                    class="answer-input" 
+                    id="answerInput" 
+                    placeholder="あなたの答えをここに書いてください..."
+                    aria-label="回答を入力してください"
+                    aria-describedby="input-help"
+                    required
+                ></textarea>
+                <div id="input-help" class="sr-only">Enterキーで送信、Shift+Enterで改行</div>
+            </div>
+            
+            <div class="loading-indicator" id="loadingIndicator">
+                <div class="spinner"></div>
+                <span>深層から次の問いを生成中...</span>
+            </div>
+            
+            <button class="submit-button" id="submitButton">
+                答える
+            </button>
+        </section>
+
+        <!-- 完了画面 -->
+        <section class="completion-section" id="completionSection">
+            <h2 class="completion-title">探求の終わり</h2>
+            <p class="completion-message">
+                あなたは4つの「なぜ」を通じて、自己の深淵に到達しました。<br>
+                この体験があなたに何をもたらしたでしょうか。
+            </p>
+            
+            <div class="insight-box">
+                <h3 class="insight-title">あなたの探求の軌跡</h3>
+                <div class="insight-content" id="insightContent"></div>
+            </div>
+            
+            <button class="restart-button" id="restartButton">
+                新たな探求を始める
+            </button>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

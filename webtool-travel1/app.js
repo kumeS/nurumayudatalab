@@ -33,34 +33,41 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   
   let currentStep = 1;
+  let debounceTimer = null;
   
-  // 使い方表示トグル
-  const toggleGuide = document.querySelector('.toggle-guide');
-  const guideContent = document.querySelector('.guide-content');
-  
-  if (toggleGuide && guideContent) {
-    toggleGuide.addEventListener('click', function() {
-      guideContent.style.display = guideContent.style.display === 'none' ? 'block' : 'none';
-      this.classList.toggle('active');
+  // グローバル関数として定義（HTML onclick用）
+  window.toggleGuide = function() {
+    const toggleGuide = document.querySelector('.toggle-guide');
+    const guideContent = document.getElementById('guideContent');
+    
+    if (toggleGuide && guideContent) {
+      const isVisible = guideContent.style.display === 'block';
+      guideContent.style.display = isVisible ? 'none' : 'block';
+      toggleGuide.classList.toggle('active');
       
-      const heading = this.querySelector('h3');
+      const heading = toggleGuide.querySelector('h3');
       if (heading) {
-        if (guideContent.style.display === 'block') {
-          heading.textContent = '使い方を隠す';
-        } else {
-          heading.textContent = '使い方を表示';
-        }
+        heading.textContent = isVisible ? '使い方を表示' : '使い方を隠す';
       }
-    });
-  }
+    }
+  };
   
-  // 選択肢のクリックイベントを設定
+  // 選択肢のクリックイベントとキーボードイベントを設定
   function setupOptionCards() {
     // ステップ1: 旅の目的
     document.querySelectorAll('[data-purpose]').forEach(card => {
       card.addEventListener('click', () => {
         selectOption('purpose', card.dataset.purpose, card);
         nextStep();
+      });
+      
+      // キーボードアクセシビリティ
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectOption('purpose', card.dataset.purpose, card);
+          nextStep();
+        }
       });
     });
     
@@ -70,6 +77,14 @@ document.addEventListener('DOMContentLoaded', () => {
         selectOption('companion', card.dataset.companion, card);
         nextStep();
       });
+      
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectOption('companion', card.dataset.companion, card);
+          nextStep();
+        }
+      });
     });
     
     // ステップ3: 行き先
@@ -78,6 +93,14 @@ document.addEventListener('DOMContentLoaded', () => {
         selectOption('destination', card.dataset.destination, card);
         nextStep();
       });
+      
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectOption('destination', card.dataset.destination, card);
+          nextStep();
+        }
+      });
     });
     
     // ステップ4: 予算
@@ -85,6 +108,14 @@ document.addEventListener('DOMContentLoaded', () => {
       card.addEventListener('click', () => {
         selectOption('budget', card.dataset.budget, card);
         nextStep();
+      });
+      
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectOption('budget', card.dataset.budget, card);
+          nextStep();
+        }
       });
     });
   }
@@ -113,17 +144,25 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('選択更新:', selections);
   }
   
-  // 選択状態を保存
+  // 選択状態を保存（デバウンス付き）
   function saveSelections() {
-    try {
-      localStorage.setItem('travelPlannerSelections', JSON.stringify({
-        selections: selections,
-        currentStep: currentStep,
-        timestamp: Date.now()
-      }));
-    } catch (error) {
-      console.warn('選択状態の保存に失敗:', error);
+    // 前のタイマーをクリア
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
     }
+    
+    // 500ms後に実際の保存を実行
+    debounceTimer = setTimeout(() => {
+      try {
+        localStorage.setItem('travelPlannerSelections', JSON.stringify({
+          selections: selections,
+          currentStep: currentStep,
+          timestamp: Date.now()
+        }));
+      } catch (error) {
+        console.warn('選択状態の保存に失敗:', error);
+      }
+    }, 500);
   }
   
   // 選択状態を復元
@@ -234,8 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 旅行プラン生成
   function generateTravelPlan() {
-    if (!validateSelections()) {
-      alert('すべての選択肢を選んでください。');
+    if (!validateSelectionsWithFeedback()) {
       return;
     }
     
@@ -255,8 +293,107 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 選択内容の検証
   function validateSelections() {
-    return selections.purpose && selections.companion && 
-           selections.destination && selections.budget;
+    const requiredFields = ['purpose', 'companion', 'destination', 'budget'];
+    const missingFields = [];
+    
+    requiredFields.forEach(field => {
+      if (!selections[field]) {
+        missingFields.push(field);
+      }
+    });
+    
+    if (missingFields.length > 0) {
+      console.warn('未選択の項目:', missingFields);
+      return false;
+    }
+    
+    // 値の妥当性チェック
+    const validValues = {
+      purpose: ['healing', 'adventure', 'gourmet', 'culture'],
+      companion: ['solo', 'couple', 'family', 'friends'],
+      destination: ['domestic', 'asia', 'europe', 'other'],
+      budget: ['budget', 'standard', 'luxury', 'unlimited']
+    };
+    
+    for (const [field, value] of Object.entries(selections)) {
+      if (value && !validValues[field].includes(value)) {
+        console.error('無効な選択値:', field, value);
+        return false;
+      }
+    }
+    
+    return true;
+  }
+  
+  // より詳細な検証とユーザーフィードバック
+  function validateSelectionsWithFeedback() {
+    const fieldNames = {
+      purpose: '旅の目的',
+      companion: '同行者',
+      destination: '行き先',
+      budget: '予算'
+    };
+    
+    const missingFields = [];
+    const requiredFields = ['purpose', 'companion', 'destination', 'budget'];
+    
+    requiredFields.forEach(field => {
+      if (!selections[field]) {
+        missingFields.push(fieldNames[field]);
+      }
+    });
+    
+    if (missingFields.length > 0) {
+      const message = `以下の項目を選択してください: ${missingFields.join('、')}`;
+      showValidationError(message);
+      return false;
+    }
+    
+    return true;
+  }
+  
+  // 検証エラー表示
+  function showValidationError(message) {
+    // 既存のエラーメッセージを削除
+    const existingError = document.querySelector('.validation-error');
+    if (existingError) {
+      existingError.remove();
+    }
+    
+    // 新しいエラーメッセージを作成
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'validation-error';
+    errorDiv.innerHTML = `
+      <div style="
+        background-color: #fee;
+        border: 1px solid #fcc;
+        color: #c33;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+      ">
+        <i class="fas fa-exclamation-triangle" style="margin-right: 0.5rem;"></i>
+        ${message}
+      </div>
+    `;
+    
+    // 現在のステップの前に挿入
+    const currentStepElement = document.querySelector('.step-card:not([style*="display: none"])');
+    if (currentStepElement) {
+      currentStepElement.parentNode.insertBefore(errorDiv, currentStepElement);
+      
+      // 3秒後に自動削除
+      setTimeout(() => {
+        if (errorDiv.parentNode) {
+          errorDiv.remove();
+        }
+      }, 3000);
+      
+      // エラーメッセージにスクロール
+      errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }
   
   // 旅行プランプロンプト作成
@@ -700,11 +837,14 @@ document.addEventListener('DOMContentLoaded', () => {
           const imageData = await generateSingleImage(prompts[i]);
           if (imageData) {
             imageElements.push(createImageElement(imageData, `風景${i + 1}`));
+          } else {
+            // 画像取得失敗時はフォールバック画像を使用
+            imageElements.push(createFallbackImage(`風景${i + 1}`, selections.purpose));
           }
         } catch (error) {
           console.error(`画像${i + 1}の生成エラー:`, error);
-          // エラーが発生した場合はプレースホルダーを表示
-          imageElements.push(createImagePlaceholder(`風景${i + 1}（生成失敗）`));
+          // エラーが発生した場合はフォールバック画像を表示
+          imageElements.push(createFallbackImage(`風景${i + 1}`, selections.purpose));
         }
       }
       
@@ -797,10 +937,11 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 画像要素作成
   function createImageElement(imageData, caption) {
+    const sanitizedCaption = caption.replace(/[<>]/g, ''); // XSS対策
     return `
       <div class="generated-image">
-        <img src="${imageData.url}" alt="${caption}" loading="lazy">
-        <div class="image-caption">${caption}</div>
+        <img src="${imageData.url}" alt="${sanitizedCaption}" loading="lazy" decoding="async">
+        <div class="image-caption">${sanitizedCaption}</div>
       </div>
     `;
   }

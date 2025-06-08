@@ -2,7 +2,10 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>ぬるっと旅行・冒険プランナー｜AI活用旅行企画ツール</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <style>
@@ -19,33 +22,70 @@
     }
     
     body { 
-      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
       margin: 0;
       padding: 0;
       background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 50%, #fff3e0 100%);
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      touch-action: manipulation;
     }
     
     .container {
-      max-width: 800px;
+      max-width: 100%;
       margin: 0 auto;
-      padding: 2rem;
+      padding: 1rem;
+    }
+    
+    /* デスクトップ以上 */
+    @media (min-width: 768px) {
+      .container {
+        max-width: 800px;
+        padding: 2rem;
+      }
     }
     
     .header {
       text-align: center;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
+      padding: 0 0.5rem;
     }
     
     h1 {
       color: var(--primary);
       margin-bottom: 0.5rem;
-      font-size: 2.5rem;
+      font-size: 1.75rem;
+      line-height: 1.2;
+      font-weight: 700;
     }
     
     .description {
       color: var(--text-secondary);
-      font-size: 1rem;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    
+    /* タブレット以上 */
+    @media (min-width: 768px) {
+      .header {
+        margin-bottom: 2rem;
+      }
+      
+      h1 {
+        font-size: 2.25rem;
+      }
+      
+      .description {
+        font-size: 1rem;
+      }
+    }
+    
+    /* デスクトップ以上 */
+    @media (min-width: 1024px) {
+      h1 {
+        font-size: 2.5rem;
+      }
     }
     
     .tabs {
@@ -129,22 +169,43 @@
     
     .button-container, .button-group {
       display: flex;
-      gap: 15px;
+      flex-direction: column;
+      gap: 0.75rem;
       margin-bottom: 1.5rem;
     }
     
     .button {
       display: inline-flex;
       align-items: center;
-      padding: 0.6rem 1.2rem;
+      justify-content: center;
+      padding: 1rem 1.5rem;
       background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 12px;
       cursor: pointer;
       font-size: 1rem;
+      font-weight: 600;
       transition: all 0.3s;
       box-shadow: var(--card-shadow);
+      min-height: 48px;
+      width: 100%;
+      -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+      touch-action: manipulation;
+    }
+    
+    /* タブレット以上 */
+    @media (min-width: 768px) {
+      .button-container, .button-group {
+        flex-direction: row;
+        gap: 1rem;
+      }
+      
+      .button {
+        padding: 0.75rem 1.5rem;
+        width: auto;
+        min-height: auto;
+      }
     }
     
     .button:hover {
@@ -334,44 +395,109 @@
     
     .usage-guide {
       background-color: #fff;
-      padding: 1.5rem;
-      border-radius: 8px;
-      margin-bottom: 1.5rem;
+      padding: 1rem;
+      border-radius: 12px;
+      margin-bottom: 1rem;
       box-shadow: var(--card-shadow);
     }
     
     .usage-guide h3 {
       margin-top: 0;
+      font-size: 1.1rem;
     }
     
     .guide-step {
       display: flex;
       margin-bottom: 1rem;
+      align-items: flex-start;
     }
     
     .step-number {
       background-color: var(--primary);
       color: white;
-      width: 24px;
-      height: 24px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-right: 10px;
+      margin-right: 12px;
       font-weight: bold;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    
+    .guide-step div:last-child {
+      flex: 1;
+      line-height: 1.4;
+    }
+    
+    .guide-step strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      color: var(--primary);
+    }
+    
+    .guide-step ul {
+      margin-top: 0.5rem;
+      margin-bottom: 0;
+      padding-left: 1rem;
+    }
+    
+    .guide-step li {
+      margin-bottom: 0.25rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    
+    /* タブレット以上 */
+    @media (min-width: 768px) {
+      .usage-guide {
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+      
+      .usage-guide h3 {
+        font-size: 1.2rem;
+      }
     }
     
     .toggle-guide {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       cursor: pointer;
-      margin-bottom: 1rem;
+      margin-bottom: 0;
       color: var(--primary);
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #eee;
+      transition: all 0.3s ease;
     }
     
-    .toggle-guide i {
+    .toggle-guide:hover {
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      padding: 0.5rem;
+      margin: -0.5rem;
+    }
+    
+    .toggle-guide .fas:first-child {
       margin-right: 0.5rem;
+    }
+    
+    .toggle-icon {
+      transition: transform 0.3s ease;
+      font-size: 0.9rem;
+    }
+    
+    .toggle-guide.active .toggle-icon {
+      transform: rotate(180deg);
+    }
+    
+    .guide-content {
+      margin-top: 1rem;
+      transition: all 0.3s ease;
     }
     
     .warning {
@@ -451,12 +577,12 @@
       font-weight: bold;
     }
     
-    /* Travel-specific styles */
+    /* Travel-specific styles - モバイルファースト */
     .step-card {
       background: white;
       border-radius: 12px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
       box-shadow: var(--card-shadow);
       border-left: 4px solid var(--primary);
       opacity: 0;
@@ -478,34 +604,85 @@
     .step-title {
       display: flex;
       align-items: center;
-      font-size: 1.2rem;
+      justify-content: center;
+      text-align: center;
+      font-size: 1.1rem;
       font-weight: bold;
       color: var(--primary);
       margin-bottom: 1rem;
+      line-height: 1.3;
     }
     
     .step-title i {
-      margin-right: 0.8rem;
-      font-size: 1.5rem;
+      margin-right: 0.6rem;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+    
+    /* タブレット以上 */
+    @media (min-width: 768px) {
+      .step-card {
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+      
+      .step-title {
+        font-size: 1.2rem;
+        text-align: left;
+        justify-content: flex-start;
+      }
+      
+      .step-title i {
+        margin-right: 0.8rem;
+        font-size: 1.5rem;
+      }
     }
     
     .option-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
       margin-bottom: 1rem;
     }
     
     .option-card {
       background: #f8f9fa;
       border: 2px solid transparent;
-      border-radius: 8px;
-      padding: 1rem;
+      border-radius: 12px;
+      padding: 1.25rem 1rem;
       cursor: pointer;
       transition: all var(--transition-speed);
       text-align: center;
       position: relative;
       overflow: hidden;
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      /* タッチターゲット最適化 */
+      min-height: 44px;
+      -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+    }
+    
+    /* タブレット以上 */
+    @media (min-width: 768px) {
+      .option-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+      
+      .option-card {
+        padding: 1rem;
+        min-height: 100px;
+      }
+    }
+    
+    /* デスクトップ以上 */
+    @media (min-width: 1024px) {
+      .option-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      }
     }
     
     .option-card:before {
@@ -548,9 +725,45 @@
     }
     
     .option-card i {
-      font-size: 2rem;
+      font-size: 1.5rem;
       color: var(--primary);
       margin-bottom: 0.5rem;
+      flex-shrink: 0;
+    }
+    
+    .option-card strong {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      line-height: 1.2;
+    }
+    
+    .option-card div:last-child {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.3;
+    }
+    
+    /* タブレット以上 */
+    @media (min-width: 768px) {
+      .option-card i {
+        font-size: 1.75rem;
+      }
+      
+      .option-card strong {
+        font-size: 1.1rem;
+      }
+      
+      .option-card div:last-child {
+        font-size: 0.9rem;
+      }
+    }
+    
+    /* デスクトップ以上 */
+    @media (min-width: 1024px) {
+      .option-card i {
+        font-size: 2rem;
+      }
     }
     
     .travel-output {
@@ -577,11 +790,20 @@
     
     .progress-bar {
       width: 100%;
-      height: 8px;
+      height: 6px;
       background: #e0e0e0;
-      border-radius: 4px;
-      margin-bottom: 2rem;
+      border-radius: 3px;
+      margin-bottom: 1.5rem;
       overflow: hidden;
+    }
+    
+    /* タブレット以上 */
+    @media (min-width: 768px) {
+      .progress-bar {
+        height: 8px;
+        border-radius: 4px;
+        margin-bottom: 2rem;
+      }
     }
     
     .progress-fill {
@@ -591,12 +813,27 @@
       transition: width 0.5s ease;
     }
     
-    /* 画像生成エリアのスタイル */
+    /* 画像生成エリアのスタイル - モバイルファースト */
     .travel-images {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1rem;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
       margin-bottom: 1rem;
+    }
+    
+    /* タブレット以上 */
+    @media (min-width: 768px) {
+      .travel-images {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+    }
+    
+    /* デスクトップ以上 */
+    @media (min-width: 1024px) {
+      .travel-images {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      }
     }
     
     .image-placeholder {
@@ -633,9 +870,23 @@
     
     .generated-image img {
       width: 100%;
-      height: 200px;
+      height: 180px;
       object-fit: cover;
       display: block;
+    }
+    
+    /* タブレット以上 */
+    @media (min-width: 768px) {
+      .generated-image img {
+        height: 200px;
+      }
+    }
+    
+    /* デスクトップ以上 */
+    @media (min-width: 1024px) {
+      .generated-image img {
+        height: 220px;
+      }
     }
     
     .image-caption {
@@ -696,113 +947,45 @@
       text-indent: 1em;
     }
     
-    @media (max-width: 768px) {
+    /* 小型スマホ向け追加調整 */
+    @media (max-width: 480px) {
       .container {
-        padding: 1rem;
-        max-width: 100%;
+        padding: 0.75rem;
       }
       
       h1 {
-        font-size: 2rem;
-      }
-      
-      .description {
-        font-size: 0.9rem;
-      }
-      
-      .step-card {
-        padding: 1rem;
-        margin-bottom: 1rem;
-      }
-      
-      .step-title {
-        font-size: 1.1rem;
-      }
-      
-      .option-grid {
-        grid-template-columns: 1fr;
-        gap: 0.8rem;
-      }
-      
-      .option-card {
-        padding: 0.8rem;
-      }
-      
-      .option-card i {
         font-size: 1.5rem;
       }
       
-      .button-container, .button-group {
-        flex-direction: column;
-        gap: 0.8rem;
+      .step-card {
+        padding: 0.875rem;
+      }
+      
+      .option-card {
+        padding: 1rem 0.75rem;
+        min-height: 70px;
+      }
+      
+      .option-card i {
+        font-size: 1.25rem;
+      }
+      
+      .option-card strong {
+        font-size: 0.95rem;
+      }
+      
+      .option-card div:last-child {
+        font-size: 0.8rem;
       }
       
       .button {
-        width: 100%;
-        justify-content: center;
-        padding: 0.8rem 1rem;
-      }
-      
-      .travel-images {
-        grid-template-columns: 1fr;
-      }
-      
-      .travel-output {
-        padding: 1rem;
+        padding: 0.875rem 1rem;
+        font-size: 0.95rem;
       }
       
       .travel-story {
-        font-size: 1rem;
-      }
-      
-      .usage-guide {
-        padding: 1rem;
-      }
-      
-      .guide-step {
-        flex-direction: column;
-        text-align: left;
-      }
-      
-      .step-number {
-        margin-bottom: 0.5rem;
-      }
-    }
-    
-    @media (max-width: 480px) {
-      .container {
-        padding: 0.5rem;
-      }
-      
-      h1 {
-        font-size: 1.5rem;
-      }
-      
-      .step-card {
-        padding: 0.8rem;
-      }
-      
-      .step-title {
-        font-size: 1rem;
-        flex-direction: column;
-        text-align: center;
-      }
-      
-      .step-title i {
-        margin-bottom: 0.5rem;
-        margin-right: 0;
-      }
-      
-      .option-card {
-        padding: 0.6rem;
-      }
-      
-      .option-card i {
-        font-size: 1.2rem;
-      }
-      
-      .travel-story {
-        font-size: 0.9rem;
+        font-size: 0.95rem;
+        line-height: 1.6;
       }
       
       .travel-tips {
@@ -810,7 +993,7 @@
       }
       
       .loading-text {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
       }
     }
     
@@ -843,11 +1026,12 @@
     </div>
     
     <div class="usage-guide">
-      <div class="toggle-guide">
+      <div class="toggle-guide" onclick="toggleGuide()">
         <i class="fas fa-info-circle"></i>
         <h3>使い方を表示</h3>
+        <i class="fas fa-chevron-down toggle-icon"></i>
       </div>
-      <div class="guide-content" style="display: none;">
+      <div class="guide-content" id="guideContent" style="display: none;">
         <div class="guide-step">
           <div class="step-number">1</div>
           <div>
@@ -897,23 +1081,23 @@
         どんな旅にしたいですか？
       </div>
       <div class="option-grid">
-        <div class="option-card" data-purpose="healing">
-          <i class="fas fa-spa"></i>
+        <div class="option-card" data-purpose="healing" role="button" tabindex="0" aria-label="癒し・リラックス系の旅を選択">
+          <i class="fas fa-spa" aria-hidden="true"></i>
           <div><strong>癒し・リラックス</strong></div>
           <div>温泉や自然でゆったり</div>
         </div>
-        <div class="option-card" data-purpose="adventure">
-          <i class="fas fa-mountain"></i>
+        <div class="option-card" data-purpose="adventure" role="button" tabindex="0" aria-label="冒険・アクティブ系の旅を選択">
+          <i class="fas fa-mountain" aria-hidden="true"></i>
           <div><strong>冒険・アクティブ</strong></div>
           <div>アウトドアや体験活動</div>
         </div>
-        <div class="option-card" data-purpose="gourmet">
-          <i class="fas fa-utensils"></i>
+        <div class="option-card" data-purpose="gourmet" role="button" tabindex="0" aria-label="グルメ・食文化中心の旅を選択">
+          <i class="fas fa-utensils" aria-hidden="true"></i>
           <div><strong>グルメ・食文化</strong></div>
           <div>現地料理や食べ歩き</div>
         </div>
-        <div class="option-card" data-purpose="culture">
-          <i class="fas fa-university"></i>
+        <div class="option-card" data-purpose="culture" role="button" tabindex="0" aria-label="歴史・文化探訪の旅を選択">
+          <i class="fas fa-university" aria-hidden="true"></i>
           <div><strong>歴史・文化探訪</strong></div>
           <div>遺跡や美術館めぐり</div>
         </div>
