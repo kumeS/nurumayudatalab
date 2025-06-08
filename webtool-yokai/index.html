@@ -1,0 +1,4229 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI植物辞典 - 曖昧な言葉から植物を発見</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #4CAF50;
+      --secondary: #81C784;
+      --accent: #FFA726;
+      --text-primary: #2E7D32;
+      --text-secondary: #616161;
+      --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+      --success: #4CAF50;
+      --error: #f44336;
+      --warning: #ff9800;
+      --bg-gradient: linear-gradient(135deg, #E8F5E8 0%, #F1F8E9 50%, #E0F2E1 100%);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    /* ヘッダー */
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 2rem 0;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+
+    .header .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+
+    .header .description {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 1rem;
+      border-radius: 12px;
+      margin: 0 auto;
+      max-width: 600px;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      box-shadow: var(--card-shadow);
+    }
+
+    .highlight {
+      background: linear-gradient(135deg, #C8E6C9, #E8F5E8);
+      color: var(--primary);
+      padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+      font-weight: 600;
+      display: inline-block;
+      margin: 0 0.1rem;
+    }
+
+    /* タブナビゲーション */
+    .tab-navigation {
+      display: flex;
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 1rem;
+      text-align: center;
+      background: #f8f9fa;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      border: none;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .tab:hover {
+      background: var(--secondary);
+      color: white;
+    }
+
+    .tab.active {
+      background: var(--primary);
+      color: white;
+      font-weight: 600;
+    }
+
+    /* 検索セクション */
+    .search-section {
+      background: white;
+      padding: 2rem;
+      border-radius: 16px;
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .search-label {
+      display: block;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .search-input-container {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 1rem 1rem 1rem 3rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      transition: all var(--transition-speed);
+      background: #fafafa;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--primary);
+      font-size: 1.2rem;
+    }
+
+    .search-examples {
+      margin-bottom: 1.5rem;
+    }
+
+    .search-examples-title {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .example-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .example-tag {
+      background: linear-gradient(135deg, var(--accent), #FFB74D);
+      color: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      border: none;
+    }
+
+    .example-tag:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(255, 167, 38, 0.3);
+    }
+
+    /* ボタングループ */
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      color: var(--text-secondary);
+    }
+
+    .btn-secondary:hover {
+      background: linear-gradient(135deg, #e9ecef, #dee2e6);
+    }
+
+    .btn:disabled {
+      background: #ccc;
+      color: #888;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ローディング */
+    .loading {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    .loading.active {
+      display: flex;
+    }
+
+    .loading-spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #e0e0e0;
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* 結果セクション */
+    .results-section {
+      display: none;
+    }
+
+    .results-section.active {
+      display: block;
+    }
+
+    .results-header {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .results-title {
+      font-size: 1.3rem;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .results-count {
+      color: var(--text-secondary);
+    }
+
+    /* 植物候補カード */
+    .plant-candidates {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      max-width: calc(400px * 3 + 1.5rem * 2); /* 3列分の最大幅を設定 */
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .plant-card {
+      background: white;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      transition: all var(--transition-speed);
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+
+    .plant-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      border-color: var(--primary);
+    }
+
+    .plant-card.selected {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, #E8F5E8, #F1F8E9);
+    }
+
+    .plant-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .plant-names {
+      flex: 1;
+    }
+
+    .plant-scientific-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.3rem;
+      font-style: italic;
+    }
+
+    .plant-common-name {
+      font-size: 1rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .plant-aliases {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: 0.2rem;
+    }
+
+    .confidence-badge {
+      background: linear-gradient(135deg, var(--accent), #FFB74D);
+      color: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .confidence-info-btn {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 0.2rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      opacity: 0.8;
+      font-size: 0.7rem;
+    }
+
+    .confidence-info-btn:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.1);
+    }
+
+    /* 一致度判定グレード */
+    .evaluation-grade {
+      display: inline-block;
+      padding: 0.3rem 0.8rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-left: auto;
+      min-width: 40px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .grade-a {
+      background: linear-gradient(135deg, #4CAF50, #66BB6A);
+      color: white;
+    }
+
+    .grade-b {
+      background: linear-gradient(135deg, #8BC34A, #9CCC65);
+      color: white;
+    }
+
+    .grade-c {
+      background: linear-gradient(135deg, #FFC107, #FFD54F);
+      color: #333;
+    }
+
+    .grade-d {
+      background: linear-gradient(135deg, #FF9800, #FFB74D);
+      color: white;
+    }
+
+    .evaluation-description {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .evaluation-reason {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .confidence-factor-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+
+    /* 植物画像 */
+    .plant-image-container {
+      position: relative;
+      margin-bottom: 1rem;
+      border-radius: 12px;
+      overflow: hidden;
+      width: 100%;
+      aspect-ratio: 1 / 1; /* 1:1の比率を強制 */
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .plant-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* アスペクト比を保持しながらコンテナにフィット */
+      object-position: center; /* 画像の中央部分を表示 */
+      transition: all var(--transition-speed);
+    }
+
+    .plant-image:hover {
+      transform: scale(1.05);
+    }
+
+    .image-placeholder {
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .image-generate-btn {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .image-generate-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(76, 175, 80, 0.5);
+      background: linear-gradient(135deg, #2E7D32, var(--primary));
+    }
+
+    .image-generate-btn:active {
+      transform: translateY(-1px);
+    }
+
+    /* 植物画像生成ローディング */
+    .plant-image-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: linear-gradient(135deg, #E8F5E8, #F1F8E9);
+      border-radius: 12px;
+      border: 2px dashed var(--primary);
+    }
+
+    .plant-loading-icon {
+      font-size: 3rem;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      animation: grow 2s ease-in-out infinite;
+    }
+
+    .plant-loading-text {
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .plant-loading-subtext {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .plant-loading-dots {
+      display: inline-block;
+      margin-left: 0.5rem;
+    }
+
+    .plant-loading-dots::after {
+      content: '';
+      animation: dots 2s steps(4, end) infinite;
+    }
+
+    @keyframes grow {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.2);
+      }
+    }
+
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+      100% { content: ''; }
+    }
+
+    /* 植物詳細情報 */
+    .plant-details {
+      display: none;
+    }
+
+    .plant-details.active {
+      display: block;
+    }
+
+    .plant-features {
+      margin-bottom: 1rem;
+    }
+
+    .features-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .features-content {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .wildlife-connection {
+      background: linear-gradient(135deg, #E3F2FD, #F1F8E9);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .culture-info {
+      background: linear-gradient(135deg, #FFF3E0, #FFF8E1);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    /* アクションボタン */
+    .plant-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .save-btn {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+    }
+
+    .save-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+    }
+
+    .save-btn.saved {
+      background: linear-gradient(135deg, #FF7043, #FF8A65);
+    }
+
+    /* マイ図鑑セクション */
+    .my-collection-section {
+      display: none;
+    }
+
+    .my-collection-section.active {
+      display: block;
+    }
+
+    .collection-grid, .saved-images-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+
+    .collection-item, .saved-image-item {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: var(--card-shadow);
+      transition: all var(--transition-speed);
+    }
+
+    .collection-item:hover, .saved-image-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .collection-image, .saved-image {
+      width: 100%;
+      aspect-ratio: 1 / 1; /* 1:1の比率を強制 */
+      object-fit: cover; /* アスペクト比を保持しながらコンテナにフィット */
+      object-position: center; /* 画像の中央部分を表示 */
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+
+    .collection-name, .saved-image-name {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.3rem;
+    }
+
+    .collection-scientific, .saved-image-scientific {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-style: italic;
+      margin-bottom: 0.5rem;
+    }
+
+    .collection-actions, .saved-image-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .remove-btn {
+      background: linear-gradient(135deg, #ff7043, #ff8a65);
+      color: white;
+      padding: 0.3rem 0.6rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+    }
+
+    .remove-btn:hover {
+      background: linear-gradient(135deg, #d84315, #ff7043);
+    }
+
+    .saved-image-timestamp {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      opacity: 0.8;
+    }
+
+    .saved-image-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      background: #f5f5f5;
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    /* エラー・警告メッセージ */
+    .message {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+
+    .message.error {
+      background: linear-gradient(135deg, #ffebee, #ffcdd2);
+      color: #c62828;
+      border: 1px solid #ef5350;
+    }
+
+    .message.warning {
+      background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+      color: #e65100;
+      border: 1px solid #ff9800;
+    }
+
+    .message.success {
+      background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+      color: #2e7d32;
+      border: 1px solid #4caf50;
+    }
+
+    /* レスポンシブデザイン */
+    @media (max-width: 768px) {
+      .container {
+        padding: 0.5rem;
+      }
+
+      .header h1 {
+        font-size: 2rem;
+      }
+
+      .search-section {
+        padding: 1.5rem;
+      }
+
+      .plant-candidates {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .plant-card {
+        padding: 1rem;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      .btn {
+        justify-content: center;
+        text-align: center;
+      }
+
+      .example-tags {
+        justify-content: center;
+      }
+
+      .tab {
+        padding: 0.8rem 0.5rem;
+        font-size: 0.9rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .header h1 {
+        font-size: 1.7rem;
+      }
+
+      .plant-image-container {
+        height: 150px;
+      }
+
+      .plant-actions {
+        justify-content: center;
+      }
+    }
+
+    /* アニメーション */
+    .fade-in {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* スタイル選択 */
+    .style-selection {
+      margin-bottom: 1rem;
+    }
+
+    .style-options {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .style-option {
+      padding: 0.4rem 0.8rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 20px;
+      background: white;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-size: 0.85rem;
+    }
+
+    .style-option:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .style-option.selected {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* 時間帯選択 */
+    .time-selection {
+      margin-bottom: 1rem;
+    }
+
+    .time-options {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .time-option {
+      padding: 0.4rem 0.8rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 20px;
+      background: white;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-size: 0.85rem;
+    }
+
+    .time-option:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .time-option.selected {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    /* 設定セクション */
+    .settings-section {
+      display: none;
+    }
+
+    .settings-section.active {
+      display: block;
+    }
+
+    .settings-content {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .settings-group {
+      margin-bottom: 2rem;
+    }
+
+    .settings-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .settings-group-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .settings-options {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .settings-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      background: #fafafa;
+    }
+
+    .settings-option:hover {
+      border-color: var(--primary);
+      background: #f1f8e9;
+    }
+
+    .settings-option input[type="radio"] {
+      margin: 0;
+      width: 20px;
+      height: 20px;
+      accent-color: var(--primary);
+    }
+
+    .settings-option input[type="radio"]:checked + .settings-option-label {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .settings-option-label {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 0.3rem;
+    }
+
+    .settings-option-desc {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .settings-option-content {
+      flex: 1;
+    }
+
+    .settings-option:has(input[type="radio"]:checked) {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, #E8F5E8, #F1F8E9);
+    }
+
+
+
+    /* プロンプト情報アイコン */
+    .prompt-info-icon {
+      margin-left: 0.5rem;
+      color: #999;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all var(--transition-speed);
+      opacity: 0.7;
+    }
+
+    .prompt-info-icon:hover {
+      color: var(--primary);
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    /* 画像上のプロンプト情報ボタン */
+    .image-prompt-info-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      border-radius: 50%;
+      color: #666;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .image-prompt-info-btn:hover {
+      background: rgba(255, 255, 255, 1);
+      color: var(--primary);
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* プロンプト表示モーダル */
+    .prompt-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1001;
+      padding: 1rem;
+    }
+
+    .prompt-modal.active {
+      display: flex;
+    }
+
+    .prompt-modal-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 700px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 一致度根拠表示モーダル */
+    .confidence-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1001;
+      padding: 1rem;
+    }
+
+    .confidence-modal.active {
+      display: flex;
+    }
+
+    .confidence-modal-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .confidence-modal-header {
+      background: linear-gradient(135deg, var(--accent), #FFB74D);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .confidence-modal-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .confidence-modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 50%;
+      transition: all var(--transition-speed);
+      opacity: 0.8;
+    }
+
+    .confidence-modal-close:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.1);
+    }
+
+    .confidence-modal-body {
+      padding: 1.5rem;
+    }
+
+    .confidence-level-display {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: linear-gradient(135deg, #F8F9FA, #E9ECEF);
+      border-radius: 12px;
+    }
+
+    .confidence-level-display .confidence-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .confidence-level-display .confidence-meaning {
+      font-size: 1rem;
+      color: var(--text-secondary);
+    }
+
+    .confidence-factor {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      border-left: 4px solid var(--primary);
+      background: #F8F9FA;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .confidence-factor-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .confidence-factor-content {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .confidence-note {
+      background: linear-gradient(135deg, #E3F2FD, #F1F8E9);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .prompt-modal-header {
+      background: linear-gradient(135deg, var(--primary), #8BC34A);
+      color: white;
+      padding: 1.5rem 2rem;
+      border-radius: 16px 16px 0 0;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .prompt-modal-header h3 {
+      margin: 0;
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+
+    .prompt-modal-header .modal-close-btn {
+      position: static;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      width: 36px;
+      height: 36px;
+      font-size: 1.2rem;
+    }
+
+    .prompt-modal-header .modal-close-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      color: white;
+    }
+
+    .prompt-modal-body {
+      padding: 2rem;
+    }
+
+    .prompt-content {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 1.5rem;
+      font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: #495057;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+
+    /* 詳細表示モーダル */
+    .plant-details-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+
+    .plant-details-modal.active {
+      display: flex;
+    }
+
+    .plant-details-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 2rem;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-close-btn {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-speed);
+    }
+
+    .modal-close-btn:hover {
+      background: #f5f5f5;
+      color: var(--primary);
+    }
+
+    .modal-plant-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .modal-plant-image {
+      width: 200px;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin: 0 auto 1rem auto;
+      display: block;
+      box-shadow: var(--card-shadow);
+    }
+
+    .modal-plant-names {
+      margin-bottom: 1rem;
+    }
+
+    .modal-scientific-name {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--primary);
+      font-style: italic;
+      margin-bottom: 0.5rem;
+    }
+
+    .modal-common-name {
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .details-btn {
+      background: linear-gradient(135deg, #2196F3, #42A5F5);
+      color: white;
+      padding: 0.3rem 0.6rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      margin-right: 0.5rem;
+    }
+
+    .details-btn:hover {
+      background: linear-gradient(135deg, #1976D2, #2196F3);
+      transform: translateY(-1px);
+    }
+
+    /* ストレージ情報モーダル */
+    .storage-info-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1001;
+      padding: 1rem;
+    }
+
+    .storage-info-modal.active {
+      display: flex;
+    }
+
+    .storage-info-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .storage-info-header {
+      background: linear-gradient(135deg, #607D8B, #78909C);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .storage-info-body {
+      padding: 1.5rem;
+    }
+
+    .storage-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.8rem;
+      margin-bottom: 0.5rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid var(--primary);
+    }
+
+    .storage-stat-label {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .storage-stat-value {
+      color: var(--text-secondary);
+      font-family: monospace;
+    }
+
+    /* 保存画像履歴セクション */
+    .saved-images-section {
+      background: var(--background);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .saved-images-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .saved-image-item {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .saved-image-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .saved-image-container {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .saved-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #f5f5f5;
+    }
+
+    .saved-image-delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(244, 67, 54, 0.9);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.8rem;
+      opacity: 0;
+    }
+
+    .saved-image-item:hover .saved-image-delete-btn {
+      opacity: 1;
+    }
+
+    .saved-image-delete-btn:hover {
+      background: rgba(244, 67, 54, 1);
+      transform: scale(1.1);
+    }
+
+    .saved-image-info {
+      font-size: 0.9rem;
+    }
+
+    .saved-image-meta {
+      margin: 0.5rem 0;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.3rem 0;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+
+    .meta-item i {
+      width: 12px;
+      color: var(--primary);
+    }
+
+    .saved-image-prompt {
+      margin-top: 1rem;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 1rem;
+    }
+
+    .prompt-toggle-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .prompt-toggle-btn:hover {
+      background: #1976D2;
+    }
+
+    .prompt-content {
+      margin-top: 0.5rem;
+      padding: 0.8rem;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border-left: 3px solid var(--primary);
+    }
+
+    .prompt-text {
+      font-size: 0.8rem;
+      line-height: 1.4;
+      color: #333;
+      white-space: pre-wrap;
+    }
+
+    /* ストレージ統計情報 */
+    .storage-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .storage-stat {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .stat-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .stat-info {
+      flex: 1;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.2rem;
+    }
+
+    .stat-value {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .storage-info-notes {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .storage-info-notes h4 {
+      margin-bottom: 1rem;
+      color: var(--primary);
+      font-size: 1rem;
+    }
+
+    .storage-info-notes ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .storage-info-notes li {
+      padding: 0.3rem 0;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      position: relative;
+      padding-left: 1.5rem;
+    }
+
+    .storage-info-notes li:before {
+      content: '•';
+      color: var(--primary);
+      position: absolute;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- ヘッダー -->
+    <header class="header">
+      <h1><i class="fas fa-seedling"></i> AI植物辞典</h1>
+      <p class="subtitle">曖昧な言葉から植物を発見する楽しみ</p>
+      <div class="description">
+        <span class="highlight">俗名や特徴、見た目の印象</span>など、<span class="highlight">どんな曖昧な言葉でも大丈夫</span>。<span class="highlight">AIが該当する植物候補を提案</span>し、
+        それぞれの特徴や生き物とのつながりを<span class="highlight">美しいイラスト</span>と共に解説します。
+      </div>
+    </header>
+
+    <!-- タブナビゲーション -->
+    <nav class="tab-navigation">
+      <button class="tab active" id="search-tab">
+        <i class="fas fa-search"></i> 植物を探す
+      </button>
+      <button class="tab" id="collection-tab">
+        <i class="fas fa-book"></i> マイ図鑑
+      </button>
+      <button class="tab" id="settings-tab">
+        <i class="fas fa-cog"></i> 設定
+      </button>
+    </nav>
+
+    <!-- 検索セクション -->
+    <section class="search-section" id="search-section">
+      <label for="search-input" class="search-label">
+        <i class="fas fa-seedling"></i> どんな植物をお探しですか？
+      </label>
+      
+      <div class="search-input-container">
+        <i class="fas fa-search search-icon"></i>
+        <input 
+          type="text" 
+          id="search-input" 
+          class="search-input" 
+          placeholder="例：ねこじゃらし、白い道端の花、紫の小さい花..."
+          autocomplete="off"
+        >
+      </div>
+
+      <div class="search-examples">
+        <div class="search-examples-title">よく検索されるキーワード：</div>
+                  <div class="example-tags">
+            <button class="example-tag" data-query="ねこじゃらし">ねこじゃらし</button>
+            <button class="example-tag" data-query="白い道端の花">白い道端の花</button>
+            <button class="example-tag" data-query="紫の小さい花">紫の小さい花</button>
+            <button class="example-tag" data-query="桜に似た花">桜に似た花</button>
+            <button class="example-tag" data-query="畑でよく見る根菜">畑でよく見る根菜</button>
+            <button class="example-tag" data-query="道端で見かける果実">道端で見かける果実</button>
+            <button class="example-tag" data-query="樹海で現れる苔">樹海で現れる苔</button>
+            <button class="example-tag" data-query="樹海で遭遇するシダ植物">樹海で遭遇するシダ植物</button>
+            <button class="example-tag" data-query="トゲのある植物">トゲのある植物</button>
+            <button class="example-tag" data-query="つる性の植物">つる性の植物</button>
+            <button class="example-tag" data-query="ふわふわした花">ふわふわした花</button>
+            <button class="example-tag" data-query="ヒラヒラしてる">ヒラヒラしてる</button>
+            <button class="example-tag" data-query="葉っぱがハート型">葉っぱがハート型</button>
+            <button class="example-tag" data-query="赤い実がなる">赤い実がなる</button>
+            <button class="example-tag" data-query="いい匂いの花">いい匂いの花</button>
+            <button class="example-tag" data-query="毛深い葉っぱ">毛深い葉っぱ</button>
+            <button class="example-tag" data-query="多肉っぽい">多肉っぽい</button>
+            <button class="example-tag" data-query="ギザギザの葉">ギザギザの葉</button>
+            <button class="example-tag" data-query="よく見る雑草">よく見る雑草</button>
+            <button class="example-tag" data-query="垂れ下がってる">垂れ下がってる</button>
+            <button class="example-tag" data-query="星みたいな花">星みたいな花</button>
+            <button class="example-tag" data-query="シダっぽい">シダっぽい</button>
+            <button class="example-tag" data-query="でかい葉っぱ">でかい葉っぱ</button>
+            <button class="example-tag" data-query="コケみたい">コケみたい</button>
+            <button class="example-tag" data-query="黄色くて小さい">黄色くて小さい</button>
+            <button class="example-tag" data-query="ベタベタする">ベタベタする</button>
+            <button class="example-tag" data-query="虫がよく来る">虫がよく来る</button>
+            <button class="example-tag" data-query="水辺にある">水辺にある</button>
+          </div>
+      </div>
+
+      <div class="button-group">
+        <button id="search-btn" class="btn btn-primary">
+          <i class="fas fa-search"></i> 検索
+        </button>
+        <button id="clear-btn" class="btn btn-secondary">
+          <i class="fas fa-eraser"></i> クリア
+        </button>
+        <div class="loading" id="search-loading">
+          <div class="loading-spinner"></div>
+          <span>植物を検索中...</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 検索結果セクション -->
+    <section class="results-section" id="results-section">
+      <div class="results-header">
+        <h2 class="results-title" id="results-title">検索結果</h2>
+        <p class="results-count" id="results-count"></p>
+      </div>
+
+      <div class="plant-candidates" id="plant-candidates">
+        <!-- 植物候補カードが動的に生成される -->
+      </div>
+    </section>
+
+    <!-- マイ図鑑セクション -->
+    <section class="my-collection-section" id="my-collection-section">
+      <div class="results-header">
+        <h2 class="results-title">
+          <i class="fas fa-book"></i> マイ図鑑
+        </h2>
+        <p class="results-count" id="collection-count">保存された植物はありません</p>
+        
+        <!-- エクスポート・インポートボタン -->
+        <div class="collection-actions" style="margin-top: 1rem;">
+          <button class="btn btn-secondary" id="export-btn" onclick="app.exportCollection()">
+            <i class="fas fa-download"></i> エクスポート
+          </button>
+          <label class="btn btn-secondary" for="import-file" style="cursor: pointer; margin-left: 0.5rem;">
+            <i class="fas fa-upload"></i> インポート
+            <input type="file" id="import-file" accept=".json" style="display: none;" onchange="app.importCollection(this)">
+          </label>
+          <button class="btn btn-secondary" onclick="app.clearAllCollection()" style="margin-left: 0.5rem; background: #ff7043;">
+            <i class="fas fa-trash"></i> 全削除
+          </button>
+          <button class="btn btn-secondary" onclick="app.showSavedImages()" style="margin-left: 0.5rem; background: #2196F3;">
+            <i class="fas fa-images"></i> 保存画像履歴
+          </button>
+        </div>
+      </div>
+
+      <div class="collection-grid" id="collection-grid">
+        <!-- 保存された植物が動的に生成される -->
+      </div>
+    </section>
+
+    <!-- 保存画像履歴セクション -->
+    <section class="saved-images-section" id="saved-images-section" style="display: none;">
+      <div class="results-header">
+        <h2 class="results-title">
+          <i class="fas fa-images"></i> 保存画像履歴
+        </h2>
+        <p class="results-count" id="saved-images-count">保存された画像はありません</p>
+        
+        <div class="collection-actions" style="margin-top: 1rem;">
+          <button class="btn btn-secondary" onclick="app.showMyCollection()" style="background: var(--primary);">
+            <i class="fas fa-arrow-left"></i> マイ図鑑に戻る
+          </button>
+          <button class="btn btn-secondary" onclick="app.clearAllSavedImages()" style="margin-left: 0.5rem; background: #ff7043;">
+            <i class="fas fa-trash"></i> 全削除
+          </button>
+          <button class="btn btn-secondary" onclick="app.showStorageInfo()" style="margin-left: 0.5rem; background: #607D8B;">
+            <i class="fas fa-info-circle"></i> ストレージ情報
+          </button>
+        </div>
+      </div>
+
+      <div class="saved-images-grid" id="saved-images-grid">
+        <!-- 保存された画像が動的に生成される -->
+      </div>
+    </section>
+
+    <!-- 設定セクション -->
+    <section class="settings-section" id="settings-section">
+      <div class="settings-content">
+        <div class="settings-group">
+          <h3 class="settings-group-title">
+            <i class="fas fa-search"></i> 植物検索設定
+          </h3>
+          <div class="settings-options">
+            <label class="settings-option">
+              <input type="radio" name="region-setting" value="japan" checked>
+              <div class="settings-option-content">
+                <div class="settings-option-label">日本で見られる植物を優先</div>
+                <div class="settings-option-desc">日本国内で見つかりやすい植物を重視した検索</div>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="region-setting" value="southeast-asia">
+              <div class="settings-option-content">
+                <div class="settings-option-label">東南アジアで見られる植物を優先</div>
+                <div class="settings-option-desc">東南アジア地域の植物を重視した検索</div>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="region-setting" value="north-america">
+              <div class="settings-option-content">
+                <div class="settings-option-label">北米大陸で見られる植物を優先</div>
+                <div class="settings-option-desc">北米地域の植物を重視した検索</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3 class="settings-group-title">
+            <i class="fas fa-palette"></i> 画像スタイル設定
+          </h3>
+                     <div class="settings-options">
+             <label class="settings-option">
+               <input type="radio" name="style-setting" value="botanical" checked>
+               <div class="settings-option-content">
+                 <div class="settings-option-label">
+                   植物画
+                   <i class="fas fa-info-circle prompt-info-icon" data-style="botanical" title="プロンプトを確認"></i>
+                 </div>
+                 <div class="settings-option-desc">古典的な植物学図鑑のスタイル</div>
+               </div>
+             </label>
+             <label class="settings-option">
+               <input type="radio" name="style-setting" value="anime">
+               <div class="settings-option-content">
+                 <div class="settings-option-label">
+                   アニメ風
+                   <i class="fas fa-info-circle prompt-info-icon" data-style="anime" title="プロンプトを確認"></i>
+                 </div>
+                 <div class="settings-option-desc">日本アニメ風の鮮やかなイラスト</div>
+               </div>
+             </label>
+             <label class="settings-option">
+               <input type="radio" name="style-setting" value="realistic">
+               <div class="settings-option-content">
+                 <div class="settings-option-label">
+                   写実的
+                   <i class="fas fa-info-circle prompt-info-icon" data-style="realistic" title="プロンプトを確認"></i>
+                 </div>
+                 <div class="settings-option-desc">写真のようなリアルな描写</div>
+               </div>
+             </label>
+           </div>
+        </div>
+
+                 
+
+        <div class="settings-group">
+          <h3 class="settings-group-title">
+            <i class="fas fa-cogs"></i> 画像生成モデル
+          </h3>
+          <div class="settings-options">
+            <label class="settings-option">
+              <input type="radio" name="model-setting" value="sdxl-lightning" checked>
+              <div class="settings-option-content">
+                <div class="settings-option-label">SDXL Lightning 4-step</div>
+                <div class="settings-option-desc">高速生成・軽量モデル（推奨）</div>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="model-setting" value="minimax">
+              <div class="settings-option-content">
+                <div class="settings-option-label">Minimax Image-01</div>
+                <div class="settings-option-desc">高品質・詳細描写モデル</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+
+      </div>
+    </section>
+  </div>
+
+  <!-- プロンプト表示モーダル -->
+  <div class="prompt-modal" id="prompt-modal">
+    <div class="prompt-modal-content">
+      <div class="prompt-modal-header">
+        <h3 id="prompt-modal-title">プロンプト内容</h3>
+        <button class="modal-close-btn" onclick="app.closePromptModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="prompt-modal-body">
+        <div class="prompt-optimization-info" id="prompt-optimization-info" style="margin-bottom: 1rem; padding: 1rem; background: linear-gradient(135deg, #E3F2FD, #F1F8E9); border-radius: 8px; display: none;">
+          <div style="font-weight: 600; color: var(--primary); margin-bottom: 0.5rem;">
+            <i class="fas fa-robot"></i> LLM最適化済み
+          </div>
+          <div style="font-size: 0.9rem; color: var(--text-secondary);">
+            このプロンプトは画像生成AI用に最適化・英語化されています。
+          </div>
+        </div>
+        <div class="prompt-content" id="prompt-content"></div>
+        <div class="draft-prompt-section" id="draft-prompt-section" style="margin-top: 1rem; display: none;">
+          <div style="font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; border-top: 1px solid #e0e0e0; padding-top: 1rem;">
+            <i class="fas fa-draft2digital"></i> 最適化前のドラフト
+          </div>
+          <div class="draft-prompt-content" id="draft-prompt-content" style="font-size: 0.85rem; color: #666; background: #f8f9fa; padding: 0.8rem; border-radius: 6px; white-space: pre-wrap; line-height: 1.4;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 植物詳細モーダル -->
+  <div class="plant-details-modal" id="plant-details-modal">
+    <div class="plant-details-content">
+      <button class="modal-close-btn" onclick="app.closeDetailsModal()">
+        <i class="fas fa-times"></i>
+      </button>
+      
+      <div class="modal-plant-header">
+        <img id="modal-plant-image" class="modal-plant-image" src="" alt="" style="display: none;">
+        <div class="modal-plant-names">
+          <div class="modal-scientific-name" id="modal-scientific-name"></div>
+          <div class="modal-common-name" id="modal-common-name"></div>
+          <div class="plant-aliases" id="modal-aliases"></div>
+        </div>
+      </div>
+
+      <div id="modal-plant-details">
+        <!-- 詳細情報がここに動的に挿入される -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ストレージ情報モーダル -->
+  <div class="storage-info-modal" id="storage-info-modal">
+    <div class="storage-info-content">
+      <div class="storage-info-header">
+        <h3><i class="fas fa-database"></i> ストレージ情報</h3>
+        <button class="modal-close-btn" onclick="app.closeStorageInfoModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="storage-info-body" id="storage-info-body">
+        <!-- ストレージ情報がここに動的に挿入される -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 全体のアプリケーション状態管理
+    class PlantDictionaryApp {
+      constructor() {
+        this.currentTab = this.loadCurrentTab();
+        this.searchResults = this.loadSearchResults();
+        this.lastSearchQuery = this.loadLastSearchQuery();
+        this.myCollection = this.loadCollection();
+        
+        // 設定をロードし、なければデフォルト値を使用
+        this.loadSettingsValues();
+        
+        this.searchLLM = new PlantSearchLLM();
+        this.imageGenerationAttempts = {}; // 画像生成試行回数を追跡
+        this.loadImageGenerationAttempts(); // 保存された再生成回数を読み込み
+        this.imageStorage = new PlantImageStorage(); // 画像ストレージ管理
+        this.init();
+      }
+
+      // 設定値をロード（コンストラクタ用）
+      loadSettingsValues() {
+        const saved = localStorage.getItem('plantAppSettings');
+        if (saved) {
+          try {
+            const settings = JSON.parse(saved);
+            this.selectedStyle = settings.style || 'botanical';
+            this.selectedModel = settings.model || 'sdxl-lightning';
+            this.selectedRegion = settings.region || 'japan';
+          } catch (error) {
+            console.warn('設定の読み込みに失敗:', error);
+            this.setDefaultSettings();
+          }
+        } else {
+          this.setDefaultSettings();
+        }
+      }
+
+      // デフォルト設定を設定
+      setDefaultSettings() {
+        this.selectedStyle = 'botanical';
+        this.selectedModel = 'sdxl-lightning';
+        this.selectedRegion = 'japan';
+      }
+
+      // Replicate Worker URLを設定
+      setReplicateWorkerUrl(url) {
+        this.searchLLM.setReplicateWorkerUrl(url);
+      }
+
+      init() {
+        this.setupEventListeners();
+        this.updateCollectionDisplay();
+        this.restoreSearchState(); // この中で再生成ボタンの状態も更新される
+        this.applySettingsToUI(); // UIに設定を反映（値は既にロード済み）
+        this.restoreTabState(); // タブ状態を復元
+        // updateRegenerationButtons()は restoreSearchState() 内で呼ばれるため削除
+      }
+
+      setupEventListeners() {
+        // タブ切り替え
+        document.getElementById('search-tab').addEventListener('click', () => this.switchTab('search'));
+        document.getElementById('collection-tab').addEventListener('click', () => this.switchTab('collection'));
+        document.getElementById('settings-tab').addEventListener('click', () => this.switchTab('settings'));
+
+        // 検索関連
+        document.getElementById('search-btn').addEventListener('click', () => this.performSearch());
+        document.getElementById('clear-btn').addEventListener('click', () => this.clearSearch());
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') this.performSearch();
+        });
+
+        // 検索例タグ
+        document.querySelectorAll('.example-tag').forEach(tag => {
+          tag.addEventListener('click', (e) => {
+            document.getElementById('search-input').value = e.target.dataset.query;
+            // 検索ボタンにフォーカスを当てる
+            document.getElementById('search-btn').focus();
+          });
+        });
+
+
+
+        // モーダル関連
+        document.getElementById('plant-details-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'plant-details-modal') {
+            this.closeDetailsModal();
+          }
+        });
+
+        // プロンプトモーダル関連
+        document.getElementById('prompt-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'prompt-modal') {
+            this.closePromptModal();
+          }
+        });
+
+        // ストレージ情報モーダル関連
+        document.getElementById('storage-info-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'storage-info-modal') {
+            this.closeStorageInfoModal();
+          }
+        });
+
+        // ESCキーでモーダルを閉じる
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            this.closeDetailsModal();
+            this.closePromptModal();
+            this.closeStorageInfoModal();
+          }
+        });
+
+        // 設定関連のイベントリスナーを追加
+        this.setupSettingsEventListeners();
+      }
+
+      setupSettingsEventListeners() {
+        // 重複するイベントリスナーを防ぐため、一度だけ設定
+        if (this._settingsListenersSetup) return;
+        this._settingsListenersSetup = true;
+
+        // 設定の変更を監視して自動保存
+        document.querySelectorAll('input[name="style-setting"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (radio.checked) {
+              const previousStyle = this.selectedStyle;
+              this.selectedStyle = radio.value;
+              this.saveSettings();
+              console.log('🎨 [STYLE_CHANGE] 画像スタイル変更:', {
+                previousStyle: previousStyle,
+                newStyle: radio.value,
+                timestamp: new Date().toISOString(),
+                affectedImages: this.searchResults.filter(r => r.generatedImageUrl).length
+              });
+              
+              // 既存の生成済み画像がある場合、ユーザーに知らせる
+              const existingImages = this.searchResults.filter(r => r.generatedImageUrl).length;
+              if (existingImages > 0) {
+                this.showMessage(`画像スタイルを「${this.getStyleLabel(radio.value)}」に変更しました。既存の画像${existingImages}枚は「再生成」で新しいスタイルが適用されます。`, 'info', 5000);
+              } else {
+                this.showMessage(`画像スタイルを「${this.getStyleLabel(radio.value)}」に変更しました。`, 'success');
+              }
+            }
+          });
+        });
+
+        document.querySelectorAll('input[name="model-setting"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (radio.checked) {
+              const previousModel = this.selectedModel;
+              this.selectedModel = radio.value;
+              this.saveSettings();
+              console.log('🔧 [MODEL_CHANGE] 画像生成モデル変更:', {
+                previousModel: previousModel,
+                newModel: radio.value,
+                timestamp: new Date().toISOString()
+              });
+            }
+          });
+        });
+
+        document.querySelectorAll('input[name="region-setting"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (radio.checked) {
+              const previousRegion = this.selectedRegion;
+              this.selectedRegion = radio.value;
+              this.saveSettings();
+              console.log('🌍 [REGION_CHANGE] 地域設定変更:', {
+                previousRegion: previousRegion,
+                newRegion: radio.value,
+                timestamp: new Date().toISOString()
+              });
+            }
+          });
+        });
+      }
+
+      // スタイルラベルを取得するヘルパー関数
+      getStyleLabel(style) {
+        const styleLabels = {
+          'botanical': '植物画',
+          'anime': 'アニメ風',
+          'realistic': '写実的'
+        };
+        return styleLabels[style] || style;
+      }
+
+      switchTab(tab) {
+        this.currentTab = tab;
+        this.saveCurrentTab(); // タブ状態を保存
+        
+        // タブボタンの状態更新
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(`${tab}-tab`).classList.add('active');
+
+        // セクションの表示切り替え
+        document.getElementById('search-section').style.display = tab === 'search' ? 'block' : 'none';
+        document.getElementById('results-section').classList.toggle('active', tab === 'search' && this.searchResults.length > 0);
+        document.getElementById('my-collection-section').classList.toggle('active', tab === 'collection');
+        document.getElementById('settings-section').classList.toggle('active', tab === 'settings');
+        
+        // 保存画像履歴セクションを常に非表示にする
+        document.getElementById('saved-images-section').style.display = 'none';
+
+        if (tab === 'collection') {
+          this.updateCollectionDisplay();
+        } else if (tab === 'settings') {
+          // 設定タブに切り替わった時はUIを更新するだけ（値は変更しない）
+          setTimeout(() => this.applySettingsToUI(), 50);
+        }
+      }
+
+      async performSearch() {
+        const query = document.getElementById('search-input').value.trim();
+        if (!query) {
+          this.showMessage('検索キーワードを入力してください', 'warning');
+          return;
+        }
+
+        this.showLoading(true);
+        this.hideMessage();
+
+        try {
+          const results = await this.searchPlants(query);
+          this.searchResults = results;
+          this.lastSearchQuery = query;
+          this.saveSearchResults();
+          this.saveLastSearchQuery();
+          this.displaySearchResults(results, query, false); // isRestore = false（新しい検索）
+          
+          // 「植物を探す」タブでのみ検索結果を表示
+          if (this.currentTab === 'search') {
+            document.getElementById('results-section').classList.add('active');
+          }
+        } catch (error) {
+          console.error('検索エラー:', error);
+          this.showMessage('検索中にエラーが発生しました。もう一度お試しください。', 'error');
+        } finally {
+          this.showLoading(false);
+        }
+      }
+
+      async searchPlants(query) {
+        // 新しいLLM処理システムを使用して植物候補を検索
+        const plants = await this.searchLLM.searchPlants(query, this.selectedRegion);
+        
+        // データ形式を統一（confidence数値を文字列に変換）
+        return plants.map(plant => ({
+          ...plant,
+          confidence: plant.confidence > 0.8 ? '高い' : 
+                     plant.confidence > 0.5 ? '中程度' : '低い',
+          reason: plant.features // 理由として特徴を使用
+        }));
+      }
+
+
+
+
+
+      displaySearchResults(results, query, isRestore = false) {
+        const container = document.getElementById('plant-candidates');
+        const title = document.getElementById('results-title');
+        const count = document.getElementById('results-count');
+
+        title.textContent = `「${query}」の検索結果`;
+        count.textContent = `${results.length}件の候補が見つかりました`;
+
+        // 検索結果を保存
+        this.searchResults = results;
+
+        // 新しい検索の場合のみ画像生成回数をリセット（復元時はリセットしない）
+        if (!isRestore) {
+          this.resetImageGenerationAttempts();
+          console.log('🔄 新しい検索: 画像生成回数をリセット');
+        } else {
+          console.log('🔄 検索状態復元: 画像生成回数は保持');
+        }
+
+        container.innerHTML = '';
+
+        results.forEach((plant, index) => {
+          const plantCard = this.createPlantCard(plant, index);
+          container.appendChild(plantCard);
+        });
+
+        // DOM要素作成後に再生成ボタンの状態を更新
+        if (isRestore) {
+          setTimeout(() => this.updateRegenerationButtons(), 50);
+        }
+      }
+
+      createPlantCard(plant, index) {
+        const card = document.createElement('div');
+        card.className = 'plant-card fade-in';
+        card.style.animationDelay = `${index * 0.1}s`;
+
+        const aliases = plant.aliases && plant.aliases.length > 0 
+          ? `別名：${plant.aliases.join('、')}`
+          : '';
+
+        const confidenceColor = {
+          '高い': '#4CAF50',
+          '中程度': '#FF9800',
+          '低い': '#9E9E9E'
+        }[plant.confidence] || '#9E9E9E';
+
+        card.innerHTML = `
+          <div class="plant-header">
+            <div class="plant-names">
+              <div class="plant-scientific-name">${plant.scientificName}</div>
+              <div class="plant-common-name">${plant.commonName}</div>
+              ${aliases ? `<div class="plant-aliases">${aliases}</div>` : ''}
+            </div>
+            <div class="confidence-badge" style="background: ${confidenceColor}">
+              一致度：${plant.confidence}
+              <button class="confidence-info-btn" onclick="app.showConfidenceReason(${index})" title="一致度の根拠を表示">
+                <i class="fas fa-info-circle"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="plant-image-container" id="image-container-${index}">
+            ${plant.generatedImageUrl ? 
+              `<div style="position: relative;">
+                <img src="${plant.generatedImageUrl}" alt="${plant.commonName}" class="plant-image">
+                ${plant.generatedImagePrompt ? 
+                  `<button class="image-prompt-info-btn" onclick="app.showImagePrompt(${index})" title="使用されたプロンプトを表示">
+                    <i class="fas fa-info"></i>
+                  </button>` : ''}
+                <button class="image-generate-btn" data-index="${index}"
+                        style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; opacity: 0.8;"
+                        id="regen-btn-${index}" ${!this.canRegenerate(index) ? 'disabled' : ''}>
+                  <i class="fas fa-redo"></i> 再生成 
+                  <span class="regen-count" id="regen-count-${index}">(${this.getRegenerationCount(index)}/3)</span>
+                </button>
+              </div>` :
+              `<div class="image-placeholder">
+                <button class="image-generate-btn" data-index="${index}">
+                  <i class="fas fa-magic"></i> 画像を生成
+                </button>
+              </div>`
+            }
+          </div>
+
+          <div class="plant-details" id="details-${index}">
+            ${plant.features ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-leaf"></i> 総合的特徴
+                </div>
+                <div class="features-content">${plant.features}</div>
+              </div>
+            ` : ''}
+
+            ${plant.feature1 ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-seedling"></i> 形態的特徴
+                </div>
+                <div class="features-content">${plant.feature1}</div>
+              </div>
+            ` : ''}
+
+            ${plant.feature2 ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-globe-americas"></i> 生態的特徴
+                </div>
+                <div class="features-content">${plant.feature2}</div>
+              </div>
+            ` : ''}
+
+            ${plant.feature3 ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-search"></i> 識別特徴
+                </div>
+                <div class="features-content">${plant.feature3}</div>
+              </div>
+            ` : ''}
+
+            ${plant.morphology ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-microscope"></i> 形態学的特徴
+                </div>
+                <div class="features-content">${plant.morphology}</div>
+              </div>
+            ` : ''}
+
+            ${plant.physiology ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-dna"></i> 生理的特徴
+                </div>
+                <div class="features-content">${plant.physiology}</div>
+              </div>
+            ` : ''}
+
+            ${plant.taxonomy ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-sitemap"></i> 分類学的特徴
+                </div>
+                <div class="features-content">${plant.taxonomy}</div>
+              </div>
+            ` : ''}
+
+            ${plant.habitat ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-map-marker-alt"></i> 生育環境・分布
+                </div>
+                <div class="features-content">${plant.habitat}</div>
+              </div>
+            ` : ''}
+
+            ${plant.season ? `
+              <div class="plant-features">
+                <div class="features-title">
+                  <i class="fas fa-calendar-alt"></i> 季節
+                </div>
+                <div class="features-content">${plant.season}</div>
+              </div>
+            ` : ''}
+
+            ${plant.wildlifeConnection ? `
+              <div class="wildlife-connection">
+                <div class="features-title">
+                  <i class="fas fa-paw"></i> 生き物とのつながり
+                </div>
+                <div class="features-content">${plant.wildlifeConnection}</div>
+              </div>
+            ` : ''}
+
+            ${plant.culturalInfo ? `
+              <div class="culture-info">
+                <div class="features-title">
+                  <i class="fas fa-users"></i> 文化・暮らしとの関わり
+                </div>
+                <div class="features-content">${plant.culturalInfo}</div>
+              </div>
+            ` : ''}
+
+            <div class="plant-actions">
+              <button class="action-btn save-btn" data-index="${index}">
+                <i class="fas fa-bookmark"></i> マイ図鑑に保存
+              </button>
+            </div>
+          </div>
+        `;
+
+        // スタイル選択イベント
+        card.querySelectorAll('.style-option').forEach(option => {
+          option.addEventListener('click', (e) => {
+            card.querySelectorAll('.style-option').forEach(o => o.classList.remove('selected'));
+            e.target.classList.add('selected');
+          });
+        });
+
+        // 時間帯選択イベント
+        card.querySelectorAll('.time-option').forEach(option => {
+          option.addEventListener('click', (e) => {
+            card.querySelectorAll('.time-option').forEach(o => o.classList.remove('selected'));
+            e.target.classList.add('selected');
+          });
+        });
+
+        // 詳細を最初から表示
+        card.querySelector('.plant-details').classList.add('active');
+
+        // 画像生成ボタンのイベントリスナーを追加
+        const imageGenerateBtn = card.querySelector('.image-generate-btn');
+        if (imageGenerateBtn) {
+          imageGenerateBtn.addEventListener('click', (e) => {
+            const index = parseInt(e.target.closest('.image-generate-btn').dataset.index);
+            this.generatePlantImage(index);
+          });
+        }
+
+        // 保存ボタンのイベントリスナーを追加
+        const saveBtn = card.querySelector('.save-btn');
+        if (saveBtn) {
+          saveBtn.addEventListener('click', (e) => {
+            const index = parseInt(e.target.closest('.save-btn').dataset.index);
+            this.toggleSaveToCollection(index);
+          });
+        }
+
+        return card;
+      }
+
+      async generatePlantImage(index) {
+        console.log('generatePlantImage called with index:', index);
+        console.log('searchResults:', this.searchResults);
+        const plant = this.searchResults[index];
+        console.log('plant:', plant);
+        const container = document.getElementById(`image-container-${index}`);
+        console.log('container:', container);
+        
+        // 設定から現在のスタイル、時間帯、モデルを取得
+        const selectedStyle = this.selectedStyle;
+
+
+        // Minimax Image-01の場合は再生成制限をチェック
+        if (this.selectedModel === 'minimax') {
+          if (this.getRegenerationCount(index) >= 1) {
+            this.showMessage('Minimax Image-01は1回のみの生成です。再生成はできません。', 'warning');
+            return;
+          }
+        } else {
+          // SDXL Lightningの場合は3回制限
+          if (!this.canRegenerate(index)) {
+            this.showMessage('画像の再生成回数上限（3回）に達しました', 'warning');
+            return;
+          }
+        }
+
+        // 再生成試行回数を更新
+        const currentAttempt = this.updateRegenerationCount(index);
+
+        // ローディング表示
+        const styleLabels = {
+          'botanical': '植物画',
+          'anime': 'アニメ風',
+          'realistic': '写実的'
+        };
+        const styleLabel = styleLabels[selectedStyle] || selectedStyle;
+
+        container.innerHTML = `
+          <div class="plant-image-loading">
+            <div class="plant-loading-icon">🌱</div>
+            <div class="plant-loading-text">
+              植物画像生成中<span class="plant-loading-dots"></span>
+            </div>
+          </div>
+        `;
+
+        try {
+          // ランダムシードを生成して画像のバリエーションを作る
+          const randomSeed = this.generateRandomSeed();
+          
+          console.log('🎨 [IMAGE_GENERATION] 画像生成開始:', {
+            plantName: plant.scientificName,
+            selectedStyle: selectedStyle,
+            styleLabel: this.getStyleLabel(selectedStyle),
+            model: this.selectedModel,
+            seed: randomSeed,
+            attempt: currentAttempt,
+            timestamp: new Date().toISOString()
+          });
+          
+          // 新しいLLM処理システムを使用して画像生成
+          const result = await this.searchLLM.generatePlantImage(plant, selectedStyle, this.selectedModel, {
+            seed: randomSeed,
+            width: 1024,
+            height: 1024
+          });
+          
+          if (result.success) {
+            // 画像URLとプロンプトを検索結果に保存
+            this.searchResults[index].generatedImageUrl = result.imageUrl;
+            this.searchResults[index].generatedImagePrompt = result.prompt;
+            // スタイルとモデル情報も保存
+            this.searchResults[index].generatedImageStyle = selectedStyle;
+            this.searchResults[index].generatedImageModel = this.selectedModel;
+            // ドラフトプロンプトも保存（存在する場合）
+            if (result.draftPrompt) {
+              this.searchResults[index].generatedImageDraftPrompt = result.draftPrompt;
+            }
+            this.saveSearchResults();
+            
+            // 保存画像履歴に自動保存
+            await this.saveImageToHistory(result, plant, selectedStyle);
+            
+            // 再生成ボタンの状態を決定（モデル別）
+            let regenButtonHtml = '';
+            if (this.selectedModel === 'minimax') {
+              // Minimax Image-01は1回のみ、再生成ボタンは表示しない
+              regenButtonHtml = `<div style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; 
+                          background: rgba(255,255,255,0.9); border-radius: 6px; color: #666;">
+                Minimax (1回のみ)
+              </div>`;
+            } else {
+              // SDXL Lightningは3回まで再生成可能
+              const canStillRegenerate = this.canRegenerate(index);
+              regenButtonHtml = canStillRegenerate ? 
+                `<button class="image-generate-btn" data-index="${index}" 
+                        style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; opacity: 0.8;"
+                        id="regen-btn-${index}">
+                  <i class="fas fa-redo"></i> 再生成 
+                  <span class="regen-count" id="regen-count-${index}">(${currentAttempt}/3)</span>
+                </button>` :
+                `<div style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; 
+                            background: rgba(255,255,255,0.9); border-radius: 6px; color: #666;">
+                  再生成回数上限
+                </div>`;
+            }
+            
+            container.innerHTML = `
+              <div style="position: relative;">
+                <img src="${result.imageUrl}" alt="${plant.commonName}" class="plant-image">
+                <button class="image-prompt-info-btn" onclick="app.showImagePrompt(${index})" title="使用されたプロンプトを表示">
+                  <i class="fas fa-info"></i>
+                </button>
+                ${regenButtonHtml}
+              </div>
+            `;
+            
+            // 成功時の再生成ボタンにもイベントリスナーを追加
+            const successRegenBtn = container.querySelector('.image-generate-btn');
+            if (successRegenBtn) {
+              successRegenBtn.addEventListener('click', (e) => {
+                const index = parseInt(e.target.closest('.image-generate-btn').dataset.index);
+                this.generatePlantImage(index);
+              });
+            }
+          } else {
+            // エラーオブジェクトを作成して詳細なエラー情報を保持
+            const errorObj = new Error('画像生成失敗');
+            errorObj.apiError = result.error;
+            errorObj.fullError = result.fullError;
+            throw errorObj;
+          }
+        } catch (error) {
+          console.error('画像生成エラー:', error);
+          
+          // エラー時は試行回数をロールバック
+          this.imageGenerationAttempts[`plant-${index}`] = Math.max(0, (this.imageGenerationAttempts[`plant-${index}`] || 1) - 1);
+          this.saveImageGenerationAttempts(); // ロールバック後も保存
+          
+          // エラーメッセージを取得
+          let errorMessage = 'サーバーエラー';
+          
+          // APIエラーの場合
+          if (error.apiError) {
+            errorMessage = error.apiError;
+          } else if (error.message) {
+            // 直接的なエラーメッセージを短縮
+            const errorMsg = error.message.toLowerCase();
+            if (errorMsg.includes('api接続エラー')) {
+              errorMessage = 'API接続エラー';
+            } else if (errorMsg.includes('replicate')) {
+              errorMessage = 'Replicate APIエラー';
+            } else if (errorMsg.includes('timeout')) {
+              errorMessage = 'タイムアウト';
+            } else if (errorMsg.includes('network')) {
+              errorMessage = 'ネットワークエラー';
+            } else if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
+              errorMessage = 'API制限に達しました';
+            } else if (errorMsg.includes('画像生成失敗')) {
+              errorMessage = 'API処理エラー';
+            } else {
+              errorMessage = 'サーバーエラー';
+            }
+          }
+          
+          const canRetry = this.canRegenerate(index);
+          const retryButtonHtml = canRetry ? 
+            `<button class="image-generate-btn" data-index="${index}" style="margin-top: 1rem;">
+              <i class="fas fa-redo"></i> 再生成
+            </button>` :
+            `<div style="color: #666; font-size: 0.9rem; margin-top: 1rem;">
+              再生成回数上限に達しました
+            </div>`;
+          
+          container.innerHTML = `
+            <div class="image-placeholder">
+              <div style="text-align: center; padding: 1rem; color: #ff7043; margin-bottom: 0.5rem;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                <div style="font-weight: 600; margin-bottom: 0.5rem;">画像生成に失敗</div>
+                <div style="font-size: 0.9rem; color: #666;">${errorMessage}</div>
+              </div>
+              ${retryButtonHtml}
+            </div>
+          `;
+          
+          // 再生成ボタンにイベントリスナーを追加
+          const retryBtn = container.querySelector('.image-generate-btn');
+          if (retryBtn) {
+            retryBtn.addEventListener('click', (e) => {
+              const index = parseInt(e.target.closest('.image-generate-btn').dataset.index);
+              this.generatePlantImage(index);
+            });
+          }
+        }
+      }
+
+
+
+
+
+
+
+      toggleSaveToCollection(index) {
+        const plant = this.searchResults[index];
+        const saveBtn = document.querySelector(`#details-${index} .save-btn`);
+        
+        const isAlreadySaved = this.myCollection.some(item => 
+          item.scientificName === plant.scientificName
+        );
+
+        if (isAlreadySaved) {
+          // 削除
+          this.myCollection = this.myCollection.filter(item => 
+            item.scientificName !== plant.scientificName
+          );
+          saveBtn.innerHTML = '<i class="fas fa-bookmark"></i> マイ図鑑に保存';
+          saveBtn.classList.remove('saved');
+          this.showMessage(`${plant.commonName}をマイ図鑑から削除しました`, 'success');
+        } else {
+          // 保存
+          const saveData = {
+            ...plant,
+            savedAt: new Date().toISOString(),
+            imageUrl: null // 画像URLは別途保存
+          };
+          
+          // 生成された画像URLを取得
+          const imageContainer = document.getElementById(`image-container-${index}`);
+          const imageElement = imageContainer.querySelector('.plant-image');
+          if (imageElement) {
+            saveData.imageUrl = imageElement.src;
+            
+            // マイ図鑑に保存する際、保存画像履歴にも追加
+            this.saveToImageHistory(saveData, plant);
+          }
+
+          this.myCollection.push(saveData);
+          saveBtn.innerHTML = '<i class="fas fa-bookmark-slash"></i> 保存済み';
+          saveBtn.classList.add('saved');
+          this.showMessage(`${plant.commonName}をマイ図鑑に保存しました`, 'success');
+        }
+
+        this.saveCollection();
+        this.updateCollectionDisplay();
+      }
+
+      // 画像を保存画像履歴に追加する関数（画像生成成功時・マイ図鑑保存時共通）
+      async saveImageToHistory(resultOrSaveData, plant, style = null) {
+        try {
+          const imageStorage = this.imageStorage;
+          let historyData;
+          
+          // 画像生成成功時の場合（result.success = true）
+          if (resultOrSaveData.success && resultOrSaveData.imageUrl) {
+            historyData = {
+              imageUrl: resultOrSaveData.imageUrl,
+              plantName: plant.commonName || plant.scientificName,
+              scientificName: plant.scientificName,
+              commonName: plant.commonName,
+              prompt: resultOrSaveData.prompt || null,
+              style: style || 'botanical',
+              model: resultOrSaveData.model || this.selectedModel || 'unknown',
+              confidence: plant.confidence || '中程度'
+            };
+            console.log('🗂️ [AUTO_SAVE] Saving generated image to history:', historyData.plantName);
+          } 
+          // マイ図鑑保存時の場合（saveData）
+          else {
+            historyData = {
+              imageUrl: resultOrSaveData.imageUrl,
+              plantName: plant.commonName || plant.scientificName,
+              scientificName: plant.scientificName,
+              commonName: plant.commonName,
+              prompt: plant.generatedImagePrompt || null,
+              style: plant.generatedImageStyle || style || 'botanical',
+              model: plant.generatedImageModel || 'unknown',
+              confidence: plant.confidence || '中程度'
+            };
+            console.log('📚 [COLLECTION_SAVE] Saving collection image to history:', historyData.plantName);
+          }
+          
+          // 重複チェック: 同じ学名・画像URLの組み合わせが既に存在するかチェック
+          const existingImages = imageStorage.getSavedImages();
+          const isDuplicate = existingImages.some(img => 
+            img.scientificName === historyData.scientificName && 
+            img.base64Data === historyData.imageUrl
+          );
+          
+          if (!isDuplicate) {
+            const saved = await imageStorage.saveImage(historyData);
+            if (saved) {
+              console.log('✅ [SAVE_SUCCESS] Image saved to history:', historyData.plantName);
+              this.updateSavedImagesDisplay(); // 保存画像履歴表示を更新
+            } else {
+              console.warn('❌ [SAVE_FAILED] Failed to save image to history:', historyData.plantName);
+            }
+          } else {
+            console.log('🔄 [DUPLICATE_SKIP] Image already exists in history:', historyData.plantName);
+          }
+        } catch (error) {
+          console.error('🚨 [SAVE_ERROR] Failed to save to image history:', error);
+        }
+      }
+      
+      // 後方互換性のためのエイリアス
+      async saveToImageHistory(saveData, plant) {
+        return await this.saveImageToHistory(saveData, plant);
+      }
+
+      saveCollection() {
+        localStorage.setItem('plantCollection', JSON.stringify(this.myCollection));
+      }
+
+      loadCollection() {
+        const saved = localStorage.getItem('plantCollection');
+        return saved ? JSON.parse(saved) : [];
+      }
+
+      // 検索結果の保存
+      saveSearchResults() {
+        localStorage.setItem('plantSearchResults', JSON.stringify(this.searchResults));
+      }
+
+      // 検索結果の読み込み
+      loadSearchResults() {
+        const saved = localStorage.getItem('plantSearchResults');
+        return saved ? JSON.parse(saved) : [];
+      }
+
+      // 最後の検索クエリの保存
+      saveLastSearchQuery() {
+        localStorage.setItem('lastSearchQuery', this.lastSearchQuery || '');
+      }
+
+      // 最後の検索クエリの読み込み
+      loadLastSearchQuery() {
+        return localStorage.getItem('lastSearchQuery') || '';
+      }
+
+      // 現在のタブの保存
+      saveCurrentTab() {
+        localStorage.setItem('currentTab', this.currentTab);
+      }
+
+      // 現在のタブの読み込み
+      loadCurrentTab() {
+        return localStorage.getItem('currentTab') || 'search';
+      }
+
+      // タブ状態の復元
+      restoreTabState() {
+        this.switchTab(this.currentTab);
+      }
+
+      // 検索状態の復元
+      restoreSearchState() {
+        if (this.lastSearchQuery) {
+          document.getElementById('search-input').value = this.lastSearchQuery;
+        }
+        
+        if (this.searchResults.length > 0) {
+          this.displaySearchResults(this.searchResults, this.lastSearchQuery, true); // isRestore = true
+          
+          // 「植物を探す」タブでのみ検索結果を表示
+          if (this.currentTab === 'search') {
+            document.getElementById('results-section').classList.add('active');
+          }
+          
+          // 検索結果表示後に再生成ボタンの状態を更新（displaySearchResults内でも呼ばれるが念のため）
+          setTimeout(() => {
+            this.updateRegenerationButtons();
+          }, 150);
+        }
+      }
+
+      updateCollectionDisplay() {
+        const grid = document.getElementById('collection-grid');
+        const count = document.getElementById('collection-count');
+        const exportBtn = document.getElementById('export-btn');
+
+        if (this.myCollection.length === 0) {
+          count.textContent = '保存された植物はありません';
+          if (exportBtn) exportBtn.disabled = true;
+          grid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-secondary);">
+              <i class="fas fa-seedling" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+              <div>まだ植物が保存されていません</div>
+              <div style="margin-top: 0.5rem;">気になる植物を見つけたら「マイ図鑑に保存」ボタンを押してください</div>
+            </div>
+          `;
+          return;
+        }
+
+        count.textContent = `${this.myCollection.length}件の植物が保存されています`;
+        if (exportBtn) exportBtn.disabled = false;
+        grid.innerHTML = '';
+
+        this.myCollection.forEach((plant, index) => {
+          const item = document.createElement('div');
+          item.className = 'collection-item fade-in';
+          item.style.animationDelay = `${index * 0.1}s`;
+
+          item.innerHTML = `
+            ${plant.imageUrl ? 
+              `<div style="position: relative;">
+                <img src="${plant.imageUrl}" alt="${plant.commonName}" class="collection-image">
+                ${plant.generatedImagePrompt ? 
+                  `<button class="image-prompt-info-btn" onclick="app.showCollectionImagePrompt(${index})" title="使用されたプロンプトを表示">
+                    <i class="fas fa-info"></i>
+                  </button>` : ''}
+              </div>` :
+              `<div class="collection-image" style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-seedling" style="font-size: 2rem; color: var(--text-secondary);"></i>
+              </div>`
+            }
+            <div class="collection-name">${plant.commonName}</div>
+            <div class="collection-scientific">${plant.scientificName}</div>
+            <div class="collection-actions">
+              <button class="details-btn" onclick="app.showPlantDetails(${index})">
+                <i class="fas fa-info-circle"></i> 詳細
+              </button>
+              <button class="remove-btn" onclick="app.removeFromCollection(${index})">
+                <i class="fas fa-trash"></i> 削除
+              </button>
+            </div>
+          `;
+
+          grid.appendChild(item);
+        });
+      }
+
+      removeFromCollection(index) {
+        const plant = this.myCollection[index];
+        this.myCollection.splice(index, 1);
+        this.saveCollection();
+        this.updateCollectionDisplay();
+        this.showMessage(`${plant.commonName}をマイ図鑑から削除しました`, 'success');
+      }
+
+      // 植物詳細をモーダルで表示
+      showPlantDetails(index) {
+        const plant = this.myCollection[index];
+        if (!plant) return;
+
+        // モーダルの内容を設定
+        document.getElementById('modal-scientific-name').textContent = plant.scientificName;
+        document.getElementById('modal-common-name').textContent = plant.commonName;
+        
+        // 別名の表示
+        const aliasesEl = document.getElementById('modal-aliases');
+        if (plant.aliases && plant.aliases.length > 0) {
+          aliasesEl.textContent = `別名：${plant.aliases.join('、')}`;
+          aliasesEl.style.display = 'block';
+        } else {
+          aliasesEl.style.display = 'none';
+        }
+
+        // 画像の表示
+        const imageEl = document.getElementById('modal-plant-image');
+        if (plant.imageUrl) {
+          imageEl.src = plant.imageUrl;
+          imageEl.alt = plant.commonName;
+          imageEl.style.display = 'block';
+        } else {
+          imageEl.style.display = 'none';
+        }
+
+        // 詳細情報の表示
+        const detailsEl = document.getElementById('modal-plant-details');
+        detailsEl.innerHTML = `
+          ${plant.features ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-leaf"></i> 総合的特徴
+              </div>
+              <div class="features-content">${plant.features}</div>
+            </div>
+          ` : ''}
+
+          ${plant.feature1 ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-seedling"></i> 形態的特徴
+              </div>
+              <div class="features-content">${plant.feature1}</div>
+            </div>
+          ` : ''}
+
+          ${plant.feature2 ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-globe-americas"></i> 生態的特徴
+              </div>
+              <div class="features-content">${plant.feature2}</div>
+            </div>
+          ` : ''}
+
+          ${plant.feature3 ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-search"></i> 識別特徴
+              </div>
+              <div class="features-content">${plant.feature3}</div>
+            </div>
+          ` : ''}
+
+          ${plant.morphology ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-microscope"></i> 形態学的特徴
+              </div>
+              <div class="features-content">${plant.morphology}</div>
+            </div>
+          ` : ''}
+
+          ${plant.physiology ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-dna"></i> 生理的特徴
+              </div>
+              <div class="features-content">${plant.physiology}</div>
+            </div>
+          ` : ''}
+
+          ${plant.taxonomy ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-sitemap"></i> 分類学的特徴
+              </div>
+              <div class="features-content">${plant.taxonomy}</div>
+            </div>
+          ` : ''}
+
+          ${plant.habitat ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-map-marker-alt"></i> 生育環境・分布
+              </div>
+              <div class="features-content">${plant.habitat}</div>
+            </div>
+          ` : ''}
+
+          ${plant.season ? `
+            <div class="plant-features">
+              <div class="features-title">
+                <i class="fas fa-calendar-alt"></i> 季節
+              </div>
+              <div class="features-content">${plant.season}</div>
+            </div>
+          ` : ''}
+
+          ${plant.wildlifeConnection ? `
+            <div class="wildlife-connection">
+              <div class="features-title">
+                <i class="fas fa-paw"></i> 生き物とのつながり
+              </div>
+              <div class="features-content">${plant.wildlifeConnection}</div>
+            </div>
+          ` : ''}
+
+          ${plant.culturalInfo ? `
+            <div class="culture-info">
+              <div class="features-title">
+                <i class="fas fa-users"></i> 文化・暮らしとの関わり
+              </div>
+              <div class="features-content">${plant.culturalInfo}</div>
+            </div>
+          ` : ''}
+
+          <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #f0f0f0; text-align: center; color: var(--text-secondary); font-size: 0.9rem;">
+            保存日時：${new Date(plant.savedAt).toLocaleString('ja-JP')}
+          </div>
+        `;
+
+        // モーダルを表示
+        document.getElementById('plant-details-modal').classList.add('active');
+      }
+
+      // モーダルを閉じる
+      closeDetailsModal() {
+        document.getElementById('plant-details-modal').classList.remove('active');
+      }
+
+      clearSearch() {
+        document.getElementById('search-input').value = '';
+        document.getElementById('results-section').classList.remove('active');
+        this.searchResults = [];
+        this.lastSearchQuery = '';
+        this.saveSearchResults();
+        this.saveLastSearchQuery();
+        this.hideMessage();
+      }
+
+      showLoading(show) {
+        const loading = document.getElementById('search-loading');
+        const searchBtn = document.getElementById('search-btn');
+        
+        if (show) {
+          loading.classList.add('active');
+          searchBtn.disabled = true;
+        } else {
+          loading.classList.remove('active');
+          searchBtn.disabled = false;
+        }
+      }
+
+      showMessage(text, type = 'info') {
+        this.hideMessage();
+        
+        const message = document.createElement('div');
+        message.className = `message ${type}`;
+        message.textContent = text;
+        message.id = 'app-message';
+
+        const searchSection = document.getElementById('search-section');
+        searchSection.insertBefore(message, searchSection.firstChild);
+
+        // 3秒後に自動削除
+        setTimeout(() => this.hideMessage(), 3000);
+      }
+
+      hideMessage() {
+        const existing = document.getElementById('app-message');
+        if (existing) {
+          existing.remove();
+        }
+      }
+
+      // 設定の保存（自動保存対応）
+      saveSettings() {
+        // ローカルストレージに保存
+        localStorage.setItem('plantAppSettings', JSON.stringify({
+          style: this.selectedStyle,
+          time: this.selectedTime,
+          model: this.selectedModel,
+          region: this.selectedRegion,
+          savedAt: new Date().toISOString()
+        }));
+        
+        // 再生成回数も同時に保存
+        this.saveImageGenerationAttempts();
+        
+        console.log('設定を自動保存しました:', {
+          style: this.selectedStyle,
+          model: this.selectedModel,
+          region: this.selectedRegion
+        });
+      }
+
+      // UIに設定を反映（設定値は既にロード済み）
+      applySettingsToUI() {
+        // UIに反映
+        const styleRadio = document.querySelector(`input[name="style-setting"][value="${this.selectedStyle}"]`);
+        const modelRadio = document.querySelector(`input[name="model-setting"][value="${this.selectedModel}"]`);
+        const regionRadio = document.querySelector(`input[name="region-setting"][value="${this.selectedRegion}"]`);
+        
+        if (styleRadio) {
+          styleRadio.checked = true;
+        }
+        if (modelRadio) {
+          modelRadio.checked = true;
+        }
+        if (regionRadio) {
+          regionRadio.checked = true;
+        }
+        
+        console.log('UIに設定を反映:', {
+          style: this.selectedStyle,
+          model: this.selectedModel,
+          region: this.selectedRegion
+        });
+      }
+
+      // 設定の読み込み（設定タブで使用）
+      loadSettings() {
+        // 設定値を再読み込み
+        this.loadSettingsValues();
+        // UIに反映
+        this.applySettingsToUI();
+      }
+
+      // 設定をデフォルトに戻す
+      resetSettings() {
+        this.selectedStyle = 'botanical';
+        this.selectedModel = 'sdxl-lightning';
+        this.selectedRegion = 'japan';
+
+        // UIに反映
+        const styleRadio = document.querySelector('input[name="style-setting"][value="botanical"]');
+        const modelRadio = document.querySelector('input[name="model-setting"][value="sdxl-lightning"]');
+        const regionRadio = document.querySelector('input[name="region-setting"][value="japan"]');
+        
+        if (styleRadio) {
+          styleRadio.checked = true;
+        }
+        if (modelRadio) {
+          modelRadio.checked = true;
+        }
+        if (regionRadio) {
+          regionRadio.checked = true;
+        }
+
+        // 設定を保存
+        this.saveSettings();
+
+        this.showMessage('設定をデフォルトに戻しました', 'success');
+      }
+
+      // プロンプト表示モーダルを開く
+      showPromptModal(style) {
+        console.log('showPromptModal called with style:', style); // デバッグ用
+        
+        const styleTitles = {
+          'botanical': '植物画スタイル',
+          'anime': 'アニメ風スタイル',
+          'realistic': '写実的スタイル'
+        };
+
+        const stylePrompts = {
+          'botanical': 'A highly detailed botanical illustration of a plant, in classical scientific style. The image features fine ink outlines combined with delicate watercolor shading using glazing techniques. Each leaf and bud is rendered with botanical accuracy, showing intricate vein patterns and subtle color gradients. The background is pure white, with no shadows or textures. The style is reminiscent of 18th to 19th century botanical field guides, with precise, academic aesthetics and clean composition.',
+          'anime': 'Illustrated in beautiful anime art style with vibrant colors and soft cel-shading. Clean vector-like lines with bright, saturated colors typical of Japanese animation. The plant maintains botanical accuracy while being stylized with artistic flair. Soft gradients, glowing effects on flowers, and a cheerful, appealing aesthetic. Background with soft bokeh or gradient effects. Digital art finish with smooth textures.',
+          'realistic': 'Captured as a highly detailed, photorealistic image with macro photography quality. Crystal clear focus showing minute details like leaf textures, petal surface patterns, stem structures, and natural imperfections. Professional nature photography with excellent depth of field, natural color reproduction, and lifelike appearance. Include environmental context showing the plant\'s natural growing conditions. Shot with high-end botanical photography techniques.'
+        };
+
+        const title = styleTitles[style] || '画像スタイル設定';
+        const prompt = stylePrompts[style] || 'プロンプトが見つかりません';
+
+        console.log('Selected title:', title); // デバッグ用
+        console.log('Selected prompt:', prompt); // デバッグ用
+
+        document.getElementById('prompt-modal-title').textContent = title + ' - ベースプロンプト';
+        document.getElementById('prompt-content').textContent = prompt;
+        document.getElementById('prompt-modal').classList.add('active');
+      }
+
+      // プロンプト表示モーダルを閉じる
+      closePromptModal() {
+        document.getElementById('prompt-modal').classList.remove('active');
+      }
+
+      // 画像生成プロンプトを表示
+      showImagePrompt(index) {
+        const plant = this.searchResults[index];
+        if (!plant || !plant.generatedImagePrompt) {
+          this.showMessage('プロンプト情報が見つかりません', 'warning');
+          return;
+        }
+
+        // スタイル情報も含めてタイトルを設定
+        const styleLabel = this.getStyleLabel(this.selectedStyle);
+        document.getElementById('prompt-modal-title').textContent = `${plant.commonName} - 画像生成プロンプト（${styleLabel}スタイル）`;
+        document.getElementById('prompt-content').textContent = plant.generatedImagePrompt;
+        
+        console.log('🔍 [PROMPT_VIEW] プロンプト表示:', {
+          plantName: plant.scientificName,
+          style: this.selectedStyle,
+          styleLabel: styleLabel,
+          promptLength: plant.generatedImagePrompt.length,
+          hasStyleKeywords: this.checkStyleKeywords(plant.generatedImagePrompt, this.selectedStyle),
+          timestamp: new Date().toISOString()
+        });
+        
+        // 最適化情報を表示
+        const optimizationInfo = document.getElementById('prompt-optimization-info');
+        const draftSection = document.getElementById('draft-prompt-section');
+        const draftContent = document.getElementById('draft-prompt-content');
+        
+        if (plant.generatedImageDraftPrompt) {
+          // 最適化が実際に成功したかを検証
+          const finalPrompt = plant.generatedImagePrompt;
+          const draftPrompt = plant.generatedImageDraftPrompt;
+          const hasJapanese = window.containsJapanese ? window.containsJapanese(finalPrompt) : /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(finalPrompt);
+          const actuallyOptimized = finalPrompt !== draftPrompt;
+          
+          if (actuallyOptimized && !hasJapanese) {
+            // 実際に最適化が成功した場合のみ表示
+            optimizationInfo.style.display = 'block';
+            draftSection.style.display = 'block';
+            draftContent.textContent = plant.generatedImageDraftPrompt;
+          } else {
+            // 最適化が失敗または不完全な場合は表示しない
+            optimizationInfo.style.display = 'none';
+            draftSection.style.display = 'none';
+            console.warn('⚠️ Optimization label hidden due to incomplete optimization:', {
+              hasJapanese: hasJapanese,
+              actuallyOptimized: actuallyOptimized,
+              plantName: plant.scientificName
+            });
+          }
+        } else {
+          // ドラフトプロンプトが存在しない場合は最適化なしとして表示
+          optimizationInfo.style.display = 'none';
+          draftSection.style.display = 'none';
+        }
+        
+        document.getElementById('prompt-modal').classList.add('active');
+      }
+
+      // プロンプト最適化状況を検証し、UIに反映する共通関数
+      checkOptimizationStatus(plant, optimizationInfo, draftSection, draftContent, context = '') {
+        if (plant.generatedImageDraftPrompt) {
+          // 最適化が実際に成功したかを検証（imageResultの情報も考慮）
+          const finalPrompt = plant.generatedImagePrompt;
+          const draftPrompt = plant.generatedImageDraftPrompt;
+          let hasJapanese, actuallyOptimized;
+          
+          // imageResultに最適化情報がある場合はそれを優先使用
+          if (plant.wasActuallyOptimized !== undefined) {
+            actuallyOptimized = plant.wasActuallyOptimized;
+            hasJapanese = plant.hasJapanese || false;
+          } else {
+            // フォールバック：手動で検証
+            hasJapanese = window.containsJapanese ? window.containsJapanese(finalPrompt) : /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(finalPrompt);
+            actuallyOptimized = finalPrompt !== draftPrompt && !hasJapanese;
+          }
+          
+          if (actuallyOptimized) {
+            // 実際に最適化が成功した場合のみ表示
+            optimizationInfo.style.display = 'block';
+            draftSection.style.display = 'block';
+            draftContent.textContent = plant.generatedImageDraftPrompt;
+            
+            // スタイル強度情報があればログ表示
+            if (plant.styleStrength !== undefined) {
+              console.log(`✅ [UI_OPTIMIZATION] 最適化成功表示${context}:`, {
+                plantName: plant.scientificName,
+                styleStrength: plant.styleStrength,
+                hasJapanese: hasJapanese
+              });
+            }
+          } else {
+            // 最適化が失敗または不完全な場合は表示しない
+            optimizationInfo.style.display = 'none';
+            draftSection.style.display = 'none';
+            console.warn(`⚠️ [UI_OPTIMIZATION] 最適化ラベル非表示${context}:`, {
+              hasJapanese: hasJapanese,
+              actuallyOptimized: actuallyOptimized,
+              plantName: plant.scientificName,
+              reason: hasJapanese ? '日本語残存' : '最適化未実行'
+            });
+          }
+        } else {
+          // ドラフトプロンプトが存在しない場合は最適化なしとして表示
+          optimizationInfo.style.display = 'none';
+          draftSection.style.display = 'none';
+        }
+      }
+
+      // スタイル関連キーワードが含まれているかチェック
+      checkStyleKeywords(prompt, style) {
+        const styleKeywords = {
+          'botanical': ['botanical', 'scientific style', 'field guide', 'watercolor', 'botanical illustration'],
+          'anime': ['Japanese anime', 'cel-shading', 'manga', 'kawaii', 'Studio Ghibli', 'shoujo', 'seinen', 'lineart', 'vibrant colors'],
+          'realistic': ['photorealistic', 'macro photography', 'realistic', 'photography', 'lifelike']
+        };
+        
+        const keywords = styleKeywords[style] || [];
+        const foundKeywords = keywords.filter(keyword => 
+          prompt.toLowerCase().includes(keyword.toLowerCase())
+        );
+        
+        return {
+          found: foundKeywords,
+          total: keywords.length,
+          percentage: Math.round((foundKeywords.length / keywords.length) * 100)
+        };
+      }
+
+      // プロンプト最適化の効果を分析
+      analyzeOptimization(draftPrompt, optimizedPrompt) {
+        const draftWords = draftPrompt.split(/\s+/).length;
+        const optimizedWords = optimizedPrompt.split(/\s+/).length;
+        const draftLength = draftPrompt.length;
+        const optimizedLength = optimizedPrompt.length;
+        
+        // 日本語文字の有無をチェック
+        const draftHasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(draftPrompt);
+        const optimizedHasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(optimizedPrompt);
+        
+        // 技術用語の増加をチェック
+        const technicalTerms = ['botanical', 'scientific', 'detailed', 'photography', 'macro', 'realistic', 'illustration', 'accuracy', 'specimen'];
+        const draftTechnicalCount = technicalTerms.filter(term => draftPrompt.toLowerCase().includes(term)).length;
+        const optimizedTechnicalCount = technicalTerms.filter(term => optimizedPrompt.toLowerCase().includes(term)).length;
+        
+        return {
+          draftLength: draftLength,
+          optimizedLength: optimizedLength,
+          lengthChange: optimizedLength - draftLength,
+          compressionRatio: Math.round((optimizedLength / draftLength) * 100),
+          draftWords: draftWords,
+          optimizedWords: optimizedWords,
+          wordChange: optimizedWords - draftWords,
+          wasJapaneseRemoved: draftHasJapanese && !optimizedHasJapanese,
+          technicalTermsAdded: optimizedTechnicalCount - draftTechnicalCount,
+          optimizationEffectiveness: optimizedPrompt !== draftPrompt ? 'modified' : 'unchanged'
+        };
+      }
+
+      // マイ図鑑の画像生成プロンプトを表示
+      showCollectionImagePrompt(index) {
+        const plant = this.myCollection[index];
+        if (!plant || !plant.generatedImagePrompt) {
+          this.showMessage('プロンプト情報が見つかりません', 'warning');
+          return;
+        }
+
+        document.getElementById('prompt-modal-title').textContent = `${plant.commonName} - 画像生成プロンプト`;
+        document.getElementById('prompt-content').textContent = plant.generatedImagePrompt;
+        
+        // 最適化情報を表示
+        const optimizationInfo = document.getElementById('prompt-optimization-info');
+        const draftSection = document.getElementById('draft-prompt-section');
+        const draftContent = document.getElementById('draft-prompt-content');
+        
+        if (plant.generatedImageDraftPrompt) {
+          // 最適化が実際に成功したかを検証
+          const finalPrompt = plant.generatedImagePrompt;
+          const draftPrompt = plant.generatedImageDraftPrompt;
+          const hasJapanese = window.containsJapanese ? window.containsJapanese(finalPrompt) : /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(finalPrompt);
+          const actuallyOptimized = finalPrompt !== draftPrompt;
+          
+          if (actuallyOptimized && !hasJapanese) {
+            // 実際に最適化が成功した場合のみ表示
+            optimizationInfo.style.display = 'block';
+            draftSection.style.display = 'block';
+            draftContent.textContent = plant.generatedImageDraftPrompt;
+          } else {
+            // 最適化が失敗または不完全な場合は表示しない
+            optimizationInfo.style.display = 'none';
+            draftSection.style.display = 'none';
+            console.warn('⚠️ Optimization label hidden due to incomplete optimization:', {
+              hasJapanese: hasJapanese,
+              actuallyOptimized: actuallyOptimized,
+              plantName: plant.scientificName
+            });
+          }
+        } else {
+          // ドラフトプロンプトが存在しない場合は最適化なしとして表示
+          optimizationInfo.style.display = 'none';
+          draftSection.style.display = 'none';
+        }
+        
+        document.getElementById('prompt-modal').classList.add('active');
+      }
+
+      // 一致度の根拠を表示
+      showConfidenceReason(index) {
+        const plant = this.searchResults[index];
+        if (!plant) {
+          this.showMessage('植物データが見つかりません', 'warning');
+          return;
+        }
+
+        // 一致度の意味を取得
+        const confidenceMeaning = this.getConfidenceMeaning(plant.confidence);
+        
+        // 一致度の色を取得
+        const confidenceColor = {
+          '非常に高い': '#4CAF50',
+          '高い': '#8BC34A',
+          '中程度': '#FFC107',
+          '低い': '#FF9800',
+          '非常に低い': '#F44336'
+        }[plant.confidence] || '#9E9E9E';
+
+        // 各要素のA〜D判定を取得
+        const evaluations = this.getConfidenceEvaluations(plant);
+
+        // モーダルの内容を構築
+        const modalBody = document.getElementById('confidence-modal-body');
+        modalBody.innerHTML = `
+          <div class="confidence-level-display">
+            <div class="confidence-value" style="color: ${confidenceColor}">${plant.confidence}</div>
+            <div class="confidence-meaning">${confidenceMeaning}</div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-search"></i>
+              検索クエリとの一致度
+              <span class="evaluation-grade grade-${evaluations.queryMatch.grade.toLowerCase()}">${evaluations.queryMatch.grade}</span>
+            </div>
+            <div class="confidence-factor-content">
+              <div class="evaluation-description">${evaluations.queryMatch.description}</div>
+              <div class="evaluation-reason">入力された特徴や検索語句が植物の特徴とどの程度一致しているかを評価します。特徴的な形態や生育環境の記述が正確に合致するほど一致度が向上します。</div>
+            </div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-leaf"></i>
+              特徴の明確性
+              <span class="evaluation-grade grade-${evaluations.featureClarity.grade.toLowerCase()}">${evaluations.featureClarity.grade}</span>
+            </div>
+            <div class="confidence-factor-content">
+              <div class="evaluation-description">${evaluations.featureClarity.description}</div>
+              <div class="evaluation-reason">植物の形態的特徴（葉の形、花の色、茎の特徴など）や生態的特徴（開花時期、生育環境など）の記述が明確で詳細であるほど一致度が高くなります。</div>
+            </div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-globe-americas"></i>
+              地域との適合性
+              <span class="evaluation-grade grade-${evaluations.regionalMatch.grade.toLowerCase()}">${evaluations.regionalMatch.grade}</span>
+            </div>
+            <div class="confidence-factor-content">
+              <div class="evaluation-description">${evaluations.regionalMatch.description}</div>
+              <div class="evaluation-reason">選択された地域（${this.getRegionDisplayName()}）に自生または栽培される植物であるかを評価します。地域特有の植物ほど一致度が向上します。</div>
+            </div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-database"></i>
+              データベース信頼性
+              <span class="evaluation-grade grade-${evaluations.dataReliability.grade.toLowerCase()}">${evaluations.dataReliability.grade}</span>
+            </div>
+            <div class="confidence-factor-content">
+              <div class="evaluation-description">${evaluations.dataReliability.description}</div>
+              <div class="evaluation-reason">植物学的に確立された分類体系や学名、一般的な呼称との整合性を評価します。正確な分類情報ほど信頼性が高くなります。</div>
+            </div>
+          </div>
+
+          <div class="confidence-note">
+            <i class="fas fa-info-circle"></i>
+            <strong>注意：</strong> この一致度はAIによる推定であり、正確な植物同定には専門家による確認が必要です。フィールドワークや図鑑での詳細な照合も併せて行うことをお勧めします。
+          </div>
+        `;
+
+        // モーダルを表示
+        document.getElementById('confidence-modal').classList.add('active');
+      }
+
+      // 一致度の各要素をA〜D判定で評価
+      getConfidenceEvaluations(plant) {
+        // 基本的な一致度から各要素を推定
+        const baseScore = this.getConfidenceScore(plant.confidence);
+        
+        // 検索クエリとの一致度評価
+        const queryMatch = this.evaluateQueryMatch(plant, baseScore);
+        
+        // 特徴の明確性評価
+        const featureClarity = this.evaluateFeatureClarity(plant, baseScore);
+        
+        // 地域との適合性評価
+        const regionalMatch = this.evaluateRegionalMatch(plant, baseScore);
+        
+        // データベース信頼性評価
+        const dataReliability = this.evaluateDataReliability(plant, baseScore);
+
+        return {
+          queryMatch,
+          featureClarity,
+          regionalMatch,
+          dataReliability
+        };
+      }
+
+      // 一致度を数値スコアに変換
+      getConfidenceScore(confidence) {
+        const scores = {
+          '非常に高い': 0.9,
+          '高い': 0.75,
+          '中程度': 0.6,
+          '低い': 0.4,
+          '非常に低い': 0.2
+        };
+        return scores[confidence] || 0.5;
+      }
+
+      // 検索クエリとの一致度を評価
+      evaluateQueryMatch(plant, baseScore) {
+        // 特徴の詳細度から推定
+        const hasDetailedFeatures = plant.feature1 && plant.feature2 && plant.feature3;
+        const featureLength = (plant.features || '').length + (plant.feature1 || '').length + (plant.feature2 || '').length;
+        
+        let adjustedScore = baseScore;
+        if (hasDetailedFeatures && featureLength > 200) adjustedScore += 0.1;
+        if (featureLength < 100) adjustedScore -= 0.1;
+        
+        return this.scoreToGrade(adjustedScore, {
+          A: "検索語句と植物の特徴が非常によく一致している",
+          B: "検索語句と植物の特徴がよく一致している", 
+          C: "検索語句と植物の特徴が部分的に一致している",
+          D: "検索語句と植物の特徴の一致が限定的"
+        });
+      }
+
+      // 特徴の明確性を評価
+      evaluateFeatureClarity(plant, baseScore) {
+        // 各特徴フィールドの充実度から評価
+        const featureFields = [plant.features, plant.feature1, plant.feature2, plant.feature3, plant.habitat, plant.season].filter(f => f && f.length > 20);
+        const clarityScore = featureFields.length / 6; // 最大6フィールド
+        
+        let adjustedScore = baseScore * 0.7 + clarityScore * 0.3;
+        
+        return this.scoreToGrade(adjustedScore, {
+          A: "形態的・生態的特徴が非常に明確で詳細",
+          B: "形態的・生態的特徴が明確で十分詳細",
+          C: "形態的・生態的特徴が一般的なレベルで記述",
+          D: "形態的・生態的特徴の記述が不十分"
+        });
+      }
+
+      // 地域との適合性を評価
+      evaluateRegionalMatch(plant, baseScore) {
+        // 生息地情報の詳細度から推定
+        const hasHabitat = plant.habitat && plant.habitat.length > 10;
+        const hasRegionalInfo = plant.habitat && (
+          plant.habitat.includes('日本') || 
+          plant.habitat.includes('本州') || 
+          plant.habitat.includes('九州') ||
+          plant.habitat.includes('四国') ||
+          plant.habitat.includes('北海道') ||
+          plant.habitat.includes('東南アジア') ||
+          plant.habitat.includes('北米')
+        );
+        
+        let adjustedScore = baseScore;
+        if (hasRegionalInfo) adjustedScore += 0.1;
+        if (!hasHabitat) adjustedScore -= 0.15;
+        
+        const regionName = this.getRegionDisplayName();
+        return this.scoreToGrade(adjustedScore, {
+          A: `${regionName}の代表的な植物で分布が確実`,
+          B: `${regionName}でよく見られる植物で分布が適合`,
+          C: `${regionName}での分布は限定的だが存在`,
+          D: `${regionName}での分布情報が不明確`
+        });
+      }
+
+      // データベース信頼性を評価
+      evaluateDataReliability(plant, baseScore) {
+        // 学名の形式と情報の充実度から評価
+        const hasValidScientificName = plant.scientificName && plant.scientificName.includes(' ') && !plant.scientificName.includes('Unknown');
+        const hasAliases = plant.aliases && plant.aliases.length > 0;
+        const hasCompleteInfo = plant.culturalInfo && plant.wildlifeConnection;
+        
+        let adjustedScore = baseScore;
+        if (hasValidScientificName) adjustedScore += 0.05;
+        if (hasAliases) adjustedScore += 0.05;
+        if (hasCompleteInfo) adjustedScore += 0.1;
+        if (plant.scientificName === 'JSON解析エラー') adjustedScore = 0.1;
+        
+        return this.scoreToGrade(adjustedScore, {
+          A: "植物学的分類が確立され学名・分類情報が正確",
+          B: "一般的に認知された植物で分類情報が信頼できる",
+          C: "基本的な分類情報は整っているが詳細が不足",
+          D: "分類情報の信頼性に疑問がある"
+        });
+      }
+
+      // スコアをA〜D判定に変換
+      scoreToGrade(score, descriptions) {
+        let grade, description;
+        
+        if (score >= 0.8) {
+          grade = 'A';
+          description = descriptions.A;
+        } else if (score >= 0.65) {
+          grade = 'B'; 
+          description = descriptions.B;
+        } else if (score >= 0.45) {
+          grade = 'C';
+          description = descriptions.C;
+        } else {
+          grade = 'D';
+          description = descriptions.D;
+        }
+        
+        return { grade, description };
+      }
+
+      // 一致度の意味を取得
+      getConfidenceMeaning(confidence) {
+        const meanings = {
+          '非常に高い': '特徴が非常によく一致しており、ほぼ確実に同じ植物です',
+          '高い': '特徴がよく一致しており、同じ植物である可能性が高いです',
+          '中程度': '一部の特徴が一致していますが、他の候補も検討が必要です',
+          '低い': '特徴の一致が限定的で、さらなる確認が必要です',
+          '非常に低い': '特徴の一致が少なく、別の植物である可能性があります'
+        };
+        return meanings[confidence] || '一致度の評価が困難です';
+      }
+
+      // 現在の地域設定の表示名を取得
+      getRegionDisplayName() {
+        const regions = {
+          'japan': '日本',
+          'southeast_asia': '東南アジア',
+          'north_america': '北米'
+        };
+        return regions[this.selectedRegion] || '未設定';
+      }
+
+      // 一致度根拠モーダルを閉じる
+      closeConfidenceModal() {
+        document.getElementById('confidence-modal').classList.remove('active');
+      }
+
+      // 植物に対して安定したキーを生成（学名ベース）
+      getPlantKey(index) {
+        if (!this.searchResults || !this.searchResults[index]) {
+          return `plant-${index}`; // フォールバック
+        }
+        const plant = this.searchResults[index];
+        return `${plant.scientificName}-${plant.commonName}`.replace(/[^a-zA-Z0-9\-]/g, '');
+      }
+
+      // 再生成試行回数を取得
+      getRegenerationCount(index) {
+        const key = this.getPlantKey(index);
+        return this.imageGenerationAttempts[key] || 0;
+      }
+
+      // 再生成試行回数を更新
+      updateRegenerationCount(index) {
+        const key = this.getPlantKey(index);
+        this.imageGenerationAttempts[key] = (this.imageGenerationAttempts[key] || 0) + 1;
+        this.saveImageGenerationAttempts(); // 即座に保存
+        console.log(`🔢 再生成回数更新: ${key} -> ${this.imageGenerationAttempts[key]}`);
+        return this.imageGenerationAttempts[key];
+      }
+
+      // 再生成可能かチェック（モデル別制限を考慮）
+      canRegenerate(index) {
+        const currentCount = this.getRegenerationCount(index);
+        
+        // Minimax Image-01の場合は1回のみ
+        if (this.selectedModel === 'minimax') {
+          return currentCount < 1;
+        }
+        
+        // SDXL Lightningの場合は3回まで
+        return currentCount < 3;
+      }
+
+      // 画像生成回数をリセット（新しい検索時に使用）
+      resetImageGenerationAttempts() {
+        this.imageGenerationAttempts = {};
+        this.saveImageGenerationAttempts(); // ローカルストレージにも反映
+        console.log('画像生成回数をリセットしました');
+      }
+
+      // 再生成回数をローカルストレージに保存
+      saveImageGenerationAttempts() {
+        localStorage.setItem('plantAppImageAttempts', JSON.stringify({
+          attempts: this.imageGenerationAttempts,
+          savedAt: new Date().toISOString()
+        }));
+      }
+
+      // 再生成回数をローカルストレージから読み込み
+      loadImageGenerationAttempts() {
+        try {
+          const saved = localStorage.getItem('plantAppImageAttempts');
+          if (saved) {
+            const data = JSON.parse(saved);
+            this.imageGenerationAttempts = data.attempts || {};
+            console.log('再生成回数を復元しました:', this.imageGenerationAttempts);
+          }
+        } catch (error) {
+          console.warn('再生成回数の読み込みに失敗:', error);
+          this.imageGenerationAttempts = {};
+        }
+      }
+
+      // 再生成ボタンの状態を更新（ページ読み込み後の同期用）
+      updateRegenerationButtons() {
+        // 検索結果がない場合は何もしない
+        if (!this.searchResults || this.searchResults.length === 0) {
+          console.log('🔄 再生成ボタン更新: 検索結果なし');
+          return;
+        }
+
+        console.log('🔄 再生成ボタン状態更新開始:', {
+          searchResultsCount: this.searchResults.length,
+          imageGenerationAttempts: this.imageGenerationAttempts,
+          selectedModel: this.selectedModel
+        });
+
+        this.searchResults.forEach((plant, index) => {
+          const regenBtn = document.getElementById(`regen-btn-${index}`);
+          const regenCount = document.getElementById(`regen-count-${index}`);
+          
+          if (regenBtn && regenCount) {
+            const currentCount = this.getRegenerationCount(index);
+            
+            // Minimax Image-01の場合は1回制限
+            if (this.selectedModel === 'minimax') {
+              regenCount.textContent = `(${currentCount}/1)`;
+              regenBtn.disabled = currentCount >= 1;
+            } else {
+              // SDXL Lightningの場合は3回制限
+              regenCount.textContent = `(${currentCount}/3)`;
+              regenBtn.disabled = !this.canRegenerate(index);
+            }
+            
+            console.log(`✅ 再生成ボタン状態更新 - Plant ${index}: ${currentCount}/${this.selectedModel === 'minimax' ? '1' : '3'}, disabled: ${regenBtn.disabled}`);
+          } else {
+            console.warn(`⚠️ 再生成ボタン要素が見つからない - Plant ${index}`);
+          }
+        });
+      }
+
+      // ランダムシード生成（より大きな範囲で多様性を確保）
+      generateRandomSeed() {
+        return Math.floor(Math.random() * 4294967295); // 32bit整数の最大値
+      }
+
+      // 画像URLをBase64に変換
+      async convertImageToBase64(imageUrl) {
+        try {
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch (error) {
+          console.warn('画像の変換に失敗:', error);
+          return null;
+        }
+      }
+
+      // マイ図鑑をエクスポート
+      async exportCollection() {
+        if (this.myCollection.length === 0) {
+          this.showMessage('エクスポートする植物がありません', 'warning');
+          return;
+        }
+
+        this.showMessage('エクスポート準備中...', 'info');
+
+        try {
+          // 画像をBase64に変換
+          const exportData = await Promise.all(this.myCollection.map(async (plant) => {
+            const plantData = { ...plant };
+            
+            // 画像URLがある場合はBase64に変換
+            if (plant.imageUrl) {
+              try {
+                const base64Data = await this.convertImageToBase64(plant.imageUrl);
+                plantData.imageBase64 = base64Data;
+              } catch (error) {
+                console.warn(`画像変換失敗 (${plant.commonName}):`, error);
+                plantData.imageBase64 = null;
+              }
+            }
+            
+            return plantData;
+          }));
+
+          // エクスポートデータの構造
+          const exportJson = {
+            exportInfo: {
+              version: "1.0",
+              appName: "AI植物辞典",
+              exportDate: new Date().toISOString(),
+              totalPlants: exportData.length
+            },
+            plants: exportData
+          };
+
+          // JSONファイルとしてダウンロード
+          const jsonString = JSON.stringify(exportJson, null, 2);
+          const blob = new Blob([jsonString], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = url;
+          // 現在の日時を取得
+          const now = new Date();
+          const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
+          const time = now.toTimeString().slice(0, 5).replace(':', ''); // HHMM
+          
+          link.download = `AI植物図鑑_${date}-${time}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+
+          this.showMessage(`${exportData.length}件の植物をエクスポートしました`, 'success');
+        } catch (error) {
+          console.error('エクスポートエラー:', error);
+          this.showMessage('エクスポートに失敗しました', 'error');
+        }
+      }
+
+      // マイ図鑑をインポート
+      async importCollection(fileInput) {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          const importData = JSON.parse(text);
+
+          // データ形式の検証
+          if (!importData.plants || !Array.isArray(importData.plants)) {
+            throw new Error('無効なファイル形式です');
+          }
+
+          let importedCount = 0;
+          let skippedCount = 0;
+
+          for (const plantData of importData.plants) {
+            // 必須フィールドの確認
+            if (!plantData.scientificName || !plantData.commonName) {
+              skippedCount++;
+              continue;
+            }
+
+            // 既存データとの重複チェック
+            const isDuplicate = this.myCollection.some(existing => 
+              existing.scientificName === plantData.scientificName
+            );
+
+            if (isDuplicate) {
+              skippedCount++;
+              continue;
+            }
+
+            // 画像データの処理
+            const processedPlant = { ...plantData };
+            
+            // Base64画像データがある場合の処理
+            if (plantData.imageBase64) {
+              // Base64データをそのまま使用（ブラウザで表示可能）
+              processedPlant.imageUrl = plantData.imageBase64;
+            }
+
+            // インポート日時を追加
+            processedPlant.importedAt = new Date().toISOString();
+            if (!processedPlant.savedAt) {
+              processedPlant.savedAt = new Date().toISOString();
+            }
+
+            this.myCollection.push(processedPlant);
+            importedCount++;
+          }
+
+          // ローカルストレージに保存
+          this.saveCollection();
+          this.updateCollectionDisplay();
+
+          // 結果メッセージ
+          let message = `${importedCount}件の植物をインポートしました`;
+          if (skippedCount > 0) {
+            message += `（${skippedCount}件はスキップ）`;
+          }
+          this.showMessage(message, 'success');
+
+          // ファイル入力をリセット
+          fileInput.value = '';
+
+        } catch (error) {
+          console.error('インポートエラー:', error);
+          this.showMessage('インポートに失敗しました。ファイル形式を確認してください。', 'error');
+          fileInput.value = '';
+        }
+      }
+
+      // コレクションの完全消去（デバッグ用）
+      clearAllCollection() {
+        if (confirm('すべての植物データを削除しますか？この操作は取り消せません。')) {
+          this.myCollection = [];
+          this.saveCollection();
+          this.updateCollectionDisplay();
+          this.showMessage('すべての植物データを削除しました', 'success');
+        }
+      }
+
+      // 保存画像履歴セクションを表示する関数
+      showSavedImages() {
+        // 全てのセクションを非表示にする
+        document.getElementById('search-section').style.display = 'none';
+        document.getElementById('results-section').classList.remove('active');
+        document.getElementById('my-collection-section').classList.remove('active');
+        document.getElementById('settings-section').classList.remove('active');
+        
+        // 保存画像セクションを表示
+        document.getElementById('saved-images-section').style.display = 'block';
+        
+        // タブの状態をリセット（どのタブもアクティブにしない）
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        
+        // 保存画像を更新表示
+        this.updateSavedImagesDisplay();
+      }
+
+      // マイ図鑑セクションに戻る関数
+      showMyCollection() {
+        // 保存画像セクションを非表示にする
+        document.getElementById('saved-images-section').style.display = 'none';
+        
+        // マイ図鑑タブに切り替え
+        this.switchTab('collection');
+      }
+
+      // 保存された画像を表示する関数
+      updateSavedImagesDisplay() {
+        const savedImages = this.imageStorage.getSavedImages();
+        const container = document.getElementById('saved-images-grid');
+        const countElement = document.getElementById('saved-images-count');
+        
+        // カウント表示を更新
+        if (savedImages.length === 0) {
+          countElement.textContent = '保存された画像はありません';
+          container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-secondary);"><i class="fas fa-images" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i><br>まだ保存された画像がありません</div>';
+          return;
+        }
+        
+        countElement.textContent = `${savedImages.length}件の保存画像`;
+        
+        // 画像カードを生成
+        container.innerHTML = '';
+        savedImages.forEach((imageData, index) => {
+          const card = this.createSavedImageCard(imageData, index);
+          container.appendChild(card);
+        });
+      }
+
+      // 保存画像カードを作成
+      createSavedImageCard(imageData, index) {
+        const card = document.createElement('div');
+        card.className = 'saved-image-item fade-in';
+        card.style.animationDelay = `${index * 0.1}s`;
+        
+        // 保存日時をフォーマット
+        const saveDate = new Date(imageData.timestamp);
+        const formattedDate = saveDate.toLocaleDateString('ja-JP', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        // スタイル表示名を取得
+        const styleNames = {
+          'botanical': '植物画',
+          'anime': 'アニメ風',
+          'realistic': '写実的'
+        };
+        const styleName = styleNames[imageData.style] || imageData.style;
+        
+        // モデル表示名を取得
+        const modelNames = {
+          'bytedance/sdxl-lightning-4step': 'SDXL Lightning',
+          'minimax/image-01': 'Minimax Image-01',
+          'sdxl-lightning': 'SDXL Lightning',
+          'minimax': 'Minimax Image-01'
+        };
+        const modelName = modelNames[imageData.model] || imageData.model;
+        
+        card.innerHTML = `
+          <div class="saved-image-container">
+            <img src="${imageData.base64Data}" alt="${imageData.plantName}" class="saved-image">
+            <button class="saved-image-delete-btn" onclick="app.deleteSavedImage('${imageData.id}')" title="この画像を削除">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+          
+          <div class="saved-image-info">
+            <div class="plant-names">
+              <div class="plant-common-name">${imageData.commonName || imageData.plantName}</div>
+              ${imageData.scientificName ? `<div class="plant-scientific-name">${imageData.scientificName}</div>` : ''}
+            </div>
+            
+            <div class="saved-image-meta">
+              <div class="meta-item">
+                <i class="fas fa-calendar"></i>
+                <span>${formattedDate}</span>
+              </div>
+              <div class="meta-item">
+                <i class="fas fa-palette"></i>
+                <span>${styleName}</span>
+              </div>
+              <div class="meta-item">
+                <i class="fas fa-robot"></i>
+                <span>${modelName}</span>
+              </div>
+            </div>
+            
+            ${imageData.prompt ? `
+              <div class="saved-image-prompt">
+                <button class="prompt-toggle-btn" onclick="app.toggleSavedImagePrompt('${imageData.id}')">
+                  <i class="fas fa-eye"></i> プロンプトを表示
+                </button>
+                <div class="prompt-content" id="prompt-${imageData.id}" style="display: none;">
+                  <div class="prompt-text">${imageData.prompt}</div>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+        
+        return card;
+      }
+
+      // 保存画像の削除
+      deleteSavedImage(imageId) {
+        if (confirm('この画像を削除しますか？')) {
+          const success = this.imageStorage.deleteImage(imageId);
+          if (success) {
+            this.updateSavedImagesDisplay();
+            this.showMessage('画像を削除しました', 'success');
+          } else {
+            this.showMessage('画像の削除に失敗しました', 'error');
+          }
+        }
+      }
+
+      // 保存画像のプロンプト表示切り替え
+      toggleSavedImagePrompt(imageId) {
+        const promptElement = document.getElementById(`prompt-${imageId}`);
+        const button = promptElement.previousElementSibling;
+        
+        if (promptElement.style.display === 'none') {
+          promptElement.style.display = 'block';
+          button.innerHTML = '<i class="fas fa-eye-slash"></i> プロンプトを隠す';
+        } else {
+          promptElement.style.display = 'none';
+          button.innerHTML = '<i class="fas fa-eye"></i> プロンプトを表示';
+        }
+      }
+
+      // 全ての保存画像を削除する関数
+      clearAllSavedImages() {
+        if (confirm('全ての保存画像を削除しますか？この操作は取り消せません。')) {
+          const success = this.imageStorage.clearAllImages();
+          if (success) {
+            this.updateSavedImagesDisplay();
+            this.showMessage('全ての保存画像を削除しました', 'success');
+          } else {
+            this.showMessage('削除に失敗しました', 'error');
+          }
+        }
+      }
+
+      // ストレージ情報を表示する関数
+      showStorageInfo() {
+        const storageInfo = this.imageStorage.getStorageInfo();
+        const modal = document.getElementById('storage-info-modal');
+        const body = document.getElementById('storage-info-body');
+        
+        // ストレージ使用量の警告レベルを判定
+        const usagePercent = (storageInfo.totalSize / (10 * 1024 * 1024)) * 100; // 10MBを基準とした使用率
+        let usageClass = 'normal';
+        let usageIcon = 'fas fa-check-circle';
+        let usageColor = '#4CAF50';
+        
+        if (usagePercent > 80) {
+          usageClass = 'warning';
+          usageIcon = 'fas fa-exclamation-triangle';
+          usageColor = '#FF9800';
+        } else if (usagePercent > 95) {
+          usageClass = 'danger';
+          usageIcon = 'fas fa-exclamation-circle';
+          usageColor = '#F44336';
+        }
+        
+        body.innerHTML = `
+          <div class="storage-stats">
+            <div class="storage-stat">
+              <div class="stat-icon">
+                <i class="fas fa-images"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-label">保存画像数</div>
+                <div class="stat-value">${storageInfo.totalImages} / ${storageInfo.maxItems}</div>
+              </div>
+            </div>
+            
+            <div class="storage-stat">
+              <div class="stat-icon">
+                <i class="fas fa-database"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-label">使用容量</div>
+                <div class="stat-value">${storageInfo.totalSizeMB} MB</div>
+              </div>
+            </div>
+            
+            <div class="storage-stat">
+              <div class="stat-icon" style="color: ${usageColor};">
+                <i class="${usageIcon}"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-label">ストレージ状況</div>
+                <div class="stat-value" style="color: ${usageColor};">
+                  ${usagePercent.toFixed(1)}% 使用中
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="storage-info-notes">
+            <h4><i class="fas fa-info-circle"></i> ストレージについて</h4>
+            <ul>
+              <li>画像は最大${storageInfo.maxItems}件まで保存可能です</li>
+              <li>古い画像から自動削除されます</li>
+              <li>各画像は5MBまでサポートしています</li>
+              <li>データはブラウザのローカルストレージに保存されます</li>
+            </ul>
+          </div>
+        `;
+        
+        modal.classList.add('active');
+      }
+
+      // ストレージ情報モーダルを閉じる関数
+      closeStorageInfoModal() {
+        const modal = document.getElementById('storage-info-modal');
+        modal.classList.remove('active');
+      }
+    }
+
+  </script>
+  
+  <!-- 統合されたLLM処理システム読み込み -->
+  <!-- 一致度根拠表示モーダル -->
+  <div id="confidence-modal" class="confidence-modal">
+    <div class="confidence-modal-content">
+      <div class="confidence-modal-header">
+        <h2 class="confidence-modal-title">
+          <i class="fas fa-chart-bar"></i>
+          一致度の根拠
+        </h2>
+        <button class="confidence-modal-close" onclick="app.closeConfidenceModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="confidence-modal-body" id="confidence-modal-body">
+        <!-- 内容は動的に生成されます -->
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  
+  <script>
+    // アプリケーション初期化
+    const app = new PlantDictionaryApp();
+    
+    // グローバルからアクセスできるようにする
+    window.plantSearchLLM = app.searchLLM;
+    
+    // Replicate Worker URLを設定（app.jsでデフォルト値も設定済み）
+    app.setReplicateWorkerUrl('https://nurumayu-replicate-api.skume-bioinfo.workers.dev/');
+
+    // プロンプト情報アイコンのクリックイベントを設定
+    function setupPromptIcons() {
+      document.querySelectorAll('.prompt-info-icon').forEach(icon => {
+        icon.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const style = e.target.getAttribute('data-style');
+          console.log('Clicked style:', style); // デバッグ用
+          app.showPromptModal(style);
+        });
+      });
+
+      // モーダル背景クリックで閉じる
+      document.getElementById('prompt-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'prompt-modal') {
+          app.closePromptModal();
+        }
+      });
+
+      // 一致度根拠モーダル背景クリックで閉じる
+      document.getElementById('confidence-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'confidence-modal') {
+          app.closeConfidenceModal();
+        }
+      });
+    }
+
+    // ページが完全に読み込まれたら設定
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setupPromptIcons);
+    } else {
+      setupPromptIcons();
+    }
+  </script>
+</body>
+</html>
