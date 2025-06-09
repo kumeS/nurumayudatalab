@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5段階プログレス表示</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    :root {
+      --primary-color: #2c3e50;
+      --secondary-color: #3498db;
+      --success-color: #27ae60;
+      --warning-color: #f39c12;
+      --danger-color: #e74c3c;
+      --text-primary: #2c3e50;
+      --text-secondary: #7f8c8d;
+      --border-color: #ecf0f1;
+      --background-light: #f8f9fa;
+      --transition-speed: 0.3s;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: var(--text-primary);
+      background: var(--background-light);
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 10px;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: var(--primary-color);
+    }
+
+    /* プログレス表示スタイル */
+    .three-stage-progress {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .three-stage-progress h4 {
+      margin-bottom: 1rem;
+      color: var(--primary-color);
+      font-size: 1.1rem;
+    }
+
+    .stages-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .stage-item {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      border-radius: 8px;
+      transition: all var(--transition-speed);
+      border: 2px solid transparent;
+    }
+
+    .stage-pending {
+      background: #f8f9fa;
+      border-color: #e9ecef;
+    }
+
+    .stage-active {
+      background: #e3f2fd;
+      border-color: var(--secondary-color);
+      box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+    }
+
+    .stage-completed {
+      background: #e8f5e8;
+      border-color: var(--success-color);
+    }
+
+    .stage-error {
+      background: #fdeaea;
+      border-color: var(--danger-color);
+    }
+
+    .stage-icon {
+      margin-right: 1rem;
+      font-size: 1.2rem;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .stage-pending .stage-icon {
+      color: #6c757d;
+    }
+
+    .stage-active .stage-icon {
+      color: var(--secondary-color);
+    }
+
+    .stage-completed .stage-icon {
+      color: var(--success-color);
+    }
+
+    .stage-error .stage-icon {
+      color: var(--danger-color);
+    }
+
+    .stage-content {
+      flex: 1;
+    }
+
+    .stage-title {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .stage-status {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .stage-connector {
+      height: 2px;
+      background: linear-gradient(to right, #e9ecef 0%, #e9ecef 100%);
+      margin: 0.5rem 0;
+      border-radius: 1px;
+    }
+
+    .stage-connector.active {
+      background: linear-gradient(to right, var(--success-color) 0%, var(--secondary-color) 100%);
+    }
+
+    /* ボタンスタイル */
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .button.secondary {
+      background: var(--secondary-color);
+    }
+
+    .button.success {
+      background: var(--success-color);
+    }
+
+    .button.danger {
+      background: var(--danger-color);
+    }
+
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem;
+      }
+      
+      .container {
+        padding: 1rem;
+      }
+      
+      .button-group {
+        flex-direction: column;
+      }
+      
+      .stage-item {
+        padding: 0.75rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><i class="fas fa-tasks"></i> 5段階プログレス表示コンポーネント</h1>
+    
+    <!-- プログレス表示 -->
+    <div id="threeStageProgress" class="three-stage-progress">
+      <h4><i class="fas fa-tasks"></i> AI処理進行状況（5段階プロセス）</h4>
+      <div class="stages-container">
+        <div id="stage1" class="stage-item stage-pending">
+          <div class="stage-icon">
+            <i id="stage1Icon" class="fas fa-circle"></i>
+          </div>
+          <div class="stage-content">
+            <div class="stage-title">第1段階：仕様最適化</div>
+            <div id="stage1Text" class="stage-status">待機中</div>
+          </div>
+        </div>
+        
+        <div class="stage-connector"></div>
+        
+        <div id="stage2" class="stage-item stage-pending">
+          <div class="stage-icon">
+            <i id="stage2Icon" class="fas fa-circle"></i>
+          </div>
+          <div class="stage-content">
+            <div class="stage-title">第2段階：パーツベース3D生成</div>
+            <div id="stage2Text" class="stage-status">待機中</div>
+          </div>
+        </div>
+        
+        <div class="stage-connector"></div>
+        
+        <div id="stage3" class="stage-item stage-pending">
+          <div class="stage-icon">
+            <i id="stage3Icon" class="fas fa-circle"></i>
+          </div>
+          <div class="stage-content">
+            <div class="stage-title">第3段階：パーツ組み立て</div>
+            <div id="stage3Text" class="stage-status">待機中</div>
+          </div>
+        </div>
+        
+        <div class="stage-connector"></div>
+        
+        <div id="stage4" class="stage-item stage-pending">
+          <div class="stage-icon">
+            <i id="stage4Icon" class="fas fa-circle"></i>
+          </div>
+          <div class="stage-content">
+            <div class="stage-title">第4段階：接続状態確認・3Dモデル修正</div>
+            <div id="stage4Text" class="stage-status">待機中</div>
+          </div>
+        </div>
+        
+        <div class="stage-connector"></div>
+        
+        <div id="stage5" class="stage-item stage-pending">
+          <div class="stage-icon">
+            <i id="stage5Icon" class="fas fa-circle"></i>
+          </div>
+          <div class="stage-content">
+            <div class="stage-title">第5段階：品質チェック・最終調整</div>
+            <div id="stage5Text" class="stage-status">待機中</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- デモ用ボタン -->
+    <div class="button-group">
+      <button class="button" onclick="progressDemo.startDemo()">
+        <i class="fas fa-play"></i> デモ開始
+      </button>
+      <button class="button secondary" onclick="progressDemo.resetProgress()">
+        <i class="fas fa-undo"></i> リセット
+      </button>
+      <button class="button success" onclick="progressDemo.completeAll()">
+        <i class="fas fa-check-double"></i> 全完了
+      </button>
+      <button class="button danger" onclick="progressDemo.simulateError()">
+        <i class="fas fa-exclamation-triangle"></i> エラーシミュレート
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // プログレス表示管理クラス
+    class ProgressManager {
+      constructor() {
+        this.currentStage = 0;
+        this.totalStages = 5;
+      }
+
+      // プログレス表示の表示/非表示
+      showProgress(show) {
+        const progressContainer = document.getElementById('threeStageProgress');
+        if (show) {
+          progressContainer.style.display = 'block';
+          // 全ステージをリセット
+          for (let i = 1; i <= this.totalStages; i++) {
+            this.updateStageProgress(i, 'pending', '待機中');
+          }
+        } else {
+          progressContainer.style.display = 'none';
+        }
+      }
+
+      // 各段階の状態更新
+      updateStageProgress(stage, status, message) {
+        const stageElement = document.getElementById(`stage${stage}`);
+        const stageIcon = document.getElementById(`stage${stage}Icon`);
+        const stageText = document.getElementById(`stage${stage}Text`);
+        
+        if (!stageElement || !stageIcon || !stageText) {
+          console.warn(`Stage ${stage} elements not found`);
+          return;
+        }
+        
+        // 既存のクラスを削除
+        stageElement.className = `stage-item stage-${status}`;
+        
+        // アイコンを更新
+        let iconClass = '';
+        switch (status) {
+          case 'pending':
+            iconClass = 'fas fa-circle';
+            break;
+          case 'active':
+            iconClass = 'fas fa-spinner fa-spin';
+            break;
+          case 'completed':
+            iconClass = 'fas fa-check-circle';
+            break;
+          case 'error':
+            iconClass = 'fas fa-exclamation-circle';
+            break;
+        }
+        stageIcon.className = iconClass;
+        
+        // テキストを更新
+        stageText.textContent = message;
+      }
+
+      // 段階を順次進める
+      async nextStage(message = null) {
+        if (this.currentStage < this.totalStages) {
+          this.currentStage++;
+          const defaultMessages = [
+            '仕様を最適化中...',
+            'パーツベース3Dモデルを生成中...',
+            'パーツを組み立て中...',
+            'パーツ接続状態を確認・修正中...',
+            '品質チェック・最終調整中...'
+          ];
+          
+          const displayMessage = message || defaultMessages[this.currentStage - 1];
+          this.updateStageProgress(this.currentStage, 'active', displayMessage);
+          
+          return this.currentStage;
+        }
+        return null;
+      }
+
+      // 現在の段階を完了
+      completeCurrentStage(message = null) {
+        if (this.currentStage > 0) {
+          const defaultMessages = [
+            '仕様最適化完了',
+            'パーツベース3Dモデル生成完了',
+            'パーツ組み立て完了',
+            'パーツ接続状態確認・3Dモデル修正完了',
+            '品質チェック・最終調整完了'
+          ];
+          
+          const displayMessage = message || defaultMessages[this.currentStage - 1];
+          this.updateStageProgress(this.currentStage, 'completed', displayMessage);
+        }
+      }
+
+      // エラー状態にする
+      setError(stage = null, message = 'エラーが発生しました') {
+        const errorStage = stage || this.currentStage;
+        if (errorStage > 0) {
+          this.updateStageProgress(errorStage, 'error', message);
+        }
+      }
+
+      // 全体をリセット
+      reset() {
+        this.currentStage = 0;
+        for (let i = 1; i <= this.totalStages; i++) {
+          this.updateStageProgress(i, 'pending', '待機中');
+        }
+      }
+
+      // 全段階を完了状態にする
+      completeAll() {
+        const messages = [
+          '仕様最適化完了',
+          'パーツベース3Dモデル生成完了',
+          'パーツ組み立て完了',
+          'パーツ接続状態確認・3Dモデル修正完了',
+          '品質チェック・最終調整完了'
+        ];
+        
+        for (let i = 1; i <= this.totalStages; i++) {
+          this.updateStageProgress(i, 'completed', messages[i - 1]);
+        }
+        this.currentStage = this.totalStages;
+      }
+    }
+
+    // デモ用管理クラス
+    class ProgressDemo {
+      constructor() {
+        this.progress = new ProgressManager();
+        this.progress.showProgress(true);
+      }
+
+      // デモ実行
+      async startDemo() {
+        this.progress.reset();
+        
+        for (let i = 1; i <= 5; i++) {
+          // 段階開始
+          await this.progress.nextStage();
+          await this.delay(2000); // 2秒待機
+          
+          // 段階完了
+          this.progress.completeCurrentStage();
+          await this.delay(1000); // 1秒待機
+        }
+        
+        console.log('デモ完了');
+      }
+
+      // リセット
+      resetProgress() {
+        this.progress.reset();
+      }
+
+      // 全完了
+      completeAll() {
+        this.progress.completeAll();
+      }
+
+      // エラーシミュレート
+      simulateError() {
+        this.progress.reset();
+        this.progress.nextStage();
+        setTimeout(() => {
+          this.progress.setError(1, 'サンプルエラーが発生しました');
+        }, 1500);
+      }
+
+      // 遅延用ヘルパー
+      delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+    }
+
+    // グローバルインスタンス作成
+    const progressDemo = new ProgressDemo();
+
+    // 使用例をコンソールに出力
+    console.log(`
+=== 5段階プログレス表示コンポーネント ===
+
+使用方法:
+1. ProgressManagerクラスのインスタンスを作成
+2. showProgress(true)で表示
+3. updateStageProgress(stage, status, message)で更新
+
+例:
+const progress = new ProgressManager();
+progress.showProgress(true);
+progress.updateStageProgress(1, 'active', '処理中...');
+progress.updateStageProgress(1, 'completed', '完了');
+
+ステータス:
+- 'pending': 待機中
+- 'active': 実行中
+- 'completed': 完了
+- 'error': エラー
+    `);
+  </script>
+</body>
+</html> 

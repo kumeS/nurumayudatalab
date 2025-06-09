@@ -19,7 +19,7 @@ Nurumayu Data Lab is a comprehensive web-based toolkit designed to enhance the e
 - **No Installation Required**: Access all tools instantly through your web browser
 - **Free to Use**: All current tools are available at no cost
 
-**Language Support**: Currently, all tools are available in Japanese. However, we are happy to release tools in other languages upon request. Please contact us at [satoshi.kume@a.riken.jp](mailto:satoshi.kume@a.riken.jp) if you need support for a specific language.
+**Language Support**: Currently, all tools are available in Japanese. However, we are happy to release tools in other languages upon request. Please [create a new issue](https://github.com/kumeS/nurumayudatalab/issues/new) if you need support for a specific language.
 
 ## Provided Tools
 
@@ -110,4 +110,15 @@ We are continuously expanding our toolkit to meet evolving e-commerce needs:
 
 © 2025 Nurumayu Data Lab. All rights reserved.
 
-For questions, feature requests, or language support inquiries, please feel free to contact us at [satoshi.kume@a.riken.jp](mailto:satoshi.kume@a.riken.jp).
+## Contributing & Feedback
+
+We welcome your feedback and suggestions! If you have:
+
+- **Feature Requests**: Ideas for new tools or improvements to existing ones
+- **Bug Reports**: Issues you've encountered while using our tools
+- **General Questions**: Inquiries about the project or tools
+- **Language Support Requests**: Need tools in other languages
+
+Please [**create a new issue**](https://github.com/kumeS/nurumayudatalab/issues/new) on our GitHub repository. This helps us track requests efficiently and allows the community to participate in discussions.
+
+For business inquiries or consultation requests, you may contact us directly at [satoshi.kume@a.riken.jp](mailto:satoshi.kume@a.riken.jp).

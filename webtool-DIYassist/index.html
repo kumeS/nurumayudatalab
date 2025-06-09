@@ -666,6 +666,79 @@
       margin-right: 0.5rem;
     }
     
+    /* モーダルスタイル */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      max-width: 800px;
+      width: 90%;
+      max-height: 90%;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: white;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background 0.3s;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .modal-body {
+      padding: 20px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .modal-footer {
+      padding: 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
     @media (max-width: 768px) {
       .main-content {
         grid-template-columns: 1fr;
@@ -685,6 +758,11 @@
       
       .model-stats {
         grid-template-columns: 1fr;
+      }
+      
+      .modal-content {
+        width: 95%;
+        margin: 10px;
       }
     }
   </style>
@@ -777,7 +855,7 @@
           </div>
           
           <div id="threeStageProgress" class="three-stage-progress" style="display: none;">
-            <h4><i class="fas fa-tasks"></i> AI処理進行状況</h4>
+            <h4><i class="fas fa-tasks"></i> AI処理進行状況（5段階プロセス）</h4>
             <div class="stages-container">
               <div id="stage1" class="stage-item stage-pending">
                 <div class="stage-icon">
@@ -796,7 +874,7 @@
                   <i id="stage2Icon" class="fas fa-circle"></i>
                 </div>
                 <div class="stage-content">
-                  <div class="stage-title">第2段階：3Dモデル生成</div>
+                  <div class="stage-title">第2段階：パーツベース3D生成</div>
                   <div id="stage2Text" class="stage-status">待機中</div>
                 </div>
               </div>
@@ -808,8 +886,32 @@
                   <i id="stage3Icon" class="fas fa-circle"></i>
                 </div>
                 <div class="stage-content">
-                  <div class="stage-title">第3段階：品質チェック</div>
+                  <div class="stage-title">第3段階：パーツ組み立て</div>
                   <div id="stage3Text" class="stage-status">待機中</div>
+                </div>
+              </div>
+              
+              <div class="stage-connector"></div>
+              
+              <div id="stage4" class="stage-item stage-pending">
+                <div class="stage-icon">
+                  <i id="stage4Icon" class="fas fa-circle"></i>
+                </div>
+                <div class="stage-content">
+                  <div class="stage-title">第4段階：接続状態確認・3Dモデル修正</div>
+                  <div id="stage4Text" class="stage-status">待機中</div>
+                </div>
+              </div>
+              
+              <div class="stage-connector"></div>
+              
+              <div id="stage5" class="stage-item stage-pending">
+                <div class="stage-icon">
+                  <i id="stage5Icon" class="fas fa-circle"></i>
+                </div>
+                <div class="stage-content">
+                  <div class="stage-title">第5段階：品質チェック・最終調整</div>
+                  <div id="stage5Text" class="stage-status">待機中</div>
                 </div>
               </div>
             </div>
@@ -852,10 +954,15 @@
               <div class="stat-value" id="fileSize">-</div>
               <div class="stat-label">ファイルサイズ</div>
             </div>
+            <div class="stat-item">
+              <button id="showOptimizedPromptBtn" class="button secondary" style="margin-top: 10px; display: none;">
+                <i class="fas fa-code"></i> 最適化プロンプト表示
+              </button>
+            </div>
           </div>
         </div>
         
-        <div class="button-group">
+        <div id="downloadButtonGroup" class="button-group" style="display: none;">
           <button id="approveBtn" class="button" disabled>
             <i class="fas fa-check"></i> 承認してSTL生成
           </button>
@@ -879,6 +986,27 @@
       </div>
     </div>
     
+  </div>
+
+  <!-- プロンプト表示ポップアップ -->
+  <div id="promptModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-code"></i> 最適化されたプロンプト</h3>
+        <button id="closePromptModal" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <pre id="optimizedPromptContent" style="white-space: pre-wrap; background: #f5f5f5; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4;"></pre>
+      </div>
+      <div class="modal-footer">
+        <button id="copyPromptBtn" class="button secondary">
+          <i class="fas fa-copy"></i> コピー
+        </button>
+        <button id="closePromptModalBtn" class="button">
+          <i class="fas fa-times"></i> 閉じる
+        </button>
+      </div>
+    </div>
   </div>
 
   <script>
