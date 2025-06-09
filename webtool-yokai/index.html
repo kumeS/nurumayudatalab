@@ -788,6 +788,103 @@
         padding: 0.8rem 0.5rem;
         font-size: 0.9rem;
       }
+
+      /* スタイル・時間選択のスマホ対応 */
+      .style-options, .time-options {
+        justify-content: center;
+        gap: 0.4rem;
+      }
+
+      .style-option, .time-option {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+        min-width: 80px;
+        text-align: center;
+      }
+
+      /* 画像コンテナのスマホ対応 */
+      .yokai-image-container {
+        width: 100%;
+        height: 0;
+        padding-bottom: 100%; /* 1:1比率を確実に維持 */
+        position: relative;
+        margin-bottom: 1rem;
+      }
+
+      .yokai-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .image-placeholder {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90%;
+      }
+
+      .yokai-image-loading {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        padding: 1rem;
+      }
+
+      /* アクションボタンのスマホ対応 */
+      .yokai-actions {
+        justify-content: center;
+        gap: 0.8rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .action-btn {
+        padding: 0.7rem 1.2rem;
+        font-size: 0.9rem;
+        min-width: 120px;
+        justify-content: center;
+      }
+
+      /* 信頼度バッジのiマーク拡大 */
+      .confidence-info-btn {
+        padding: 0.4rem;
+        font-size: 0.9rem;
+        min-width: 24px;
+        min-height: 24px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .confidence-badge {
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+        gap: 0.8rem;
+      }
+
+      /* 保存済み画像グリッドのスマホ対応 */
+      .collection-grid, .saved-images-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.8rem;
+      }
+
+      .collection-item, .saved-image-item {
+        padding: 0.8rem;
+      }
+
+      .collection-name, .saved-image-name {
+        font-size: 0.9rem;
+      }
+
+      .collection-scientific, .saved-image-scientific {
+        font-size: 0.75rem;
+      }
     }
 
     @media (max-width: 480px) {
@@ -795,12 +892,114 @@
         font-size: 1.7rem;
       }
 
-      .yokai-image-container {
-        height: 150px;
+      .header .description {
+        padding: 0.8rem;
+        font-size: 0.9rem;
       }
 
+      .search-section {
+        padding: 1rem;
+      }
+
+      .yokai-card {
+        padding: 0.8rem;
+      }
+
+      /* より小さい画面での画像調整 */
+      .yokai-image-container {
+        margin-bottom: 0.8rem;
+      }
+
+      .yokai-loading-icon {
+        font-size: 2.5rem;
+      }
+
+      .yokai-loading-text {
+        font-size: 1rem;
+      }
+
+      .yokai-loading-subtext {
+        font-size: 0.85rem;
+      }
+
+      /* アクションボタンをフル幅に */
       .yokai-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .action-btn {
+        width: 100%;
+        min-width: unset;
+        padding: 0.8rem;
+        font-size: 1rem;
+      }
+
+      /* 信頼度バッジをさらに拡大 */
+      .confidence-info-btn {
+        padding: 0.5rem;
+        font-size: 1rem;
+        min-width: 28px;
+        min-height: 28px;
+      }
+
+      .confidence-badge {
+        padding: 0.5rem 1.2rem;
+        font-size: 1rem;
+        gap: 1rem;
+      }
+
+      /* 妖怪ヘッダーの調整 */
+      .yokai-header {
+        flex-direction: column;
+        gap: 0.8rem;
+        align-items: flex-start;
+      }
+
+      .confidence-badge {
+        align-self: flex-end;
+      }
+
+      /* 詳細情報の調整 */
+      .features-title {
+        font-size: 0.95rem;
+      }
+
+      .features-content {
+        font-size: 0.85rem;
+      }
+
+      /* 保存済み画像グリッドを1列に */
+      .collection-grid, .saved-images-grid {
+        grid-template-columns: 1fr;
+        gap: 0.6rem;
+      }
+
+      .collection-item, .saved-image-item {
+        padding: 0.6rem;
+      }
+
+      .collection-actions, .saved-image-actions {
         justify-content: center;
+        margin-top: 0.5rem;
+      }
+
+      .remove-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+      }
+
+      /* スタイル・時間選択をフル幅に */
+      .style-options, .time-options {
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+
+      .style-option, .time-option {
+        width: 100%;
+        padding: 0.6rem;
+        font-size: 0.9rem;
+        min-width: unset;
       }
     }
 
