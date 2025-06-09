@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-F54LKE733T"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-F54LKE733T');
+  </script>
+  <title>ぬるっと翻訳・校閲ツール｜LLM活用テキスト処理ツール</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ff7e5f;
+      --secondary: #feb47b;
+      --accent: #7ee8fa;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+    }
+    
+    body { 
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    h1 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+    }
+    
+    .description {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    
+    .tabs {
+      display: flex;
+      background-color: #fff;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 1rem;
+      text-align: center;
+      background-color: #f8f9fa;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+    }
+    
+    .tab:hover {
+      background-color: #fff;
+      color: var(--primary);
+    }
+    
+    .tab.active {
+      background-color: #fff;
+      color: var(--primary);
+      font-weight: bold;
+      border-bottom: 3px solid var(--primary);
+      /* Make the active tab more distinct */
+      box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .model-selection {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .model-selection-label {
+      font-weight: bold;
+      margin-right: 1rem;
+      color: var(--text-primary);
+    }
+    
+    .model-option {
+      display: flex;
+      align-items: center;
+      margin-right: 0.5rem;
+    }
+    
+    .model-name {
+      margin-left: 0.5rem;
+      color: var(--text-primary);
+    }
+    
+    .model-note {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-left: 0.5rem;
+    }
+    
+    .input-area {
+      width: 100%;
+      min-height: 150px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      resize: vertical;
+      font-size: 1rem;
+      font-family: inherit;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .button-container, .button-group {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 1.5rem;
+    }
+    
+    .button {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.6rem 1.2rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .button i {
+      margin-right: 0.5rem;
+    }
+    
+    .copy-success {
+      background: linear-gradient(135deg, #4CAF50, #8BC34A) !important;
+    }
+    
+    .speak-active {
+      background: linear-gradient(135deg, #2196F3, #03A9F4) !important;
+    }
+    
+    .speak-disabled {
+      background: linear-gradient(135deg, #9E9E9E, #BDBDBD) !important;
+      cursor: not-allowed;
+    }
+    
+    .output-container {
+      margin-bottom: 2rem;
+    }
+    
+    .output-section {
+      margin-bottom: 1.5rem;
+    }
+    
+    .output-area {
+      width: 100%;
+      min-height: 100px;
+      padding: 1rem;
+      margin-top: 0.5rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      resize: vertical;
+      font-size: 1rem;
+      font-family: inherit;
+      box-shadow: var(--card-shadow);
+    }
+    
+    h3 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .review-output {
+      background-color: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+      min-height: 50px;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    
+    /* 校閲結果のスタイル強化 */
+    .review-output h4 {
+      color: var(--primary);
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+      border-bottom: 1px solid rgba(255, 126, 95, 0.2);
+      padding-bottom: 0.3rem;
+    }
+    
+    .review-output ol, .review-output ul {
+      padding-left: 1.5rem;
+      margin-bottom: 0.8rem;
+    }
+    
+    .review-output li {
+      margin-bottom: 0.5rem;
+    }
+    
+    .review-output strong {
+      color: var(--primary);
+    }
+    
+    /* 変更箇所ハイライト用スタイル */
+    .diff-removed {
+      background-color: #ffecec;
+      color: #b30000;
+      text-decoration: line-through;
+      padding: 1px 3px;
+      border-radius: 2px;
+    }
+    
+    .diff-added {
+      background-color: #eaffea;
+      color: #006b00;
+      font-weight: bold;
+      padding: 1px 3px;
+      border-radius: 2px;
+    }
+    
+    /* 入力欄のハイライト効果 */
+    @keyframes highlight-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(255, 126, 95, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0); }
+    }
+    
+    .highlight-input {
+      animation: highlight-pulse 1s ease-in-out;
+      border-color: var(--primary);
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      color: var(--primary);
+      text-decoration: none;
+      margin-top: 1rem;
+      transition: all 0.3s;
+    }
+    
+    .back-link:hover {
+      color: var(--secondary);
+    }
+    
+    .back-link i {
+      margin-right: 0.5rem;
+    }
+    
+    .loading {
+      display: none; /* 初期状態は非表示 */
+      margin-left: 10px;
+      font-size: 0.9rem;
+      align-items: center;
+    }
+    
+    /* 表示時はflex */
+    .loading.active {
+      display: flex;
+    }
+    
+    .loading-text {
+      margin-left: 8px;
+      color: var(--primary);
+      position: relative;
+    }
+    
+    .loading-text:after {
+      content: '...';
+      position: absolute;
+      width: 24px;
+      text-align: left;
+      animation: dots 1.5s infinite;
+    }
+    
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+    }
+    
+    .dot-pulse {
+      position: relative;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+      50% {
+        transform: scale(1.2);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+    }
+    
+    .usage-guide {
+      background-color: #fff;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--card-shadow);
+    }
+    
+    .usage-guide h3 {
+      margin-top: 0;
+    }
+    
+    .guide-step {
+      display: flex;
+      margin-bottom: 1rem;
+    }
+    
+    .step-number {
+      background-color: var(--primary);
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      font-weight: bold;
+    }
+    
+    .toggle-guide {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 1rem;
+      color: var(--primary);
+    }
+    
+    .toggle-guide i {
+      margin-right: 0.5rem;
+    }
+    
+    .warning {
+      background-color: #fff3cd;
+      color: #856404;
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ffeeba;
+      border-radius: 0.25rem;
+    }
+    
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1rem;
+      border: 1px solid #f5c6cb;
+      border-radius: 0.25rem;
+    }
+    
+    /* 使い方アコーディオンのスタイル */
+    .instruction-box {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+      background-color: #fff;
+    }
+    
+    .instruction-toggle {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      cursor: pointer;
+      background-color: #f8f9fa;
+      transition: all 0.3s ease;
+    }
+    
+    .instruction-toggle.active {
+      background-color: #f0f0f0;
+    }
+    
+    .instruction-toggle i {
+      margin-right: 0.8rem;
+      transition: transform 0.3s ease;
+    }
+    
+    .instruction-toggle.active i {
+      transform: rotate(180deg);
+    }
+    
+    .instruction-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    
+    .instruction-content.show {
+      max-height: 1000px;
+      padding: 1rem;
+    }
+    
+    .step {
+      margin-bottom: 1rem;
+    }
+    
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background-color: var(--primary);
+      color: white;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      font-weight: bold;
+    }
+    
+    @media (max-width: 600px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      .tab {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+      }
+      
+      .button-container {
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>ぬるっと翻訳・校閲ツール</h1>
+      <p class="description">LLM活用テキスト処理ツール｜翻訳・文章校閲</p>
+    </div>
+    
+    <div class="usage-guide">
+      <div class="toggle-guide">
+        <i class="fas fa-info-circle"></i>
+        <h3>使い方を表示</h3>
+      </div>
+      <div class="guide-content" style="display: none;">
+        <div class="guide-step">
+          <div class="step-number">1</div>
+          <div>
+            <strong>モード選択:</strong> 上部タブから処理モードを選択
+            <ul>
+              <li>日本語→英語: 日本語を英語に翻訳</li>
+              <li>英語→日本語: 英語を日本語に翻訳</li>
+              <li>日本語校閲: 日本語文の添削と改善提案</li>
+              <li>英語校閲: 英語文の添削と改善提案（日本語で解説）</li>
+            </ul>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-number">2</div>
+          <div>
+            <strong>テキスト入力:</strong> テキストエリアにテキストを入力
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-number">3</div>
+          <div>
+            <strong>実行ボタン:</strong> クリックでAIが処理
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-number">4</div>
+          <div>
+            <strong>結果確認:</strong> 下部に表示される結果を確認
+            <ul>
+              <li>最終結果: コピー可能なテキスト</li>
+              <li>校閲詳細: 解説部分（コピー不可）</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- モード選択タブ -->
+    <div class="tabs">
+      <div class="tab active" id="tab-jaen">日本語→英語</div>
+      <div class="tab" id="tab-enja">英語→日本語</div>
+      <div class="tab" id="tab-jajarev">日本語校閲</div>
+      <div class="tab" id="tab-enrev">英語校閲</div>
+    </div>
+    
+    <!-- モデル選択 -->
+    <div class="model-selection">
+      <label class="model-selection-label">使用モデル:</label>
+      <div class="model-option">
+        <input type="radio" id="model-llama4" name="model" checked disabled>
+        <label for="model-llama4" class="model-name">Llama-4-Maverick-17B-128E-Instruct-FP8</label>
+        <span class="model-note">（現在このモデルのみ利用可能）</span>
+      </div>
+    </div>
+    
+    <!-- 入力エリア -->
+    <textarea id="inputArea" class="input-area" placeholder="ここにテキストを入力してください..."></textarea>
+    
+    <!-- ボタン部分 -->
+    <div class="button-container">
+      <button id="runBtn" class="button"><i class="fas fa-play"></i> 実行</button>
+      <button id="resetBtn" class="button"><i class="fas fa-trash"></i> クリア</button>
+      <div id="loadingIndicator" class="loading">
+        <div class="dot-pulse"></div>
+        <span class="loading-text">処理中</span>
+      </div>
+    </div>
+    
+    <!-- 出力部分 -->
+    <div class="output-container">
+      <div class="output-section">
+        <h3>校閲結果</h3>
+        <div id="review" class="review-output"></div>
+      </div>
+      <div class="output-section">
+        <h3>最終結果</h3>
+        <textarea id="final" class="output-area" readonly></textarea>
+        <div class="button-group">
+          <button id="copyBtn" class="button"><i class="fas fa-copy"></i> コピー</button>
+          <button id="speakBtn" class="button"><i class="fas fa-volume-up"></i> 読み上げ</button>
+          <button id="toInputBtn" class="button"><i class="fas fa-arrow-up"></i> 入力欄に戻す</button>
+        </div>
+      </div>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem;">
+      <a href="../index.html" class="back-link"><i class="fas fa-arrow-left"></i> ぬるま湯データラボに戻る</a>
+      <a href="diy-assistant.html" class="back-link" style="background: linear-gradient(135deg, #4CAF50, #8BC34A); color: white; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none;">
+        <i class="fas fa-hammer"></i> DIYアシスタント
+      </a>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html> 

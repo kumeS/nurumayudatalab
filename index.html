@@ -558,17 +558,12 @@
         <div id="ecommerceToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       </div>
 
-      <!-- Specialized AI Systems Category (In Development) -->
+      <!-- Specialized AI Systems Category -->
       <div class="category-section mb-12">
-        <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-gray-300 pb-2">
-          <i class="fas fa-cogs mr-3 text-gray-500"></i>分野特化AIシステム
-          <span class="text-sm font-normal text-gray-500 ml-2">(開発中)</span>
+        <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-green-300 pb-2">
+          <i class="fas fa-cogs mr-3 text-green-500"></i>分野特化AIシステム
         </h3>
-        <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-          <i class="fas fa-hammer text-4xl text-gray-400 mb-4"></i>
-          <h4 class="text-lg font-semibold text-gray-600 mb-2">開発中</h4>
-          <p class="text-gray-500">専門分野に特化したAIシステムを開発中です。<br>近日公開予定です。</p>
-        </div>
+        <div id="specializedToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       </div>
       
       <!-- No Results Message -->
@@ -732,6 +727,20 @@
           "url": "./webtool-matching-machine/index.html",
           "icon": "fa-search"
         }
+      ],
+      specialized: [
+        {
+          "title": "AI植物辞典",
+          "desc": "曖昧な表現から植物を特定できるAI辞典システム。「赤い花が咲く低木」などの特徴から該当する植物を発見し、詳細な情報を提供します。",
+          "url": "./webtool-plant-dic/index.html",
+          "icon": "fa-leaf"
+        },
+        {
+          "title": "AI妖怪辞典",
+          "desc": "曖昧な表現から妖怪を特定できるAI辞典システム。「川に住む怖い妖怪」などの特徴から該当する妖怪を発見し、詳細な情報を提供します。",
+          "url": "./webtool-yokai/index.html",
+          "icon": "fa-ghost"
+        }
       ]
     };
 
@@ -759,12 +768,14 @@
       const lifestyleGrid = document.getElementById('lifestyleToolsGrid');
       const educationalGrid = document.getElementById('educationalToolsGrid');
       const ecommerceGrid = document.getElementById('ecommerceToolsGrid');
+      const specializedGrid = document.getElementById('specializedToolsGrid');
       
       // 各カテゴリーをレンダリング
       renderCategoryTools(generalGrid, toolCategories.general);
       renderCategoryTools(lifestyleGrid, toolCategories.lifestyle);
       renderCategoryTools(educationalGrid, toolCategories.educational);
       renderCategoryTools(ecommerceGrid, toolCategories.ecommerce);
+      renderCategoryTools(specializedGrid, toolCategories.specialized);
       
       // ローディング表示を非表示にする
       loadingIndicator.style.display = 'none';

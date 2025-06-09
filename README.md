@@ -59,6 +59,18 @@ Nurumayu Data Lab is a comprehensive web-based toolkit designed to enhance the e
 - **Subject-Specific Templates**: Pre-configured formats for various subjects including math, science, language arts, and social studies
 - **Interactive Learning Elements**: Gamification features and visual aids to enhance student engagement and retention
 
+### Domain-Specialized AI Dictionary Systems
+
+#### [AI Plant Dictionary](https://nurumayudatalab.com/webtool-plant-dic/index.html)
+- **Ambiguous Query Processing**: Identifies plants from vague descriptions like "red flowering shrub" or "tall tree with yellow leaves"
+- **Comprehensive Plant Database**: Extensive collection of plant information with detailed characteristics and care instructions
+- **Intelligent Matching**: AI-powered system that understands natural language queries and matches them to appropriate plant species
+
+#### [AI Yokai Dictionary](https://nurumayudatalab.com/webtool-yokai/index.html)
+- **Folklore Knowledge Base**: Comprehensive database of Japanese yokai (supernatural creatures) with detailed descriptions and origins
+- **Natural Language Search**: Find yokai through ambiguous descriptions like "scary creature living in rivers" or "mischievous forest spirit"
+- **Cultural Context**: Provides historical and cultural background information for each yokai entry
+
 ### E-commerce Tools
 
 #### [Keyword Formatting Tool](https://nurumayudatalab.com/webtool-keyword-tool/index.html)
