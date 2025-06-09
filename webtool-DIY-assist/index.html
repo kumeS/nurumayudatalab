@@ -186,28 +186,7 @@
       margin-bottom: 1rem;
     }
     
-    .sample-buttons {
-      background: #f0f8ff;
-      padding: 1rem;
-      border-radius: var(--border-radius);
-      margin-bottom: 1rem;
-      border-left: 4px solid var(--accent);
-    }
-    
-    .sample-buttons h4 {
-      margin: 0 0 1rem 0;
-      color: var(--text-primary);
-      font-size: 1rem;
-    }
-    
-    .sample-group {
-      flex-wrap: wrap;
-    }
-    
-    .sample-group .button {
-      flex: 1;
-      min-width: 120px;
-    }
+
     
     .button {
       display: inline-flex;
@@ -637,6 +616,131 @@
       color: var(--text-primary);
       margin: 0;
     }
+
+    /* 第2段階：3Dモデル生成結果 */
+    .model-generation-results {
+      background: #f0fff0;
+      padding: 1.5rem;
+      border-radius: var(--border-radius);
+      margin-bottom: 1rem;
+      border-left: 4px solid #4caf50;
+    }
+
+    .model-summary {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+
+    .model-section {
+      margin-bottom: 1rem;
+    }
+
+    .model-section h5 {
+      margin: 0 0 0.5rem 0;
+      color: #4caf50;
+      font-size: 1rem;
+    }
+
+    .model-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .model-dimensions ul,
+    .model-structure ul {
+      margin: 0.5rem 0;
+      padding-left: 1.5rem;
+    }
+
+    .model-dimensions li,
+    .model-structure li {
+      margin-bottom: 0.3rem;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+    }
+
+    /* 第3段階：品質検証結果 */
+    .quality-check-results {
+      background: #fff8f0;
+      padding: 1.5rem;
+      border-radius: var(--border-radius);
+      margin-bottom: 1rem;
+      border-left: 4px solid #ff9800;
+    }
+
+    .quality-summary {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+
+    .quality-section {
+      margin-bottom: 1rem;
+    }
+
+    .quality-section h5 {
+      margin: 0 0 0.5rem 0;
+      color: #ff9800;
+      font-size: 1rem;
+    }
+
+    .quality-evaluations {
+      display: grid;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .evaluation-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: white;
+      border-radius: 4px;
+    }
+
+    .evaluation-comment {
+      font-size: 0.9rem;
+      color: #666;
+      margin-left: auto;
+    }
+
+    .quality-issues {
+      background: #ffebee;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+
+    .quality-issues h6 {
+      margin: 0 0 0.5rem 0;
+      color: #d32f2f;
+    }
+
+    .quality-recommendations {
+      background: #e8f5e8;
+      padding: 1rem;
+      border-radius: 4px;
+    }
+
+    .quality-recommendations h6 {
+      margin: 0 0 0.5rem 0;
+      color: #2e7d32;
+    }
+
+    .quality-issues ul,
+    .quality-recommendations ul {
+      margin: 0;
+      padding-left: 1.5rem;
+    }
+
+    .quality-issues li,
+    .quality-recommendations li {
+      margin-bottom: 0.3rem;
+      font-size: 0.9rem;
+    }
     
     .safety-list {
       margin: 0;
@@ -739,6 +843,86 @@
       justify-content: flex-end;
     }
 
+    /* サンプルボタンのスタイル */
+    .sample-btn:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+      filter: brightness(1.05);
+    }
+    
+    .sample-btn:active {
+      transform: translateY(-1px) scale(1.01);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    /* 各ボタンの個別ホバー効果 */
+    .sample-btn[data-sample="desk"]:hover {
+      border-color: #1976d2 !important;
+      background: linear-gradient(135deg, #bbdefb 0%, #e3f2fd 100%) !important;
+    }
+
+    .sample-btn[data-sample="shelf"]:hover {
+      border-color: #7b1fa2 !important;
+      background: linear-gradient(135deg, #e1bee7 0%, #f3e5f5 100%) !important;
+    }
+
+    .sample-btn[data-sample="chair"]:hover {
+      border-color: #f57c00 !important;
+      background: linear-gradient(135deg, #ffcc02 0%, #fff3e0 100%) !important;
+    }
+
+    .sample-btn[data-sample="cabinet"]:hover {
+      border-color: #388e3c !important;
+      background: linear-gradient(135deg, #c8e6c9 0%, #e8f5e8 100%) !important;
+    }
+
+    /* アイコンのアニメーション効果 */
+    .sample-btn i {
+      transition: all 0.3s ease;
+    }
+
+    .sample-btn:hover i {
+      transform: scale(1.1) rotate(5deg);
+    }
+
+    .sample-btn[data-sample="desk"]:hover i {
+      animation: bounce 0.6s ease-in-out;
+    }
+
+    .sample-btn[data-sample="shelf"]:hover i {
+      animation: wiggle 0.6s ease-in-out;
+    }
+
+    .sample-btn[data-sample="chair"]:hover i {
+      animation: pulse 0.6s ease-in-out;
+    }
+
+    .sample-btn[data-sample="cabinet"]:hover i {
+      animation: rotate 0.6s ease-in-out;
+    }
+
+    @keyframes bounce {
+      0%, 20%, 60%, 100% { transform: scale(1.1) translateY(0); }
+      40% { transform: scale(1.1) translateY(-3px); }
+      80% { transform: scale(1.1) translateY(-1px); }
+    }
+
+    @keyframes wiggle {
+      0%, 100% { transform: scale(1.1) rotate(0deg); }
+      25% { transform: scale(1.1) rotate(5deg); }
+      75% { transform: scale(1.1) rotate(-5deg); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1.1); }
+      50% { transform: scale(1.2); }
+    }
+
+    @keyframes rotate {
+      0% { transform: scale(1.1) rotate(0deg); }
+      100% { transform: scale(1.1) rotate(360deg); }
+    }
+
     @media (max-width: 768px) {
       .main-content {
         grid-template-columns: 1fr;
@@ -763,6 +947,19 @@
       .modal-content {
         width: 95%;
         margin: 10px;
+      }
+      
+      .sample-buttons div {
+        justify-content: center;
+      }
+      
+      .sample-btn {
+        flex: 1;
+        min-width: 120px;
+      }
+      
+      .model-info {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -807,10 +1004,42 @@
         <div class="input-form">
           <div class="form-group">
             <label for="designPrompt">家具の仕様を自然言語で記述してください</label>
+            
+            <!-- サンプルボタンを追加 -->
+            <div class="sample-buttons" style="margin-bottom: 1rem;">
+              <h5 style="margin: 0 0 0.5rem 0; color: var(--text-secondary); font-size: 0.9rem;">
+                <i class="fas fa-lightbulb"></i> サンプル例：
+              </h5>
+              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="sample-btn" data-sample="desk" style="background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%); border: 1px solid #2196f3; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary); transition: all 0.3s; box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);">
+                  <i class="fas fa-table" style="color: #2196f3; margin-right: 0.3rem;"></i> 学習デスク
+                </button>
+                <button class="sample-btn" data-sample="shelf" style="background: linear-gradient(135deg, #f3e5f5 0%, #fce4ec 100%); border: 1px solid #9c27b0; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary); transition: all 0.3s; box-shadow: 0 2px 4px rgba(156, 39, 176, 0.1);">
+                  <i class="fas fa-book-open" style="color: #9c27b0; margin-right: 0.3rem;"></i> 本棚
+                </button>
+                <button class="sample-btn" data-sample="chair" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border: 1px solid #ff9800; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary); transition: all 0.3s; box-shadow: 0 2px 4px rgba(255, 152, 0, 0.1);">
+                  <i class="fas fa-chair" style="color: #ff9800; margin-right: 0.3rem;"></i> ダイニングチェア
+                </button>
+                <button class="sample-btn" data-sample="cabinet" style="background: linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%); border: 1px solid #4caf50; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary); transition: all 0.3s; box-shadow: 0 2px 4px rgba(76, 175, 80, 0.1);">
+                  <i class="fas fa-archive" style="color: #4caf50; margin-right: 0.3rem;"></i> キャビネット
+                </button>
+              </div>
+            </div>
+            
             <textarea 
               id="designPrompt" 
               class="input-area" 
-              placeholder="例：幅120cm×奥行60cm×高さ75cmの机、引き出し2つ付き、北欧風デザイン"
+              placeholder="家具の設計仕様を自然言語で記述してください。
+
+【記載内容の例】
+• サイズ：幅○○cm × 奥行○○cm × 高さ○○cm
+• 材質：木材、金属、プラスチックなど
+• 機能：引き出し、扉、棚、キャスターなど
+• デザイン：北欧風、モダン、クラシックなど
+• 用途：リビング用、オフィス用、子供部屋用など
+• 特記事項：耐荷重、組み立て方式、安全性要件など
+
+上記サンプルボタンを参考に、具体的な仕様をご入力ください。"
             ></textarea>
           </div>
           
@@ -830,20 +1059,7 @@
             </div>
           </div>
           
-          <div class="sample-buttons">
-            <h4><i class="fas fa-lightbulb"></i> サンプルデータ</h4>
-            <div class="button-group sample-group">
-              <button id="sample1Btn" class="button secondary">
-                <i class="fas fa-chair"></i> シンプルな椅子
-              </button>
-              <button id="sample2Btn" class="button secondary">
-                <i class="fas fa-table"></i> 木製テーブル
-              </button>
-              <button id="sample3Btn" class="button secondary">
-                <i class="fas fa-book"></i> 本棚
-              </button>
-            </div>
-          </div>
+
           
           <div class="button-group">
             <button id="generateBtn" class="button">
@@ -855,14 +1071,14 @@
           </div>
           
           <div id="threeStageProgress" class="three-stage-progress" style="display: none;">
-            <h4><i class="fas fa-tasks"></i> AI処理進行状況（5段階プロセス）</h4>
+            <h4><i class="fas fa-tasks"></i> AI処理進行状況（3段階プロセス）</h4>
             <div class="stages-container">
               <div id="stage1" class="stage-item stage-pending">
                 <div class="stage-icon">
                   <i id="stage1Icon" class="fas fa-circle"></i>
                 </div>
                 <div class="stage-content">
-                  <div class="stage-title">第1段階：仕様最適化</div>
+                  <div class="stage-title">第1段階：仕様分析と最適化</div>
                   <div id="stage1Text" class="stage-status">待機中</div>
                 </div>
               </div>
@@ -874,7 +1090,7 @@
                   <i id="stage2Icon" class="fas fa-circle"></i>
                 </div>
                 <div class="stage-content">
-                  <div class="stage-title">第2段階：パーツベース3D生成</div>
+                  <div class="stage-title">第2段階：統合3Dモデル生成</div>
                   <div id="stage2Text" class="stage-status">待機中</div>
                 </div>
               </div>
@@ -886,32 +1102,8 @@
                   <i id="stage3Icon" class="fas fa-circle"></i>
                 </div>
                 <div class="stage-content">
-                  <div class="stage-title">第3段階：パーツ組み立て</div>
+                  <div class="stage-title">第3段階：品質検証と最終調整</div>
                   <div id="stage3Text" class="stage-status">待機中</div>
-                </div>
-              </div>
-              
-              <div class="stage-connector"></div>
-              
-              <div id="stage4" class="stage-item stage-pending">
-                <div class="stage-icon">
-                  <i id="stage4Icon" class="fas fa-circle"></i>
-                </div>
-                <div class="stage-content">
-                  <div class="stage-title">第4段階：接続状態確認・3Dモデル修正</div>
-                  <div id="stage4Text" class="stage-status">待機中</div>
-                </div>
-              </div>
-              
-              <div class="stage-connector"></div>
-              
-              <div id="stage5" class="stage-item stage-pending">
-                <div class="stage-icon">
-                  <i id="stage5Icon" class="fas fa-circle"></i>
-                </div>
-                <div class="stage-content">
-                  <div class="stage-title">第5段階：品質チェック・最終調整</div>
-                  <div id="stage5Text" class="stage-status">待機中</div>
                 </div>
               </div>
             </div>
@@ -932,10 +1124,11 @@
         <h2 class="section-title"><i class="fas fa-cube"></i> 3Dプレビュー</h2>
         
         <div class="canvas-container">
-          <canvas id="three-canvas"></canvas>
-          <div class="canvas-overlay" id="canvasOverlay">
-            <i class="fas fa-cube" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>
-            <div>3Dモデルがここに表示されます</div>
+          <div id="threeContainer" style="width: 100%; height: 400px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; position: relative;">
+            <div class="canvas-overlay" id="canvasOverlay">
+              <i class="fas fa-cube" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>
+              <div>3Dモデルがここに表示されます</div>
+            </div>
           </div>
         </div>
         
@@ -954,8 +1147,26 @@
               <div class="stat-value" id="fileSize">-</div>
               <div class="stat-label">ファイルサイズ</div>
             </div>
-            <div class="stat-item">
-              <button id="showOptimizedPromptBtn" class="button secondary" style="margin-top: 10px; display: none;">
+          </div>
+          
+          <!-- 段階別結果表示ボタン -->
+          <div class="stage-results-buttons" style="margin-top: 1rem;">
+            <h5 style="margin: 0 0 0.5rem 0; color: var(--primary); font-size: 1rem;">
+              <i class="fas fa-chart-line"></i> 処理結果詳細
+            </h5>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+              <button id="showStage1ResultBtn" class="button secondary" style="display: none; padding: 0.5rem; font-size: 0.85rem;">
+                <i class="fas fa-cogs"></i> 第1段階結果
+              </button>
+              <button id="showStage2ResultBtn" class="button secondary" style="display: none; padding: 0.5rem; font-size: 0.85rem;">
+                <i class="fas fa-cube"></i> 第2段階結果
+              </button>
+              <button id="showStage3ResultBtn" class="button secondary" style="display: none; padding: 0.5rem; font-size: 0.85rem;">
+                <i class="fas fa-check-circle"></i> 第3段階結果
+              </button>
+            </div>
+            <div style="margin-top: 0.5rem;">
+              <button id="showOptimizedPromptBtn" class="button secondary" style="display: none; width: 100%; padding: 0.5rem; font-size: 0.85rem;">
                 <i class="fas fa-code"></i> 最適化プロンプト表示
               </button>
             </div>
@@ -963,14 +1174,8 @@
         </div>
         
         <div id="downloadButtonGroup" class="button-group" style="display: none;">
-          <button id="approveBtn" class="button" disabled>
-            <i class="fas fa-check"></i> 承認してSTL生成
-          </button>
-          <button id="downloadObjBtn" class="button secondary" disabled>
+          <button id="downloadObjBtn" class="button" disabled>
             <i class="fas fa-download"></i> OBJダウンロード
-          </button>
-          <button id="downloadStlBtn" class="button secondary" disabled>
-            <i class="fas fa-download"></i> STLダウンロード
           </button>
         </div>
       </div>
@@ -978,7 +1183,12 @@
     
     <!-- プロジェクト管理 -->
     <div class="project-list">
-      <h2 class="section-title"><i class="fas fa-folder"></i> プロジェクト履歴</h2>
+      <div class="section-header">
+        <h2 class="section-title"><i class="fas fa-folder"></i> プロジェクト履歴</h2>
+        <button id="clearAllProjectsBtn" class="button danger" style="display: none;" title="全てのプロジェクト履歴を削除">
+          <i class="fas fa-trash-alt"></i> 全履歴削除
+        </button>
+      </div>
       <div id="projectListContainer">
         <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
           まだプロジェクトが作成されていません
@@ -1009,18 +1219,130 @@
     </div>
   </div>
 
+  <!-- 段階別結果表示ポップアップ -->
+  <div id="stageResultModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="stageResultModalTitle"><i class="fas fa-chart-line"></i> 処理結果詳細</h3>
+        <button id="closeStageResultModal" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="stageResultContent" style="max-height: 500px; overflow-y: auto;"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="closeStageResultModalBtn" class="button">
+          <i class="fas fa-times"></i> 閉じる
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three.jsライブラリ - 統一されたCDNを使用 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/examples/js/loaders/OBJLoader.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/examples/js/controls/OrbitControls.js"></script>
+  
   <script>
-    // DIYアシスタント初期化
-    document.addEventListener('DOMContentLoaded', function() {
-      // デバッグモード: URLパラメータでlocalStorageクリア
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('debug') === 'clear') {
-        localStorage.clear();
-        console.log('LocalStorage cleared for debugging');
+    // Three.js読み込み確認とフォールバック
+    function checkThreeJSLibraries() {
+      console.log('=== Three.js Library Check ===');
+      
+      if (typeof THREE !== 'undefined') {
+        console.log('✅ Three.js loaded successfully:', THREE.REVISION);
+        
+        // OBJLoaderチェック
+        if (typeof THREE.OBJLoader !== 'undefined') {
+          console.log('✅ OBJLoader loaded successfully');
+        } else {
+          console.log('❌ OBJLoader not found - loading fallback');
+          loadOBJLoaderFallback();
+        }
+        
+        // OrbitControlsチェック
+        if (typeof THREE.OrbitControls !== 'undefined') {
+          console.log('✅ OrbitControls loaded successfully');
+        } else {
+          console.log('❌ OrbitControls not found - loading fallback');
+          loadOrbitControlsFallback();
+        }
+        
+      } else {
+        console.error('❌ Three.js not loaded - loading fallback');
+        loadThreeJSFallback();
       }
-      window.diyAssistant = new DIYAssistant();
-    });
+    }
+    
+    // OBJLoaderフォールバック
+    function loadOBJLoaderFallback() {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/three@0.152.0/examples/js/loaders/OBJLoader.js';
+      script.onload = () => {
+        console.log('✅ OBJLoader fallback loaded');
+        window.OBJLoaderReady = true;
+      };
+      script.onerror = () => {
+        console.error('❌ OBJLoader fallback failed - trying alternative');
+        const altScript = document.createElement('script');
+        altScript.src = 'https://threejs.org/examples/js/loaders/OBJLoader.js';
+        altScript.onload = () => {
+          console.log('✅ OBJLoader alternative loaded');
+          window.OBJLoaderReady = true;
+        };
+        altScript.onerror = () => {
+          console.error('❌ All OBJLoader sources failed');
+          window.OBJLoaderFailed = true;
+        };
+        document.head.appendChild(altScript);
+      };
+      document.head.appendChild(script);
+    }
+    
+    // OrbitControlsフォールバック
+    function loadOrbitControlsFallback() {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/three@0.152.0/examples/js/controls/OrbitControls.js';
+      script.onload = () => {
+        console.log('✅ OrbitControls fallback loaded');
+      };
+      script.onerror = () => {
+        console.error('❌ OrbitControls fallback failed');
+      };
+      document.head.appendChild(script);
+    }
+    
+    // Three.js完全フォールバック
+    function loadThreeJSFallback() {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/three@0.152.0/build/three.min.js';
+      script.onload = () => {
+        console.log('✅ Three.js fallback loaded');
+        setTimeout(() => {
+          loadOBJLoaderFallback();
+          loadOrbitControlsFallback();
+        }, 100);
+      };
+      script.onerror = () => {
+        console.error('❌ All Three.js sources failed');
+      };
+      document.head.appendChild(script);
+    }
+    
+    // DOMContentLoaded後にチェック実行
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', checkThreeJSLibraries);
+    } else {
+      checkThreeJSLibraries();
+    }
+    
+    // 追加のチェック（少し遅延して）
+    setTimeout(checkThreeJSLibraries, 500);
   </script>
+  
+  <!-- 分割されたJavaScriptファイル -->
+  <script src="core.js"></script>
+  <script src="scene.js"></script>
+  <script src="ai.js"></script>
+  <script src="processing.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

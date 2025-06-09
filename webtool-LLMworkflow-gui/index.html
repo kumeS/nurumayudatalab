@@ -12,7 +12,7 @@
 
     gtag('config', 'G-F54LKE733T');
   </script>
-  <title>ぬるっと翻訳・校閲ツール｜LLM活用テキスト処理ツール</title>
+  <title>LLMワークフローエディター｜無料でGUIベースのAIワークフロー構築</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <style>
     :root {
@@ -23,6 +23,9 @@
       --text-secondary: #666;
       --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       --transition-speed: 0.3s;
+      --node-bg: #ffffff;
+      --node-border: #e0e0e0;
+      --canvas-bg: #f8f9fa;
     }
     
     body { 
@@ -31,113 +34,356 @@
       padding: 0;
       background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
       min-height: 100vh;
+      overflow: hidden;
     }
     
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 2rem;
+    .app-container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
     }
     
     .header {
-      text-align: center;
-      margin-bottom: 2rem;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      padding: 1rem 2rem;
+      z-index: 1000;
+      box-shadow: var(--card-shadow);
     }
     
-    h1 {
+    .header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      display: inline-block;
+    }
+    
+    .header-controls {
+      float: right;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 5px;
+      padding: 5px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      margin-right: 10px;
+    }
+
+    .toolbar .button {
+      padding: 8px;
+      min-width: 36px;
+      font-size: 14px;
+    }
+    
+    .sidebar {
+      width: 300px;
+      background: white;
+      margin-top: 80px;
+      box-shadow: var(--card-shadow);
+      overflow-y: auto;
+      z-index: 100;
+    }
+    
+    .sidebar-section {
+      padding: 1rem;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .sidebar-section h3 {
+      margin: 0 0 1rem 0;
       color: var(--primary);
-      margin-bottom: 0.5rem;
-      font-size: 2.5rem;
-    }
-    
-    .description {
-      color: var(--text-secondary);
       font-size: 1rem;
     }
     
-    .tabs {
-      display: flex;
-      background-color: #fff;
-      border-radius: 8px 8px 0 0;
-      overflow: hidden;
-      margin-bottom: 1rem;
-      box-shadow: var(--card-shadow);
+    .node-palette {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
     }
     
-    .tab {
-      flex: 1;
-      padding: 1rem;
-      text-align: center;
-      background-color: #f8f9fa;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: all var(--transition-speed);
-    }
-    
-    .tab:hover {
-      background-color: #fff;
-      color: var(--primary);
-    }
-    
-    .tab.active {
-      background-color: #fff;
-      color: var(--primary);
-      font-weight: bold;
-      border-bottom: 3px solid var(--primary);
-      /* Make the active tab more distinct */
-      box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
-    }
-    
-    .model-selection {
-      display: flex;
-      align-items: center;
-      margin-bottom: 1rem;
+    .node-template {
       padding: 0.75rem;
-      background-color: #fff;
+      background: var(--node-bg);
+      border: 1px solid var(--node-border);
       border-radius: 8px;
+      cursor: grab;
+      text-align: center;
+      font-size: 0.85rem;
+      transition: all var(--transition-speed);
+      user-select: none;
+    }
+    
+    .node-template:hover {
+      background: #f0f0f0;
+      transform: translateY(-2px);
       box-shadow: var(--card-shadow);
     }
     
-    .model-selection-label {
-      font-weight: bold;
-      margin-right: 1rem;
-      color: var(--text-primary);
+    .node-template:active {
+      cursor: grabbing;
     }
     
-    .model-option {
+    .node-template i {
+      display: block;
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      color: var(--primary);
+    }
+    
+    .canvas {
+      flex: 1;
+      margin-top: 80px;
+      background: var(--canvas-bg);
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+    }
+
+    .canvas.panning {
+      cursor: grabbing !important;
+    }
+    
+    .canvas:active {
+      cursor: grabbing;
+    }
+    
+    .canvas-grid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 200%;
+      height: 200%;
+      opacity: 0.1;
+      background-image: 
+        linear-gradient(to right, #333 1px, transparent 1px),
+        linear-gradient(to bottom, #333 1px, transparent 1px);
+      background-size: 20px 20px;
+      transform-origin: 0 0;
+      pointer-events: none;
+    }
+    
+    .workflow-node {
+      position: absolute;
+      background: var(--node-bg);
+      border: 2px solid var(--node-border);
+      border-radius: 12px;
+      padding: 1rem;
+      min-width: 160px;
+      box-shadow: var(--card-shadow);
+      cursor: move;
+      user-select: none;
+      z-index: 5;
+    }
+    
+    .workflow-node.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 20px rgba(255, 126, 95, 0.3);
+      z-index: 10;
+    }
+    
+    .node-header {
       display: flex;
       align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .node-icon {
       margin-right: 0.5rem;
+      color: var(--primary);
     }
     
-    .model-name {
-      margin-left: 0.5rem;
-      color: var(--text-primary);
+    .node-title {
+      font-weight: bold;
+      font-size: 0.9rem;
     }
     
-    .model-note {
+    .node-content {
       font-size: 0.8rem;
       color: var(--text-secondary);
-      margin-left: 0.5rem;
+      margin-bottom: 0.5rem;
     }
     
-    .input-area {
-      width: 100%;
-      min-height: 150px;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      resize: vertical;
-      font-size: 1rem;
-      font-family: inherit;
-      box-shadow: var(--card-shadow);
-    }
-    
-    .button-container, .button-group {
+    .node-ports {
       display: flex;
-      gap: 15px;
-      margin-bottom: 1.5rem;
+      justify-content: space-between;
+    }
+    
+    .port {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid var(--primary);
+      background: white;
+      cursor: pointer;
+      position: relative;
+      z-index: 20;
+    }
+    
+    .port.input {
+      background: var(--accent);
+    }
+    
+    .port.output {
+      background: var(--primary);
+    }
+    
+    .connection {
+      position: absolute;
+      pointer-events: auto;
+      z-index: 15;
+    }
+
+    #connections {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 15;
+      pointer-events: none;
+    }
+
+    #connections path {
+      pointer-events: auto;
+    }
+
+    .canvas-help {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 30;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .help-item {
+      margin: 2px 0;
+      color: #666;
+    }
+    
+    .connection-line {
+      stroke: var(--primary);
+      stroke-width: 2;
+      fill: none;
+      cursor: pointer;
+    }
+
+    .connection-line:hover {
+      stroke-width: 3;
+      stroke: #e74c3c;
+    }
+    
+    .properties-panel {
+      width: 350px;
+      background: white;
+      margin-top: 80px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      z-index: 100;
+      transition: width 0.3s ease;
+      position: relative;
+    }
+    
+    .properties-panel.collapsed {
+      width: 40px;
+    }
+    
+    .properties-header {
+      padding: 1rem;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e0e0e0;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 60px;
+      box-sizing: border-box;
+    }
+    
+    .properties-title {
+      white-space: nowrap;
+      overflow: hidden;
+      flex: 1;
+    }
+    
+    .properties-toggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 5px;
+      color: var(--text-secondary);
+      border-radius: 4px;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+    }
+    
+    .properties-toggle:hover {
+      background: #e9ecef;
+      color: var(--primary);
+    }
+    
+    .properties-panel.collapsed .properties-toggle i {
+      transform: rotate(180deg);
+    }
+    
+    .properties-content {
+      padding: 1rem;
+      overflow-y: auto;
+      transition: opacity 0.3s ease;
+    }
+    
+    .properties-panel.collapsed .properties-content {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .properties-panel.collapsed .properties-title {
+      opacity: 0;
+    }
+    
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    
+    .form-group textarea {
+      min-height: 80px;
+      resize: vertical;
     }
     
     .button {
@@ -149,9 +395,10 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 1rem;
+      font-size: 0.9rem;
       transition: all 0.3s;
       box-shadow: var(--card-shadow);
+      text-decoration: none;
     }
     
     .button:hover {
@@ -163,418 +410,222 @@
       margin-right: 0.5rem;
     }
     
-    .copy-success {
-      background: linear-gradient(135deg, #4CAF50, #8BC34A) !important;
+    .button.secondary {
+      background: linear-gradient(135deg, #6c757d 0%, #868e96 100%);
     }
     
-    .speak-active {
-      background: linear-gradient(135deg, #2196F3, #03A9F4) !important;
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
     }
     
-    .speak-disabled {
-      background: linear-gradient(135deg, #9E9E9E, #BDBDBD) !important;
-      cursor: not-allowed;
-    }
+
     
-    .output-container {
-      margin-bottom: 2rem;
-    }
-    
-    .output-section {
-      margin-bottom: 1.5rem;
-    }
-    
-    .output-area {
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
       width: 100%;
-      min-height: 100px;
-      padding: 1rem;
-      margin-top: 0.5rem;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      resize: vertical;
-      font-size: 1rem;
-      font-family: inherit;
-      box-shadow: var(--card-shadow);
-    }
-    
-    h3 {
-      color: var(--primary);
-      margin-bottom: 0.5rem;
-    }
-    
-    .review-output {
-      background-color: #fff;
-      padding: 1rem;
-      border-radius: 8px;
-      box-shadow: var(--card-shadow);
-      min-height: 50px;
-      margin-bottom: 1.5rem;
-      font-size: 0.95rem;
-      line-height: 1.6;
-    }
-    
-    /* 校閲結果のスタイル強化 */
-    .review-output h4 {
-      color: var(--primary);
-      margin-top: 1rem;
-      margin-bottom: 0.5rem;
-      font-size: 1rem;
-      border-bottom: 1px solid rgba(255, 126, 95, 0.2);
-      padding-bottom: 0.3rem;
-    }
-    
-    .review-output ol, .review-output ul {
-      padding-left: 1.5rem;
-      margin-bottom: 0.8rem;
-    }
-    
-    .review-output li {
-      margin-bottom: 0.5rem;
-    }
-    
-    .review-output strong {
-      color: var(--primary);
-    }
-    
-    /* 変更箇所ハイライト用スタイル */
-    .diff-removed {
-      background-color: #ffecec;
-      color: #b30000;
-      text-decoration: line-through;
-      padding: 1px 3px;
-      border-radius: 2px;
-    }
-    
-    .diff-added {
-      background-color: #eaffea;
-      color: #006b00;
-      font-weight: bold;
-      padding: 1px 3px;
-      border-radius: 2px;
-    }
-    
-    /* 入力欄のハイライト効果 */
-    @keyframes highlight-pulse {
-      0% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(255, 126, 95, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(255, 126, 95, 0); }
-    }
-    
-    .highlight-input {
-      animation: highlight-pulse 1s ease-in-out;
-      border-color: var(--primary);
-    }
-    
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      color: var(--primary);
-      text-decoration: none;
-      margin-top: 1rem;
-      transition: all 0.3s;
-    }
-    
-    .back-link:hover {
-      color: var(--secondary);
-    }
-    
-    .back-link i {
-      margin-right: 0.5rem;
-    }
-    
-    .loading {
-      display: none; /* 初期状態は非表示 */
-      margin-left: 10px;
-      font-size: 0.9rem;
-      align-items: center;
-    }
-    
-    /* 表示時はflex */
-    .loading.active {
-      display: flex;
-    }
-    
-    .loading-text {
-      margin-left: 8px;
-      color: var(--primary);
-      position: relative;
-    }
-    
-    .loading-text:after {
-      content: '...';
-      position: absolute;
-      width: 24px;
-      text-align: left;
-      animation: dots 1.5s infinite;
-    }
-    
-    @keyframes dots {
-      0% { content: ''; }
-      25% { content: '.'; }
-      50% { content: '..'; }
-      75% { content: '...'; }
-    }
-    
-    .dot-pulse {
-      position: relative;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background-color: var(--primary);
-      animation: pulse 1.5s infinite;
-    }
-    
-    @keyframes pulse {
-      0% {
-        transform: scale(0.8);
-        opacity: 0.5;
-      }
-      50% {
-        transform: scale(1.2);
-        opacity: 1;
-      }
-      100% {
-        transform: scale(0.8);
-        opacity: 0.5;
-      }
-    }
-    
-    .usage-guide {
-      background-color: #fff;
-      padding: 1.5rem;
-      border-radius: 8px;
-      margin-bottom: 1.5rem;
-      box-shadow: var(--card-shadow);
-    }
-    
-    .usage-guide h3 {
-      margin-top: 0;
-    }
-    
-    .guide-step {
-      display: flex;
-      margin-bottom: 1rem;
-    }
-    
-    .step-number {
-      background-color: var(--primary);
-      color: white;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      display: flex;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
       align-items: center;
       justify-content: center;
-      margin-right: 10px;
-      font-weight: bold;
+      z-index: 9999;
     }
     
-    .toggle-guide {
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-      margin-bottom: 1rem;
-      color: var(--primary);
+    .loading-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: var(--card-shadow);
     }
     
-    .toggle-guide i {
-      margin-right: 0.5rem;
-    }
-    
-    .warning {
-      background-color: #fff3cd;
-      color: #856404;
-      padding: 0.75rem 1.25rem;
-      margin-bottom: 1rem;
-      border: 1px solid #ffeeba;
-      border-radius: 0.25rem;
-    }
-    
-    .error {
-      background-color: #f8d7da;
-      color: #721c24;
-      padding: 0.75rem 1.25rem;
-      margin-bottom: 1rem;
-      border: 1px solid #f5c6cb;
-      border-radius: 0.25rem;
-    }
-    
-    /* 使い方アコーディオンのスタイル */
-    .instruction-box {
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      margin-bottom: 1.5rem;
-      overflow: hidden;
-      background-color: #fff;
-    }
-    
-    .instruction-toggle {
-      display: flex;
-      align-items: center;
-      padding: 1rem;
-      cursor: pointer;
-      background-color: #f8f9fa;
-      transition: all 0.3s ease;
-    }
-    
-    .instruction-toggle.active {
-      background-color: #f0f0f0;
-    }
-    
-    .instruction-toggle i {
-      margin-right: 0.8rem;
-      transition: transform 0.3s ease;
-    }
-    
-    .instruction-toggle.active i {
-      transform: rotate(180deg);
-    }
-    
-    .instruction-content {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease-out;
-    }
-    
-    .instruction-content.show {
-      max-height: 1000px;
-      padding: 1rem;
-    }
-    
-    .step {
-      margin-bottom: 1rem;
-    }
-    
-    .step-number {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      background-color: var(--primary);
-      color: white;
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary);
       border-radius: 50%;
-      margin-right: 0.5rem;
-      font-weight: bold;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
     }
     
-    @media (max-width: 600px) {
-      .container {
-        padding: 1rem;
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 768px) {
+      .app-container {
+        flex-direction: column;
       }
       
-      .tab {
-        padding: 8px 12px;
-        font-size: 0.9rem;
+      .sidebar,
+      .properties-panel {
+        width: 100%;
+        height: auto;
+        margin-top: 0;
       }
       
-      .button-container {
-        flex-wrap: wrap;
+      .properties-panel.collapsed {
+        width: 100%;
+        height: 60px;
+      }
+      
+      .canvas {
+        margin-top: 0;
+        height: 400px;
       }
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="app-container">
+    <!-- ヘッダー -->
     <div class="header">
-      <h1>ぬるっと翻訳・校閲ツール</h1>
-      <p class="description">LLM活用テキスト処理ツール｜翻訳・文章校閲</p>
-    </div>
-    
-    <div class="usage-guide">
-      <div class="toggle-guide">
-        <i class="fas fa-info-circle"></i>
-        <h3>使い方を表示</h3>
-      </div>
-      <div class="guide-content" style="display: none;">
-        <div class="guide-step">
-          <div class="step-number">1</div>
-          <div>
-            <strong>モード選択:</strong> 上部タブから処理モードを選択
-            <ul>
-              <li>日本語→英語: 日本語を英語に翻訳</li>
-              <li>英語→日本語: 英語を日本語に翻訳</li>
-              <li>日本語校閲: 日本語文の添削と改善提案</li>
-              <li>英語校閲: 英語文の添削と改善提案（日本語で解説）</li>
-            </ul>
-          </div>
+      <h1><i class="fas fa-project-diagram"></i> LLMワークフローエディター</h1>
+      <div class="header-controls">
+        <div class="toolbar">
+          <button class="button secondary" id="zoomInBtn" title="ズームイン (Ctrl++)">
+            <i class="fas fa-search-plus"></i>
+          </button>
+          <button class="button secondary" id="zoomOutBtn" title="ズームアウト (Ctrl+-)">
+            <i class="fas fa-search-minus"></i>
+          </button>
+          <button class="button secondary" id="resetZoomBtn" title="ズームリセット (Ctrl+0)">
+            <i class="fas fa-expand-arrows-alt"></i>
+          </button>
         </div>
-        <div class="guide-step">
-          <div class="step-number">2</div>
-          <div>
-            <strong>テキスト入力:</strong> テキストエリアにテキストを入力
-          </div>
-        </div>
-        <div class="guide-step">
-          <div class="step-number">3</div>
-          <div>
-            <strong>実行ボタン:</strong> クリックでAIが処理
-          </div>
-        </div>
-        <div class="guide-step">
-          <div class="step-number">4</div>
-          <div>
-            <strong>結果確認:</strong> 下部に表示される結果を確認
-            <ul>
-              <li>最終結果: コピー可能なテキスト</li>
-              <li>校閲詳細: 解説部分（コピー不可）</li>
-            </ul>
-          </div>
-        </div>
+        <button class="button" id="executeBtn">
+          <i class="fas fa-play"></i> 実行
+        </button>
+        <button class="button secondary" id="exportBtn">
+          <i class="fas fa-download"></i> エクスポート
+        </button>
+        <button class="button secondary" id="importBtn">
+          <i class="fas fa-upload"></i> インポート
+        </button>
+        <button class="button secondary" id="clearBtn">
+          <i class="fas fa-trash"></i> クリア
+        </button>
       </div>
     </div>
 
-    <!-- モード選択タブ -->
-    <div class="tabs">
-      <div class="tab active" id="tab-jaen">日本語→英語</div>
-      <div class="tab" id="tab-enja">英語→日本語</div>
-      <div class="tab" id="tab-jajarev">日本語校閲</div>
-      <div class="tab" id="tab-enrev">英語校閲</div>
-    </div>
-    
-    <!-- モデル選択 -->
-    <div class="model-selection">
-      <label class="model-selection-label">使用モデル:</label>
-      <div class="model-option">
-        <input type="radio" id="model-llama4" name="model" checked disabled>
-        <label for="model-llama4" class="model-name">Llama-4-Maverick-17B-128E-Instruct-FP8</label>
-        <span class="model-note">（現在このモデルのみ利用可能）</span>
-      </div>
-    </div>
-    
-    <!-- 入力エリア -->
-    <textarea id="inputArea" class="input-area" placeholder="ここにテキストを入力してください..."></textarea>
-    
-    <!-- ボタン部分 -->
-    <div class="button-container">
-      <button id="runBtn" class="button"><i class="fas fa-play"></i> 実行</button>
-      <button id="resetBtn" class="button"><i class="fas fa-trash"></i> クリア</button>
-      <div id="loadingIndicator" class="loading">
-        <div class="dot-pulse"></div>
-        <span class="loading-text">処理中</span>
-      </div>
-    </div>
-    
-    <!-- 出力部分 -->
-    <div class="output-container">
-      <div class="output-section">
-        <h3>校閲結果</h3>
-        <div id="review" class="review-output"></div>
-      </div>
-      <div class="output-section">
-        <h3>最終結果</h3>
-        <textarea id="final" class="output-area" readonly></textarea>
-        <div class="button-group">
-          <button id="copyBtn" class="button"><i class="fas fa-copy"></i> コピー</button>
-          <button id="speakBtn" class="button"><i class="fas fa-volume-up"></i> 読み上げ</button>
-          <button id="toInputBtn" class="button"><i class="fas fa-arrow-up"></i> 入力欄に戻す</button>
+    <!-- サイドバー（ノードパレット） -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <h3><i class="fas fa-puzzle-piece"></i> ノードパレット</h3>
+        <div class="node-palette">
+          <div class="node-template" data-node-type="input" draggable="true">
+            <i class="fas fa-sign-in-alt"></i>
+            入力
+          </div>
+          <div class="node-template" data-node-type="llm" draggable="true">
+            <i class="fas fa-brain"></i>
+            LLM処理
+          </div>
+          <div class="node-template" data-node-type="branch" draggable="true">
+            <i class="fas fa-code-branch"></i>
+            分岐
+          </div>
+          <div class="node-template" data-node-type="merge" draggable="true">
+            <i class="fas fa-compress-arrows-alt"></i>
+            統合
+          </div>
+          <div class="node-template" data-node-type="transform" draggable="true">
+            <i class="fas fa-exchange-alt"></i>
+            変換
+          </div>
+          <div class="node-template" data-node-type="filter" draggable="true">
+            <i class="fas fa-filter"></i>
+            フィルタ
+          </div>
+          <div class="node-template" data-node-type="sort" draggable="true">
+            <i class="fas fa-sort"></i>
+            ソート
+          </div>
+          <div class="node-template" data-node-type="aggregate" draggable="true">
+            <i class="fas fa-calculator"></i>
+            集約
+          </div>
+          <div class="node-template" data-node-type="split" draggable="true">
+            <i class="fas fa-cut"></i>
+            分割
+          </div>
+          <div class="node-template" data-node-type="output" draggable="true">
+            <i class="fas fa-sign-out-alt"></i>
+            出力
+          </div>
         </div>
       </div>
+      
+      <div class="sidebar-section">
+        <h3><i class="fas fa-cog"></i> ワークフロー設定</h3>
+        <div class="form-group">
+          <label>ワークフロー名</label>
+          <input type="text" id="workflowName" placeholder="新しいワークフロー">
+        </div>
+        <div class="form-group">
+          <label>説明</label>
+          <textarea id="workflowDescription" placeholder="ワークフローの説明"></textarea>
+        </div>
+      </div>
+
+
     </div>
-    
-    <a href="../index.html" class="back-link"><i class="fas fa-arrow-left"></i> ぬるま湯データラボに戻る</a>
+
+    <!-- メインキャンバス -->
+    <div class="canvas" id="canvas">
+      <div class="canvas-grid"></div>
+      <svg id="connections" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+        <!-- 接続線がここに描画される -->
+      </svg>
+      <div class="canvas-help">
+        <div class="help-item">🔄 ホイール: ズーム</div>
+      </div>
+    </div>
+
+    <!-- プロパティパネル -->
+    <div class="properties-panel" id="propertiesPanel">
+      <div class="properties-header" id="propertiesHeader">
+        <div class="properties-title">
+          <i class="fas fa-sliders-h"></i> プロパティ
+        </div>
+        <button class="properties-toggle" id="propertiesToggle">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+      </div>
+      <div class="properties-content" id="propertiesContent">
+        <p style="color: var(--text-secondary); text-align: center; margin-top: 2rem;">
+          ノードを選択してプロパティを編集
+        </p>
+      </div>
+    </div>
   </div>
 
+  <!-- ローディングオーバーレイ -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <p>ワークフローを実行中...</p>
+    </div>
+  </div>
+
+  <!-- ファイルインポート用の隠しinput -->
+  <input type="file" id="fileInput" accept=".json,.yml,.yaml" style="display: none;">
+
+  <!-- 分割されたJavaScriptファイルを順序通りに読み込み -->
+  <script src="llm.js"></script>
+  <script src="viewport-manager.js"></script>
+  <script src="node-manager.js"></script>
+  <script src="connection-manager.js"></script>
+  <script src="properties-manager.js"></script>
+  <script src="workflow-executor.js"></script>
+  <script src="storage-manager.js"></script>
+  <script src="workflow-editor.js"></script>
   <script src="app.js"></script>
 </body>
 </html> 
