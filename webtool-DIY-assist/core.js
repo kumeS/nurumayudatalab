@@ -29,6 +29,9 @@ class DIYAssistant {
     this.currentObjData = null;
     this.currentOptimizedPrompt = null;
     this.currentStage = null;
+    this.eventListenersSetup = false; // イベントリスナー重複防止フラグ
+    this.lastDownloadTime = null; // ダウンロード重複防止用
+    this.downloadInProgress = false; // ダウンロード実行中フラグ
     
     this.log('info', 'DIYAssistant初期化開始', { debugMode: this.debugMode });
     
@@ -227,11 +230,31 @@ class DIYAssistant {
   // ========== イベントリスナー設定 ==========
   setupEventListeners() {
     // DOM要素の存在確認用ヘルパー
+    // イベントリスナーの重複登録を防ぐ
+    if (this.eventListenersSetup) {
+      this.log('debug', 'イベントリスナーは既に設定済みです');
+      return;
+    }
+
     const safeAddEventListener = (id, event, handler) => {
       const element = document.getElementById(id);
       if (element) {
+        // 既存のイベントリスナーを削除（重複防止）
+        const existingHandler = element.getAttribute(`data-${event}-handler`);
+        if (existingHandler) {
+          this.log('debug', `既存のイベントリスナーを削除: ${id}`);
+          element.removeEventListener(event, element[`_${event}Handler`]);
+        }
+        
+        // 新しいイベントリスナーを追加
         element.addEventListener(event, handler);
-        this.log('debug', `イベントリスナー設定完了: ${id}`);
+        element[`_${event}Handler`] = handler; // 参照を保存（削除用）
+        element.setAttribute(`data-${event}-handler`, 'true'); // フラグを設定
+        
+        this.log('debug', `イベントリスナー設定完了: ${id}`, { 
+          eventType: event,
+          hadExisting: !!existingHandler
+        });
       } else {
         this.log('warn', `要素が見つかりません: ${id}`);
       }
@@ -322,6 +345,10 @@ class DIYAssistant {
         this.clearAllData();
       }
     });
+
+    // イベントリスナーセットアップ完了フラグを設定
+    this.eventListenersSetup = true;
+    this.log('debug', 'イベントリスナーセットアップ完了');
   }
 
   // ========== サンプルボタンセットアップ ==========
@@ -645,17 +672,67 @@ class DIYAssistant {
 
   // ========== ダウンロード機能 ==========
   downloadOBJ() {
-    if (!this.currentObjData) return;
+    // 重複実行を防ぐガード（実行中フラグ + 時間制限）
+    if (this.downloadInProgress) {
+      this.log('debug', 'ダウンロード実行中のため重複を防止しました');
+      return;
+    }
     
-    const blob = new Blob([this.currentObjData], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `furniture_${Date.now()}.obj`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (!this.currentObjData) {
+      this.log('warn', 'ダウンロードするOBJデータがありません');
+      return;
+    }
+    
+    // 時間ベースの重複防止（500ms以内の重複クリックを防ぐ）
+    const now = Date.now();
+    if (this.lastDownloadTime && (now - this.lastDownloadTime) < 500) {
+      this.log('debug', 'ダウンロード重複実行を防止しました（時間制限）', { 
+        timeSinceLastDownload: now - this.lastDownloadTime 
+      });
+      return;
+    }
+    
+    // ダウンロード実行開始
+    this.downloadInProgress = true;
+    this.lastDownloadTime = now;
+    
+    this.log('debug', 'OBJファイルダウンロード開始', {
+      dataLength: this.currentObjData.length,
+      startsWithV: this.currentObjData.trim().startsWith('v '),
+      startsWithHash: this.currentObjData.trim().startsWith('#'),
+      preview: this.currentObjData.substring(0, 100) + '...'
+    });
+    
+    try {
+      // 確実にOBJデータであることを確認
+      if (!this.currentObjData.trim().startsWith('v ') && !this.currentObjData.trim().startsWith('#')) {
+        this.log('error', '無効なOBJデータです', { preview: this.currentObjData.substring(0, 100) });
+        this.showError('ダウンロード可能なOBJデータがありません');
+        return;
+      }
+      
+      const blob = new Blob([this.currentObjData], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `furniture_${now}.obj`; // タイムスタンプを固定してファイル名重複を防ぐ
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      this.log('info', 'OBJファイルダウンロード完了', { filename: `furniture_${now}.obj` });
+      
+    } catch (error) {
+      this.log('error', 'ダウンロード処理でエラー', { error: error.message });
+      this.showError('ダウンロード処理でエラーが発生しました');
+    } finally {
+      // ダウンロード処理完了（500ms後にフラグを解除）
+      setTimeout(() => {
+        this.downloadInProgress = false;
+        this.log('debug', 'ダウンロード実行フラグをリセットしました');
+      }, 500);
+    }
   }
 
   // ========== プロジェクト管理 ==========

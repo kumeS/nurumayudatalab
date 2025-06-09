@@ -110,6 +110,17 @@ We are continuously expanding our toolkit to meet evolving e-commerce needs:
 
 © 2025 Nurumayu Data Lab. All rights reserved.
 
+## Media
+
+### Featured Articles
+
+**Use-Case Spotlight for the IO Intelligence API**  
+Our Multi-LLM System has been featured as a Use-Case Spotlight for the IO Intelligence API, showcasing how our innovative approach to AI integration enables users to leverage multiple language models seamlessly.
+
+📖 [Read the full article on Medium](https://medium.com/@sousohsou1/use-case-spotlight-for-the-io-intelligence-api-multi-llm-system-5cca6723bdb4)
+
+This spotlight highlights how our Multi-LLM System demonstrates the practical implementation of the IO Intelligence API, providing users with access to 30+ cutting-edge language models through a unified interface.
+
 ## Contributing & Feedback
 
 We welcome your feedback and suggestions! If you have:

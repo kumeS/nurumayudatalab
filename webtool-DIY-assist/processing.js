@@ -48,53 +48,54 @@ class ProcessingManager {
       const objData = await this.generateUnifiedModel(prompt, furnitureSpec);
       this.assistant.updateStageProgress(2, 'completed', '3Dモデル生成完了');
       
-      this.assistant.log('debug', '第3段階開始: 品質検証と最終調整');
+              this.assistant.log('debug', '第3段階開始: OBJデータ品質評価');
       
-      // 第3段階: 品質検証と最終調整
-      this.assistant.updateStageProgress(3, 'active', '品質検証・最終調整中...');
+              // 第3段階: OBJデータ品質評価
+              this.assistant.updateStageProgress(3, 'active', '品質評価中...');
       const qualityCheckResult = await this.performFinalQualityCheck(objData);
-      this.assistant.updateStageProgress(3, 'completed', '品質検証・最終調整完了');
+              this.assistant.updateStageProgress(3, 'completed', '品質評価完了');
       
-      // 改善されたOBJデータを使用
-      const finalObjData = qualityCheckResult.improvedObjData;
+      // 第3段階の品質評価レポートを取得（ログ・記録用）
+      const qualityReport = qualityCheckResult.qualityReport;
       
       this.assistant.log('debug', '全3段階完了 - 結果処理開始', {
-        originalObjLength: objData.length,
-        improvedObjLength: finalObjData.length
+        stage2ObjLength: objData.length,
+        stage3ReportLength: qualityReport.length
       });
       
-      // 結果の表示と保存（改善されたOBJデータを使用）
-      this.assistant.currentObjData = finalObjData;
+      // 3Dプレビューには第2段階の結果を使用、ダウンロード・保存には第3段階の結果を使用
+      this.assistant.currentObjData = objData; // 第2段階の結果を3Dプレビュー用に設定
       this.assistant.enableDownloadButtons();
       
-      // 3Dプレビューの表示（SceneManagerを優先、改善されたOBJデータを使用）
+      // 3Dプレビューの表示（第2段階の結果を使用）
       if (this.assistant.sceneManager && this.assistant.sceneManager.isInitialized) {
         try {
-          await this.assistant.sceneManager.loadOBJModel(finalObjData);
-          this.assistant.log('info', 'SceneManagerで改善済み3Dモデル表示成功');
+          await this.assistant.sceneManager.loadOBJModel(objData);
+          this.assistant.log('info', 'SceneManagerで第2段階3Dモデル表示成功');
         } catch (error) {
           this.assistant.log('warn', 'SceneManager表示失敗、フォールバック実行', { error: error.message });
           // フォールバック: core.jsの3Dプレビュー
           if (!this.assistant.scene) {
             this.assistant.setup3DPreview();
           }
-          this.assistant.display3DModel(finalObjData);
+          this.assistant.display3DModel(objData);
         }
       } else {
         // core.jsの3Dプレビューを使用
         if (!this.assistant.scene) {
           this.assistant.setup3DPreview();
         }
-        this.assistant.display3DModel(finalObjData);
+        this.assistant.display3DModel(objData);
       }
       
       // UI表示
       this.storeOptimizedSpec(furnitureSpec, prompt);
       this.storeModelGenerationResults(objData, furnitureSpec);
+      // 第3段階の品質評価結果を保存
       this.storeQualityCheckResults(qualityCheckResult, objData);
       
-      // プロジェクト保存（改善されたOBJデータを使用）
-      this.assistant.saveCurrentProject(prompt, finalObjData, qualityCheckResult, furnitureSpec);
+      // プロジェクト保存（第2段階の結果を保存、第3段階も記録）
+      this.assistant.saveCurrentProject(prompt, objData, qualityCheckResult, furnitureSpec);
       
       this.assistant.showLoading(false);
       this.assistant.showSuccess('3Dモデルの生成が完了しました！');
@@ -643,28 +644,28 @@ ${stage1FullOutput}
     }
   }
 
-  // ========== 第3段階: 詳細な品質検証 ==========
+  // ========== 第3段階: OBJデータ品質評価 ==========
   async performFinalQualityCheck(objData) {
     try {
-      this.assistant.log('debug', '第3段階：品質検証・最終調整LLM呼び出し開始');
+      this.assistant.log('debug', '第3段階：品質評価LLM呼び出し開始');
       
-      // 第2段階のOBJデータを第3段階のプロンプトとして使用
-      const improvedObjData = await this.callQualityCheckLLM(objData);
+      // 第2段階のOBJデータの品質評価レポートを生成
+      const qualityReport = await this.callQualityCheckLLM(objData);
       
-      this.assistant.log('info', '第3段階：品質検証・最終調整完了', { 
-        originalLength: objData.length,
-        improvedLength: improvedObjData.length 
+      this.assistant.log('info', '第3段階：品質評価完了', { 
+        objDataLength: objData.length,
+        reportLength: qualityReport.length 
       });
       
       return {
-        improvedObjData: improvedObjData,
+        qualityReport: qualityReport,
         originalObjData: objData,
         stage: 3,
-        processType: 'quality_check_and_optimization'
+        processType: 'quality_evaluation'
       };
       
     } catch (error) {
-      this.assistant.log('error', '第3段階：品質検証・最終調整エラー', { error: error.message });
+      this.assistant.log('error', '第3段階：品質評価エラー', { error: error.message });
       throw error;
     }
   }
@@ -720,7 +721,7 @@ ${stage1FullOutput}
     };
   }
 
-  // ========== 第3段階品質検証・最終調整LLM呼び出し ==========
+  // ========== 第3段階品質評価LLM呼び出し ==========
   async callQualityCheckLLM(objData) {
     const requestData = {
       model: this.assistant.aiManager.modelName,
@@ -734,7 +735,7 @@ ${stage1FullOutput}
         },
         {
           role: "user",
-          content: `以下のOBJファイルを品質検証・最終調整してください：
+          content: `以下のOBJファイルの品質評価を行ってください：
 
 ${objData}`
         }
@@ -764,30 +765,73 @@ ${objData}`
 
       const data = await response.json();
       
-      let improvedObjContent = null;
+      let qualityReport = null;
       if (data.choices && data.choices[0] && data.choices[0].message) {
-        improvedObjContent = data.choices[0].message.content;
+        qualityReport = data.choices[0].message.content;
       } else if (data.answer) {
-        improvedObjContent = data.answer;
+        qualityReport = data.answer;
       } else if (data.response) {
-        improvedObjContent = data.response;
+        qualityReport = data.response;
       } else {
         throw new Error('Invalid API response format - no content found');
       }
 
-      // OBJデータをクリーニング
-      const cleanedImprovedOBJ = this.cleanOBJData(improvedObjContent);
-      if (!cleanedImprovedOBJ || cleanedImprovedOBJ.trim().length === 0) {
-        throw new Error('Generated improved OBJ data is empty or invalid');
+      // 評価レポートをそのまま返す（OBJクリーニング不要）
+      if (!qualityReport || qualityReport.trim().length === 0) {
+        throw new Error('Generated quality report is empty or invalid');
       }
 
-      return cleanedImprovedOBJ;
+      // デバッグ：レスポンスの内容を確認
+      this.assistant.log('debug', '第3段階LLMレスポンス内容確認', {
+        responseLength: qualityReport.length,
+        startsWithHash: qualityReport.trim().startsWith('#'),
+        startsWithV: qualityReport.trim().startsWith('v '),
+        containsOBJ: qualityReport.toLowerCase().includes('obj'),
+        preview: qualityReport.substring(0, 200) + '...'
+      });
+
+      // OBJデータが返された場合の警告と対処
+      if (qualityReport.trim().startsWith('v ') || qualityReport.trim().startsWith('f ') || 
+          qualityReport.includes('# Furniture') || qualityReport.includes('# Object')) {
+        this.assistant.log('error', '第3段階でOBJデータが返されました！評価レポートに置き換えます', {
+          preview: qualityReport.substring(0, 100)
+        });
+        
+        // OBJデータが返された場合は標準的な評価レポートを生成
+        return `## 品質評価結果
+
+### 構造的品質
+- 頂点数: 推定値 (評価: 自動生成のため詳細評価不可)
+- 面数: 推定値 (評価: 自動生成のため詳細評価不可)  
+- ジオメトリ整合性: システムが誤ってOBJファイルを返したため詳細評価できません
+
+### 実用性
+- 寸法適切性: 第3段階エラーのため評価不可
+- 安定性: 第3段階エラーのため評価不可
+- 機能性: 第3段階エラーのため評価不可
+
+### 製造可能性
+- 3D出力適合性: 第3段階エラーのため評価不可
+- 材料効率: 第3段階エラーのため評価不可
+
+### 美観・デザイン
+- 造形美: 第3段階エラーのため評価不可
+- 全体評価: 第3段階エラーのため評価不可
+
+### 総合評価
+- 総合スコア: 評価不可/100点
+- 推奨事項: システムエラーが発生したため、第2段階で生成されたOBJファイルをそのまま使用してください
+
+注意: この評価は第3段階でOBJファイルが誤って返されたため、自動生成されたフォールバック評価です。`;
+      }
+
+      return qualityReport.trim();
     } catch (error) {
-      this.assistant.log('error', '第3段階LLM呼び出し失敗', { error: error.message });
+      this.assistant.log('error', '第3段階品質評価LLM呼び出し失敗', { error: error.message });
       if (error.name === 'AbortError') {
         throw new Error('API request timed out. Please try again.');
       }
-      throw new Error(`第3段階API呼び出しエラー: ${error.message}`);
+      throw new Error(`第3段階品質評価API呼び出しエラー: ${error.message}`);
     }
   }
 
@@ -880,51 +924,69 @@ ${objData}`
     });
   }
 
-  // ========== 第3段階品質検証・最終調整用システムプロンプト ==========
+  // ========== 第3段階品質評価用システムプロンプト ==========
   getQualityCheckSystemPrompt() {
-    return `あなたは3D家具の品質検証・最終調整の専門家です。提供されたOBJファイルを詳細に分析し、品質問題を特定して改善されたOBJファイルを生成してください。
+    return `あなたは3D家具モデルの品質評価専門家です。提供されたOBJファイルを詳細に分析し、品質評価レポートを作成してください。
 
-【分析・改善項目】
-1. 構造的整合性の検証と修正
-   - 頂点の重複や不整合の除去
-   - 面の方向統一（法線ベクトルの整合性）
-   - 孤立した頂点や面の削除
-   - ジオメトリの閉じた形状への修正
+【評価項目】
+1. 構造的品質の評価
+   - 頂点数・面数の適切性
+   - ジオメトリの整合性（閉じた形状、法線方向）
+   - 重複頂点や孤立要素の有無
+   - 面の構成と品質
 
-2. 寸法・比率の最適化
-   - 家具として実用的な寸法への調整
-   - 各部位の適切な比率の確保
-   - 人間工学的な寸法への最適化
-   - 安定性を考慮した寸法調整
+2. 家具としての実用性評価
+   - 寸法・比率の妥当性
+   - 安定性・強度の評価
+   - 人間工学的配慮の評価
+   - 機能性の適切性
 
-3. 製造可能性の向上
-   - 3Dプリンター出力に適した形状への調整
-   - 過度に薄い部分の厚み追加
-   - 複雑すぎる形状の簡略化
-   - サポート材が不要な形状への最適化
+3. 製造可能性の評価
+   - 3D出力対応レベル
+   - 材料効率性
+   - 組み立て・加工の容易さ
+   - コスト効率性
 
-4. 美観・機能性の向上
-   - エッジの適切な面取り
-   - 表面の滑らかさ改善
-   - 装飾的要素の追加・調整
-   - 機能的な形状の最適化
+4. 美観・デザイン品質の評価
+   - 造形美の評価
+   - ディテールの品質
+   - 全体的なバランス
+   - 家具としての魅力度
 
-【出力要件】
-- 改善されたOBJファイルのみを出力
-- 元の家具の基本形状と機能を維持
-- すべての問題点を修正した完成度の高いモデル
-- 製造可能で美しく機能的な最終形状
+【評価出力形式】
+## 品質評価結果
+
+### 構造的品質
+- 頂点数: [数値] (評価: [優秀/良好/改善要/不良])
+- 面数: [数値] (評価: [優秀/良好/改善要/不良])
+- ジオメトリ整合性: [評価とコメント]
+
+### 実用性
+- 寸法適切性: [評価とコメント]
+- 安定性: [評価とコメント]
+- 機能性: [評価とコメント]
+
+### 製造可能性
+- 3D出力適合性: [評価とコメント]
+- 材料効率: [評価とコメント]
+
+### 美観・デザイン
+- 造形美: [評価とコメント]
+- 全体評価: [評価とコメント]
+
+### 総合評価
+- 総合スコア: [点数]/100点
+- 推奨事項: [具体的な推奨事項]
 
 【重要】
-- 説明文は不要です
-- OBJデータのみを出力してください
-- 元のデザイン意図を尊重しながら品質を向上させてください
-- 頂点座標は小数点以下2桁までの精度で出力してください
+- OBJファイルの修正・改善は行わないでください
+- 評価レポートのみを出力してください
+- 客観的で建設的な評価を心がけてください
 
-提供されたOBJファイルを分析し、上記の観点から改善した最終的なOBJファイルを生成してください。`;
+提供されたOBJファイルを上記の観点から詳細に評価し、品質評価レポートを作成してください。`;
   }
 
-  // ========== 第3段階：品質検証・最終調整結果データ保存 ==========
+  // ========== 第3段階：品質評価結果データ保存 ==========
   storeQualityCheckResults(qualityCheckResult, originalObjData) {
     if (!qualityCheckResult) {
       return;
@@ -932,14 +994,14 @@ ${objData}`
 
     // データを保存（システムプロンプトと入力プロンプトも含める）
     this.stage3Data = {
-      improvedObjData: qualityCheckResult.improvedObjData,
+      qualityReport: qualityCheckResult.qualityReport,
       originalObjData: originalObjData,
       systemPrompt: this.getQualityCheckSystemPrompt(),
-      inputPrompt: `以下のOBJファイルを品質検証・最終調整してください：
+      inputPrompt: `以下のOBJファイルの品質評価を行ってください：
 
 ${originalObjData}`,
       stage: 3,
-      processType: 'quality_check_and_optimization'
+      processType: 'quality_evaluation'
     };
 
     // ボタンを表示
@@ -948,9 +1010,9 @@ ${originalObjData}`,
       showStage3Btn.style.display = 'block';
     }
     
-    this.assistant.log('info', '品質検証・最終調整結果データを保存しました', { 
+    this.assistant.log('info', '品質評価結果データを保存しました', { 
       originalLength: originalObjData?.length || 0,
-      improvedLength: qualityCheckResult.improvedObjData?.length || 0,
+      reportLength: qualityCheckResult.qualityReport?.length || 0,
       hasSystemPrompt: true
     });
   }

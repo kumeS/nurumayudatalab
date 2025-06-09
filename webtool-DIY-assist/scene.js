@@ -199,12 +199,18 @@ class SceneManager {
     }
   }
   
-    // ========== OBJモデル読み込み ==========
-    async loadOBJModel(objData) {
-      this.assistant.log('debug', 'OBJモデル読み込み開始', { dataSize: objData.length });
+      // ========== OBJモデル読み込み ==========
+  async loadOBJModel(objData) {
+    this.assistant.log('debug', 'OBJモデル読み込み開始', { dataSize: objData.length });
 
-      // 初期化チェック
-      if (!this.isInitialized) {
+    // OBJデータの基本検証とクリーニング
+    objData = this.validateAndCleanOBJData(objData);
+    if (!objData) {
+      throw new Error('OBJデータの検証に失敗しました');
+    }
+
+    // 初期化チェック
+    if (!this.isInitialized) {
         this.assistant.log('error', '3Dシーンが初期化されていません - 再初期化を試行');
         
         // 再初期化を試行
@@ -568,6 +574,12 @@ class SceneManager {
     async loadOBJModelDirect(objData) {
       this.assistant.log('debug', 'OBJモデル直接読み込み開始');
       
+      // OBJデータの基本検証とクリーニング
+      objData = this.validateAndCleanOBJData(objData);
+      if (!objData) {
+        throw new Error('OBJデータの検証に失敗しました');
+      }
+      
       // 既存モデルを削除
       if (this.currentModel) {
         this.scene.remove(this.currentModel);
@@ -623,6 +635,132 @@ class SceneManager {
         });
         
         throw error;
+      }
+    }
+
+    // ========== OBJデータ検証とクリーニング ==========
+    validateAndCleanOBJData(objData) {
+      try {
+        this.assistant.log('debug', 'OBJデータ検証開始');
+        
+        if (!objData || typeof objData !== 'string') {
+          this.assistant.log('error', 'OBJデータが文字列ではありません', { type: typeof objData });
+          return null;
+        }
+        
+        const lines = objData.split('\n');
+        const cleanedLines = [];
+        let vertexCount = 0;
+        let faceCount = 0;
+        let invalidVertexCount = 0;
+        let invalidFaceCount = 0;
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          
+          if (line.startsWith('#') || line === '') {
+            // コメント行と空行はそのまま保持
+            cleanedLines.push(line);
+          } else if (line.startsWith('v ')) {
+            // 頂点データの検証
+            const parts = line.split(/\s+/);
+            if (parts.length >= 4) {
+              const x = parseFloat(parts[1]);
+              const y = parseFloat(parts[2]);
+              const z = parseFloat(parts[3]);
+              
+              // NaNや無効な値をチェック
+              if (isNaN(x) || isNaN(y) || isNaN(z) || 
+                  !isFinite(x) || !isFinite(y) || !isFinite(z)) {
+                this.assistant.log('warn', `無効な頂点データを検出（行${i+1}）`, { 
+                  line: line,
+                  x: x, y: y, z: z 
+                });
+                invalidVertexCount++;
+                // 無効な頂点は原点に置き換え
+                cleanedLines.push(`v 0.0 0.0 0.0`);
+              } else {
+                // 座標値を適切な範囲に制限（-1000 ～ 1000）
+                const clampedX = Math.max(-1000, Math.min(1000, x));
+                const clampedY = Math.max(-1000, Math.min(1000, y));
+                const clampedZ = Math.max(-1000, Math.min(1000, z));
+                cleanedLines.push(`v ${clampedX.toFixed(3)} ${clampedY.toFixed(3)} ${clampedZ.toFixed(3)}`);
+                vertexCount++;
+              }
+            } else {
+              this.assistant.log('warn', `不正な頂点行形式（行${i+1}）`, { line: line });
+              invalidVertexCount++;
+              cleanedLines.push(`v 0.0 0.0 0.0`);
+            }
+          } else if (line.startsWith('f ')) {
+            // 面データの検証
+            const parts = line.split(/\s+/);
+            if (parts.length >= 4) {
+              const indices = [];
+              let validFace = true;
+              
+              for (let j = 1; j < parts.length; j++) {
+                const indexPart = parts[j].split('/')[0]; // 頂点インデックスのみ取得
+                const index = parseInt(indexPart);
+                if (isNaN(index) || index <= 0) {
+                  validFace = false;
+                  break;
+                }
+                indices.push(index);
+              }
+              
+              if (validFace && indices.length >= 3) {
+                cleanedLines.push(line);
+                faceCount++;
+              } else {
+                this.assistant.log('warn', `無効な面データを除去（行${i+1}）`, { line: line });
+                invalidFaceCount++;
+              }
+            } else {
+              this.assistant.log('warn', `不正な面行形式（行${i+1}）`, { line: line });
+              invalidFaceCount++;
+            }
+          } else if (line.startsWith('vn ') || line.startsWith('vt ') || 
+                     line.startsWith('o ') || line.startsWith('g ') ||
+                     line.startsWith('s ') || line.startsWith('mtllib ') ||
+                     line.startsWith('usemtl ')) {
+            // その他の有効なOBJ要素はそのまま保持
+            cleanedLines.push(line);
+          } else if (line.trim().length > 0) {
+            // 未知の行は警告してコメント化
+            this.assistant.log('debug', `未知のOBJ行をコメント化（行${i+1}）`, { line: line });
+            cleanedLines.push(`# ${line}`);
+          }
+        }
+        
+        const cleanedObjData = cleanedLines.join('\n');
+        
+        this.assistant.log('info', 'OBJデータ検証・クリーニング完了', {
+          totalLines: lines.length,
+          validVertices: vertexCount,
+          validFaces: faceCount,
+          invalidVertices: invalidVertexCount,
+          invalidFaces: invalidFaceCount,
+          cleanedSize: cleanedObjData.length
+        });
+        
+        // 最低限の頂点と面が必要
+        if (vertexCount < 3 || faceCount < 1) {
+          this.assistant.log('error', 'OBJデータに十分な頂点・面データがありません', {
+            vertexCount: vertexCount,
+            faceCount: faceCount
+          });
+          return null;
+        }
+        
+        return cleanedObjData;
+        
+      } catch (error) {
+        this.assistant.log('error', 'OBJデータ検証中にエラー', { 
+          error: error.message,
+          stack: error.stack 
+        });
+        return null;
       }
     }
 
