@@ -97,39 +97,13 @@ async function callLLMAPI(messages) {
 // メニュー提案レスポンス解析
 function parseRecipeResponse(text) {
   try {
-    console.log('Raw API response:', text);
-    
-    // 複数の JSON 抽出パターンを試行
-    let jsonText = null;
-    
-    // パターン1: ```json と ``` で囲まれた JSON
-    let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonMatch) {
       jsonText = jsonMatch[1];
-      console.log('JSON found with json marker:', jsonText);
-    } else {
-      // パターン2: ``` と ``` で囲まれた JSON
-      jsonMatch = text.match(/```\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         jsonText = jsonMatch[1];
-        console.log('JSON found with generic marker:', jsonText);
-      } else {
-        // パターン3: { から } までの最初の完全なJSON
-        const startIndex = text.indexOf('{');
         const lastIndex = text.lastIndexOf('}');
         if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
           jsonText = text.substring(startIndex, lastIndex + 1);
-          console.log('JSON found with brace matching:', jsonText);
-        } else {
-          // パターン4: 直接JSONとして解析
-          jsonText = text.trim();
-          console.log('Using text directly as JSON:', jsonText);
-        }
-      }
-    }
-    
-    if (!jsonText) {
-      throw new Error('JSONコンテンツが見つかりません');
     }
     
     // JSONをクリーンアップ
@@ -140,28 +114,13 @@ function parseRecipeResponse(text) {
     jsonText = jsonText.replace(/[^}]*$/, ''); // } より後の文字を除去
     jsonText = jsonText.replace(/```$/, ''); // 末尾の ``` を除去
     
-    console.log('Cleaned JSON text:', jsonText);
-    
-    const data = JSON.parse(jsonText);
-    console.log('Parsed result:', data);
-    
-    // メニューデータの場合
-    if (data.menus && Array.isArray(data.menus)) {
-      console.log('Returning menu data');
       return data.menus;
     }
     
     // レシピデータの場合（従来の処理）
     if (data.menuName || data.ingredients || data.cookingSteps) {
-      console.log('Returning recipe data');
-      return data;
-    }
-    
-    throw new Error('有効なデータが見つかりません');
     
   } catch (error) {
-    console.error('データ解析エラー:', error);
-    console.error('レスポンステキスト:', text);
     
     // エラーの詳細を提供
     if (error instanceof SyntaxError) {
@@ -175,39 +134,13 @@ function parseRecipeResponse(text) {
 // 詳細ステップ専用のレスポンス解析
 function parseDetailedStepsResponse(text) {
   try {
-    console.log('詳細ステップ Raw API response:', text);
-    
-    // 複数の JSON 抽出パターンを試行
-    let jsonText = null;
-    
-    // パターン1: ```json と ``` で囲まれた JSON
-    let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonMatch) {
       jsonText = jsonMatch[1];
-      console.log('詳細ステップ JSON found with json marker:', jsonText);
-    } else {
-      // パターン2: ``` と ``` で囲まれた JSON
-      jsonMatch = text.match(/```\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         jsonText = jsonMatch[1];
-        console.log('詳細ステップ JSON found with generic marker:', jsonText);
-      } else {
-        // パターン3: { から } までの最初の完全なJSON
-        const startIndex = text.indexOf('{');
         const lastIndex = text.lastIndexOf('}');
         if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
           jsonText = text.substring(startIndex, lastIndex + 1);
-          console.log('詳細ステップ JSON found with brace matching:', jsonText);
-        } else {
-          // パターン4: 直接JSONとして解析
-          jsonText = text.trim();
-          console.log('詳細ステップ Using text directly as JSON:', jsonText);
-        }
-      }
-    }
-    
-    if (!jsonText) {
-      throw new Error('詳細ステップのJSONコンテンツが見つかりません');
     }
     
     // JSONをクリーンアップ
@@ -216,20 +149,8 @@ function parseDetailedStepsResponse(text) {
     jsonText = jsonText.replace(/[^}]*$/, ''); // } より後の文字を除去
     jsonText = jsonText.replace(/```$/, ''); // 末尾の ``` を除去
     
-    console.log('詳細ステップ Cleaned JSON text:', jsonText);
-    
-    const data = JSON.parse(jsonText);
-    console.log('詳細ステップ Parsed result:', data);
-    
-    // detailedStepsフィールドの検証
-    if (data.detailedSteps && Array.isArray(data.detailedSteps)) {
-      return data;
-    } else {
-      throw new Error('詳細ステップデータに必要なフィールドがありません');
     }
   } catch (error) {
-    console.error('詳細ステップデータ解析エラー:', error);
-    console.error('レスポンステキスト:', text);
     
     // エラーの詳細を提供
     if (error instanceof SyntaxError) {

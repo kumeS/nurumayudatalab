@@ -2064,7 +2064,6 @@
             this.selectedModel = settings.model || 'sdxl-lightning';
             this.selectedRegion = settings.region || 'japan';
           } catch (error) {
-            console.warn('設定の読み込みに失敗:', error);
             this.setDefaultSettings();
           }
         } else {
@@ -2163,7 +2162,6 @@
               const previousStyle = this.selectedStyle;
               this.selectedStyle = radio.value;
               this.saveSettings();
-              console.log('🎨 [STYLE_CHANGE] 画像スタイル変更:', {
                 previousStyle: previousStyle,
                 newStyle: radio.value,
                 timestamp: new Date().toISOString(),
@@ -2187,7 +2185,6 @@
               const previousModel = this.selectedModel;
               this.selectedModel = radio.value;
               this.saveSettings();
-              console.log('🔧 [MODEL_CHANGE] 画像生成モデル変更:', {
                 previousModel: previousModel,
                 newModel: radio.value,
                 timestamp: new Date().toISOString()
@@ -2202,7 +2199,6 @@
               const previousRegion = this.selectedRegion;
               this.selectedRegion = radio.value;
               this.saveSettings();
-              console.log('🌍 [REGION_CHANGE] 地域設定変更:', {
                 previousRegion: previousRegion,
                 newRegion: radio.value,
                 timestamp: new Date().toISOString()
@@ -2270,7 +2266,6 @@
             document.getElementById('results-section').classList.add('active');
           }
         } catch (error) {
-          console.error('検索エラー:', error);
           this.showMessage('検索中にエラーが発生しました。もう一度お試しください。', 'error');
         } finally {
           this.showLoading(false);
@@ -2308,9 +2303,7 @@
         // 新しい検索の場合のみ画像生成回数をリセット（復元時はリセットしない）
         if (!isRestore) {
           this.resetImageGenerationAttempts();
-          console.log('🔄 新しい検索: 画像生成回数をリセット');
         } else {
-          console.log('🔄 検索状態復元: 画像生成回数は保持');
         }
 
         container.innerHTML = '';
@@ -2528,12 +2521,8 @@
       }
 
       async generatePlantImage(index) {
-        console.log('generatePlantImage called with index:', index);
-        console.log('searchResults:', this.searchResults);
         const plant = this.searchResults[index];
-        console.log('plant:', plant);
         const container = document.getElementById(`image-container-${index}`);
-        console.log('container:', container);
         
         // 設定から現在のスタイル、時間帯、モデルを取得
         const selectedStyle = this.selectedStyle;
@@ -2577,7 +2566,6 @@
           // ランダムシードを生成して画像のバリエーションを作る
           const randomSeed = this.generateRandomSeed();
           
-          console.log('🎨 [IMAGE_GENERATION] 画像生成開始:', {
             plantName: plant.scientificName,
             selectedStyle: selectedStyle,
             styleLabel: this.getStyleLabel(selectedStyle),
@@ -2660,7 +2648,6 @@
             throw errorObj;
           }
         } catch (error) {
-          console.error('画像生成エラー:', error);
           
           // エラー時は試行回数をロールバック
           this.imageGenerationAttempts[`plant-${index}`] = Math.max(0, (this.imageGenerationAttempts[`plant-${index}`] || 1) - 1);
@@ -2791,7 +2778,6 @@
               model: resultOrSaveData.model || this.selectedModel || 'unknown',
               confidence: plant.confidence || '中程度'
             };
-            console.log('🗂️ [AUTO_SAVE] Saving generated image to history:', historyData.plantName);
           } 
           // マイ図鑑保存時の場合（saveData）
           else {
@@ -2805,7 +2791,6 @@
               model: plant.generatedImageModel || 'unknown',
               confidence: plant.confidence || '中程度'
             };
-            console.log('📚 [COLLECTION_SAVE] Saving collection image to history:', historyData.plantName);
           }
           
           // 重複チェック: 同じ学名・画像URLの組み合わせが既に存在するかチェック
@@ -2818,16 +2803,12 @@
           if (!isDuplicate) {
             const saved = await imageStorage.saveImage(historyData);
             if (saved) {
-              console.log('✅ [SAVE_SUCCESS] Image saved to history:', historyData.plantName);
               this.updateSavedImagesDisplay(); // 保存画像履歴表示を更新
             } else {
-              console.warn('❌ [SAVE_FAILED] Failed to save image to history:', historyData.plantName);
             }
           } else {
-            console.log('🔄 [DUPLICATE_SKIP] Image already exists in history:', historyData.plantName);
           }
         } catch (error) {
-          console.error('🚨 [SAVE_ERROR] Failed to save to image history:', error);
         }
       }
       
@@ -3169,7 +3150,6 @@
         // 再生成回数も同時に保存
         this.saveImageGenerationAttempts();
         
-        console.log('設定を自動保存しました:', {
           style: this.selectedStyle,
           model: this.selectedModel,
           region: this.selectedRegion
@@ -3193,7 +3173,6 @@
           regionRadio.checked = true;
         }
         
-        console.log('UIに設定を反映:', {
           style: this.selectedStyle,
           model: this.selectedModel,
           region: this.selectedRegion
@@ -3237,7 +3216,6 @@
 
       // プロンプト表示モーダルを開く
       showPromptModal(style) {
-        console.log('showPromptModal called with style:', style); // デバッグ用
         
         const styleTitles = {
           'botanical': '植物画スタイル',
@@ -3254,8 +3232,6 @@
         const title = styleTitles[style] || '画像スタイル設定';
         const prompt = stylePrompts[style] || 'プロンプトが見つかりません';
 
-        console.log('Selected title:', title); // デバッグ用
-        console.log('Selected prompt:', prompt); // デバッグ用
 
         document.getElementById('prompt-modal-title').textContent = title + ' - ベースプロンプト';
         document.getElementById('prompt-content').textContent = prompt;
@@ -3280,7 +3256,6 @@
         document.getElementById('prompt-modal-title').textContent = `${plant.commonName} - 画像生成プロンプト（${styleLabel}スタイル）`;
         document.getElementById('prompt-content').textContent = plant.generatedImagePrompt;
         
-        console.log('🔍 [PROMPT_VIEW] プロンプト表示:', {
           plantName: plant.scientificName,
           style: this.selectedStyle,
           styleLabel: styleLabel,
@@ -3310,7 +3285,6 @@
             // 最適化が失敗または不完全な場合は表示しない
             optimizationInfo.style.display = 'none';
             draftSection.style.display = 'none';
-            console.warn('⚠️ Optimization label hidden due to incomplete optimization:', {
               hasJapanese: hasJapanese,
               actuallyOptimized: actuallyOptimized,
               plantName: plant.scientificName
@@ -3351,7 +3325,6 @@
             
             // スタイル強度情報があればログ表示
             if (plant.styleStrength !== undefined) {
-              console.log(`✅ [UI_OPTIMIZATION] 最適化成功表示${context}:`, {
                 plantName: plant.scientificName,
                 styleStrength: plant.styleStrength,
                 hasJapanese: hasJapanese
@@ -3361,7 +3334,6 @@
             // 最適化が失敗または不完全な場合は表示しない
             optimizationInfo.style.display = 'none';
             draftSection.style.display = 'none';
-            console.warn(`⚠️ [UI_OPTIMIZATION] 最適化ラベル非表示${context}:`, {
               hasJapanese: hasJapanese,
               actuallyOptimized: actuallyOptimized,
               plantName: plant.scientificName,
@@ -3457,7 +3429,6 @@
             // 最適化が失敗または不完全な場合は表示しない
             optimizationInfo.style.display = 'none';
             draftSection.style.display = 'none';
-            console.warn('⚠️ Optimization label hidden due to incomplete optimization:', {
               hasJapanese: hasJapanese,
               actuallyOptimized: actuallyOptimized,
               plantName: plant.scientificName
@@ -3748,7 +3719,6 @@
         const key = this.getPlantKey(index);
         this.imageGenerationAttempts[key] = (this.imageGenerationAttempts[key] || 0) + 1;
         this.saveImageGenerationAttempts(); // 即座に保存
-        console.log(`🔢 再生成回数更新: ${key} -> ${this.imageGenerationAttempts[key]}`);
         return this.imageGenerationAttempts[key];
       }
 
@@ -3769,7 +3739,6 @@
       resetImageGenerationAttempts() {
         this.imageGenerationAttempts = {};
         this.saveImageGenerationAttempts(); // ローカルストレージにも反映
-        console.log('画像生成回数をリセットしました');
       }
 
       // 再生成回数をローカルストレージに保存
@@ -3787,10 +3756,8 @@
           if (saved) {
             const data = JSON.parse(saved);
             this.imageGenerationAttempts = data.attempts || {};
-            console.log('再生成回数を復元しました:', this.imageGenerationAttempts);
           }
         } catch (error) {
-          console.warn('再生成回数の読み込みに失敗:', error);
           this.imageGenerationAttempts = {};
         }
       }
@@ -3799,11 +3766,9 @@
       updateRegenerationButtons() {
         // 検索結果がない場合は何もしない
         if (!this.searchResults || this.searchResults.length === 0) {
-          console.log('🔄 再生成ボタン更新: 検索結果なし');
           return;
         }
 
-        console.log('🔄 再生成ボタン状態更新開始:', {
           searchResultsCount: this.searchResults.length,
           imageGenerationAttempts: this.imageGenerationAttempts,
           selectedModel: this.selectedModel
@@ -3826,9 +3791,7 @@
               regenBtn.disabled = !this.canRegenerate(index);
             }
             
-            console.log(`✅ 再生成ボタン状態更新 - Plant ${index}: ${currentCount}/${this.selectedModel === 'minimax' ? '1' : '3'}, disabled: ${regenBtn.disabled}`);
           } else {
-            console.warn(`⚠️ 再生成ボタン要素が見つからない - Plant ${index}`);
           }
         });
       }
@@ -3850,7 +3813,6 @@
             reader.readAsDataURL(blob);
           });
         } catch (error) {
-          console.warn('画像の変換に失敗:', error);
           return null;
         }
       }
@@ -3875,7 +3837,6 @@
                 const base64Data = await this.convertImageToBase64(plant.imageUrl);
                 plantData.imageBase64 = base64Data;
               } catch (error) {
-                console.warn(`画像変換失敗 (${plant.commonName}):`, error);
                 plantData.imageBase64 = null;
               }
             }
@@ -3914,7 +3875,6 @@
 
           this.showMessage(`${exportData.length}件の植物をエクスポートしました`, 'success');
         } catch (error) {
-          console.error('エクスポートエラー:', error);
           this.showMessage('エクスポートに失敗しました', 'error');
         }
       }
@@ -3987,7 +3947,6 @@
           fileInput.value = '';
 
         } catch (error) {
-          console.error('インポートエラー:', error);
           this.showMessage('インポートに失敗しました。ファイル形式を確認してください。', 'error');
           fileInput.value = '';
         }
@@ -4289,7 +4248,6 @@
           e.preventDefault();
           e.stopPropagation();
           const style = e.target.getAttribute('data-style');
-          console.log('Clicked style:', style); // デバッグ用
           app.showPromptModal(style);
         });
       });
