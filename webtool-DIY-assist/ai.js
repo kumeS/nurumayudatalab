@@ -20,8 +20,71 @@ class AIManager {
     this.currentSTLData = null;
   }
 
-  // ========== LLM API呼び出し ==========
+  // ========== LLM API呼び出し（リトライ機能付き） ==========
   async callLLMAPI(prompt) {
+    return await this.callLLMAPIWithRetry(prompt, 0);
+  }
+
+  async callLLMAPIWithRetry(prompt, retryCount = 0) {
+    const maxRetries = 2;
+    const retryTimeoutMs = 15000; // 15秒タイムアウト
+    
+    try {
+      const objData = await this.callLLMAPIInternal(prompt, retryCount > 0 ? retryTimeoutMs : 30000);
+      
+      // Step 4: ポストチェック検証
+      const validationResult = this.validateOBJData(objData);
+      
+      if (validationResult.isValid) {
+        this.assistant.log('info', 'OBJ検証成功', {
+          retryCount,
+          vertices: validationResult.vertexCount,
+          faces: validationResult.faceCount
+        });
+        return objData;
+      }
+      
+      // 検証失敗 - リトライ実行
+      if (retryCount < maxRetries) {
+        this.assistant.log('warn', 'OBJ検証失敗、リトライ実行', {
+          retryCount: retryCount + 1,
+          reason: validationResult.reason,
+          vertices: validationResult.vertexCount,
+          faces: validationResult.faceCount
+        });
+        
+        // リトライ用の簡潔なプロンプト
+        const retryPrompt = `#TASK: OBJ_GENERATION_RETRY
+直前の JSON を忠実に OBJ 行に変換せよ。`;
+        
+        return await this.callLLMAPIWithRetry(retryPrompt, retryCount + 1);
+      } else {
+        // 最大リトライ回数に到達
+        this.assistant.log('error', 'OBJ検証失敗、最大リトライ回数到達', {
+          finalReason: validationResult.reason,
+          vertices: validationResult.vertexCount,
+          faces: validationResult.faceCount
+        });
+        throw new Error(`OBJ生成に失敗しました（${validationResult.reason}）。最大リトライ回数（${maxRetries}回）に到達しました。`);
+      }
+      
+    } catch (error) {
+      if (retryCount < maxRetries && !error.message.includes('最大リトライ回数')) {
+        this.assistant.log('warn', 'API呼び出しエラー、リトライ実行', {
+          retryCount: retryCount + 1,
+          error: error.message
+        });
+        
+        const retryPrompt = `#TASK: OBJ_GENERATION_RETRY
+直前の JSON を忠実に OBJ 行に変換せよ。`;
+        
+        return await this.callLLMAPIWithRetry(retryPrompt, retryCount + 1);
+      }
+      throw error;
+    }
+  }
+
+  async callLLMAPIInternal(prompt, timeoutMs = 30000) {
     // 第1段階の結果をそのまま使用（最適化処理は削除）
     const inputPrompt = prompt;
 
@@ -44,7 +107,7 @@ class AIManager {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒タイムアウト
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       const response = await fetch(this.apiUrl, {
         method: 'POST',
@@ -70,6 +133,16 @@ class AIManager {
         hasResponse: !!data.response
       });
       
+      // デバッグ用：レスポンス内容をログ出力（常時）
+      const responseContent = data.choices?.[0]?.message?.content || data.answer || data.response || '';
+      this.assistant.log('debug', 'LLMレスポンス内容確認', {
+        contentLength: responseContent.length,
+        isRetry: inputPrompt.includes('OBJ_GENERATION_RETRY'),
+        preview: responseContent.substring(0, 300),
+        hasOBJLines: responseContent.includes('v ') || responseContent.includes('f '),
+        hasCodeBlock: responseContent.includes('```')
+      });
+      
       let objContent = null;
       if (data.choices && data.choices[0] && data.choices[0].message) {
         objContent = data.choices[0].message.content;
@@ -82,8 +155,10 @@ class AIManager {
       }
 
       const cleanedOBJ = this.cleanOBJData(objContent);
+      
+      // 空データチェックは残すが、内容の検証はStep 4に委ねる
       if (!cleanedOBJ || cleanedOBJ.trim().length === 0) {
-        throw new Error('Generated OBJ data is empty or invalid');
+        throw new Error('Generated OBJ data is empty');
       }
 
       return cleanedOBJ;
@@ -96,200 +171,198 @@ class AIManager {
     }
   }
 
+  // ========== Step 4: OBJデータ検証 ==========
+  validateOBJData(objData) {
+    if (!objData || typeof objData !== 'string') {
+      return {
+        isValid: false,
+        reason: 'OBJデータが空または無効',
+        vertexCount: 0,
+        faceCount: 0
+      };
+    }
+
+    // より柔軟なOBJデータ抽出を試行
+    let processedData = objData;
+    
+    // JSONレスポンスの検出と対処
+    if (processedData.includes('{') && processedData.includes('}')) {
+      this.assistant.log('warn', 'JSONレスポンスを検出、OBJ抽出を試行', {
+        preview: processedData.substring(0, 100)
+      });
+      
+      // JSONの中からOBJっぽい部分を探す（暫定対処）
+      const jsonMatch = processedData.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const jsonData = JSON.parse(jsonMatch[0]);
+          this.assistant.log('debug', 'JSON解析成功', { keys: Object.keys(jsonData) });
+          
+          // JSON内にOBJデータがあるか探す
+          for (const [key, value] of Object.entries(jsonData)) {
+            if (typeof value === 'string' && (value.includes('v ') || value.includes('f '))) {
+              this.assistant.log('info', 'JSON内からOBJデータを発見', { key });
+              processedData = value;
+              break;
+            }
+          }
+        } catch (e) {
+          this.assistant.log('debug', 'JSON解析失敗、元データを継続使用');
+        }
+      }
+    }
+    
+    // マークダウンコードブロックの除去（cleanOBJDataでできなかった場合のバックアップ）
+    if (processedData.includes('```')) {
+      processedData = processedData
+        .replace(/```obj\s*/gi, '')
+        .replace(/```\s*/g, '')
+        .replace(/```/g, '');
+      
+      this.assistant.log('debug', 'validateOBJDataでコードブロック除去', {
+        beforeLength: objData.length,
+        afterLength: processedData.length
+      });
+    }
+
+    const lines = processedData.split('\n');
+    let vertexCount = 0;
+    let faceCount = 0;
+    let hasInvalidLines = false;
+    const invalidLines = [];
+    let potentialOBJLines = 0; // OBJらしい行の数
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      
+      // 空行はスキップ
+      if (trimmed === '') continue;
+      
+      // 頂点数をカウント
+      if (trimmed.startsWith('v ')) {
+        vertexCount++;
+        potentialOBJLines++;
+        continue;
+      }
+      
+      // 面数をカウント
+      if (trimmed.startsWith('f ')) {
+        faceCount++;
+        potentialOBJLines++;
+        continue;
+      }
+      
+      // 有効なOBJ行頭かチェック
+      const validPrefixes = [
+        '#',        // コメント
+        'vt ',      // テクスチャ座標
+        'vn ',      // 法線
+        'g ',       // グループ
+        'o ',       // オブジェクト
+        's ',       // スムースシェーディング
+        'mtllib ',  // マテリアルライブラリ
+        'usemtl '   // マテリアル使用
+      ];
+      
+      const isValidLine = validPrefixes.some(prefix => trimmed.startsWith(prefix));
+      
+      if (isValidLine) {
+        potentialOBJLines++;
+      } else if (trimmed.length > 0) { // 空行以外の無効行
+        hasInvalidLines = true;
+        invalidLines.push(`行${i + 1}: "${trimmed.substring(0, 50)}..."`);
+        
+        // 無効行が多すぎる場合は早期終了
+        if (invalidLines.length >= 10) break; // 閾値を上げる
+      }
+    }
+
+    // 検証結果の評価
+    const result = {
+      vertexCount,
+      faceCount,
+      hasInvalidLines,
+      invalidLines,
+      potentialOBJLines,
+      totalLines: lines.length
+    };
+
+    this.assistant.log('debug', 'OBJ検証詳細', {
+      vertices: vertexCount,
+      faces: faceCount,
+      potentialOBJLines,
+      invalidLines: invalidLines.length,
+      totalLines: lines.length,
+      dataPreview: processedData.substring(0, 100)
+    });
+
+    // 緩和された基本要件チェック
+    // 完全に空の場合のみエラー、少しでも頂点があれば許可
+    if (vertexCount === 0 && potentialOBJLines === 0) {
+      return {
+        ...result,
+        isValid: false,
+        reason: `OBJデータが全く含まれていません (頂点: ${vertexCount}, OBJ行: ${potentialOBJLines})`
+      };
+    }
+
+    // 非常に緩い条件：頂点が1つでもあれば暫定的に合格
+    if (vertexCount > 0 && faceCount === 0) {
+      this.assistant.log('warn', '頂点のみでface不足、暫定合格', {
+        vertices: vertexCount,
+        faces: faceCount
+      });
+      // 面がなくても頂点があれば一旦合格とする
+    }
+
+    // 最低限の3D形状要件（さらに緩和）
+    if (vertexCount < 3 && faceCount === 0) {
+      return {
+        ...result,
+        isValid: false,
+        reason: `最小3D形状要件不足 (頂点: ${vertexCount}, 面: ${faceCount})`
+      };
+    }
+
+    // 無効行チェック（より寛容に）
+    // OBJっぽい行が半数以上あれば許可
+    const validRatio = potentialOBJLines / Math.max(lines.filter(l => l.trim().length > 0).length, 1);
+    if (hasInvalidLines && validRatio < 0.5) {
+      return {
+        ...result,
+        isValid: false,
+        reason: `OBJフォーマット違反行が多すぎます (有効行比率: ${Math.round(validRatio * 100)}%)`
+      };
+    }
+
+    // 全ての検証をパス
+    return {
+      ...result,
+      isValid: true,
+      reason: '検証成功'
+    };
+  }
+
   // ========== 第2段階：OBJ形式ファイル出力特化システムプロンプト ==========
   getSystemPrompt() {
-    return `あなたはOBJ形式3Dファイル生成の最高専門家です。OBJ形式ファイル作成における完璧な指南書として、以下の要件に基づいて最高品質のOBJファイルを生成してください。
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【OBJ形式ファイル構造の完全マスタリング】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🎯 OBJ形式の基本原則
-• 各行は必ず改行で終了
-• コメント行は '#' で開始
-• 座標系は Y-UP（Y軸が上方向）
-• 単位はセンチメートル（cm）
-• 頂点インデックスは1から開始（0ベースではない）
-
-📐 頂点定義（v行）の精密な記述
-• 形式: v [X座標] [Y座標] [Z座標]
-• 座標値は小数点以下2桁の精度（例: v 12.50 25.00 -5.75）
-• 頂点は論理的な順序で配置（部品別・層別）
-• 重複頂点は完全に排除
-• 各頂点は実際の物理的意味を持つ位置に配置
-
-🔺 面定義（f行）の完璧な記述
-• 形式: f [v1] [v2] [v3] または f [v1] [v2] [v3] [v4]
-• 三角面（3頂点）または四角面（4頂点）で統一
-• 頂点の順序は右手の法則に従う（反時計回り）
-• 各面は必ず閉じた形状を構成
-• 面の向きは外向きに統一
-
-🏗️ 家具構造のOBJ表現方法
-• 各部品を個別の頂点グループとして定義
-• 接続部分は共通頂点で自然に結合
-• 厚みのある部品は適切な内側・外側面を定義
-• 曲面は十分な分割数で滑らかに表現
-• エッジは適切な面取りで安全性を確保
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【品質基準（柔軟な適用）】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🎯 ジオメトリ品質
-• 頂点数: 10-1000点（家具の複雑さに応じて柔軟に調整）
-• 面数: 10-1000面（品質と効率の最適なバランスを追求）
-• 可能な限り閉じた形状を目指す
-• 基本的な構造的整合性を保持
-
-🎯 構造的品質
-• 主要な面は適切に接続
-• 重要なエッジの連続性を維持
-• 明らかなエラーや破綻を回避
-• 全体的に安定した構造
-
-🎯 実用品質
-• 基本的な3D表示に対応
-• 一般的な3Dソフトウェアで読み込み可能
-• 実際の家具としての認識可能性
-• 美観と機能のバランス重視
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【OBJ出力フォーマット（厳格遵守）】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-# [家具種別] - 寸法: [幅]×[奥行]×[高さ]cm
-# 第1段階分析結果に基づく高精度3Dモデル
-# 生成日時: [自動]
-
-# 頂点データ（座標精度：小数点以下2桁）
-v 10.00 0.00 5.00
-v 15.25 12.50 -2.75
-...
-
-# 面データ（反時計回りの頂点順序）
-f 1 2 3
-f 1 3 4
-...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【基本方針】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-✅ OBJデータのみを出力（説明文・コメント等は含めない）
-✅ 第1段階の分析結果を基に、創造的解釈を加えて3D化
-✅ 基本的なOBJ構文に準拠したフォーマット
-✅ 実用的で魅力的な家具モデルとしての品質
-
-【創造的解釈の推奨】
-• 第1段階の内容を基にしつつ、3D化に適した形状調整を歓迎
-• 技術的制約を考慮した合理的な簡略化や最適化
-• 美観向上のための創造的なディテール追加
-• 実用性を重視した構造的改善
-
-提供された第1段階分析結果を参考に、美しく実用的なOBJファイルを創造的に生成してください。`;
+    return `You are a furniture-CAD expert specializing in 3D model generation. 
+Generate valid OBJ format data only. Output ONLY the OBJ file content with vertices (v) and faces (f).
+Do not include any explanations, markdown, or other text - just pure OBJ data.`;
   }
 
   // ========== プロンプト最適化 ==========
   optimizePrompt(userPrompt, width, depth, height) {
-    // 家具種別の判定
-    let furnitureType = '椅子'; // デフォルト
-    let specialRequirements = '';
-    
-    if (userPrompt.includes('椅子') || userPrompt.includes('chair') || userPrompt.includes('チェア')) {
-      furnitureType = '椅子';
-      specialRequirements = `
-【椅子の詳細設計要件】
-🪑 座面：42cm高、軽い凹み形状、快適性のための曲面
-🪑 背もたれ：人体に沿った3D湾曲、腰部サポート、後傾5-15度
-🪑 脚部：テーパー形状（上部太→下部細）、美しい曲線、安定した接地面
-🪑 支持構造：座面と脚部の有機的接続、補強リブの立体的配置
-🪑 表面処理：座面の軽い凹凸、背もたれの曲面、エッジの面取り
-🪑 全体造形：有機的で美しいプロポーション、視覚的軽快感`;
-    } else if (userPrompt.includes('テーブル') || userPrompt.includes('table') || userPrompt.includes('机')) {
-      furnitureType = 'テーブル';
-      specialRequirements = `
-【テーブルの詳細設計要件】
-🪞 天板：72cm高、3cm厚、エッジの美しい面取り、軽い反り表現
-🪞 脚部：上部から下部へのテーパー形状、装飾的な断面変化
-🪞 幕板：構造美を活かした立体的な補強、軽快感のある切り欠き
-🪞 接合部：天板と脚部の自然な接続、有機的な移行形状
-🪞 表面処理：天板表面の微細な凹凸、使用感のある自然な表情
-🪞 全体造形：安定感と軽快感を両立した美しいプロポーション`;
-    } else if (userPrompt.includes('本棚') || userPrompt.includes('棚') || userPrompt.includes('shelf')) {
-      furnitureType = '収納家具';
-      specialRequirements = `
-【収納家具の詳細設計要件】
-📚 筐体：側板・背板の立体的な厚み表現、装飾的なパネル構造
-📚 棚板：2.5cm厚、軽い反り、棚受けの立体的な造形
-📚 扉・引き出し：パネルの凹凸、取っ手の立体形状、開閉機構の表現
-📚 台座・脚部：安定性と美観を両立、床との美しい接地面
-📚 内部構造：機能的な仕切り、棚受けの詳細な立体形状
-📚 装飾要素：モールディング、面取り、上品な装飾的ライン`;
-    }
-
-    // 寸法指定の処理
+    // 寸法文字列の構築
     let dimensionText = '';
     if (width !== 'auto' || depth !== 'auto' || height !== 'auto') {
-      dimensionText = `
-【指定寸法】
-- 幅：${width}cm
-- 奥行：${depth}cm  
-- 高さ：${height}cm`;
+      dimensionText = `横${width} × 奥${depth} × 高さ${height} cm`;
     }
 
-    const optimizedPrompt = `【${furnitureType}の詳細3Dモデル生成】
+    // 簡潔なタスク指定プロンプト
+    const taskPrompt = `#TASK: OBJ_GENERATION
+${userPrompt}${dimensionText ? '\n' + dimensionText : ''}`;
 
-【ユーザー要求】
-${userPrompt}
-${dimensionText}
-${specialRequirements}
-
-【立体的デザイン要件】
-✅ 単純なボックスではなく、立体的で美しい形状
-✅ 曲線・傾斜・面取りを含む洗練されたデザイン
-✅ 人間工学的に優れた機能性
-✅ 視覚的に魅力的な造形美
-
-【詳細造形指示】
-🎨 表面：平坦ではなく、適度な凹凸・段差・曲面を持つ
-🎨 エッジ：鋭角ではなく、適度に面取りされた滑らかな縁
-🎨 脚部：直線的ではなく、テーパーや曲線を含む美しい形状
-🎨 接合部：機械的ではなく、自然で有機的な接続構造
-🎨 装飾：シンプルながら上品な装飾的要素を含む
-
-【構造的詳細要件】
-- 座面・天板：使用感を考慮した軽い湾曲・凹み
-- 背もたれ：人体に沿った3D曲面
-- 脚部：安定性と美観を両立したテーパー形状
-- 支持構造：力学的に美しい補強・幕板構造
-- 厚み表現：材料の実際の厚みを立体的に表現
-
-【品質要件】
-- 頂点数：200-500点（詳細度優先）
-- 面数：150-400面（立体性重視）
-- 曲線分割：滑らかな曲面のための適切な分割数
-- 造形密度：美しさと機能性を両立
-
-【禁止事項】
-❌ 単純な直方体の組み合わせ
-❌ 平坦で単調な表面
-❌ 直線的で無機質な形状
-❌ 装飾性のない機械的なデザイン
-
-【立体性実現のための具体的手法】
-🎯 頂点配置：直線的な配置を避け、曲線・テーパー・凹凸を表現
-🎯 面構成：複数の高さレベルで立体感を演出
-🎯 エッジ処理：鋭角を避け、面取り・丸みを追加
-🎯 機能的形状：人間工学・使用感を考慮した3D曲面
-
-【出力指示】
-上記要件に基づき、美しく立体的で詳細な${furnitureType}のOBJモデルを生成してください。
-システムプロンプトの立体的椅子サンプルのような、曲線・テーパー・面取り・装飾を含む洗練された3D形状として設計してください。
-
-OBJデータのみを出力し、説明文やマークダウンは含めないでください。`;
-
-    return optimizedPrompt;
+    return taskPrompt;
   }
 
   // ========== OBJデータクリーニング ==========
@@ -336,16 +409,24 @@ OBJデータのみを出力し、説明文やマークダウンは含めない�
       }
     }
 
-    if (!foundValidOBJContent) {
-      throw new Error('Generated content does not contain valid OBJ data (no vertices or faces found)');
-    }
-
     const result = objLines.join('\n').trim();
+    
     this.assistant.log('debug', 'OBJデータクリーニング完了', { 
       originalLines: lines.length,
       cleanedLines: objLines.length,
-      hasValidContent: foundValidOBJContent
+      hasValidContent: foundValidOBJContent,
+      resultLength: result.length,
+      originalPreview: rawData.substring(0, 200)
     });
+    
+    // クリーニング後に空になった場合は元データを返す（Step 4で詳細検証）
+    if (result.length === 0) {
+      this.assistant.log('warn', 'クリーニング後に空データ、元データを返します', {
+        originalDataPreview: rawData.substring(0, 200)
+      });
+      return rawData; // 元のrawDataをそのまま返す
+    }
+    
     return result;
   }
 
@@ -418,156 +499,5 @@ OBJデータのみを出力し、説明文やマークダウンは含めない�
     return stl;
   }
 
-  // ========== 品質要件管理 ==========
-  getFurnitureQualityRequirements(furnitureType, width, depth, height) {
-    // 家具種別に応じた3Dモデル品質要件の設定
-    const baseRequirements = {
-      '椅子': {
-        model_precision: {
-          purpose: "製造用高精度モデル",
-          minimum_vertices: 120,
-          target_vertices: 200,
-          maximum_vertices: 500,
-          minimum_faces: 80,
-          target_faces: 150,
-          detail_level: "高精度"
-        },
-        geometric_accuracy: {
-          vertex_density: "曲面部: 2cm間隔、平面部: 5cm間隔",
-          edge_smoothness: "曲率半径R1.0mm以上で10分割以上",
-          surface_tolerance: "±0.2mm以内",
-          connection_precision: "接合部±0.1mm精度"
-        },
-        functional_details: {
-          critical_surfaces: ["座面", "背もたれ接触面", "脚部接合面"],
-          high_precision_areas: ["ダボ穴", "ボルト穴", "接合面", "座面エッジ"],
-          standard_precision_areas: ["外観面", "非接触面", "脚部側面"]
-        },
-        quality_rationale: "人体接触部分の快適性と安全性確保のため高精度が必須"
-      },
-      
-      'テーブル': {
-        model_precision: {
-          purpose: "製造用中高精度モデル", 
-          minimum_vertices: 80,
-          target_vertices: 150,
-          maximum_vertices: 400,
-          minimum_faces: 60,
-          target_faces: 120,
-          detail_level: "中高精度"
-        },
-        geometric_accuracy: {
-          vertex_density: "天板: 3cm間隔、脚部: 4cm間隔",
-          edge_smoothness: "エッジR2.0mm以上で8分割以上",
-          surface_tolerance: "±0.3mm以内",
-          connection_precision: "接合部±0.2mm精度"
-        },
-        functional_details: {
-          critical_surfaces: ["天板上面", "脚部接合面"],
-          high_precision_areas: ["天板エッジ", "脚部接合部", "ボルト穴"],
-          standard_precision_areas: ["脚部側面", "天板下面"]
-        },
-        quality_rationale: "平面性と安定性が重要、作業面の精度が使用感に直結"
-      },
-      
-      '収納家具': {
-        model_precision: {
-          purpose: "組み立て精度重視モデル",
-          minimum_vertices: 100,
-          target_vertices: 180,
-          maximum_vertices: 450,
-          minimum_faces: 70,
-          target_faces: 140,
-          detail_level: "中高精度"
-        },
-        geometric_accuracy: {
-          vertex_density: "棚板: 3cm間隔、側板: 4cm間隔",
-          edge_smoothness: "内部エッジR1.5mm以上で6分割以上",
-          surface_tolerance: "±0.25mm以内",
-          connection_precision: "組み立て部±0.15mm精度"
-        },
-        functional_details: {
-          critical_surfaces: ["棚板上面", "側板内面", "背板接合面"],
-          high_precision_areas: ["棚受け部", "ダボ穴", "扉蝶番部"],
-          standard_precision_areas: ["外観面", "背板"]
-        },
-        quality_rationale: "多数のパーツ組み合わせのため寸法精度が組み立て性に影響"
-      }
-    };
-    
-    let requirements = baseRequirements[furnitureType] || baseRequirements['椅子'];
-    
-    // サイズに応じた調整
-    const totalVolume = parseFloat(width || 40) * parseFloat(depth || 40) * parseFloat(height || 80);
-    const sizeFactor = Math.sqrt(totalVolume / 128000); // 基準サイズ40x40x80での正規化
-    
-    // サイズに応じて頂点数・面数を調整
-    requirements.model_precision.target_vertices = Math.round(requirements.model_precision.target_vertices * sizeFactor);
-    requirements.model_precision.target_faces = Math.round(requirements.model_precision.target_faces * sizeFactor);
-    requirements.model_precision.maximum_vertices = Math.round(requirements.model_precision.maximum_vertices * sizeFactor);
-    
-    // 最小値は維持（品質担保）
-    requirements.model_precision.target_vertices = Math.max(
-      requirements.model_precision.minimum_vertices,
-      requirements.model_precision.target_vertices
-    );
-    requirements.model_precision.target_faces = Math.max(
-      requirements.model_precision.minimum_faces,
-      requirements.model_precision.target_faces
-    );
-    
-    // 複雑度レベルの設定
-    if (furnitureType === '椅子') {
-      requirements.complexity_factors = {
-        "背もたれ曲面": "頂点密度1.5倍",
-        "座面くぼみ": "頂点密度1.3倍", 
-        "脚部接合": "頂点密度2.0倍",
-        "アームレスト": "頂点密度1.4倍"
-      };
-    } else if (furnitureType === 'テーブル') {
-      requirements.complexity_factors = {
-        "天板エッジ処理": "頂点密度1.2倍",
-        "脚部テーパー": "頂点密度1.3倍",
-        "補強材": "頂点密度1.1倍"
-      };
-    } else if (furnitureType === '収納家具') {
-      requirements.complexity_factors = {
-        "棚板サポート": "頂点密度1.2倍",
-        "扉部分": "頂点密度1.4倍",
-        "引き出し": "頂点密度1.3倍"
-      };
-    }
-    
-    return requirements;
-  }
 
-  // ========== モデル品質検証 ==========
-  getModelQualityValidationCriteria(qualityRequirements) {
-    // 3Dモデル品質検証基準の生成
-    return {
-      vertex_count_check: {
-        minimum: qualityRequirements.model_precision.minimum_vertices,
-        target: qualityRequirements.model_precision.target_vertices,
-        maximum: qualityRequirements.model_precision.maximum_vertices,
-        tolerance: 0.1 // ±10%の許容範囲
-      },
-      face_count_check: {
-        minimum: qualityRequirements.model_precision.minimum_faces,
-        target: qualityRequirements.model_precision.target_faces,
-        tolerance: 0.15 // ±15%の許容範囲
-      },
-      geometry_validation: {
-        vertex_face_ratio: { min: 0.6, max: 2.0 }, // 健全な比率
-        degenerate_face_max: 5, // 退化面の最大許容数
-        isolated_vertex_max: 2, // 孤立頂点の最大許容数
-        manifold_requirement: true // 多様体構造必須
-      },
-      precision_validation: {
-        coordinate_precision: 1, // 小数点1桁
-        minimum_edge_length: 0.1, // 最小エッジ長さ(cm)
-        maximum_edge_length: 50.0, // 最大エッジ長さ(cm)
-        surface_normal_consistency: true // 面法線の一貫性
-      }
-    };
-  }
 }

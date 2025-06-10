@@ -80,6 +80,16 @@ Since this is a simple web application with no build system:
 - **Run locally**: Open `index.html` in a web browser
 - **Test API calls**: Check browser console for detailed logging
 - **Debug image generation**: Look for 🔥 prefixed logs in console
-- **Check storage**: Use browser dev tools Application tab
+- **Debug LLM search**: Look for detailed request/response logs with request IDs
+- **Check storage**: Use browser dev tools Application tab → Local Storage
+- **Monitor API performance**: Console logs include timing and duration metrics
+- **Clear saved images**: Use the storage management interface or browser dev tools
 
 No package management, build commands, or test runners are present in this project.
+
+### Key Debugging Tips
+
+- All API calls are logged with unique request IDs for tracing
+- Image generation pipeline includes optimization step logging
+- Japanese text detection and translation are logged for debugging
+- Local storage automatically manages 50-image limit with 5MB per image cap

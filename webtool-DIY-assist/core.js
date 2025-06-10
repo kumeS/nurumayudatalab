@@ -271,8 +271,7 @@ class DIYAssistant {
       this.setupSampleButtons();
     }, 50);
 
-    // 最適化プロンプト表示ボタン（HTMLの実際の要素名に合わせる）
-    safeAddEventListener('showOptimizedPromptBtn', 'click', () => this.showStage2InputPrompt());
+    
 
     // 段階別結果表示ボタン
     safeAddEventListener('showStage1ResultBtn', 'click', () => this.showStageResult(1));
@@ -872,6 +871,12 @@ class DIYAssistant {
           this.currentObjData = session.currentProject.objData;
           
           try {
+            // シーンマネージャーの初期化確認
+            if (!this.sceneManager.isInitialized) {
+              this.log('warn', 'セッション復元: シーンマネージャー未初期化、待機中...');
+              await this.waitForSceneInitialization();
+            }
+            
             // 3Dモデルを読み込み
             await this.sceneManager.loadOBJModel(session.currentProject.objData);
             this.enableDownloadButtons();
@@ -879,16 +884,16 @@ class DIYAssistant {
             // キャンバスオーバーレイを確実に非表示
             this.sceneManager.hideCanvasOverlay();
             
-                      // 品質チェック結果を復元
-          if (session.currentProject.qualityCheck) {
-            this.processingManager.storeQualityCheckResults(session.currentProject.qualityCheck);
-          }
-          
-          // 最適化仕様を復元
-          if (session.currentProject.optimizedSpec) {
-            this.processingManager.storeOptimizedSpec(session.currentProject.optimizedSpec, session.currentProject.prompt);
-          }
+            // 品質チェック結果を復元
+            if (session.currentProject.qualityCheck) {
+              this.processingManager.storeQualityCheckResults(session.currentProject.qualityCheck);
+            }
             
+            // 最適化仕様を復元
+            if (session.currentProject.optimizedSpec) {
+              this.processingManager.storeOptimizedSpec(session.currentProject.optimizedSpec, session.currentProject.prompt);
+            }
+              
             // 最適化されたプロンプトを復元
             if (session.currentProject.optimizedPrompt) {
               this.currentOptimizedPrompt = session.currentProject.optimizedPrompt;
@@ -913,10 +918,28 @@ class DIYAssistant {
             
           } catch (error) {
             this.log('error', 'セッション復元失敗: 3Dモデル読み込みエラー', { 
-              error: error.message 
+              error: error.message,
+              stack: error.stack 
             });
-            this.showError('前回のセッション復元でエラーが発生しました。');
-            this.sceneManager.resetCanvas();
+            
+            // エラー詳細に応じた対応
+            if (error.message.includes('初期化されていません')) {
+              this.log('warn', 'セッション復元: 3Dシーン再初期化試行');
+              try {
+                this.sceneManager.setup3DScene();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                await this.sceneManager.loadOBJModel(session.currentProject.objData);
+                this.log('info', 'セッション復元: 再初期化後に復元成功');
+                this.showSuccess('前回のセッション状態を復元しました。');
+              } catch (retryError) {
+                this.log('error', 'セッション復元: 再試行も失敗', { error: retryError.message });
+                this.showError('前回のセッション復元でエラーが発生しました。新しいプロジェクトを開始してください。');
+                this.sceneManager.resetCanvas();
+              }
+            } else {
+              this.showError('前回のセッション復元でエラーが発生しました。');
+              this.sceneManager.resetCanvas();
+            }
           }
         } else {
           // 完全なセッションが無い場合、入力セッションを復元
@@ -927,11 +950,28 @@ class DIYAssistant {
         this.loadInputSession();
       }
     } catch (error) {
-      this.log('error', 'セッション復元エラー', { error: error.message });
+      this.log('error', 'セッション復元エラー', { error: error.message, stack: error.stack });
       localStorage.removeItem('diy_current_session');
       // エラー時も入力セッションを試行
       this.loadInputSession();
     }
+  }
+
+  // ========== シーンマネージャー初期化待機 ==========
+  async waitForSceneInitialization(maxWaitTime = 5000) {
+    const startTime = Date.now();
+    
+    while (!this.sceneManager.isInitialized && (Date.now() - startTime) < maxWaitTime) {
+      this.log('debug', 'シーンマネージャー初期化待機中...');
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    if (!this.sceneManager.isInitialized) {
+      this.log('warn', 'シーンマネージャー初期化タイムアウト');
+      throw new Error('3Dシーンの初期化がタイムアウトしました');
+    }
+    
+    this.log('info', 'シーンマネージャー初期化完了');
   }
 
   loadInputSession() {
@@ -1152,59 +1192,7 @@ class DIYAssistant {
   // サンプルデータ機能は削除されました
 
   // ========== 第2段階入力プロンプトモーダル管理 ==========
-  showStage2InputPrompt() {
-    const stage2Data = this.processingManager.stage2Data;
-    if (!stage2Data || !stage2Data.furnitureSpec) {
-      this.showError('第2段階のデータが見つかりません。まず3Dモデルを生成してください。');
-      return;
-    }
 
-    // 第2段階で使用されたプロンプトを取得
-    const stage2Prompt = this.getStage2Prompt(stage2Data.furnitureSpec);
-    const systemPrompt = stage2Data.systemPrompt || 'システムプロンプト情報が利用できません';
-    
-    // プロンプトの内容を設定（入力プロンプト + システムプロンプト）
-    const combinedPrompt = `【第2段階入力プロンプト】
-${stage2Prompt}
-
-【システムプロンプト】
-${systemPrompt}`;
-    
-    document.getElementById('optimizedPromptContent').textContent = combinedPrompt;
-    document.getElementById('promptModal').style.display = 'flex';
-  }
-
-  closePromptModal() {
-    document.getElementById('promptModal').style.display = 'none';
-  }
-
-  async copyPromptToClipboard() {
-    const promptContent = document.getElementById('optimizedPromptContent').textContent;
-    
-    if (!promptContent) {
-      this.showError('コピーするプロンプトがありません。');
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(promptContent);
-      this.showSuccess('プロンプトがクリップボードにコピーされました。');
-    } catch (error) {
-      this.log('error', 'クリップボードコピー失敗', { error: error.message });
-      // フォールバック: テキストエリアを作成してコピー
-      const textArea = document.createElement('textarea');
-      textArea.value = promptContent;
-      document.body.appendChild(textArea);
-      textArea.select();
-      try {
-        document.execCommand('copy');
-        this.showSuccess('プロンプトがクリップボードにコピーされました。');
-      } catch (fallbackError) {
-        this.showError('クリップボードへのコピーに失敗しました。');
-      }
-      document.body.removeChild(textArea);
-    }
-  }
 
   // ========== 段階別結果モーダル管理 ==========
   showStageResult(stage) {
@@ -1400,33 +1388,59 @@ ${stage1FullOutput}
 
     const inputPrompt = data.inputPrompt || '品質検証の入力プロンプトが利用できません';
     const systemPrompt = data.systemPrompt || 'システムプロンプト情報が利用できません';
-    const improvedObjData = data.improvedObjData || '改善されたOBJデータが利用できません';
+    const qualityReport = data.qualityReport || 'LLMによる品質評価レポートが利用できません';
+    const improvedObjData = data.improvedObjData || data.originalObjData || '評価されたOBJデータが利用できません';
+    const objAnalysis = data.objAnalysis || {};
+
+    // OBJ分析情報の表示
+    const analysisInfo = objAnalysis ? `
+頂点数: ${objAnalysis.vertexCount || 'N/A'}
+面数: ${objAnalysis.faceCount || 'N/A'}
+寸法: ${objAnalysis.overallDimensions ? 
+  `${objAnalysis.overallDimensions.width?.toFixed(1) || 'N/A'} × ${objAnalysis.overallDimensions.depth?.toFixed(1) || 'N/A'} × ${objAnalysis.overallDimensions.height?.toFixed(1) || 'N/A'} cm` : 'N/A'}
+    `.trim() : '分析情報なし';
 
     return `
       <div class="quality-check-results">
         <h4 style="color: #ff9800; margin: 0 0 1rem 0;">
-          <i class="fas fa-check-circle"></i> 第3段階：品質検証と最終調整結果
+          <i class="fas fa-check-circle"></i> 第3段階：品質検証と評価結果
         </h4>
+        
+        <div class="quality-section" style="margin-bottom: 1.5rem;">
+          <h5 style="color: #e91e63; margin: 0 0 0.5rem 0;">
+            <i class="fas fa-chart-bar"></i> OBJ構造分析
+          </h5>
+          <div style="background: #fce4ec; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.9rem; white-space: pre-line;">
+${analysisInfo}
+          </div>
+        </div>
+        
+        <div class="quality-section" style="margin-bottom: 1.5rem;">
+          <h5 style="color: #4caf50; margin: 0 0 0.5rem 0;">
+            <i class="fas fa-clipboard-check"></i> LLM品質評価レポート
+          </h5>
+          <div style="background: #f8fff8; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 0.9rem; line-height: 1.5;">${qualityReport}</div>
+        </div>
         
         <div class="quality-section" style="margin-bottom: 1.5rem;">
           <h5 style="color: #9c27b0; margin: 0 0 0.5rem 0;">
             <i class="fas fa-robot"></i> システムプロンプト
           </h5>
-          <textarea readonly style="width: 100%; height: 200px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.8rem; background: #f3e5f5; resize: vertical;">${systemPrompt}</textarea>
+          <textarea readonly style="width: 100%; height: 120px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.8rem; background: #f3e5f5; resize: vertical;">${systemPrompt}</textarea>
         </div>
         
         <div class="quality-section" style="margin-bottom: 1.5rem;">
           <h5 style="color: #2196f3; margin: 0 0 0.5rem 0;">
             <i class="fas fa-terminal"></i> 使用されたプロンプト
           </h5>
-          <textarea readonly style="width: 100%; height: 150px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.85rem; background: #f0f8ff; resize: vertical;">${inputPrompt}</textarea>
+          <textarea readonly style="width: 100%; height: 150px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.8rem; background: #f0f8ff; resize: vertical;">${inputPrompt}</textarea>
         </div>
         
         <div class="quality-section">
-          <h5 style="color: #4caf50; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-file-code"></i> 品質検証結果（改善されたOBJファイル）
+          <h5 style="color: #ff9800; margin: 0 0 0.5rem 0;">
+            <i class="fas fa-file-code"></i> 評価されたOBJファイル
           </h5>
-          <textarea readonly style="width: 100%; height: 300px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.85rem; background: #f8fff8; resize: vertical;">${improvedObjData}</textarea>
+          <textarea readonly style="width: 100%; height: 250px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.8rem; background: #fff8f0; resize: vertical;">${improvedObjData}</textarea>
         </div>
       </div>
     `;
@@ -1736,13 +1750,7 @@ ${stage1FullOutput}
       }
     }
     
-    // 第2段階入力プロンプトボタン
-    if (this.processingManager.stage2Data) {
-      const promptBtn = document.getElementById('showOptimizedPromptBtn');
-      if (promptBtn) {
-        promptBtn.style.display = 'block';
-      }
-    }
+
     
     this.log('debug', '段階別結果ボタンの表示状態を更新しました', {
       stage1: !!this.processingManager.stage1Data,
@@ -1751,12 +1759,87 @@ ${stage1FullOutput}
       stage2InputPrompt: !!this.processingManager.stage2Data
     });
   }
+
+  // ========== エラーレポート生成 ==========
+  generateSessionRestoreErrorReport(error, sessionData) {
+    const report = {
+      timestamp: new Date().toISOString(),
+      error: {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      },
+      sessionData: {
+        hasSession: !!sessionData,
+        sessionAge: sessionData ? (Date.now() - sessionData.timestamp) / (1000 * 60 * 60) + ' hours' : 'N/A',
+        hasProject: !!sessionData?.currentProject,
+        hasObjData: !!sessionData?.currentProject?.objData,
+        objDataSize: sessionData?.currentProject?.objData?.length || 0
+      },
+      systemState: {
+        hasThreeJS: typeof THREE !== 'undefined',
+        threeRevision: typeof THREE !== 'undefined' ? THREE.REVISION : 'N/A',
+        hasOBJLoader: typeof THREE?.OBJLoader !== 'undefined',
+        hasOrbitControls: typeof THREE?.OrbitControls !== 'undefined',
+        hasSceneManager: !!this.sceneManager,
+        sceneInitialized: !!this.sceneManager?.isInitialized,
+        containerExists: !!document.getElementById('threeContainer')
+      },
+      browserInfo: {
+        userAgent: navigator.userAgent,
+        url: window.location.href,
+        localStorage: {
+          diyProjects: !!localStorage.getItem('diy_projects'),
+          diyCurrentSession: !!localStorage.getItem('diy_current_session'),
+          diyInputSession: !!localStorage.getItem('diy_input_session')
+        }
+      }
+    };
+    
+    // エラーレポートをローカルストレージに保存
+    try {
+      const errorReports = JSON.parse(localStorage.getItem('diy_session_error_reports') || '[]');
+      errorReports.push(report);
+      // 最新10件のみ保持
+      if (errorReports.length > 10) {
+        errorReports.splice(0, errorReports.length - 10);
+      }
+      localStorage.setItem('diy_session_error_reports', JSON.stringify(errorReports));
+    } catch (storageError) {
+      this.log('error', 'エラーレポート保存失敗', { error: storageError.message });
+    }
+    
+    this.log('error', 'セッション復元エラーレポート生成', report);
+    return report;
+  }
+
+  // ========== エラーレポートエクスポート ==========
+  exportSessionErrorReports() {
+    try {
+      const errorReports = JSON.parse(localStorage.getItem('diy_session_error_reports') || '[]');
+      const exportData = {
+        generated: new Date().toISOString(),
+        errorReports: errorReports,
+        currentSession: localStorage.getItem('diy_current_session'),
+        projects: localStorage.getItem('diy_projects'),
+        logs: this.logHistory.slice(-50) // 最新50件のログ
+      };
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `diy-session-error-report-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      this.log('info', 'セッションエラーレポートをエクスポートしました');
+      this.showSuccess('エラーレポートがダウンロードされました。');
+    } catch (error) {
+      this.log('error', 'エラーレポートエクスポート失敗', { error: error.message });
+      this.showError('エラーレポートのエクスポートに失敗しました。');
+    }
+  }
 }
-
-// グローバル変数として初期化
-let diyAssistant;
-
-// DOM読み込み完了後に初期化
-document.addEventListener('DOMContentLoaded', () => {
-  diyAssistant = new DIYAssistant();
-});

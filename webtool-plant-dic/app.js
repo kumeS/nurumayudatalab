@@ -58,6 +58,7 @@ class ReplicateImageClient {
       payload: payload
     };
 
+    console.log('🔥 [API_REQUEST] Replicate API Call Started:', {
       timestamp: new Date().toISOString(),
       requestId: requestId,
       workerUrl: this.workerUrl,
@@ -78,6 +79,7 @@ class ReplicateImageClient {
 
       const duration = Math.round(performance.now() - startTime);
       
+      console.log('🔥 [API_RESPONSE] Worker API Response Received:', {
         timestamp: new Date().toISOString(),
         requestId: requestId,
         status: response.status,
@@ -93,6 +95,7 @@ class ReplicateImageClient {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         
+        console.error('🔥 [API_ERROR] Worker API Call Failed:', {
           timestamp: new Date().toISOString(),
           requestId: requestId,
           status: response.status,
@@ -112,6 +115,7 @@ class ReplicateImageClient {
 
       const data = await response.json();
       
+      console.log('🔥 [API_SUCCESS] Worker API Response Data:', {
         timestamp: new Date().toISOString(),
         requestId: requestId,
         duration: duration,
@@ -123,6 +127,7 @@ class ReplicateImageClient {
       });
       
       if (data.error) {
+        console.error('🔥 [API_INTERNAL_ERROR] Replicate API Internal Error:', {
           timestamp: new Date().toISOString(),
           requestId: requestId,
           error: data.error,
@@ -132,6 +137,7 @@ class ReplicateImageClient {
         throw new Error(`Replicate API エラー: ${JSON.stringify(data.details || data.error)}`);
       }
 
+      console.log('🔥 [API_COMPLETE] Image Generation Successful:', {
         timestamp: new Date().toISOString(),
         requestId: requestId,
         duration: duration,
@@ -143,6 +149,7 @@ class ReplicateImageClient {
     } catch (error) {
       const duration = Math.round(performance.now() - startTime);
       
+      console.error('🔥 [API_EXCEPTION] API Call Exception:', {
         timestamp: new Date().toISOString(),
         requestId: requestId,
         duration: duration,
@@ -170,6 +177,7 @@ async function optimizeImagePromptInternal(draftPrompt, workerUrl) {
   const startTime = performance.now();
   const optimizationId = Date.now() + '_' + Math.random().toString(36).substring(2, 7);
   
+  console.log('🔄 [OPTIMIZE_START] プロンプト最適化API呼び出し開始:', {
     optimizationId: optimizationId,
     workerUrl: workerUrl,
     draftLength: draftPrompt.length,
@@ -224,6 +232,7 @@ ${draftPrompt}`;
     const duration = Math.round(performance.now() - startTime);
 
     if (!response.ok) {
+      console.error('❌ [OPTIMIZE_ERROR] プロンプト最適化API失敗:', {
         optimizationId: optimizationId,
         status: response.status,
         statusText: response.statusText,
@@ -235,6 +244,7 @@ ${draftPrompt}`;
 
     const data = await response.json();
     
+    console.log('📥 [OPTIMIZE_RESPONSE] プロンプト最適化API応答受信:', {
       optimizationId: optimizationId,
       duration: duration,
       hasResult: !!(data.result && data.result.response),
@@ -250,6 +260,7 @@ ${draftPrompt}`;
       const hasJapanese = containsJapanese(optimizedText);
       const actuallyOptimized = optimizedText !== draftPrompt;
       
+      console.log('✅ [OPTIMIZE_SUCCESS] プロンプト最適化成功:', {
         optimizationId: optimizationId,
         duration: duration,
         originalLength: draftPrompt.length,
@@ -264,6 +275,7 @@ ${draftPrompt}`;
       
       // 日本語が残っている場合は手動フォールバック翻訳を適用
       if (hasJapanese) {
+        console.warn('⚠️ [OPTIMIZE_JAPANESE_DETECTED] Applying manual translation fallback');
         const manualTranslated = translateFeaturesToEnglish(optimizedText);
         // 翻訳後も句読点をクリーンアップ
         const cleanedManualTranslated = manualTranslated
@@ -284,6 +296,7 @@ ${draftPrompt}`;
       if (styleKeywords.style) {
         const optimizedStyleStrength = checkStyleStrength(finalOptimizedText, styleKeywords.style);
         
+        console.log('🎨 [STYLE_CHECK] プロンプト最適化後のスタイル強度:', {
           originalStyle: styleKeywords.style,
           styleStrength: optimizedStyleStrength.percentage,
           foundKeywords: optimizedStyleStrength.found.length,
@@ -293,13 +306,14 @@ ${draftPrompt}`;
         // スタイル強度が低い場合（50%未満）、スタイル情報を補強
         if (optimizedStyleStrength.percentage < 50) {
           const enhancedPrompt = enhanceStyleInPrompt(finalOptimizedText, styleKeywords.style);
-          
+          console.log('🔧 [STYLE_ENHANCE] スタイル情報を補強しました');
           return enhancedPrompt;
         }
       }
       
       return finalOptimizedText;
     } else {
+      console.error('❌ [OPTIMIZE_INVALID] プロンプト最適化レスポンス無効:', {
         optimizationId: optimizationId,
         duration: duration,
         dataStructure: JSON.stringify(data).substring(0, 200),
@@ -310,6 +324,7 @@ ${draftPrompt}`;
   } catch (error) {
     const duration = Math.round(performance.now() - startTime);
     
+    console.warn('⚠️ [OPTIMIZE_FALLBACK] プロンプト最適化失敗、フォールバック処理開始:', {
       optimizationId: optimizationId,
       duration: duration,
       errorName: error.name,
@@ -320,6 +335,7 @@ ${draftPrompt}`;
     
     // フォールバック：日本語含有チェックとクリーンアップ
     if (containsJapanese(draftPrompt)) {
+      console.warn('⚠️ [FALLBACK_JAPANESE] 元プロンプトに日本語が含まれています、最小限の英語化を実行');
       
       // 手動翻訳機能を使用して日本語を英語に変換
       const translatedPrompt = translateFeaturesToEnglish(draftPrompt);
@@ -343,8 +359,10 @@ ${draftPrompt}`;
       // 空になった場合は基本的な英語プロンプトを生成
       if (!cleanPrompt || cleanPrompt.length < 20) {
         cleanPrompt = `A detailed botanical image of a plant specimen, professional scientific illustration style, clean background`;
+        console.warn('⚠️ [FALLBACK_MINIMAL] 最小限の英語プロンプトを生成');
       }
       
+      console.log('🔧 [FALLBACK_CLEANED] フォールバック最適化完了:', {
         originalLength: draftPrompt.length,
         translatedLength: translatedPrompt.length,
         cleanedLength: cleanPrompt.length,
@@ -355,7 +373,7 @@ ${draftPrompt}`;
     }
     
     // 日本語が含まれていない場合は元のプロンプトを返す
-    
+    console.log('✅ [FALLBACK_CLEAN] 元プロンプトは日本語を含まないため、そのまま使用');
     return draftPrompt;
   }
 }
@@ -377,11 +395,13 @@ class PlantImageStorage {
       const base64Data = await this.convertImageToBase64(imageData.imageUrl);
       
       if (!base64Data) {
+        console.warn('🗂️ 画像のBase64変換に失敗しました');
         return false;
       }
 
       // データサイズチェック
       if (base64Data.length > this.maxSizePerImage) {
+        console.warn('🗂️ 画像サイズが大きすぎます（5MB制限）');
         return false;
       }
 
@@ -407,9 +427,10 @@ class PlantImageStorage {
       }
 
       localStorage.setItem(this.storageKey, JSON.stringify(savedImages));
-      
+      console.log('🗂️ 画像を保存しました:', newImageData.plantName);
       return true;
     } catch (error) {
+      console.error('🗂️ 画像保存エラー:', error);
       return false;
     }
   }
@@ -427,6 +448,7 @@ class PlantImageStorage {
         reader.readAsDataURL(blob);
       });
     } catch (error) {
+      console.error('🗂️ Base64変換エラー:', error);
       return null;
     }
   }
@@ -437,6 +459,7 @@ class PlantImageStorage {
       const saved = localStorage.getItem(this.storageKey);
       return saved ? JSON.parse(saved) : [];
     } catch (error) {
+      console.error('🗂️ 保存画像取得エラー:', error);
       return [];
     }
   }
@@ -447,9 +470,10 @@ class PlantImageStorage {
       const savedImages = this.getSavedImages();
       const filtered = savedImages.filter(img => img.id !== imageId);
       localStorage.setItem(this.storageKey, JSON.stringify(filtered));
-
+      console.log('🗂️ 画像を削除しました:', imageId);
       return true;
     } catch (error) {
+      console.error('🗂️ 画像削除エラー:', error);
       return false;
     }
   }
@@ -458,9 +482,10 @@ class PlantImageStorage {
   clearAllImages() {
     try {
       localStorage.removeItem(this.storageKey);
-
+      console.log('🗂️ 全ての保存画像を削除しました');
       return true;
     } catch (error) {
+      console.error('🗂️ 全削除エラー:', error);
       return false;
     }
   }
@@ -485,6 +510,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
   const startTime = performance.now();
   const sessionId = Date.now() + '_' + Math.random().toString(36).substring(2, 9);
   
+  console.log('🌱 植物画像生成開始:', {
     plant: plantInfo.commonName || plantInfo.scientificName,
     style: style,
     model: model,
@@ -499,6 +525,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
   const seed = imageOptions.seed;
   const draftPrompt = createPlantImagePrompt(plantInfo, style, seed);
   
+  console.log('🌱 [DRAFT_PROMPT] ドラフトプロンプト生成完了:', {
     sessionId: sessionId,
     draftLength: draftPrompt.length,
     preview: draftPrompt.substring(0, 150) + '...'
@@ -506,6 +533,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
   
   // LLMでプロンプトを最適化（植物検索と同じWorkerを使用）
   const llmWorkerUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+  console.log('🔄 [OPTIMIZATION_START] プロンプト最適化開始:', {
     sessionId: sessionId,
     llmWorkerUrl: llmWorkerUrl,
     draftLength: draftPrompt.length
@@ -518,6 +546,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
   const wasActuallyOptimized = optimizedPrompt !== draftPrompt && !hasJapanese;
   const styleStrength = checkStyleStrength(optimizedPrompt, style);
   
+  console.log('✅ [OPTIMIZATION_COMPLETE] プロンプト最適化完了:', {
     sessionId: sessionId,
     originalLength: draftPrompt.length,
     optimizedLength: optimizedPrompt.length,
@@ -533,6 +562,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
     
     if (model === 'sdxl-lightning') {
       // SDXL Lightning使用（サイズ指定可能）
+      console.log(`Generating plant image with SDXL Lightning: ${optimizedPrompt}`);
       const sdxlOptions = {
         width: imageOptions.width || 1024,
         height: imageOptions.height || 1024,
@@ -583,6 +613,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
       }
   } else {
       // Minimax使用（デフォルト）- アスペクト比指定可能
+      console.log(`Generating plant image with Minimax: ${optimizedPrompt}`);
       const minimaxOptions = {
         aspectRatio: imageOptions.aspectRatio || "1:1",
         seed: imageOptions.seed, // シードを追加
@@ -631,6 +662,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
   } catch (error) {
     const totalDuration = Math.round(performance.now() - startTime);
     
+    console.error('🌱 [IMAGE_GEN_ERROR] Plant Image Generation Failed:', {
       timestamp: new Date().toISOString(),
       sessionId: sessionId,
       model: model,
@@ -661,6 +693,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
       shortErrorMessage = 'API認証エラー';
     }
     
+    console.log('🌱 [IMAGE_GEN_FAILED] Returning Error Response:', {
       timestamp: new Date().toISOString(),
       sessionId: sessionId,
       shortError: shortErrorMessage,
@@ -687,6 +720,7 @@ async function generatePlantImage(plantInfo, style = 'botanical', workerUrl, mod
 async function saveImageToStorage(imageResult, plantInfo, style) {
   const startTime = performance.now();
   
+  console.log('🗂️ [STORAGE_START] Image Storage Started:', {
     timestamp: new Date().toISOString(),
     plantName: plantInfo.commonName || plantInfo.scientificName,
     hasImageUrl: !!imageResult.imageUrl,
@@ -711,12 +745,14 @@ async function saveImageToStorage(imageResult, plantInfo, style) {
     const duration = Math.round(performance.now() - startTime);
     
     if (saved) {
+      console.log('🗂️ [STORAGE_SUCCESS] Image Storage Completed:', {
         timestamp: new Date().toISOString(),
         plantName: saveData.plantName,
         duration: duration,
         imageUrlLength: imageResult.imageUrl?.length || 0
       });
     } else {
+      console.warn('🗂️ [STORAGE_FAILED] Image Storage Failed (Unknown Reason):', {
         timestamp: new Date().toISOString(),
         plantName: saveData.plantName,
         duration: duration
@@ -725,6 +761,7 @@ async function saveImageToStorage(imageResult, plantInfo, style) {
   } catch (error) {
     const duration = Math.round(performance.now() - startTime);
     
+    console.error('🗂️ [STORAGE_ERROR] Image Storage Exception:', {
       timestamp: new Date().toISOString(),
       plantName: plantInfo.commonName || plantInfo.scientificName,
       duration: duration,
@@ -1057,6 +1094,7 @@ function createPlantImagePrompt(plantInfo, style, seed = null) {
   
   // デバッグ用：植物固有の情報をログ出力
   const styleAnalysis = checkPromptStyleKeywords(finalPrompt, style);
+  console.log(`🌿 画像プロンプト生成 - ${plantInfo.scientificName}:`, {
     style: style,
     plantHash: plantHash,
     combinedSeed: combinedSeed,
@@ -1336,6 +1374,7 @@ async function callPlantSearchAPIInternal(searchQuery, region = 'japan') {
   const regionRestriction = regionTexts[region] || regionTexts['japan'];
   const regionExample = regionExamples[region] || regionExamples['japan'];
   
+  console.log('🌍 callPlantSearchAPI地域設定:', {
     inputRegion: region,
     resolvedRegionRestriction: regionRestriction,
     regionExample: regionExample,
@@ -1427,6 +1466,7 @@ ${regionExample}
     messages: messages
   };
 
+  console.log('📤 [LLM_REQUEST] Plant Search API Call Started:', {
     timestamp: new Date().toISOString(),
     requestId: requestId,
     region: region,
@@ -1451,6 +1491,7 @@ ${regionExample}
     
     const duration = Math.round(performance.now() - startTime);
     
+    console.log('📤 [LLM_RESPONSE] Plant Search API Response:', {
       timestamp: new Date().toISOString(),
       requestId: requestId,
       status: response.status,
@@ -1463,6 +1504,7 @@ ${regionExample}
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
       
+      console.error('📤 [LLM_ERROR] Plant Search API Failed:', {
         timestamp: new Date().toISOString(),
         requestId: requestId,
         status: response.status,
@@ -1480,6 +1522,7 @@ ${regionExample}
     const data = await response.json();
     
     // より詳細なレスポンス構造のログ出力
+    console.log('📥 [LLM_SUCCESS] Plant Search Results Received - Full Structure:', {
       timestamp: new Date().toISOString(),
       requestId: requestId,
       duration: duration,
@@ -1505,18 +1548,24 @@ ${regionExample}
     
     if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
       responseText = data.choices[0].message.content;
+      console.log('📥 [LLM_PARSE] Using data.choices[0].message.content');
     } else if (data.answer) {
       responseText = data.answer;
+      console.log('📥 [LLM_PARSE] Using data.answer');
     } else if (data.result && data.result.response) {
       responseText = data.result.response;
+      console.log('📥 [LLM_PARSE] Using data.result.response');
     } else if (data.response) {
       responseText = data.response;
+      console.log('📥 [LLM_PARSE] Using data.response');
     } else if (typeof data === 'string') {
       responseText = data;
+      console.log('📥 [LLM_PARSE] Using raw string data');
     } else {
       // 最後の手段：data内のテキスト文字列を探索
       const findTextContent = (obj, path = '') => {
         if (typeof obj === 'string' && obj.length > 10) {
+          console.log(`📥 [LLM_PARSE] Found text content at: ${path}`);
           return obj;
         }
         if (obj && typeof obj === 'object') {
@@ -1531,6 +1580,7 @@ ${regionExample}
       responseText = findTextContent(data);
       
       if (!responseText) {
+        console.error('📥 [LLM_INVALID] No valid response text found in API response:', {
           timestamp: new Date().toISOString(),
           requestId: requestId,
           dataKeys: Object.keys(data),
@@ -1540,6 +1590,7 @@ ${regionExample}
       }
     }
     
+    console.log('📥 [LLM_PARSE] Response text extracted successfully:', {
       timestamp: new Date().toISOString(),
       requestId: requestId,
       responseLength: responseText?.length || 0,
@@ -1551,6 +1602,7 @@ ${regionExample}
   } catch (error) {
     const duration = Math.round(performance.now() - startTime);
     
+    console.error('📤 [LLM_EXCEPTION] Plant Search API Exception:', {
       timestamp: new Date().toISOString(),
       requestId: requestId,
       duration: duration,
@@ -1594,16 +1646,19 @@ async function retryWithExponentialBackoff(fn, maxRetries = 3, baseDelay = 1000)
     try {
       const result = await fn();
       if (attempt > 0) {
+        console.log(`🔄 Retry successful on attempt ${attempt + 1}`);
       }
       return result;
     } catch (error) {
       lastError = error;
       
       if (attempt === maxRetries) {
+        console.error(`❌ All ${maxRetries + 1} attempts failed:`, error.message);
         break;
       }
       
       const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
+      console.warn(`⚠️ Attempt ${attempt + 1} failed, retrying in ${Math.round(delay)}ms:`, error.message);
       
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -1616,6 +1671,7 @@ async function retryWithExponentialBackoff(fn, maxRetries = 3, baseDelay = 1000)
 function parsePlantSearchResponse(responseText) {
   const sanitizedText = sanitizeInput(responseText);
   
+  console.log('🔍 [PARSE_START] Starting response parsing:', {
     responseLength: sanitizedText.length,
     responsePreview: sanitizedText.substring(0, 200) + '...',
     containsJSON: sanitizedText.includes('{') && sanitizedText.includes('}')
@@ -1632,6 +1688,7 @@ function parsePlantSearchResponse(responseText) {
         // まず標準のJSON.parseを試行（app_old.jsと同様）
         parsed = JSON.parse(jsonText);
       } catch (parseError) {
+        console.warn('🔧 [JSON_REPAIR] Standard parse failed, attempting minimal repair:', parseError.message);
         
         // 最小限の修復のみ（よくある構文エラーのみ）
         let repairedJson = jsonText
@@ -1647,12 +1704,15 @@ function parsePlantSearchResponse(responseText) {
         // 修復を試行
         try {
           parsed = JSON.parse(repairedJson);
+          console.log('✅ [JSON_REPAIR] Minimal repair successful');
         } catch (repairError) {
+          console.warn('🔧 [JSON_REPAIR] Minimal repair failed, using fallback');
           throw repairError;
         }
       }
       
       if (parsed && parsed.plants && Array.isArray(parsed.plants)) {
+        console.log('🌱 解析された植物データ:', {
           植物数: parsed.plants.length,
           植物名リスト: parsed.plants.map(p => p.commonName || p.scientificName),
           各植物の生息環境: parsed.plants.map(p => ({ 
@@ -1686,9 +1746,11 @@ function parsePlantSearchResponse(responseText) {
       }
     }
   } catch (error) {
+    console.warn('🚨 JSON解析に失敗:', error.message);
   }
   
   // app_old.jsと同じフォールバック（改善されたメッセージ）
+  console.warn('⚠️ [FALLBACK] JSON解析失敗、フォールバックデータを返却');
   return [{
     scientificName: "JSON解析エラー",
     commonName: "API応答の解析に失敗しました",
@@ -1722,6 +1784,7 @@ class PlantSearchLLM {
 
   // 植物検索実行
   async searchPlants(searchQuery, region = 'japan') {
+    console.log('🔍 PlantSearchLLM.searchPlants呼び出し:', {
       searchQuery: searchQuery,
       region: region,
       使用するAPI: 'callPlantSearchAPI'
@@ -1733,6 +1796,7 @@ class PlantSearchLLM {
 
   // 植物画像生成（新しいReplicate API使用）
   async generatePlantImage(plantInfo, style = 'botanical', model = 'minimax', imageOptions = {}) {
+    console.log('🎯 PlantSearchLLM.generatePlantImage呼び出し:', {
       plantInfo: plantInfo,
       style: style,
       model: model,
@@ -1743,10 +1807,15 @@ class PlantSearchLLM {
     try {
       // プロンプトの詳細ログ出力
       const prompt = createPlantImagePrompt(plantInfo, style, imageOptions.seed);
+      console.log('🎯 Generated plant image prompt:', prompt);
+      console.log('🎯 Plant info:', plantInfo);
+      console.log('🎯 Style:', style, 'Model:', model, 'Options:', imageOptions);
       
       const result = await generatePlantImage(plantInfo, style, this.replicateWorkerUrl, model, imageOptions);
+      console.log('🎯 画像生成結果:', result);
       return result;
     } catch (error) {
+      console.error('🎯 植物画像生成エラー:', error);
       
       // エラーメッセージを短く分かりやすく変換
       let shortErrorMessage = 'サーバーエラー';

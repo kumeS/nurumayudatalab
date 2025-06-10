@@ -271,6 +271,9 @@ class SceneManager {
         const object = loader.parse(objData);
         this.assistant.log('debug', 'OBJLoader.parse実行完了', { hasObject: !!object });
         
+        // NaN値の修正
+        this.fixNaNValuesInObject(object);
+        
         // パーツベースマテリアル設定
         this.applyPartBasedMaterials(object, objData);
   
@@ -289,14 +292,14 @@ class SceneManager {
         // カメラ位置を調整
         this.fitCameraToModel(box);
   
-            // オーバーレイを非表示
-    this.hideCanvasOverlay();
-    
-    // プレースホルダーオーバーレイも非表示
-    const overlay = document.getElementById('canvasOverlay');
-    if (overlay) {
-      overlay.style.display = 'none';
-    }
+        // オーバーレイを非表示
+        this.hideCanvasOverlay();
+        
+        // プレースホルダーオーバーレイも非表示
+        const overlay = document.getElementById('canvasOverlay');
+        if (overlay) {
+          overlay.style.display = 'none';
+        }
         
         this.assistant.log('info', 'OBJモデル読み込み成功', { 
           vertexCount: this.getModelVertexCount(object),
@@ -396,13 +399,94 @@ class SceneManager {
       
       const fileSize = new Blob([objData]).size;
       document.getElementById('fileSize').textContent = this.assistant.formatFileSize(fileSize);
+
+      // 家具説明を更新
+      this.updateFurnitureDescription();
   
-      // プロンプト表示ボタンの表示制御
-      const promptBtn = document.getElementById('showOptimizedPromptBtn');
-      if (this.assistant.currentOptimizedPrompt) {
-        promptBtn.style.display = 'inline-block';
+
+    }
+  
+    // ========== 家具説明更新 ==========
+    updateFurnitureDescription() {
+      const furnitureDescription = document.getElementById('furnitureDescription');
+      
+      // 第1段階データから家具情報を取得
+      if (this.assistant.processingManager.stage1Data) {
+        const stage1Data = this.assistant.processingManager.stage1Data;
+        
+        // 家具種別を更新
+        const furnitureType = document.getElementById('furnitureType');
+        furnitureType.textContent = stage1Data.furniture_type || '不明';
+        
+        // 寸法を更新
+        const furnitureDimensions = document.getElementById('furnitureDimensions');
+        if (stage1Data.dimensions) {
+          const { width, depth, height } = stage1Data.dimensions;
+          furnitureDimensions.textContent = `${width}×${depth}×${height}cm`;
+        } else {
+          furnitureDimensions.textContent = '情報なし';
+        }
+        
+        // 3D構造詳細を更新
+        this.updateStructureDetails(stage1Data.structural_analysis);
+        
+        // 家具説明セクションを表示
+        furnitureDescription.style.display = 'block';
+        
+        this.assistant.log('debug', '家具説明を更新しました', {
+          furnitureType: stage1Data.furniture_type,
+          dimensions: stage1Data.dimensions,
+          hasStructuralAnalysis: !!stage1Data.structural_analysis
+        });
       } else {
-        promptBtn.style.display = 'none';
+        // データがない場合は非表示
+        furnitureDescription.style.display = 'none';
+        this.assistant.log('debug', '第1段階データがないため家具説明を非表示にしました');
+      }
+    }
+
+    // ========== 3D構造詳細更新 ==========
+    updateStructureDetails(structuralAnalysis) {
+      const mainComponentsList = document.getElementById('mainComponentsList');
+      const specialFeatures = document.getElementById('specialFeatures');
+      const specialFeaturesList = document.getElementById('specialFeaturesList');
+      
+      if (!structuralAnalysis) {
+        mainComponentsList.textContent = '構造分析データがありません';
+        specialFeatures.style.display = 'none';
+        return;
+      }
+      
+      // 主要部品の表示
+      if (structuralAnalysis.main_components && structuralAnalysis.main_components.length > 0) {
+        const componentTexts = structuralAnalysis.main_components.map(comp => {
+          return `${comp.name} (位置: ${comp.position}, サイズ: ${comp.size})`;
+        });
+        mainComponentsList.innerHTML = componentTexts.join('<br>');
+      } else {
+        mainComponentsList.textContent = '主要部品情報なし';
+      }
+      
+      // 特殊形状の表示
+      const specialShapes = [];
+      
+      if (structuralAnalysis.curved_parts && structuralAnalysis.curved_parts.length > 0) {
+        specialShapes.push(`<strong>曲線部分:</strong> ${structuralAnalysis.curved_parts.join(', ')}`);
+      }
+      
+      if (structuralAnalysis.tapered_parts && structuralAnalysis.tapered_parts.length > 0) {
+        specialShapes.push(`<strong>テーパー部分:</strong> ${structuralAnalysis.tapered_parts.join(', ')}`);
+      }
+      
+      if (structuralAnalysis.beveled_edges && structuralAnalysis.beveled_edges.length > 0) {
+        specialShapes.push(`<strong>面取り部分:</strong> ${structuralAnalysis.beveled_edges.join(', ')}`);
+      }
+      
+      if (specialShapes.length > 0) {
+        specialFeaturesList.innerHTML = specialShapes.join('<br>');
+        specialFeatures.style.display = 'block';
+      } else {
+        specialFeatures.style.display = 'none';
       }
     }
   
@@ -451,6 +535,12 @@ class SceneManager {
       this.showCanvasOverlay();
       document.getElementById('modelInfo').style.display = 'none';
       
+      // 家具説明セクションを非表示
+      const furnitureDescription = document.getElementById('furnitureDescription');
+      if (furnitureDescription) {
+        furnitureDescription.style.display = 'none';
+      }
+      
       // ボタングループを非表示
       document.getElementById('downloadButtonGroup').style.display = 'none';
       
@@ -467,11 +557,7 @@ class SceneManager {
       // ボタンを無効化
       document.getElementById('downloadObjBtn').disabled = true;
       
-      // プロンプトボタンを非表示
-      const promptBtn = document.getElementById('showOptimizedPromptBtn');
-      if (promptBtn) {
-        promptBtn.style.display = 'none';
-      }
+
       
       // カメラをリセット
       if (this.camera && this.controls) {
@@ -593,6 +679,9 @@ class SceneManager {
         const object = loader.parse(objData);
         this.assistant.log('debug', 'OBJLoader.parse実行完了', { hasObject: !!object });
         
+        // NaN値の修正
+        this.fixNaNValuesInObject(object);
+        
         // パーツベースマテリアル設定
         this.applyPartBasedMaterials(object, objData);
 
@@ -669,23 +758,40 @@ class SceneManager {
               const y = parseFloat(parts[2]);
               const z = parseFloat(parts[3]);
               
-              // NaNや無効な値をチェック
-              if (isNaN(x) || isNaN(y) || isNaN(z) || 
-                  !isFinite(x) || !isFinite(y) || !isFinite(z)) {
-                this.assistant.log('warn', `無効な頂点データを検出（行${i+1}）`, { 
-                  line: line,
-                  x: x, y: y, z: z 
-                });
+              // より厳密なNaN値と有効性チェック
+              const isValidX = !isNaN(x) && isFinite(x) && Math.abs(x) < 10000;
+              const isValidY = !isNaN(y) && isFinite(y) && Math.abs(y) < 10000;
+              const isValidZ = !isNaN(z) && isFinite(z) && Math.abs(z) < 10000;
+              
+              if (isValidX && isValidY && isValidZ) {
+                // 小数点以下6桁に制限して精度を統一
+                const cleanX = parseFloat(x.toFixed(6));
+                const cleanY = parseFloat(y.toFixed(6));
+                const cleanZ = parseFloat(z.toFixed(6));
+                
+                // 再度NaNチェック（toFixedでもNaNが残る可能性）
+                if (!isNaN(cleanX) && !isNaN(cleanY) && !isNaN(cleanZ)) {
+                  cleanedLines.push(`v ${cleanX} ${cleanY} ${cleanZ}`);
+                  vertexCount++;
+                } else {
+                  this.assistant.log('warn', `座標クリーニング後もNaN値が残存（行${i+1}）`, { 
+                    original: { x, y, z },
+                    cleaned: { cleanX, cleanY, cleanZ }
+                  });
+                  invalidVertexCount++;
+                  cleanedLines.push(`v 0.0 0.0 0.0`);
+                }
+              } else {
                 invalidVertexCount++;
+                this.assistant.log('warn', `無効な頂点データを除去（行${i+1}）`, { 
+                  line: line,
+                  originalValues: { x, y, z },
+                  validityCheck: { isValidX, isValidY, isValidZ },
+                  isNaN: { x: isNaN(x), y: isNaN(y), z: isNaN(z) },
+                  isFinite: { x: isFinite(x), y: isFinite(y), z: isFinite(z) }
+                });
                 // 無効な頂点は原点に置き換え
                 cleanedLines.push(`v 0.0 0.0 0.0`);
-              } else {
-                // 座標値を適切な範囲に制限（-1000 ～ 1000）
-                const clampedX = Math.max(-1000, Math.min(1000, x));
-                const clampedY = Math.max(-1000, Math.min(1000, y));
-                const clampedZ = Math.max(-1000, Math.min(1000, z));
-                cleanedLines.push(`v ${clampedX.toFixed(3)} ${clampedY.toFixed(3)} ${clampedZ.toFixed(3)}`);
-                vertexCount++;
               }
             } else {
               this.assistant.log('warn', `不正な頂点行形式（行${i+1}）`, { line: line });
@@ -775,6 +881,54 @@ class SceneManager {
             <p style="text-align: center; margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #999;">ページを再読み込みしてください</p>
           </div>
         `;
+      }
+    }
+
+    // ========== NaN値修正 ==========
+    fixNaNValuesInObject(object) {
+      let fixedVertices = 0;
+      let totalVertices = 0;
+      
+      object.traverse((child) => {
+        if (child.isMesh && child.geometry && child.geometry.attributes.position) {
+          const positions = child.geometry.attributes.position.array;
+          totalVertices += positions.length / 3;
+          
+          for (let i = 0; i < positions.length; i++) {
+            if (isNaN(positions[i]) || !isFinite(positions[i])) {
+              positions[i] = 0.0; // NaN値を0に置き換え
+              fixedVertices++;
+            }
+          }
+          
+          // 位置属性を更新
+          child.geometry.attributes.position.needsUpdate = true;
+          
+          // 法線属性も修正
+          if (child.geometry.attributes.normal) {
+            const normals = child.geometry.attributes.normal.array;
+            for (let i = 0; i < normals.length; i++) {
+              if (isNaN(normals[i]) || !isFinite(normals[i])) {
+                normals[i] = 0.0;
+              }
+            }
+            child.geometry.attributes.normal.needsUpdate = true;
+          }
+          
+          // バウンディングボックスを再計算
+          child.geometry.computeBoundingBox();
+          child.geometry.computeBoundingSphere();
+        }
+      });
+      
+      if (fixedVertices > 0) {
+        this.assistant.log('warn', 'NaN値を修正しました', { 
+          fixedVertices: fixedVertices,
+          totalVertices: totalVertices,
+          fixedPercentage: ((fixedVertices / totalVertices) * 100).toFixed(2) + '%'
+        });
+      } else {
+        this.assistant.log('debug', 'NaN値は検出されませんでした', { totalVertices: totalVertices });
       }
     }
 
