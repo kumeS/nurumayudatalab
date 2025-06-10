@@ -84,90 +84,155 @@ class AIManager {
     }
   }
 
+  // ========== LLM API呼び出しメソッド（内部実装） ==========
   async callLLMAPIInternal(prompt, timeoutMs = 30000) {
-    // 第1段階の結果をそのまま使用（最適化処理は削除）
-    const inputPrompt = prompt;
+    this.assistant.log('info', 'LLM API呼び出し開始', { 
+      promptLength: prompt.length,
+      timeout: timeoutMs,
+      attempt: 'direct'
+    });
 
+    // タイムアウト処理
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('API timeout')), timeoutMs);
+    });
+
+    try {
+      const response = await Promise.race([
+        this.makeLLMRequest(prompt),
+        timeoutPromise
+      ]);
+
+      this.assistant.log('info', 'LLM API呼び出し成功', {
+        responseLength: response?.length || 0,
+        hasValidResponse: !!response
+      });
+
+      return response;
+    } catch (error) {
+      this.assistant.log('error', 'LLM API呼び出し失敗', { 
+        error: error.message,
+        timeout: timeoutMs
+      });
+      
+      throw error;
+    }
+  }
+
+  // ========== 実際のLLMリクエスト送信 ==========
+  async makeLLMRequest(prompt) {
+    const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+    
     const requestData = {
-      model: this.modelName,
-      temperature: 0.1,
+      model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+      temperature: 0.2,
       stream: false,
-      max_completion_tokens: 3000,
+      max_completion_tokens: 2000,
       messages: [
         {
           role: "system",
           content: this.getSystemPrompt()
         },
         {
-          role: "user",
-          content: inputPrompt
+          role: "user", 
+          content: prompt
         }
       ]
     };
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API呼び出しに失敗しました: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // レスポンスからOBJデータを抽出
+    let responseText = '';
+    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+      responseText = data.choices[0].message.content;
+    } else if (data.answer) {
+      responseText = data.answer;
+    } else {
+      throw new Error('レスポンスに期待されるフィールドがありません');
+    }
+    
+    this.assistant.log('info', 'API呼び出し成功', {
+      responseLength: responseText.length,
+      apiUrl: apiUrl
+    });
+    
+    return this.parseOBJResponse(responseText);
+  }
 
+  // OBJレスポンス解析（参考コードのparseRecipeResponseを3D用に調整）
+  parseOBJResponse(text) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(requestData),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API request failed (${response.status}): ${errorText}`);
-      }
-
-      const data = await response.json();
-      this.assistant.log('debug', 'LLM API Response受信', { 
-        hasChoices: !!data.choices,
-        hasAnswer: !!data.answer,
-        hasResponse: !!data.response
+      this.assistant.log('debug', 'OBJレスポンス解析開始', { 
+        textLength: text.length,
+        preview: text.substring(0, 200)
       });
       
-      // デバッグ用：レスポンス内容をログ出力（常時）
-      const responseContent = data.choices?.[0]?.message?.content || data.answer || data.response || '';
-      this.assistant.log('debug', 'LLMレスポンス内容確認', {
-        contentLength: responseContent.length,
-        isRetry: inputPrompt.includes('OBJ_GENERATION_RETRY'),
-        preview: responseContent.substring(0, 300),
-        hasOBJLines: responseContent.includes('v ') || responseContent.includes('f '),
-        hasCodeBlock: responseContent.includes('```')
-      });
+      // 複数のOBJ抽出パターンを試行
+      let objText = null;
       
-      let objContent = null;
-      if (data.choices && data.choices[0] && data.choices[0].message) {
-        objContent = data.choices[0].message.content;
-      } else if (data.answer) {
-        objContent = data.answer;
-      } else if (data.response) {
-        objContent = data.response;
+      // パターン1: ```obj と ``` で囲まれたOBJ
+      let objMatch = text.match(/```obj\s*([\s\S]*?)\s*```/);
+      if (objMatch) {
+        objText = objMatch[1];
+        this.assistant.log('debug', 'OBJ found with obj marker');
       } else {
-        throw new Error('Invalid API response format - no content found');
+        // パターン2: ``` と ``` で囲まれたコンテンツ
+        objMatch = text.match(/```\s*([\s\S]*?)\s*```/);
+        if (objMatch) {
+          objText = objMatch[1];
+          this.assistant.log('debug', 'OBJ found with generic marker');
+        } else {
+          // パターン3: v行から始まるOBJデータを探す
+          const vIndex = text.indexOf('v ');
+          if (vIndex !== -1) {
+            objText = text.substring(vIndex);
+            this.assistant.log('debug', 'OBJ found by vertex detection');
+          } else {
+            // パターン4: 直接OBJデータとして解析
+            objText = text.trim();
+            this.assistant.log('debug', 'Using text directly as OBJ');
+          }
+        }
       }
-
-      const cleanedOBJ = this.cleanOBJData(objContent);
       
-      // 空データチェックは残すが、内容の検証はStep 4に委ねる
-      if (!cleanedOBJ || cleanedOBJ.trim().length === 0) {
-        throw new Error('Generated OBJ data is empty');
+      if (!objText) {
+        throw new Error('OBJコンテンツが見つかりません');
       }
-
-      return cleanedOBJ;
+      
+      // OBJデータをクリーンアップ
+      objText = objText.trim();
+      
+      // 不要な文字を除去
+      objText = objText.replace(/```$/, ''); // 末尾の ``` を除去
+      
+      this.assistant.log('info', 'OBJレスポンス解析完了', {
+        objLength: objText.length,
+        hasVertices: objText.includes('v '),
+        hasFaces: objText.includes('f ')
+      });
+      
+      return objText;
+      
     } catch (error) {
-      this.assistant.log('error', 'LLM API呼び出し失敗', { error: error.message });
-      if (error.name === 'AbortError') {
-        throw new Error('API request timed out. Please try again.');
-      }
-      throw new Error(`API呼び出しエラー: ${error.message}`);
+      this.assistant.log('error', 'OBJレスポンス解析エラー', { 
+        error: error.message,
+        textPreview: text.substring(0, 500)
+      });
+      
+      throw new Error(`OBJデータの解析に失敗しました: ${error.message}\n\n受信したテキスト:\n${text.substring(0, 500)}...`);
     }
   }
 

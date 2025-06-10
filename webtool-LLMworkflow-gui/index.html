@@ -214,6 +214,14 @@
     .node-ports {
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      position: relative;
+    }
+    
+    .port-placeholder {
+      width: 12px;
+      height: 12px;
+      /* 見えない要素でレイアウトを保持 */
     }
     
     .port {
@@ -228,14 +236,17 @@
       transition: all 0.2s ease;
     }
     
-    .port.input {
-      background: var(--accent);
+    .port.output {
+      margin-left: auto; /* 出力ポートを右端に配置 */
+      background: var(--primary);
+      transform: translateX(6px); /* ポートをノード境界上に配置 */
     }
     
-    .port.output {
-      background: var(--primary);
+    .port.input {
+      background: var(--accent);
+      transform: translateX(-6px); /* ポートをノード境界上に配置 */
     }
-
+    
     .port.port-active {
       background: #ff4757 !important;
       border-color: #ff3742 !important;
@@ -268,12 +279,20 @@
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: 15;
+      z-index: 10;
       pointer-events: none;
+      overflow: visible;
+      will-change: transform;
     }
 
     #connections path {
       pointer-events: auto;
+      transition: stroke-width 0.2s ease;
+      vector-effect: non-scaling-stroke;
+    }
+
+    #connections path:hover {
+      stroke-width: 4px !important;
     }
 
     .canvas-help {
@@ -301,6 +320,7 @@
       fill: none;
       cursor: pointer;
       transition: stroke-width 0.2s ease;
+      vector-effect: non-scaling-stroke;
     }
 
     .connection-line:hover {

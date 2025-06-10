@@ -262,7 +262,7 @@ class WorkflowTemplates {
               name: 'CSVデータ',
               description: 'カンマ区切りのデータ',
               inputType: 'text',
-              defaultValue: 'apple,banana,cherry,date,elderberry'
+              defaultValue: ''
             }
           },
           {
@@ -443,7 +443,7 @@ class WorkflowTemplates {
               name: '入力テキスト',
               description: '変換するテキスト',
               inputType: 'text',
-              defaultValue: 'Hello World! This is a TEST.'
+              defaultValue: ''
             }
           },
           {

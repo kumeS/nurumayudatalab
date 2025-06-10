@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ワークフローテスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #28a745;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LLMワークフローエディター - テスト</h1>
+        
+        <div class="test-section">
+            <h3>1. LLM API テスト</h3>
+            <button class="button" onclick="testLLMAPI()">LLM API テスト実行</button>
+            <div id="llm-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. ワークフローエグゼキューター テスト</h3>
+            <button class="button" onclick="testWorkflowExecutor()">ワークフロー実行テスト</button>
+            <div id="workflow-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. メインアプリケーション</h3>
+            <button class="button" onclick="openMainApp()">メインアプリを開く</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. ログ</h3>
+            <div id="log-area">
+                <pre id="log-content"></pre>
+            </div>
+            <button class="button" onclick="clearLog()">ログクリア</button>
+        </div>
+    </div>
+
+    <script src="llm.js"></script>
+    <script src="workflow-executor.js"></script>
+    <script src="node-manager.js"></script>
+    <script src="connection-manager.js"></script>
+    
+    <script>
+        function log(message) {
+            const logContent = document.getElementById('log-content');
+            const timestamp = new Date().toISOString();
+            logContent.textContent += `[${timestamp}] ${message}\n`;
+            console.log(message);
+        }
+        
+        function showResult(elementId, content, isError = false) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${isError ? 'error' : ''}">${content}</div>`;
+        }
+        
+        async function testLLMAPI() {
+            log('LLM API テスト開始');
+            const resultDiv = document.getElementById('llm-result');
+            resultDiv.innerHTML = '<div>テスト実行中...</div>';
+            
+            try {
+                if (!window.llmAPI) {
+                    throw new Error('LLM API が初期化されていません');
+                }
+                
+                const testPrompt = 'こんにちは。簡単な挨拶を返してください。';
+                log(`テストプロンプト: ${testPrompt}`);
+                
+                const response = await window.llmAPI.generateText(testPrompt);
+                log(`API応答: ${JSON.stringify(response)}`);
+                
+                showResult('llm-result', `
+                    <strong>成功:</strong> LLM APIが正常に動作しています<br>
+                    <strong>応答:</strong> ${JSON.stringify(response, null, 2)}
+                `);
+            } catch (error) {
+                log(`LLM API エラー: ${error.message}`);
+                showResult('llm-result', `
+                    <strong>エラー:</strong> ${error.message}
+                `, true);
+            }
+        }
+        
+        async function testWorkflowExecutor() {
+            log('ワークフローエグゼキューター テスト開始');
+            const resultDiv = document.getElementById('workflow-result');
+            resultDiv.innerHTML = '<div>テスト実行中...</div>';
+            
+            try {
+                // ミニマルなテスト用NodeManager
+                class TestNodeManager {
+                    constructor() {
+                        this.nodes = new Map();
+                    }
+                    
+                    addNode(node) {
+                        this.nodes.set(node.id, node);
+                    }
+                    
+                    getAllNodes() {
+                        return Array.from(this.nodes.values());
+                    }
+                    
+                    getNode(nodeId) {
+                        return this.nodes.get(nodeId);
+                    }
+                }
+                
+                // ミニマルなテスト用ConnectionManager
+                class TestConnectionManager {
+                    constructor() {
+                        this.connections = new Map();
+                    }
+                    
+                    addConnection(connection) {
+                        this.connections.set(connection.id, connection);
+                    }
+                    
+                    getAllConnections() {
+                        return Array.from(this.connections.values());
+                    }
+                    
+                    calculateExecutionOrder(nodeManager) {
+                        // 簡単な実行順序計算
+                        const nodes = nodeManager.getAllNodes();
+                        const inputNodes = nodes.filter(n => n.type === 'input');
+                        const llmNodes = nodes.filter(n => n.type === 'llm');
+                        const outputNodes = nodes.filter(n => n.type === 'output');
+                        
+                        return [
+                            ...inputNodes.map(n => n.id),
+                            ...llmNodes.map(n => n.id),
+                            ...outputNodes.map(n => n.id)
+                        ];
+                    }
+                    
+                    getInputConnections(nodeId) {
+                        return Array.from(this.connections.values()).filter(conn => conn.to === nodeId);
+                    }
+                    
+                    getConnectionsToNode(nodeId) {
+                        return Array.from(this.connections.values()).filter(conn => conn.to === nodeId);
+                    }
+                }
+                
+                // テスト用マネージャーを作成
+                const nodeManager = new TestNodeManager();
+                const connectionManager = new TestConnectionManager();
+                
+                // テスト用の入力ノードとLLMノードを作成
+                const inputNode = {
+                    id: 'test_input',
+                    type: 'input',
+                    data: {
+                        name: 'テスト入力',
+                        defaultValue: 'こんにちは、テストです。'
+                    }
+                };
+                
+                const llmNode = {
+                    id: 'test_llm',
+                    type: 'llm',
+                    data: {
+                        name: 'テスト LLM',
+                        prompt: '以下のテキストに対して簡潔に応答してください: {input}',
+                        temperature: 0.7,
+                        maxTokens: 100
+                    }
+                };
+                
+                const outputNode = {
+                    id: 'test_output',
+                    type: 'output',
+                    data: {
+                        name: 'テスト出力'
+                    }
+                };
+                
+                // ノードを追加
+                nodeManager.addNode(inputNode);
+                nodeManager.addNode(llmNode);
+                nodeManager.addNode(outputNode);
+                
+                // 接続を追加
+                connectionManager.addConnection({
+                    id: 'conn1',
+                    from: 'test_input',
+                    to: 'test_llm',
+                    type: 'data'
+                });
+                
+                connectionManager.addConnection({
+                    id: 'conn2',
+                    from: 'test_llm',
+                    to: 'test_output',
+                    type: 'data'
+                });
+                
+                // ワークフローエグゼキューターを作成
+                const executor = new WorkflowExecutor();
+                
+                // テスト入力データ
+                const inputData = {
+                    'テスト入力': 'これはテストメッセージです。正常に処理されることを確認します。'
+                };
+                
+                log('ワークフロー実行開始');
+                const result = await executor.executeWorkflow(nodeManager, connectionManager, inputData);
+                log(`ワークフロー実行結果: ${JSON.stringify(result)}`);
+                
+                showResult('workflow-result', `
+                    <strong>成功:</strong> ワークフローが正常に実行されました<br>
+                    <strong>結果:</strong> <pre>${JSON.stringify(result, null, 2)}</pre>
+                `);
+                
+            } catch (error) {
+                log(`ワークフロー実行エラー: ${error.message}`);
+                log(`エラースタック: ${error.stack}`);
+                showResult('workflow-result', `
+                    <strong>エラー:</strong> ${error.message}
+                `, true);
+            }
+        }
+        
+        function openMainApp() {
+            window.open('index.html', '_blank');
+        }
+        
+        function clearLog() {
+            document.getElementById('log-content').textContent = '';
+        }
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            log('テストページが読み込まれました');
+            log('利用可能なオブジェクト: ' + Object.keys(window).filter(key => 
+                ['llmAPI', 'WorkflowExecutor', 'NodeManager', 'ConnectionManager'].includes(key)
+            ).join(', '));
+        });
+    </script>
+</body>
+</html> 

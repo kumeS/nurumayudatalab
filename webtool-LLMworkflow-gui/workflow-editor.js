@@ -78,6 +78,10 @@ class WorkflowEditor {
       },
       onPortClick: (nodeId, portType, e) => {
         this.connectionManager.startConnection(nodeId, portType, e);
+      },
+      onAutoConnect: (fromNodeId, toNodeId) => {
+        console.log(`自動接続実行: ${fromNodeId} -> ${toNodeId}`);
+        this.connectionManager.createConnection(fromNodeId, toNodeId);
       }
     });
 
@@ -351,6 +355,7 @@ class WorkflowEditor {
     const inputNodes = this.nodeManager.getAllNodes().filter(node => node.type === 'input');
     
     if (inputNodes.length === 0) {
+      console.log('入力ノードが見つかりません');
       return {};
     }
 
@@ -360,12 +365,30 @@ class WorkflowEditor {
       const inputKey = inputNode.data.name || inputNode.id;
       const defaultValue = inputNode.data.defaultValue || '';
       
-      const value = prompt(`${inputKey}の値を入力してください:`, defaultValue);
+      // プロンプトでユーザー入力を取得
+      const promptMessage = `${inputKey}の値を入力してください:\n（デフォルト値: "${defaultValue}"）`;
+      const value = prompt(promptMessage, defaultValue);
+      
       if (value !== null) {
-        inputData[inputKey] = value;
+        // ユーザーが何らかの値を入力した場合
+        const trimmedValue = value.trim();
+        inputData[inputKey] = trimmedValue === '' ? defaultValue : trimmedValue;
+        console.log(`入力ノード ${inputNode.id} (${inputKey}): "${inputData[inputKey]}"`);
+      } else {
+        // ユーザーがキャンセルした場合はデフォルト値を使用
+        inputData[inputKey] = defaultValue;
+        console.log(`入力ノード ${inputNode.id} (${inputKey}) - キャンセル、デフォルト値使用: "${defaultValue}"`);
+      }
+      
+      // 最終的に空文字列の場合は警告
+      if (!inputData[inputKey] || inputData[inputKey].trim() === '') {
+        console.warn(`警告: 入力ノード ${inputNode.id} (${inputKey}) が空です`);
+        // 完全に空の場合はデフォルトメッセージを設定
+        inputData[inputKey] = 'テスト入力';
       }
     }
     
+    console.log('最終的な入力データ:', inputData);
     return inputData;
   }
 

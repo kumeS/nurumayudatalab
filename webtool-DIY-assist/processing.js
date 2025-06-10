@@ -97,6 +97,12 @@ class ProcessingManager {
       // プロジェクト保存（第2段階の結果を保存、第3段階も記録）
       this.assistant.saveCurrentProject(prompt, objData, qualityCheckResult, furnitureSpec);
       
+      // 段階別結果ボタンを表示
+      this.assistant.showStageResultButtons();
+      
+      // 再生成セクションを表示（3Dモデル表示成功時のみ）
+      this.assistant.showRegenerationSection();
+      
       this.assistant.showLoading(false);
       this.assistant.showSuccess('3Dモデルの生成が完了しました！');
       
@@ -208,126 +214,66 @@ class ProcessingManager {
     return result;
   }
 
-  // ========== 第1段階: 仕様分析と最適化（LLM実行） ==========
+  // ========== 第1段階：分析・最適化 ==========
   async analyzeAndOptimize(prompt) {
-    const width = document.getElementById('widthParam').value || 'auto';
-    const depth = document.getElementById('depthParam').value || 'auto';
-    const height = document.getElementById('heightParam').value || 'auto';
+    try {
+      this.assistant.showLoading(true, '要件を分析・最適化中...');
+      
+      const width = document.getElementById('widthParam').value;
+      const depth = document.getElementById('depthParam').value; 
+      const height = document.getElementById('heightParam').value;
+
+      // 第1段階：仕様分析・最適化LLM呼び出し
+      const llmResponse = await this.callSpecificationLLM(prompt, width, depth, height);
+      const furnitureSpec = this.parseOptimizedSpecification(llmResponse, prompt, width, depth, height);
+      
+      this.storeOptimizedSpec(furnitureSpec, prompt);
+      
+      this.assistant.log('info', '第1段階完了', { 
+        furnitureType: furnitureSpec.furniture_type,
+        analysisComplete: furnitureSpec.analysis_complete
+      });
+      
+      return furnitureSpec;
+    } catch (error) {
+      this.assistant.log('error', '第1段階処理エラー', { error: error.message });
+      throw new Error(`要件分析でエラーが発生しました: ${error.message}`);
+    } finally {
+      this.assistant.showLoading(false);
+    }
+  }
+
+  // ========== 第1段階：仕様分析LLM呼び出し ==========
+  async callSpecificationLLM(prompt, width, depth, height) {
+    const systemPrompt = this.getSpecificationSystemPrompt();
+    const optimizedPrompt = this.buildSpecificationPrompt(prompt, width, depth, height);
+    
+    this.assistant.log('info', '第1段階LLM呼び出し', {
+      systemPromptLength: systemPrompt.length,
+      promptLength: optimizedPrompt.length,
+      dimensions: { width, depth, height }
+    });
 
     try {
-      this.assistant.log('debug', '仕様分析LLM呼び出し開始');
+      const response = await this.assistant.aiManager.callLLMAPI(optimizedPrompt);
       
-      // LLMによる仕様分析と最適化
-      const optimizedSpec = await this.callSpecificationLLM(prompt, width, depth, height);
-      
-      this.assistant.log('info', '仕様分析LLM完了', { specLength: optimizedSpec.length });
-      
-      // LLMの出力を解析してstructured dataに変換
-      const parsedSpec = this.parseOptimizedSpecification(optimizedSpec, prompt, width, depth, height);
-      
-      // 最適化されたプロンプトを保存（後で表示用）
-      this.assistant.currentOptimizedPrompt = optimizedSpec;
-      
-      return parsedSpec;
-      
-    } catch (error) {
-      this.assistant.log('error', '仕様分析エラー - フォールバック実行', { error: error.message });
-      
-      // エラー時のフォールバック
-      return this.getFallbackSpecification(prompt, width, depth, height);
-    }
-  }
-
-  // ========== 仕様最適化専用LLM呼び出し ==========
-  async callSpecificationLLM(prompt, width, depth, height) {
-    const maxRetries = 3;
-    let lastError = null;
-    
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        this.assistant.log('debug', `第1段階LLM呼び出し (試行 ${attempt}/${maxRetries})`);
-        
-        const specOptimizationPrompt = this.buildSpecificationPrompt(prompt, width, depth, height);
-
-        const requestData = {
-          model: this.modelName,
-          temperature: 0.2 + (attempt - 1) * 0.1, // 試行回数に応じて温度を少し上げる
-          stream: false,
-          max_completion_tokens: 1500,
-          messages: [
-            {
-              role: "system",
-              content: this.getSpecificationSystemPrompt()
-            },
-            {
-              role: "user",
-              content: specOptimizationPrompt
-            }
-          ]
-        };
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
-
-        const response = await fetch(this.apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(requestData),
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(`API request failed (${response.status})`);
-        }
-
-        const data = await response.json();
-        
-        let content = null;
-        if (data.choices && data.choices[0] && data.choices[0].message) {
-          content = data.choices[0].message.content;
-        } else if (data.answer) {
-          content = data.answer;
-        } else if (data.response) {
-          content = data.response;
-        } else {
-          throw new Error('Invalid API response format');
-        }
-
-        // JSONバリデーションを試行
-        const parsedResult = this.parseOptimizedSpecification(content, prompt, width, depth, height);
-        
-        // フォールバックでない場合は成功
-        if (parsedResult.analysis_complete) {
-          this.assistant.log('info', `第1段階LLM呼び出し成功 (試行 ${attempt}/${maxRetries})`);
-          return content;
-        } else {
-          throw new Error('JSON解析によるフォールバックが発生しました');
-        }
-
-      } catch (error) {
-        lastError = error;
-        this.assistant.log('warn', `第1段階LLM呼び出し失敗 (試行 ${attempt}/${maxRetries})`, { 
-          error: error.message 
-        });
-        
-        // 最後の試行でない場合は短時間待機
-        if (attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-        }
+      if (!response || response.trim().length === 0) {
+        throw new Error('第1段階でAPIから空のレスポンスを受信しました');
       }
+      
+      this.assistant.log('info', '第1段階LLM応答受信', {
+        responseLength: response.length,
+        hasValidContent: response.includes('{') && response.includes('}')
+      });
+      
+      return response;
+    } catch (error) {
+      this.assistant.log('error', '第1段階LLM呼び出し失敗', { error: error.message });
+      throw error;
     }
-    
-    // 全ての試行が失敗した場合
-    this.assistant.log('error', `第1段階LLM呼び出し全試行失敗`, { 
-      lastError: lastError?.message 
-    });
-    throw lastError || new Error('第1段階LLM呼び出しが失敗しました');
   }
+
+
 
   // ========== 仕様最適化用システムプロンプト ==========
   getSpecificationSystemPrompt() {
@@ -582,28 +528,274 @@ ${prompt}${dimensionText}`;
     }
   }
 
-  // ========== 第2段階: シンプルな統合モデル生成 ==========
+  // ========== 第2段階：統合モデル生成 ==========
   async generateUnifiedModel(prompt, furnitureSpec) {
     try {
-      this.assistant.log('debug', '統合モデル生成開始 - 第1段階結果を使用');
+      this.assistant.showLoading(true, '3Dモデル生成中...');
       
-      // 第1段階の結果（furnitureSpec）を第2段階の入力として使用
-      const stage1Output = this.formatStage1OutputForStage2(furnitureSpec);
-      let objData = await this.assistant.aiManager.callLLMAPI(stage1Output);
+      // 第1段階の結果を第2段階に渡すプロンプトを構築
+      const stage2Prompt = this.formatStage1OutputForStage2(furnitureSpec);
       
-      if (!objData || objData.trim().length === 0) {
-        throw new Error('3Dモデルの生成に失敗しました');
+      this.assistant.log('info', '第2段階開始', {
+        stage2PromptLength: stage2Prompt.length,
+        basedOnSpec: furnitureSpec.furniture_type
+      });
+
+      // 第2段階LLM呼び出し
+      const stage2Response = await this.callStage2LLM(stage2Prompt, this.getStage2SystemPrompt());
+      
+      if (!stage2Response) {
+        throw new Error('第2段階でLLMから応答を受信できませんでした');
       }
+
+      // OBJデータをクリーニング
+      const cleanedOBJ = this.cleanOBJData(stage2Response);
       
-      // OBJデータの先頭に寸法コメントを追加
-      objData = this.addDimensionCommentToOBJ(objData, furnitureSpec);
+      if (!cleanedOBJ || cleanedOBJ.trim().length === 0) {
+        throw new Error('第2段階でOBJデータの生成に失敗しました');
+      }
+
+      this.assistant.log('info', '第2段階完了', { 
+        objDataLength: cleanedOBJ.length,
+        hasValidOBJ: cleanedOBJ.includes('v ') && cleanedOBJ.includes('f ')
+      });
+
+      // 結果を保存
+      this.storeModelGenerationResults(cleanedOBJ, furnitureSpec);
       
-      return objData;
+      return cleanedOBJ;
+    } catch (error) {
+      this.assistant.log('error', '第2段階処理エラー', { error: error.message });
+      throw new Error(`3Dモデル生成でエラーが発生しました: ${error.message}`);
+    } finally {
+      this.assistant.showLoading(false);
+    }
+  }
+
+  // ========== 修正指示を反映した新仕様生成 ==========
+  async generateModifiedSpecification(combinedPrompt, originalSpec) {
+    try {
+      this.assistant.log('debug', '修正指示反映のための仕様再分析開始');
+      
+      // 修正指示を考慮した仕様分析LLMを呼び出し
+      const modifiedSpecText = await this.callModificationLLM(combinedPrompt, originalSpec);
+      
+      // 新しい仕様をパース
+      const modifiedSpec = this.parseOptimizedSpecification(modifiedSpecText, combinedPrompt);
+      
+      this.assistant.log('info', '修正指示を反映した新仕様生成完了');
+      return modifiedSpec;
       
     } catch (error) {
-      this.assistant.log('error', '統合モデル生成エラー', { error: error.message });
+      this.assistant.log('warn', '修正仕様生成失敗、元仕様にフォールバック', { error: error.message });
+      // エラー時は元の仕様を返す（最低限の動作保証）
+      return originalSpec;
+    }
+  }
+
+  // ========== 修正指示を考慮したStage2プロンプト作成 ==========
+  createModificationAwareStage2Prompt(combinedPrompt, originalSpec) {
+    this.assistant.log('debug', '修正指示考慮のStage2プロンプト作成開始');
+    
+    // 元の仕様情報を抽出
+    const originalType = originalSpec.furniture_type || '家具';
+    const originalDimensions = originalSpec.dimensions || {};
+    const dimensionInfo = `${originalDimensions.width || 'auto'}×${originalDimensions.depth || 'auto'}×${originalDimensions.height || 'auto'}cm`;
+    
+    // 元の部品情報を取得（参考として）
+    let originalPartsInfo = '';
+    if (originalSpec.raw_json && originalSpec.raw_json.parts) {
+      originalPartsInfo = originalSpec.raw_json.parts.map(part => 
+        `  [${part.name}] pos[${part.pos.join(',')}] size[${part.size.join(',')}]`
+      ).join('\n');
+    }
+    
+    // 修正指示を抽出
+    const modificationMatch = combinedPrompt.match(/【追加修正指示】\s*([\s\S]*?)(?:\n\n|$)/);
+    const modificationInstructions = modificationMatch ? modificationMatch[1].trim() : '修正指示不明';
+    
+    // 修正指示を考慮したOBJ生成プロンプトを作成
+    const stage2Prompt = `#TASK: MODIFIED_OBJ_GENERATION
+元の家具: ${originalType} (${dimensionInfo})
+
+元の構造（参考）:
+${originalPartsInfo}
+
+🎯 修正指示:
+${modificationInstructions}
+
+📋 要求事項:
+• 元の家具をベースとして、上記修正指示を反映したOBJ形式3Dモデルを生成
+• 基本構造や寸法は保持しつつ、修正指示に従って部品を追加・変更・調整
+• 例：「引き出しを3つに増やす」→引き出し部品を3個生成
+• 例：「キャスターを追加」→脚部にキャスター部品を追加
+• 例：「収納を増やす」→棚板や引き出しなどの収納部品を追加
+
+⚡ 生成指示:
+Y軸上向き、cm単位でOBJファイルを生成してください。
+修正指示を創造的に解釈し、実用的で美しい3D家具モデルを作成してください。
+OBJデータのみを出力（説明文不要）。
+
+元のプロンプト:
+${combinedPrompt.split('【追加修正指示】')[0].trim()}`;
+
+    this.assistant.log('debug', '修正指示考慮Stage2プロンプト作成完了', {
+      modificationInstructions: modificationInstructions,
+      promptLength: stage2Prompt.length
+    });
+    
+    return stage2Prompt;
+  }
+
+  // ========== Stage2専用システムプロンプト ==========
+  getStage2SystemPrompt() {
+    return `あなたはOBJ形式3Dモデル生成の専門家です。
+
+【出力形式】
+- OBJファイル形式のみ出力
+- 説明文やコメントは含めない
+- v（頂点）、f（面）を中心とした標準的なOBJ構文
+
+【品質基準】
+- Y軸上向き、cm単位
+- 適切な頂点密度（50-500点）
+- 実用的で美しい形状
+- 構造的に安定した3Dジオメトリ
+
+【修正指示の解釈】
+- 創造的かつ実用的に修正要求を解釈
+- 元の基本構造を保持しつつ効果的に変更を適用
+- 家具として機能的で美しいモデルを生成`;
+  }
+
+  // ========== Stage2専用LLM呼び出し ==========
+  async callStage2LLM(prompt, systemPrompt) {
+    this.assistant.log('info', '第2段階LLM呼び出し開始', {
+      promptLength: prompt.length,
+      systemPromptLength: systemPrompt.length
+    });
+
+    try {
+      const response = await this.assistant.aiManager.callLLMAPI(prompt);
+      
+      if (!response || response.trim().length === 0) {
+        throw new Error('第2段階でAPIから空のレスポンスを受信しました');
+      }
+      
+      this.assistant.log('info', '第2段階LLM応答受信', {
+        responseLength: response.length,
+        hasOBJContent: response.includes('v ') || response.includes('f ')
+      });
+      
+      return response;
+    } catch (error) {
+      this.assistant.log('error', '第2段階LLM呼び出し失敗', { error: error.message });
       throw error;
     }
+  }
+
+  // ========== 修正指示専用LLM呼び出し（削除予定） ==========
+  async callModificationLLM(combinedPrompt, originalSpec) {
+    const maxRetries = 2;
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        this.assistant.log('debug', `修正指示LLM呼び出し (試行 ${attempt}/${maxRetries})`);
+        
+        const modificationPrompt = this.buildModificationPrompt(combinedPrompt, originalSpec);
+
+        const requestData = {
+          model: this.modelName,
+          temperature: 0.3,
+          stream: false,
+          max_completion_tokens: 1500,
+          messages: [
+            {
+              role: "system",
+              content: this.getSpecificationSystemPrompt()
+            },
+            {
+              role: "user",
+              content: modificationPrompt
+            }
+          ]
+        };
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+        const response = await fetch(this.apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(requestData),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`API request failed (${response.status})`);
+        }
+
+        const data = await response.json();
+        
+        let content = null;
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+          content = data.choices[0].message.content;
+        } else if (data.answer) {
+          content = data.answer;
+        } else if (data.response) {
+          content = data.response;
+        } else {
+          throw new Error('Invalid API response format');
+        }
+
+        this.assistant.log('info', `修正指示LLM呼び出し成功 (試行 ${attempt}/${maxRetries})`);
+        return content;
+
+      } catch (error) {
+        lastError = error;
+        this.assistant.log('warn', `修正指示LLM呼び出し失敗 (試行 ${attempt}/${maxRetries})`, { 
+          error: error.message 
+        });
+        
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
+    }
+    
+    throw lastError || new Error('修正指示LLM呼び出しが失敗しました');
+  }
+
+  // ========== 修正指示用プロンプト構築 ==========
+  buildModificationPrompt(combinedPrompt, originalSpec) {
+    let originalPartsInfo = '';
+    
+    if (originalSpec.raw_json && originalSpec.raw_json.parts) {
+      originalPartsInfo = originalSpec.raw_json.parts.map(part => 
+        `${part.name}: pos[${part.pos.join(',')}] size[${part.size.join(',')}]`
+      ).join('\n');
+    }
+
+    return `#TASK: SPEC_MODIFICATION
+元の家具仕様:
+タイプ: ${originalSpec.raw_json?.type || originalSpec.furniture_type || '不明'}
+寸法: ${originalSpec.raw_json?.outer_dimensions_cm ? 
+  `${originalSpec.raw_json.outer_dimensions_cm.w}×${originalSpec.raw_json.outer_dimensions_cm.d}×${originalSpec.raw_json.outer_dimensions_cm.h}cm` : 
+  '不明'}
+
+元の部品構成:
+${originalPartsInfo}
+
+新しい要件（修正指示含む）:
+${combinedPrompt}
+
+上記の修正指示を元の仕様に適用して、新しい部品構成を生成してください。基本構造は保持しつつ、修正指示を反映してください。`;
   }
 
   // ========== 第1段階結果を第2段階用にフォーマット ==========
@@ -760,29 +952,37 @@ f 5 1 4 8
     }
   }
 
-  // ========== 第3段階: OBJデータ品質評価 ==========
+  // ========== 第3段階：最終品質チェック ==========
   async performFinalQualityCheck(objData) {
     try {
-      this.assistant.log('debug', '第3段階：品質評価LLM呼び出し開始');
+      this.assistant.showLoading(true, '品質評価中...');
       
-      // 第2段階のOBJデータの品質評価レポートを生成
-      const qualityReport = await this.callQualityCheckLLM(objData);
+      // OBJデータの構造分析
+      const objAnalysis = this.analyzeOBJStructure(objData);
       
-      this.assistant.log('info', '第3段階：品質評価完了', { 
-        objDataLength: objData.length,
-        reportLength: qualityReport.length 
+      this.assistant.log('info', '第3段階開始', {
+        vertexCount: objAnalysis.vertexCount,
+        faceCount: objAnalysis.faceCount,
+        objDataLength: objData.length
       });
+
+      // 第3段階：品質評価LLM呼び出し
+      const qualityResult = await this.callQualityCheckLLM(objData);
       
-      return {
-        qualityReport: qualityReport,
-        originalObjData: objData,
-        stage: 3,
-        processType: 'quality_evaluation'
-      };
+      this.assistant.log('info', '第3段階完了', {
+        hasQualityReport: !!qualityResult.qualityReport,
+        reportLength: qualityResult.qualityReport?.length || 0
+      });
+
+      // 結果を保存
+      this.storeQualityCheckResults(qualityResult, objData);
       
+      return qualityResult;
     } catch (error) {
-      this.assistant.log('error', '第3段階：品質評価エラー', { error: error.message });
-      throw error;
+      this.assistant.log('error', '第3段階処理エラー', { error: error.message });
+      throw new Error(`品質評価でエラーが発生しました: ${error.message}`);
+    } finally {
+      this.assistant.showLoading(false);
     }
   }
 
@@ -839,19 +1039,8 @@ f 5 1 4 8
 
   // ========== 第3段階品質評価LLM呼び出し ==========
   async callQualityCheckLLM(objData) {
-    const requestData = {
-      model: this.assistant.aiManager.modelName,
-      temperature: 0.1,
-      stream: false,
-      max_completion_tokens: 4000,
-      messages: [
-        {
-          role: "system",
-          content: this.getQualityCheckSystemPrompt()
-        },
-        {
-          role: "user",
-          content: `以下のOBJファイルの品質評価を行ってください：
+    const systemPrompt = this.getQualityCheckSystemPrompt();
+    const qualityPrompt = `以下のOBJファイルの品質評価を行ってください：
 
 # 評価観点
 1. 構造的品質（頂点数、面数、ジオメトリ整合性）
@@ -866,101 +1055,33 @@ ${objData}
 - 日本語でマークダウン形式のレポートを作成
 - 各評価項目について具体的な数値と所見を記載
 - 総合スコア（100点満点）と改善提案を含める
-- OBJデータの再出力は不要`
-        }
-      ]
-    };
+- OBJデータの再出力は不要`;
+
+    this.assistant.log('info', '第3段階LLM呼び出し開始', {
+      systemPromptLength: systemPrompt.length,
+      qualityPromptLength: qualityPrompt.length,
+      objDataLength: objData.length
+    });
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒タイムアウト
-
-      const response = await fetch(this.assistant.aiManager.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(requestData),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API request failed (${response.status}): ${errorText}`);
-      }
-
-      const data = await response.json();
+      const response = await this.assistant.aiManager.callLLMAPI(qualityPrompt);
       
-      let qualityReport = null;
-      if (data.choices && data.choices[0] && data.choices[0].message) {
-        qualityReport = data.choices[0].message.content;
-      } else if (data.answer) {
-        qualityReport = data.answer;
-      } else if (data.response) {
-        qualityReport = data.response;
-      } else {
-        throw new Error('Invalid API response format - no content found');
+      if (!response || response.trim().length === 0) {
+        throw new Error('第3段階でAPIから空のレスポンスを受信しました');
       }
-
-      // 評価レポートをそのまま返す（OBJクリーニング不要）
-      if (!qualityReport || qualityReport.trim().length === 0) {
-        throw new Error('Generated quality report is empty or invalid');
-      }
-
-      // デバッグ：レスポンスの内容を確認
-      this.assistant.log('debug', '第3段階LLMレスポンス内容確認', {
-        responseLength: qualityReport.length,
-        startsWithHash: qualityReport.trim().startsWith('#'),
-        startsWithV: qualityReport.trim().startsWith('v '),
-        containsOBJ: qualityReport.toLowerCase().includes('obj'),
-        preview: qualityReport.substring(0, 200) + '...'
+      
+      this.assistant.log('info', '第3段階LLM応答受信', {
+        responseLength: response.length,
+        hasMarkdownContent: response.includes('#') || response.includes('*')
       });
-
-      // OBJデータが返された場合の警告と対処
-      if (qualityReport.trim().startsWith('v ') || qualityReport.trim().startsWith('f ') || 
-          qualityReport.includes('# Furniture') || qualityReport.includes('# Object')) {
-        this.assistant.log('error', '第3段階でOBJデータが返されました！評価レポートに置き換えます', {
-          preview: qualityReport.substring(0, 100)
-        });
-        
-        // OBJデータが返された場合は標準的な評価レポートを生成
-        return `## 品質評価結果
-
-### 構造的品質
-- 頂点数: 推定値 (評価: 自動生成のため詳細評価不可)
-- 面数: 推定値 (評価: 自動生成のため詳細評価不可)  
-- ジオメトリ整合性: システムが誤ってOBJファイルを返したため詳細評価できません
-
-### 実用性
-- 寸法適切性: 第3段階エラーのため評価不可
-- 安定性: 第3段階エラーのため評価不可
-- 機能性: 第3段階エラーのため評価不可
-
-### 製造可能性
-- 3D出力適合性: 第3段階エラーのため評価不可
-- 材料効率: 第3段階エラーのため評価不可
-
-### 美観・デザイン
-- 造形美: 第3段階エラーのため評価不可
-- 全体評価: 第3段階エラーのため評価不可
-
-### 総合評価
-- 総合スコア: 評価不可/100点
-- 推奨事項: システムエラーが発生したため、第2段階で生成されたOBJファイルをそのまま使用してください
-
-注意: この評価は第3段階でOBJファイルが誤って返されたため、自動生成されたフォールバック評価です。`;
-      }
-
-      return qualityReport.trim();
+      
+      return {
+        qualityReport: response,
+        analysis: this.analyzeOBJStructure(objData)
+      };
     } catch (error) {
-      this.assistant.log('error', '第3段階品質評価LLM呼び出し失敗', { error: error.message });
-      if (error.name === 'AbortError') {
-        throw new Error('API request timed out. Please try again.');
-      }
-      throw new Error(`第3段階品質評価API呼び出しエラー: ${error.message}`);
+      this.assistant.log('error', '第3段階LLM呼び出し失敗', { error: error.message });
+      throw error;
     }
   }
 

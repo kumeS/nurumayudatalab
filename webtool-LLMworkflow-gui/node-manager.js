@@ -98,6 +98,11 @@ class NodeManager {
     this.nodes.set(nodeId, node);
     this.renderNode(node);
     
+    // 自動接続の試行
+    setTimeout(() => {
+      this.attemptAutoConnection(nodeId, type);
+    }, 100);
+    
     return node;
   }
 
@@ -203,7 +208,7 @@ class NodeManager {
       </div>
       <div class="node-content">${node.data.description}</div>
       <div class="node-ports">
-        ${node.type !== 'input' ? '<div class="port input" data-port="input"></div>' : ''}
+        ${node.type !== 'input' ? '<div class="port input" data-port="input"></div>' : '<div class="port-placeholder"></div>'}
         ${node.type !== 'output' ? '<div class="port output" data-port="output"></div>' : ''}
       </div>
     `;
@@ -398,5 +403,74 @@ class NodeManager {
     this.onNodeMoved = callbacks.onNodeMoved;
     this.onNodeDeleted = callbacks.onNodeDeleted;
     this.onPortClick = callbacks.onPortClick;
+    this.onAutoConnect = callbacks.onAutoConnect;
+  }
+
+  // 新しいメソッド: 自動接続の試行
+  attemptAutoConnection(newNodeId, newNodeType) {
+    if (!this.onAutoConnect) return;
+    
+    const allNodes = Array.from(this.nodes.values());
+    const newNode = this.nodes.get(newNodeId);
+    
+    // 接続可能なノードを探す
+    let candidateFrom = null;
+    let candidateTo = null;
+    let minFromDistance = Infinity;
+    let minToDistance = Infinity;
+    
+    for (const existingNode of allNodes) {
+      if (existingNode.id === newNodeId) continue;
+      
+      const distance = Math.sqrt(
+        Math.pow(existingNode.x - newNode.x, 2) + 
+        Math.pow(existingNode.y - newNode.y, 2)
+      );
+      
+      // 新しいノードへの入力候補（左側のノード）
+      if (this.canConnect(existingNode.type, newNodeType) && 
+          existingNode.x < newNode.x && 
+          distance < minFromDistance) {
+        candidateFrom = existingNode;
+        minFromDistance = distance;
+      }
+      
+      // 新しいノードからの出力候補（右側のノード）
+      if (this.canConnect(newNodeType, existingNode.type) && 
+          existingNode.x > newNode.x && 
+          distance < minToDistance) {
+        candidateTo = existingNode;
+        minToDistance = distance;
+      }
+    }
+    
+    // 自動接続を実行
+    if (candidateFrom && minFromDistance < 300) { // 距離制限
+      console.log(`自動接続: ${candidateFrom.id} -> ${newNodeId}`);
+      this.onAutoConnect(candidateFrom.id, newNodeId);
+    }
+    
+    if (candidateTo && minToDistance < 300) { // 距離制限
+      console.log(`自動接続: ${newNodeId} -> ${candidateTo.id}`);
+      this.onAutoConnect(newNodeId, candidateTo.id);
+    }
+  }
+
+  // 新しいメソッド: ノード間の接続可能性チェック
+  canConnect(fromType, toType) {
+    // 入力ノードは出力のみ
+    if (fromType === 'input' && toType !== 'input') return true;
+    
+    // 出力ノードは入力のみ
+    if (toType === 'output' && fromType !== 'output') return true;
+    
+    // LLMノードは入力と出力の両方可能
+    if (fromType === 'llm' && toType !== 'input') return true;
+    if (toType === 'llm' && fromType !== 'output') return true;
+    
+    // その他の処理ノード
+    if (fromType !== 'output' && toType !== 'input' && fromType !== toType) return true;
+    
+    return false;
   }
 } 

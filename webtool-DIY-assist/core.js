@@ -271,6 +271,27 @@ class DIYAssistant {
     safeAddEventListener('generateBtn', 'click', () => this.generateModel());
     safeAddEventListener('clearBtn', 'click', () => this.clearForm());
     safeAddEventListener('downloadObjBtn', 'click', () => this.downloadOBJ());
+    
+    // 再生成関連ボタン
+    safeAddEventListener('regenerateBtn', 'click', () => this.regenerateModel());
+    safeAddEventListener('clearRegenerationBtn', 'click', () => this.clearRegenerationComment());
+    
+    // よくある修正指示の選択肢変更時の処理
+    safeAddEventListener('commonModifications', 'change', (e) => {
+      const selectedValue = e.target.value;
+      const regenerationComment = document.getElementById('regenerationComment');
+      
+      if (selectedValue && regenerationComment) {
+        // 既存のコメントがある場合は追加、ない場合は設定
+        const currentComment = regenerationComment.value.trim();
+        if (currentComment) {
+          regenerationComment.value = `${selectedValue}\n\n${currentComment}`;
+        } else {
+          regenerationComment.value = selectedValue;
+        }
+        this.log('debug', 'よくある修正指示を設定', { selectedValue });
+      }
+    });
 
     // サンプルボタンのイベントリスナー（少し遅延して実行）
     setTimeout(() => {
@@ -647,6 +668,11 @@ class DIYAssistant {
     document.getElementById('depthParam').value = '';
     document.getElementById('heightParam').value = '';
     
+    // 再生成セクションをクリア・非表示
+    document.getElementById('regenerationComment').value = '';
+    document.getElementById('downloadButtonGroup').style.display = 'none';
+    document.getElementById('regenerationSection').style.display = 'none';
+    
     this.hideMessages(); // クリア時は全メッセージを消去
     this.sceneManager.resetCanvas();
     
@@ -655,6 +681,14 @@ class DIYAssistant {
     
     // プロンプト情報もクリア
     this.currentOptimizedPrompt = null;
+    this.currentObjData = null;
+    
+    // 処理段階データもクリア（手動クリア時のみ）
+    if (this.processingManager) {
+      this.processingManager.stage1Data = null;
+      this.processingManager.stage2Data = null;
+      this.processingManager.stage3Data = null;
+    }
     
     // ローカルストレージをクリア（セッション状態も含む）
     localStorage.removeItem('diy_prompt');
@@ -1546,6 +1580,9 @@ ${analysisInfo}
     
     // ボタンを有効化
     document.getElementById('downloadObjBtn').disabled = false;
+    
+    // 再生成セクションを表示
+    document.getElementById('regenerationSection').style.display = 'block';
   }
 
   formatFileSize(bytes) {
@@ -1805,6 +1842,30 @@ ${analysisInfo}
     });
   }
 
+  // ========== 再生成セクション表示管理 ==========
+  showRegenerationSection() {
+    // 3Dモデルが正常に表示されている場合のみ再生成セクションを表示
+    const modelDisplayed = this.currentObjData && 
+                          this.sceneManager && 
+                          this.sceneManager.isInitialized &&
+                          this.processingManager.stage2Data &&
+                          this.processingManager.stage3Data;
+    
+    const regenerationSection = document.getElementById('regenerationSection');
+    if (regenerationSection && modelDisplayed) {
+      regenerationSection.style.display = 'block';
+      this.log('debug', '再生成セクションを表示しました');
+    } else {
+      this.log('debug', '再生成セクション表示条件未満', {
+        hasObjData: !!this.currentObjData,
+        hasSceneManager: !!this.sceneManager,
+        sceneInitialized: this.sceneManager?.isInitialized,
+        hasStage2Data: !!this.processingManager.stage2Data,
+        hasStage3Data: !!this.processingManager.stage3Data
+      });
+    }
+  }
+
   // ========== エラーレポート生成 ==========
   generateSessionRestoreErrorReport(error, sessionData) {
     const report = {
@@ -1886,5 +1947,192 @@ ${analysisInfo}
       this.log('error', 'エラーレポートエクスポート失敗', { error: error.message });
       this.showError('エラーレポートのエクスポートに失敗しました。');
     }
+  }
+
+  // ========== 再生成関連メソッド ==========
+  
+  /**
+   * モデル再生成処理
+   */
+  async regenerateModel() {
+    this.log('info', '再生成プロセス開始');
+    
+    // 現在のプロンプトと修正指示の確認
+    const originalPrompt = document.getElementById('designPrompt').value.trim();
+    const commonModification = document.getElementById('commonModifications').value.trim();
+    const regenerationComment = document.getElementById('regenerationComment').value.trim();
+    
+    if (!originalPrompt) {
+      this.showError('元の設計要件が見つかりません。まず最初にモデルを生成してください。');
+      return;
+    }
+    
+    // 選択肢もしくは手動コメントが必要
+    if (!commonModification && !regenerationComment) {
+      this.showError('修正指示を選択するか、コメントを入力してください。');
+      return;
+    }
+    
+    // 修正指示を組み合わせ
+    const combinedComment = [commonModification, regenerationComment]
+      .filter(text => text)
+      .join('\n\n');
+    
+    // 第1段階データの確認
+    if (!this.processingManager.stage1Data) {
+      this.log('debug', '第1段階データなし - 復元を試行', { 
+        hasProjects: this.projects.length > 0,
+        latestProjectId: this.projects[0]?.id 
+      });
+      
+      // プロジェクト履歴から最新のstage1Dataを復元を試行
+      const latestProject = this.projects[0]; // 最新プロジェクト
+      if (latestProject && latestProject.stage1Data) {
+        this.log('info', '最新プロジェクトから第1段階データを復元', { 
+          projectId: latestProject.id,
+          hasStage1Data: !!latestProject.stage1Data,
+          hasOptimizedSpec: !!latestProject.optimizedSpec
+        });
+        
+        this.processingManager.stage1Data = latestProject.stage1Data;
+        
+        // 最適化されたプロンプトも復元
+        if (latestProject.optimizedPrompt) {
+          this.currentOptimizedPrompt = latestProject.optimizedPrompt;
+          this.log('debug', '最適化プロンプトを復元');
+        }
+        
+        // 最適化仕様も復元
+        if (latestProject.optimizedSpec) {
+          this.processingManager.storeOptimizedSpec(latestProject.optimizedSpec, latestProject.prompt);
+          this.log('debug', '最適化仕様を復元');
+        }
+        
+        this.log('info', '第1段階データ復元完了');
+      } else {
+        this.log('error', '第1段階データ復元失敗', { 
+          hasLatestProject: !!latestProject,
+          hasStage1Data: latestProject?.stage1Data ? true : false,
+          projectsCount: this.projects.length
+        });
+        this.showError('第1段階のデータが見つかりません。まず最初にモデルを生成してください。');
+        return;
+      }
+    }
+    
+    try {
+      // ボタンを無効化
+      const regenerateBtn = document.getElementById('regenerateBtn');
+      regenerateBtn.disabled = true;
+      regenerateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 再生成中...';
+      
+      // 進行状況表示
+      this.showThreeStageProgress(true);
+      this.updateStageProgress(1, 'completed', '第1段階データを使用');
+      this.updateStageProgress(2, 'pending', '待機中');
+      this.updateStageProgress(3, 'pending', '待機中');
+      
+      this.showLoading(true, '修正版3Dモデルを生成中...');
+      
+      // 統合プロンプトを作成
+      const combinedPrompt = this.createCombinedPrompt(originalPrompt, combinedComment);
+      this.log('debug', '統合プロンプト作成完了', { 
+        originalLength: originalPrompt.length,
+        commentLength: regenerationComment.length,
+        combinedLength: combinedPrompt.length
+      });
+      
+      // 第2段階から再実行（第1段階データを使用）
+      this.updateStageProgress(2, 'active', '修正版3Dモデル生成中...');
+      const objData = await this.processingManager.generateUnifiedModel(
+        combinedPrompt, 
+        this.processingManager.stage1Data
+      );
+      this.updateStageProgress(2, 'completed', '修正版3Dモデル生成完了');
+      
+      // 第3段階: 品質検証
+      this.updateStageProgress(3, 'active', '品質評価中...');
+      const qualityCheckResult = await this.processingManager.performFinalQualityCheck(objData);
+      this.updateStageProgress(3, 'completed', '品質評価完了');
+      
+      // 現在のモデルデータを更新
+      this.currentObjData = objData;
+      
+      // 3Dプレビューを更新
+      if (this.sceneManager && this.sceneManager.isInitialized) {
+        try {
+          await this.sceneManager.loadOBJModel(objData);
+          this.log('info', 'SceneManagerで修正版3Dモデル表示成功');
+        } catch (error) {
+          this.log('warn', 'SceneManager表示失敗、フォールバック実行', { error: error.message });
+          this.display3DModel(objData);
+        }
+      } else {
+        this.display3DModel(objData);
+      }
+      
+      // UI表示を更新
+      this.processingManager.storeModelGenerationResults(objData, this.processingManager.stage1Data);
+      this.processingManager.storeQualityCheckResults(qualityCheckResult, objData);
+      
+      // プロジェクトを更新保存
+      this.saveCurrentProject(combinedPrompt, objData, qualityCheckResult, this.processingManager.stage1Data);
+      
+      // 成功メッセージ
+      this.showLoading(false);
+      this.showSuccess('修正版3Dモデルの生成が完了しました！');
+      
+      // コメント欄をクリア
+      document.getElementById('regenerationComment').value = '';
+      
+      this.log('info', '再生成プロセス完了');
+      
+    } catch (error) {
+      this.log('error', '再生成プロセスエラー', { error: error.message, stack: error.stack });
+      
+      // エラー時の進行状況更新
+      this.updateStageProgress(2, 'error', 'エラー発生');
+      this.updateStageProgress(3, 'error', 'エラー発生');
+      
+      this.showLoading(false);
+      this.showError(`修正版3Dモデル生成エラー: ${error.message}`);
+    } finally {
+      // ボタンを有効化
+      const regenerateBtn = document.getElementById('regenerateBtn');
+      regenerateBtn.disabled = false;
+      regenerateBtn.innerHTML = '<i class="fas fa-magic"></i> 修正版を再生成';
+    }
+  }
+  
+  /**
+   * 元のプロンプトと修正コメントを統合
+   */
+  createCombinedPrompt(originalPrompt, regenerationComment) {
+    const combinedPrompt = `${originalPrompt}
+
+【追加修正指示】
+${regenerationComment}
+
+上記の元の仕様をベースとして、追加修正指示を反映してください。元の基本構造や寸法は保持しつつ、修正指示の内容を適用してください。`;
+
+    return combinedPrompt;
+  }
+  
+  /**
+   * 再生成コメントをクリア
+   */
+  clearRegenerationComment() {
+    const regenerationComment = document.getElementById('regenerationComment');
+    const commonModifications = document.getElementById('commonModifications');
+    
+    if (regenerationComment) {
+      regenerationComment.value = '';
+    }
+    
+    if (commonModifications) {
+      commonModifications.value = '';
+    }
+    
+    this.showInfo('修正指示をクリアしました。');
   }
 }

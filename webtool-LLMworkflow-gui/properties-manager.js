@@ -3,6 +3,8 @@ class PropertiesManager {
     this.selectedNodeId = null;
     this.isCollapsed = false;
     this.nodeManager = null;
+    this.saveTimeout = null;
+    this.saveDelay = 300; // 300ms デバウンス
     
     this.initEventListeners();
     this.loadCollapsedState();
@@ -25,12 +27,12 @@ class PropertiesManager {
       });
     }
 
-    // フォーム変更時の自動保存
+    // フォーム変更時の自動保存（デバウンス付き）
     const propertiesForm = document.getElementById('nodePropertiesForm');
     if (propertiesForm) {
       propertiesForm.addEventListener('input', (e) => {
         if (e.target.dataset.autoSave !== 'false') {
-          this.saveProperties();
+          this.debouncedSaveProperties();
         }
       });
     }
@@ -324,6 +326,19 @@ class PropertiesManager {
       default:
         return '<div class="property-group"><p>このノードタイプに固有の設定はありません</p></div>';
     }
+  }
+
+  debouncedSaveProperties() {
+    // 既存のタイマーをクリア
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+    
+    // 新しいタイマーを設定
+    this.saveTimeout = setTimeout(() => {
+      this.saveProperties();
+      this.saveTimeout = null;
+    }, this.saveDelay);
   }
 
   saveProperties() {

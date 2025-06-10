@@ -118,11 +118,11 @@ class ViewportManager {
       nodeContainer.style.transformOrigin = '0 0';
     }
 
-    // SVG接続線にもtransformを適用
-    if (this.connectionsLayer) {
-      this.connectionsLayer.style.transform = transform;
-      this.connectionsLayer.style.transformOrigin = '0 0';
-    }
+    // SVG接続線にはtransformを適用しない（座標計算でビューポート変換を処理）
+    // if (this.connectionsLayer) {
+    //   this.connectionsLayer.style.transform = transform;
+    //   this.connectionsLayer.style.transformOrigin = '0 0';
+    // }
 
     // グリッドも変形
     const grid = this.canvas.querySelector('.canvas-grid');

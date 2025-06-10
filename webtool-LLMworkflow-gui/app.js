@@ -108,5 +108,54 @@ window.dev = {
   getConnections: () => window.workflowEditor?.getConnectionManager?.()?.getAllConnections?.() || [],
   exportData: () => window.workflowEditor?.getStorageManager?.()?.saveWorkflow?.(true),
   clearAll: () => window.workflowEditor?.getStorageManager?.()?.clearWorkflowSilent?.(),
-  forceUpdateConnections: () => window.workflowEditor?.getConnectionManager?.()?.updateConnections?.()
+  forceUpdateConnections: () => window.workflowEditor?.getConnectionManager?.()?.updateConnections?.(),
+  
+  // デバッグ用の新機能
+  connectNodes: (fromNodeId, toNodeId) => {
+    const cm = window.workflowEditor?.getConnectionManager?.();
+    if (cm) {
+      const result = cm.createConnection(fromNodeId, toNodeId);
+      console.log('手動接続結果:', result);
+      return result;
+    }
+    return null;
+  },
+  
+  debugConnections: () => {
+    const cm = window.workflowEditor?.getConnectionManager?.();
+    const nm = window.workflowEditor?.getNodeManager?.();
+    if (cm && nm) {
+      const connections = cm.getAllConnections();
+      const nodes = nm.getAllNodes();
+      console.log('=== CONNECTION DEBUG ===');
+      console.log('ノード数:', nodes.length);
+      console.log('接続数:', connections.length);
+      console.log('ノード:', nodes.map(n => `${n.id}(${n.type})`));
+      console.log('接続:', connections.map(c => `${c.from} -> ${c.to}`));
+      
+      // SVG要素の確認
+      const svg = document.getElementById('connections');
+      console.log('SVG要素:', svg);
+      console.log('SVG子要素数:', svg?.children?.length || 0);
+      
+      return { nodes, connections, svg };
+    }
+    return null;
+  },
+  
+  autoConnectAll: () => {
+    const nodes = window.dev.getNodes();
+    const cm = window.workflowEditor?.getConnectionManager?.();
+    
+    if (nodes.length >= 2 && cm) {
+      // 単純な線形接続
+      for (let i = 0; i < nodes.length - 1; i++) {
+        const result = cm.createConnection(nodes[i].id, nodes[i + 1].id);
+        console.log(`自動接続: ${nodes[i].id} -> ${nodes[i + 1].id}`, result);
+      }
+      console.log('全自動接続完了');
+    } else {
+      console.log('接続可能なノードが不足、またはConnectionManagerが見つかりません');
+    }
+  }
 };

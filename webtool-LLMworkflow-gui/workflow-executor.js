@@ -26,33 +26,75 @@ class WorkflowExecutor {
     try {
       this.log('ワークフロー実行開始');
       
-      // 実行順序を計算
-      const executionOrder = connectionManager.calculateExecutionOrder(nodeManager);
-      this.log(`実行順序: ${executionOrder.join(' → ')}`);
-      
       // 入力データを設定
       const inputNodes = nodeManager.getAllNodes().filter(node => node.type === 'input');
       for (const inputNode of inputNodes) {
         const inputKey = inputNode.data.name || inputNode.id;
-        const value = inputData[inputKey] || inputNode.data.defaultValue || '';
+        // 空文字列や undefined/null の場合はdefaultValueを使用
+        const providedValue = inputData[inputKey];
+        const value = (providedValue !== undefined && providedValue !== null && providedValue !== '') 
+          ? providedValue 
+          : (inputNode.data.defaultValue || '');
         this.executionResults.set(inputNode.id, value);
         this.log(`入力ノード ${inputNode.id}: ${JSON.stringify(value)}`);
       }
       
-      // ノードを順番に実行
-      for (const nodeId of executionOrder) {
-        const node = nodeManager.getNode(nodeId);
-        if (!node) continue;
+      // 並列実行可能なノードグループを計算
+      const executionGroups = this.calculateParallelExecutionGroups(nodeManager, connectionManager);
+      this.log(`並列実行グループ: ${executionGroups.map(group => group.join(', ')).join(' | ')}`);
+      
+      // グループごとに実行（グループ内は並列、グループ間は逐次）
+      for (const [groupIndex, nodeGroup] of executionGroups.entries()) {
+        this.log(`グループ ${groupIndex + 1} 実行開始: [${nodeGroup.join(', ')}]`);
         
-        this.log(`${node.type}ノード ${nodeId} を実行中...`);
-        
-        try {
-          const result = await this.executeNode(node, nodeManager, connectionManager);
-          this.executionResults.set(nodeId, result);
-          this.log(`${nodeId} 完了: ${JSON.stringify(result)}`);
-        } catch (error) {
-          this.log(`${nodeId} でエラー: ${error.message}`);
-          throw error;
+        if (nodeGroup.length === 1) {
+          // 単一ノードは通常実行
+          const nodeId = nodeGroup[0];
+          const node = nodeManager.getNode(nodeId);
+          if (node) {
+            this.log(`${node.type}ノード ${nodeId} を実行中...`);
+            try {
+              const result = await this.executeNode(node, nodeManager, connectionManager);
+              this.executionResults.set(nodeId, result);
+              this.log(`${nodeId} 完了: ${JSON.stringify(result).substring(0, 100)}...`);
+            } catch (error) {
+              this.log(`${nodeId} でエラー: ${error.message}`);
+              throw error;
+            }
+          }
+        } else {
+          // 複数ノードは並列実行
+          this.log(`並列実行開始: ${nodeGroup.length}ノード同時処理`);
+          const startTime = Date.now();
+          
+          const parallelPromises = nodeGroup.map(async (nodeId) => {
+            const node = nodeManager.getNode(nodeId);
+            if (!node) return { nodeId, error: 'ノードが見つかりません' };
+            
+            this.log(`${node.type}ノード ${nodeId} を並列実行中...`);
+            
+            try {
+              const result = await this.executeNode(node, nodeManager, connectionManager);
+              const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+              this.log(`${nodeId} 並列完了 (${duration}秒): ${JSON.stringify(result).substring(0, 100)}...`);
+              return { nodeId, result };
+            } catch (error) {
+              this.log(`${nodeId} 並列エラー: ${error.message}`);
+              return { nodeId, error: error.message };
+            }
+          });
+          
+          const parallelResults = await Promise.all(parallelPromises);
+          const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1);
+          this.log(`並列実行完了: ${nodeGroup.length}ノード (総時間: ${totalDuration}秒)`);
+          
+          // 結果を格納
+          for (const { nodeId, result, error } of parallelResults) {
+            if (error) {
+              throw new Error(`ノード ${nodeId}: ${error}`);
+            }
+            this.executionResults.set(nodeId, result);
+          }
         }
       }
       
@@ -125,9 +167,16 @@ class WorkflowExecutor {
     const inputs = this.getNodeInputs(node.id, connectionManager);
     const inputText = Array.isArray(inputs) ? inputs.join('\n') : (inputs || '');
     
+    // 入力が空の場合の処理
+    if (!inputText || inputText.trim() === '') {
+      throw new Error(`LLMノード ${node.id} への入力が空です。入力ノードまたは前段のノードの出力を確認してください。`);
+    }
+    
     // プロンプトの変数置換
     let prompt = node.data.prompt || '';
     prompt = prompt.replace(/\{input\}/g, inputText);
+    
+    this.log(`LLMノード ${node.id} プロンプト: ${prompt.substring(0, 100)}...`);
     
     try {
       // window.llmAPI の存在確認
@@ -141,9 +190,15 @@ class WorkflowExecutor {
         max_tokens: node.data.maxTokens || 2000
       });
       
+      // レスポンスの検証
+      if (!response || (typeof response === 'string' && response.trim() === '')) {
+        throw new Error('LLM APIから空のレスポンスが返されました');
+      }
+      
       return response;
     } catch (error) {
       console.error('LLM処理エラー:', error);
+      this.log(`LLMノード ${node.id} エラー: ${error.message}`);
       throw new Error(`LLM処理エラー: ${error.message}`);
     }
   }
@@ -430,5 +485,76 @@ class WorkflowExecutor {
 
   isCurrentlyExecuting() {
     return this.isExecuting;
+  }
+
+  /**
+   * 並列実行可能なノードグループを計算
+   * 同じ依存レベルのノードを同じグループにまとめる
+   */
+  calculateParallelExecutionGroups(nodeManager, connectionManager) {
+    const allNodes = nodeManager.getAllNodes();
+    const allConnections = connectionManager.getAllConnections();
+    
+    // ノードの依存関係を計算
+    const dependencyLevels = new Map();
+    const processed = new Set();
+    
+    // 入力ノードは依存レベル0
+    allNodes.filter(node => node.type === 'input').forEach(node => {
+      dependencyLevels.set(node.id, 0);
+      processed.add(node.id);
+    });
+    
+    // 依存レベルを段階的に計算
+    let currentLevel = 0;
+    let foundNodesInLevel = true;
+    
+    while (foundNodesInLevel && currentLevel < 20) { // 無限ループ防止
+      foundNodesInLevel = false;
+      
+      for (const node of allNodes) {
+        if (processed.has(node.id)) continue;
+        
+        // このノードへの入力接続を確認
+        const inputConnections = allConnections.filter(conn => conn.to === node.id);
+        
+        if (inputConnections.length === 0) {
+          // 入力接続がないノード（孤立ノード）
+          dependencyLevels.set(node.id, currentLevel + 1);
+          processed.add(node.id);
+          foundNodesInLevel = true;
+        } else {
+          // 全ての依存ノードが処理済みかチェック
+          const allDependenciesProcessed = inputConnections.every(conn => 
+            processed.has(conn.from)
+          );
+          
+          if (allDependenciesProcessed) {
+            // 依存ノードの最大レベル + 1
+            const maxDependencyLevel = Math.max(
+              ...inputConnections.map(conn => dependencyLevels.get(conn.from) || 0)
+            );
+            dependencyLevels.set(node.id, maxDependencyLevel + 1);
+            processed.add(node.id);
+            foundNodesInLevel = true;
+          }
+        }
+      }
+      
+      currentLevel++;
+    }
+    
+    // レベル別にグループ化
+    const levelGroups = new Map();
+    for (const [nodeId, level] of dependencyLevels) {
+      if (!levelGroups.has(level)) {
+        levelGroups.set(level, []);
+      }
+      levelGroups.get(level).push(nodeId);
+    }
+    
+    // レベル順にソートして配列として返す
+    const sortedLevels = Array.from(levelGroups.keys()).sort((a, b) => a - b);
+    return sortedLevels.map(level => levelGroups.get(level));
   }
 } 

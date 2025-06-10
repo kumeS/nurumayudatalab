@@ -16,12 +16,15 @@ class ConnectionManager {
       if (this.currentConnection && this.tempLine) {
         const worldPos = this.viewportManager.screenToWorld(e.clientX, e.clientY);
         
-        const path = this.createConnectionPath(
-          this.currentConnection.startX, 
-          this.currentConnection.startY, 
-          worldPos.x, 
-          worldPos.y
-        );
+        // 開始点をスクリーン座標に変換
+        const startX = this.currentConnection.worldStartX * this.viewportManager.scale + this.viewportManager.panX;
+        const startY = this.currentConnection.worldStartY * this.viewportManager.scale + this.viewportManager.panY;
+        
+        // 終了点もスクリーン座標に変換（マウス位置なので境界調整なし）
+        const endX = worldPos.x * this.viewportManager.scale + this.viewportManager.panX;
+        const endY = worldPos.y * this.viewportManager.scale + this.viewportManager.panY;
+        
+        const path = this.createConnectionPath(startX, startY, endX, endY);
         this.tempLine.setAttribute('d', path);
       }
     };
@@ -78,17 +81,17 @@ class ConnectionManager {
       return;
     }
     
-    // ワールド座標での計算（ビューポート変換前の座標）
-    const nodeWidth = 160;
-    const nodeHeight = 90;
-    const startX = node.x + nodeWidth - 12; // 出力ポートの位置
-    const startY = node.y + nodeHeight / 2;
+    // ポートの正確な位置を取得
+    const portPos = this.getPortPosition(nodeElement, 'output');
+    const boundaryPos = this.getNodeBoundaryPosition(nodeElement, portPos, 'output');
+    const worldStartX = node.x + boundaryPos.x;
+    const worldStartY = node.y + boundaryPos.y;
     
     this.currentConnection = {
       fromNode: nodeId,
       fromPort: portType,
-      startX: startX,
-      startY: startY,
+      worldStartX: worldStartX,
+      worldStartY: worldStartY,
       startPortElement: startPortElement
     };
     
@@ -99,6 +102,7 @@ class ConnectionManager {
     this.tempLine.setAttribute('fill', 'none');
     this.tempLine.setAttribute('stroke-dasharray', '8,4');
     this.tempLine.setAttribute('opacity', '0.8');
+    this.tempLine.setAttribute('vector-effect', 'non-scaling-stroke');
     this.connectionsLayer.appendChild(this.tempLine);
     
     // 接続可能なポートをハイライト
@@ -126,6 +130,69 @@ class ConnectionManager {
     document.querySelectorAll('.port').forEach(port => {
       port.classList.remove('port-active', 'port-compatible', 'port-invalid');
     });
+  }
+
+  getPortPosition(nodeElement, portType) {
+    const portElement = nodeElement.querySelector(`.port.${portType}`);
+    if (!portElement) {
+      // ポートが見つからない場合はデフォルト位置を返す
+      const nodeComputedStyle = window.getComputedStyle(nodeElement);
+      const nodeWidth = parseFloat(nodeComputedStyle.width) || 160;
+      const nodeHeight = parseFloat(nodeComputedStyle.height) || 90;
+      
+      if (portType === 'output') {
+        return { x: nodeWidth - 6, y: nodeHeight / 2 };
+      } else {
+        return { x: 6, y: nodeHeight / 2 };
+      }
+    }
+    
+    // ノード要素のサイズを取得
+    const nodeComputedStyle = window.getComputedStyle(nodeElement);
+    const nodeWidth = parseFloat(nodeComputedStyle.width) || 160;
+    const nodeHeight = parseFloat(nodeComputedStyle.height) || 90;
+    const padding = parseFloat(nodeComputedStyle.paddingTop) || 16;
+    
+    // ポートのDOM位置を取得（ノード内での相対位置）
+    const portsContainer = nodeElement.querySelector('.node-ports');
+    if (portsContainer) {
+      const portsComputedStyle = window.getComputedStyle(portsContainer);
+      const portsTop = parseFloat(portsComputedStyle.marginTop) || 0;
+      
+      // ポートの中心位置を計算
+      const portCenterY = padding + 
+                         (parseFloat(nodeComputedStyle.fontSize) || 14) * 1.5 + // header
+                         (parseFloat(nodeComputedStyle.fontSize) || 12) * 1.2 + // content
+                         portsTop + 6; // port半径
+      
+      if (portType === 'output') {
+        return { x: nodeWidth - 6, y: portCenterY }; // ポートの中心がノード境界上
+      } else {
+        return { x: 6, y: portCenterY }; // ポートの中心がノード境界上
+      }
+    }
+    
+    // フォールバック: ノード中央
+    return { 
+      x: portType === 'output' ? nodeWidth - 6 : 6, 
+      y: nodeHeight / 2 
+    };
+  }
+
+  getNodeBoundaryPosition(nodeElement, portPos, portType) {
+    const nodeComputedStyle = window.getComputedStyle(nodeElement);
+    const nodeWidth = parseFloat(nodeComputedStyle.width) || 160;
+    const nodeHeight = parseFloat(nodeComputedStyle.height) || 90;
+    const borderRadius = parseFloat(nodeComputedStyle.borderRadius) || 12;
+    
+    // ポートのY位置は保持し、X位置をノードの境界に調整
+    if (portType === 'output') {
+      // 出力ポート: ノードの右端（境界）
+      return { x: nodeWidth, y: portPos.y };
+    } else {
+      // 入力ポート: ノードの左端（境界）
+      return { x: 0, y: portPos.y };
+    }
   }
 
   createConnectionPath(x1, y1, x2, y2) {
@@ -180,9 +247,6 @@ class ConnectionManager {
     
     if (!fromNode || !toNode) return false;
     
-    // 入力ノードは出力できない
-    if (fromNode.type === 'input' && toNode.type === 'output') return false;
-    
     // 出力ノードは入力できない
     if (fromNode.type === 'output') return false;
     if (toNode.type === 'input') return false;
@@ -191,8 +255,65 @@ class ConnectionManager {
     const existingConnection = this.connections.find(
       conn => conn.from === fromNodeId && conn.to === toNodeId
     );
+    if (existingConnection) return false;
     
-    return !existingConnection;
+    // 分岐接続の特別な検証
+    const fromConnections = this.connections.filter(conn => conn.from === fromNodeId);
+    const toConnections = this.connections.filter(conn => conn.to === toNodeId);
+    
+    // 分岐処理の許可: inputノードからは複数出力可能
+    if (fromNode.type === 'input') {
+      console.log(`分岐接続許可: ${fromNodeId} -> ${toNodeId} (input -> ${toNode.type})`);
+      return true;
+    }
+    
+    // mergeノードは複数入力を受け入れ可能
+    if (toNode.type === 'merge') {
+      console.log(`統合接続許可: ${fromNodeId} -> ${toNodeId} (${fromNode.type} -> merge)`);
+      return true;
+    }
+    
+    // 一般的なノードは1つの入力のみ許可（ただし分岐は例外）
+    if (toConnections.length > 0 && toNode.type !== 'merge') {
+      console.warn(`接続拒否: ${toNodeId} は既に入力接続があります`);
+      return false;
+    }
+    
+    // 循環依存チェック
+    if (this.wouldCreateCycle(fromNodeId, toNodeId)) {
+      console.warn(`接続拒否: 循環依存が発生します`);
+      return false;
+    }
+    
+    return true;
+  }
+
+  wouldCreateCycle(fromNodeId, toNodeId) {
+    // 簡単な循環依存チェック（深度優先探索）
+    const visited = new Set();
+    const visiting = new Set();
+    
+    const dfs = (nodeId) => {
+      if (visiting.has(nodeId)) return true; // 循環発見
+      if (visited.has(nodeId)) return false;
+      
+      visiting.add(nodeId);
+      
+      // 現在のノードからの出力接続を確認
+      const outConnections = this.connections.filter(conn => conn.from === nodeId);
+      for (const conn of outConnections) {
+        if (dfs(conn.to)) return true;
+      }
+      
+      // 新しい接続も考慮
+      if (nodeId === fromNodeId && dfs(toNodeId)) return true;
+      
+      visiting.delete(nodeId);
+      visited.add(nodeId);
+      return false;
+    };
+    
+    return dfs(toNodeId);
   }
 
   updateConnections() {
@@ -224,16 +345,25 @@ class ConnectionManager {
         console.log(`DOM要素: ${connection.from}=${fromElement ? 'あり' : 'なし'}, ${connection.to}=${toElement ? 'あり' : 'なし'}`);
         
         if (fromElement && toElement) {
-          // ノードの絶対座標を使用して接続線の座標を計算
-          const nodeWidth = 160; // ノードの幅
-          const nodeHeight = 90; // 固定の高さ
-          const portOffset = 12; // ポートの位置調整
+          // ポートの正確な位置を取得
+          const fromPortPos = this.getPortPosition(fromElement, 'output');
+          const toPortPos = this.getPortPosition(toElement, 'input');
           
-          // 出力ポート（右端）と入力ポート（左端）の座標
-          const x1 = fromNode.x + nodeWidth - portOffset;
-          const y1 = fromNode.y + nodeHeight / 2;
-          const x2 = toNode.x + portOffset;
-          const y2 = toNode.y + nodeHeight / 2;
+          // ノードの境界でエッジを止めるために調整
+          const fromBoundary = this.getNodeBoundaryPosition(fromElement, fromPortPos, 'output');
+          const toBoundary = this.getNodeBoundaryPosition(toElement, toPortPos, 'input');
+          
+          // ワールド座標での計算
+          const worldX1 = fromNode.x + fromBoundary.x;
+          const worldY1 = fromNode.y + fromBoundary.y;
+          const worldX2 = toNode.x + toBoundary.x;
+          const worldY2 = toNode.y + toBoundary.y;
+          
+          // ビューポート変換を適用してスクリーン座標に変換
+          const x1 = worldX1 * this.viewportManager.scale + this.viewportManager.panX;
+          const y1 = worldY1 * this.viewportManager.scale + this.viewportManager.panY;
+          const x2 = worldX2 * this.viewportManager.scale + this.viewportManager.panX;
+          const y2 = worldY2 * this.viewportManager.scale + this.viewportManager.panY;
           
           console.log(`座標: (${x1}, ${y1}) -> (${x2}, ${y2})`);
           
@@ -244,8 +374,12 @@ class ConnectionManager {
           path.setAttribute('fill', 'none');
           path.setAttribute('data-connection-id', connection.id);
           path.setAttribute('class', 'connection-line');
+          path.setAttribute('vector-effect', 'non-scaling-stroke');
           path.style.cursor = 'pointer';
           path.style.zIndex = '15';
+          
+          // SVG全体のpointer-eventsを一時的に有効化
+          this.connectionsLayer.style.pointerEvents = 'auto';
           
           // 接続線クリックで削除
           path.addEventListener('click', (e) => {
@@ -255,8 +389,13 @@ class ConnectionManager {
             }
           });
           
+          // パスをSVGに追加後、pointer-eventsを元に戻す
           this.connectionsLayer.appendChild(path);
-          console.log(`接続線を描画: ${connection.id}`);
+          setTimeout(() => {
+            this.connectionsLayer.style.pointerEvents = 'none';
+          }, 10);
+          
+          console.log(`接続線を描画: ${connection.id} - DOM要素追加済み`);
         } else {
           console.warn(`DOM要素が見つからないため接続線をスキップ: ${connection.from} -> ${connection.to}`);
         }

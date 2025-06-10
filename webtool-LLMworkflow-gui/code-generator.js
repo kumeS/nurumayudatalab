@@ -55,7 +55,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // LLM API呼び出し関数（カスタマイズ可能）
 async function callLLM(prompt, options = {}) {
-  const apiUrl = 'https://api.example.com/llm'; // APIエンドポイントを設定
+  const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/'; // Production API endpoint
   
   try {
     const response = await fetch(apiUrl, {
