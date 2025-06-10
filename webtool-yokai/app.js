@@ -58,15 +58,7 @@ class ReplicateImageClient {
       payload: payload
     };
 
-    console.log('🔥 [API_REQUEST] Replicate API Call Started:', {
-      timestamp: new Date().toISOString(),
-      requestId: requestId,
-      workerUrl: this.workerUrl,
-      apiUrl: apiUrl,
-      payloadSize: JSON.stringify(payload).length,
-      model: payload?.version || payload?.input?.model || 'unknown',
-      method: 'POST'
-    });
+
 
     try {
       const response = await fetch(this.workerUrl, {
@@ -79,84 +71,32 @@ class ReplicateImageClient {
 
       const duration = Math.round(performance.now() - startTime);
       
-      console.log('🔥 [API_RESPONSE] Worker API Response Received:', {
-        timestamp: new Date().toISOString(),
-        requestId: requestId,
-        status: response.status,
-        statusText: response.statusText,
-        duration: duration,
-        ok: response.ok,
-        headers: {
-          contentType: response.headers.get('content-type'),
-          contentLength: response.headers.get('content-length')
-        }
-      });
+
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         
-        console.error('🔥 [API_ERROR] Worker API Call Failed:', {
-          timestamp: new Date().toISOString(),
-          requestId: requestId,
-          status: response.status,
-          statusText: response.statusText,
-          url: this.workerUrl,
-          duration: duration,
-          errorData: errorData,
-          originalPayload: {
-            apiUrl: apiUrl,
-            payloadKeys: Object.keys(payload),
-            hasInput: !!payload?.input
-          }
-        });
+
         
         throw new Error(`Worker API呼び出しに失敗: ${response.status} - ${JSON.stringify(errorData)}`);
       }
 
       const data = await response.json();
       
-      console.log('🔥 [API_SUCCESS] Worker API Response Data:', {
-        timestamp: new Date().toISOString(),
-        requestId: requestId,
-        duration: duration,
-        hasOutput: !!data.output,
-        outputType: Array.isArray(data.output) ? 'array' : typeof data.output,
-        outputLength: Array.isArray(data.output) ? data.output.length : 'n/a',
-        hasError: !!data.error,
-        dataKeys: Object.keys(data)
-      });
+
       
       if (data.error) {
-        console.error('🔥 [API_INTERNAL_ERROR] Replicate API Internal Error:', {
-          timestamp: new Date().toISOString(),
-          requestId: requestId,
-          error: data.error,
-          details: data.details,
-          duration: duration
-        });
+
         throw new Error(`Replicate API エラー: ${JSON.stringify(data.details || data.error)}`);
       }
 
-      console.log('🔥 [API_COMPLETE] Image Generation Successful:', {
-        timestamp: new Date().toISOString(),
-        requestId: requestId,
-        duration: duration,
-        hasImageUrl: !!data.output,
-        success: true
-      });
+
       
       return data;
     } catch (error) {
       const duration = Math.round(performance.now() - startTime);
       
-      console.error('🔥 [API_EXCEPTION] API Call Exception:', {
-        timestamp: new Date().toISOString(),
-        requestId: requestId,
-        duration: duration,
-        errorName: error.name,
-        errorMessage: error.message,
-        stack: error.stack?.split('\n').slice(0, 3)
-      });
+
       
       throw error;
     }
@@ -177,13 +117,7 @@ async function optimizeImagePromptInternal(draftPrompt, workerUrl) {
   const startTime = performance.now();
   const optimizationId = Date.now() + '_' + Math.random().toString(36).substring(2, 7);
   
-  console.log('🔄 [OPTIMIZE_START] プロンプト最適化API呼び出し開始:', {
-    optimizationId: optimizationId,
-    workerUrl: workerUrl,
-    draftLength: draftPrompt.length,
-    draftPreview: draftPrompt.substring(0, 200) + '...',
-    timestamp: new Date().toISOString()
-  });
+
   
   const optimizationPrompt = `You are an expert at optimizing prompts for image generation AI (Stable Diffusion, DALL-E, Midjourney).
 
@@ -215,15 +149,7 @@ ${draftPrompt}`;
       ]
     };
 
-    console.log('📤 [OPTIMIZE_REQUEST] Sending optimization request:', {
-      optimizationId: optimizationId,
-      requestData: {
-        model: requestData.model,
-        temperature: requestData.temperature,
-        maxTokens: requestData.max_completion_tokens,
-        messageLength: requestData.messages[0].content.length
-      }
-    });
+
 
     const response = await fetch(workerUrl, {
       method: 'POST',
@@ -236,65 +162,41 @@ ${draftPrompt}`;
     const duration = Math.round(performance.now() - startTime);
 
     if (!response.ok) {
-      console.error('❌ [OPTIMIZE_ERROR] プロンプト最適化API失敗:', {
-        optimizationId: optimizationId,
-        status: response.status,
-        statusText: response.statusText,
-        duration: duration,
-        timestamp: new Date().toISOString()
-      });
+
       throw new Error(`プロンプト最適化API呼び出しに失敗: ${response.status}`);
     }
 
     const data = await response.json();
     
-    console.log('📥 [OPTIMIZE_RESPONSE] プロンプト最適化API応答受信:', {
-      optimizationId: optimizationId,
-      duration: duration,
-      dataKeys: Object.keys(data),
-      hasChoices: !!(data.choices && data.choices.length > 0),
-      hasAnswer: !!data.answer,
-      hasResult: !!data.result,
-      hasResponse: !!data.response,
-      timestamp: new Date().toISOString()
-    });
+
     
     // 複数のレスポンス形式に対応した柔軟な解析
     let responseText = null;
     
     if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
       responseText = data.choices[0].message.content;
-      console.log('📥 [OPTIMIZE_PARSE] Using data.choices[0].message.content');
+
     } else if (data.answer) {
       responseText = data.answer;
-      console.log('📥 [OPTIMIZE_PARSE] Using data.answer');
+      
     } else if (data.result && data.result.response) {
       responseText = data.result.response;
-      console.log('📥 [OPTIMIZE_PARSE] Using data.result.response');
+      
     } else if (data.response) {
       responseText = data.response;
-      console.log('📥 [OPTIMIZE_PARSE] Using data.response');
+      
     } else if (typeof data === 'string') {
       responseText = data;
-      console.log('📥 [OPTIMIZE_PARSE] Using raw string data');
+      
     } else {
-      console.error('❌ [OPTIMIZE_INVALID] No valid response text found in API response:', {
-        optimizationId: optimizationId,
-        dataKeys: Object.keys(data),
-        dataStructure: JSON.stringify(data, null, 2).substring(0, 1000)
-      });
+      
       throw new Error('プロンプト最適化レスポンスに有効なテキストコンテンツが見つかりません');
     }
     
     if (responseText) {
       const optimizedText = responseText.trim();
       
-      console.log('📋 [OPTIMIZE_RESULT] Raw optimization result:', {
-        optimizationId: optimizationId,
-        optimizedLength: optimizedText.length,
-        optimizedPreview: optimizedText.substring(0, 300) + '...',
-        timestamp: new Date().toISOString()
-      });
+
       
       // 最適化成功の検証
       const hasJapanese = containsJapanese(optimizedText);
@@ -307,31 +209,15 @@ ${draftPrompt}`;
                              optimizedText.toLowerCase().includes('i apologize');
       
       if (isEmptyOrTooShort || isSystemMessage) {
-        console.warn('⚠️ [OPTIMIZE_FAILED] Optimization produced invalid result:', {
-          optimizationId: optimizationId,
-          isEmptyOrTooShort: isEmptyOrTooShort,
-          isSystemMessage: isSystemMessage,
-          optimizedText: optimizedText
-        });
+
         throw new Error('最適化結果が無効です');
       }
       
-      console.log('✅ [OPTIMIZE_SUCCESS] プロンプト最適化成功:', {
-        optimizationId: optimizationId,
-        duration: duration,
-        originalLength: draftPrompt.length,
-        optimizedLength: optimizedText.length,
-        compressionRatio: Math.round((optimizedText.length / draftPrompt.length) * 100),
-        sampleOptimized: optimizedText.substring(0, 100) + '...',
-        hasJapanese: hasJapanese,
-        actuallyOptimized: actuallyOptimized,
-        optimizationQuality: hasJapanese ? 'POOR' : 'GOOD',
-        timestamp: new Date().toISOString()
-      });
+      
       
       // 日本語が残っている場合は手動フォールバック翻訳を適用
       if (hasJapanese) {
-        console.warn('⚠️ [OPTIMIZE_JAPANESE_DETECTED] Applying manual translation fallback');
+
         const manualTranslated = translateFeaturesToEnglish(optimizedText);
         // 翻訳後も句読点をクリーンアップ
         const cleanedManualTranslated = manualTranslated
@@ -352,17 +238,12 @@ ${draftPrompt}`;
       if (styleKeywords.style) {
         const optimizedStyleStrength = checkStyleStrength(finalOptimizedText, styleKeywords.style);
         
-        console.log('🎨 [STYLE_CHECK] プロンプト最適化後のスタイル強度:', {
-          originalStyle: styleKeywords.style,
-          styleStrength: optimizedStyleStrength.percentage,
-          foundKeywords: optimizedStyleStrength.found.length,
-          totalKeywords: optimizedStyleStrength.total
-        });
+
         
         // スタイル強度が低い場合（50%未満）、スタイル情報を補強
         if (optimizedStyleStrength.percentage < 50) {
           const enhancedPrompt = enhanceStyleInPrompt(finalOptimizedText, styleKeywords.style);
-          console.log('🔧 [STYLE_ENHANCE] スタイル情報を補強しました');
+          
           return enhancedPrompt;
         }
       }
@@ -372,18 +253,11 @@ ${draftPrompt}`;
   } catch (error) {
     const duration = Math.round(performance.now() - startTime);
     
-    console.warn('⚠️ [OPTIMIZE_FALLBACK] プロンプト最適化失敗、フォールバック処理開始:', {
-      optimizationId: optimizationId,
-      duration: duration,
-      errorName: error.name,
-      errorMessage: error.message,
-      fallbackLength: draftPrompt.length,
-      timestamp: new Date().toISOString()
-    });
+
     
     // フォールバック：日本語含有チェックとクリーンアップ
     if (containsJapanese(draftPrompt)) {
-      console.warn('⚠️ [FALLBACK_JAPANESE] 元プロンプトに日本語が含まれています、最小限の英語化を実行');
+
       
       // 手動翻訳機能を使用して日本語を英語に変換
       const translatedPrompt = translateFeaturesToEnglish(draftPrompt);
@@ -411,21 +285,13 @@ ${draftPrompt}`;
         const style = styleMatch ? styleMatch[1].toLowerCase() : 'traditional';
         
         cleanPrompt = `A detailed yokai illustration in ${style} Japanese supernatural creature art style, high resolution, masterpiece quality, clean background, no text`;
-        console.warn('⚠️ [FALLBACK_MINIMAL] スタイル保持の最小限英語プロンプトを生成:', cleanPrompt);
+
       }
-      
-      console.log('🔧 [FALLBACK_CLEANED] フォールバック最適化完了:', {
-        originalLength: draftPrompt.length,
-        translatedLength: translatedPrompt.length,
-        cleanedLength: cleanPrompt.length,
-        containsJapanese: containsJapanese(cleanPrompt)
-      });
       
       return cleanPrompt;
     }
     
     // 日本語が含まれていない場合は元のプロンプトを返す
-    console.log('✅ [FALLBACK_CLEAN] 元プロンプトは日本語を含まないため、そのまま使用');
     return draftPrompt;
   }
 }
@@ -479,7 +345,6 @@ class YokaiImageStorage {
       }
 
       localStorage.setItem(this.storageKey, JSON.stringify(savedImages));
-      console.log('🗂️ 画像を保存しました:', newImageData.yokaiName);
       return true;
     } catch (error) {
       console.error('🗂️ 画像保存エラー:', error);
@@ -522,7 +387,6 @@ class YokaiImageStorage {
       const savedImages = this.getSavedImages();
       const filtered = savedImages.filter(img => img.id !== imageId);
       localStorage.setItem(this.storageKey, JSON.stringify(filtered));
-      console.log('🗂️ 画像を削除しました:', imageId);
       return true;
     } catch (error) {
       console.error('🗂️ 画像削除エラー:', error);
@@ -534,7 +398,6 @@ class YokaiImageStorage {
   clearAllImages() {
     try {
       localStorage.removeItem(this.storageKey);
-      console.log('🗂️ 全ての保存画像を削除しました');
       return true;
     } catch (error) {
       console.error('🗂️ 全削除エラー:', error);
@@ -562,34 +425,14 @@ async function generateYokaiImage(yokaiInfo, style = 'traditional', workerUrl, m
   const startTime = performance.now();
   const sessionId = Date.now() + '_' + Math.random().toString(36).substring(2, 9);
   
-  console.log('👹 妖怪画像生成開始:', {
-    yokai: yokaiInfo.commonName || yokaiInfo.scientificName,
-    style: style,
-    model: model,
-    workerUrl: workerUrl,
-    imageOptions: imageOptions,
-    sessionId: sessionId
-  });
-
   const client = new ReplicateImageClient(workerUrl);
   
   // ドラフトプロンプト作成（シードも考慮）
   const seed = imageOptions.seed;
   const draftPrompt = createYokaiImagePrompt(yokaiInfo, style, seed);
   
-  console.log('👹 [DRAFT_PROMPT] ドラフトプロンプト生成完了:', {
-    sessionId: sessionId,
-    draftLength: draftPrompt.length,
-    preview: draftPrompt.substring(0, 150) + '...'
-  });
-  
       // LLMでプロンプトを最適化（妖怪検索と同じWorkerを使用）
   const llmWorkerUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
-  console.log('🔄 [OPTIMIZATION_START] プロンプト最適化開始:', {
-    sessionId: sessionId,
-    llmWorkerUrl: llmWorkerUrl,
-    draftLength: draftPrompt.length
-  });
   
   const optimizedPrompt = await optimizeImagePrompt(draftPrompt, llmWorkerUrl);
   
@@ -598,20 +441,8 @@ async function generateYokaiImage(yokaiInfo, style = 'traditional', workerUrl, m
   const wasActuallyOptimized = optimizedPrompt !== draftPrompt && !hasJapanese;
   const styleStrength = checkStyleStrength(optimizedPrompt, style);
   
-  console.log('✅ [OPTIMIZATION_COMPLETE] プロンプト最適化完了:', {
-    sessionId: sessionId,
-    originalLength: draftPrompt.length,
-    optimizedLength: optimizedPrompt.length,
-    textChanged: optimizedPrompt !== draftPrompt,
-    hasJapanese: hasJapanese,
-    wasActuallyOptimized: wasActuallyOptimized,
-    styleStrength: styleStrength.percentage,
-    optimizedPreview: optimizedPrompt.substring(0, 150) + '...'
-  });
-  
   // プロンプト最適化完了のコールバック実行
   if (imageOptions.onOptimizationComplete) {
-    console.log('🔮 [OPTIMIZATION_CALLBACK] プロンプト最適化完了コールバック実行');
     imageOptions.onOptimizationComplete(optimizedPrompt);
   }
   
@@ -620,7 +451,6 @@ async function generateYokaiImage(yokaiInfo, style = 'traditional', workerUrl, m
     
     if (model === 'sdxl-lightning') {
       // SDXL Lightning使用（サイズ指定可能）
-      console.log(`Generating yokai image with SDXL Lightning: ${optimizedPrompt}`);
       const sdxlOptions = {
         width: imageOptions.width || 1024,
         height: imageOptions.height || 1024,
@@ -671,7 +501,6 @@ async function generateYokaiImage(yokaiInfo, style = 'traditional', workerUrl, m
       }
   } else {
       // Minimax使用（デフォルト）- アスペクト比指定可能
-      console.log(`Generating yokai image with Minimax: ${optimizedPrompt}`);
       const minimaxOptions = {
         aspectRatio: imageOptions.aspectRatio || "1:1",
         seed: imageOptions.seed, // シードを追加
@@ -720,17 +549,6 @@ async function generateYokaiImage(yokaiInfo, style = 'traditional', workerUrl, m
   } catch (error) {
     const totalDuration = Math.round(performance.now() - startTime);
     
-    console.error('👹 [IMAGE_GEN_ERROR] Yokai Image Generation Failed:', {
-      timestamp: new Date().toISOString(),
-      sessionId: sessionId,
-      model: model,
-      duration: totalDuration,
-      yokaiName: yokaiInfo.commonName,
-      errorName: error.name,
-      errorMessage: error.message,
-      stack: error.stack?.split('\n').slice(0, 3)
-    });
-    
     // エラーメッセージを短く分かりやすく変換
     let shortErrorMessage = 'サーバーエラー';
     const errorMsg = error.message.toLowerCase();
@@ -751,14 +569,6 @@ async function generateYokaiImage(yokaiInfo, style = 'traditional', workerUrl, m
       shortErrorMessage = 'API認証エラー';
     }
     
-    console.log('👹 [IMAGE_GEN_FAILED] Returning Error Response:', {
-      timestamp: new Date().toISOString(),
-      sessionId: sessionId,
-      shortError: shortErrorMessage,
-      hasOptimizedPrompt: !!optimizedPrompt,
-      hasDraftPrompt: !!draftPrompt
-    });
-    
     return {
       success: false,
       error: shortErrorMessage,
@@ -778,14 +588,6 @@ async function generateYokaiImage(yokaiInfo, style = 'traditional', workerUrl, m
 async function saveImageToStorage(imageResult, yokaiInfo, style) {
   const startTime = performance.now();
   
-  console.log('🗂️ [STORAGE_START] Image Storage Started:', {
-    timestamp: new Date().toISOString(),
-    yokaiName: yokaiInfo.commonName || yokaiInfo.scientificName,
-    hasImageUrl: !!imageResult.imageUrl,
-    style: style,
-    model: imageResult.model
-  });
-  
   try {
     const storage = new YokaiImageStorage();
     const saveData = {
@@ -803,12 +605,6 @@ async function saveImageToStorage(imageResult, yokaiInfo, style) {
     const duration = Math.round(performance.now() - startTime);
     
     if (saved) {
-      console.log('🗂️ [STORAGE_SUCCESS] Image Storage Completed:', {
-        timestamp: new Date().toISOString(),
-        yokaiName: saveData.yokaiName,
-        duration: duration,
-        imageUrlLength: imageResult.imageUrl?.length || 0
-      });
     } else {
       console.warn('🗂️ [STORAGE_FAILED] Image Storage Failed (Unknown Reason):', {
         timestamp: new Date().toISOString(),
@@ -1150,23 +946,6 @@ function createYokaiImagePrompt(yokaiInfo, style, seed = null) {
 
   const finalPrompt = basePrompt + featuresPrompt + habitatPrompt + seasonPrompt + lightingPrompt + compositionPrompt + stylePrompt + qualityPrompt + noTextPrompt;
   
-  // デバッグ用：妖怪固有の情報をログ出力
-  const styleAnalysis = checkPromptStyleKeywords(finalPrompt, style);
-  console.log(`👹 画像プロンプト生成 - ${yokaiInfo.scientificName}:`, {
-    style: style,
-    yokaiHash: yokaiHash,
-    combinedSeed: combinedSeed,
-    variationIndex: variationIndex,
-    selectedStyleVariation: styleVariations[variationIndex],
-    compositionIndex: combinedSeed % compositions.length,
-    selectedComposition: compositions[combinedSeed % compositions.length],
-    promptLength: finalPrompt.length,
-    stylePromptLength: stylePrompt.length,
-    styleKeywordAnalysis: styleAnalysis,
-    styleStrength: `${styleAnalysis.found.length}/${styleAnalysis.total} keywords (${styleAnalysis.percentage}%)`,
-    basePromptContainsStyle: basePrompt.toLowerCase().includes(style)
-  });
-
   return finalPrompt;
 }
 
@@ -1432,13 +1211,6 @@ async function callYokaiSearchAPIInternal(searchQuery, region = 'japan') {
   const regionRestriction = regionTexts[region] || regionTexts['japan'];
   const regionExample = regionExamples[region] || regionExamples['japan'];
   
-  console.log('🌍 callYokaiSearchAPI地域設定:', {
-    inputRegion: region,
-    resolvedRegionRestriction: regionRestriction,
-    regionExample: regionExample,
-    availableRegions: Object.keys(regionTexts)
-  });
-  
   const messages = [
     {
       role: "system", 
@@ -1533,20 +1305,6 @@ ${regionExample}
     messages: messages
   };
 
-  console.log('📤 [LLM_REQUEST] Yokai Search API Call Started:', {
-    timestamp: new Date().toISOString(),
-    requestId: requestId,
-    region: region,
-    queryLength: searchQuery.length,
-    model: requestData.model,
-    temperature: requestData.temperature,
-    maxTokens: requestData.max_completion_tokens,
-    messageCount: messages.length,
-    systemPromptLength: messages[0].content.length,
-    userQuery: searchQuery.substring(0, 100) + (searchQuery.length > 100 ? '...' : ''),
-    regionRestriction: regionRestriction.substring(0, 50) + '...'
-  });
-  
   try {
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -1557,16 +1315,6 @@ ${regionExample}
     });
     
     const duration = Math.round(performance.now() - startTime);
-    
-    console.log('📤 [LLM_RESPONSE] Yokai Search API Response:', {
-      timestamp: new Date().toISOString(),
-      requestId: requestId,
-      status: response.status,
-      statusText: response.statusText,
-      duration: duration,
-      ok: response.ok,
-      contentType: response.headers.get('content-type')
-    });
     
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
@@ -1588,51 +1336,23 @@ ${regionExample}
     
     const data = await response.json();
     
-    // より詳細なレスポンス構造のログ出力
-    console.log('📥 [LLM_SUCCESS] Yokai Search Results Received - Full Structure:', {
-      timestamp: new Date().toISOString(),
-      requestId: requestId,
-      duration: duration,
-      region: region,
-      dataKeys: Object.keys(data),
-      hasChoices: !!(data.choices && data.choices.length > 0),
-      hasAnswer: !!data.answer,
-      hasResult: !!data.result,
-      hasResponse: !!data.response,
-      choicesCount: data.choices?.length || 0,
-      // レスポンス内容をより詳しくログ
-      responseContent: {
-        choices: data.choices ? 'present' : 'missing',
-        answer: data.answer ? 'present' : 'missing',
-        result: data.result ? 'present' : 'missing',
-        response: data.response ? 'present' : 'missing'
-      },
-      fullDataSample: JSON.stringify(data).substring(0, 500) + '...'
-    });
-    
     // 複数のレスポンス形式に対応した柔軟な解析
     let responseText = null;
     
     if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
       responseText = data.choices[0].message.content;
-      console.log('📥 [LLM_PARSE] Using data.choices[0].message.content');
     } else if (data.answer) {
       responseText = data.answer;
-      console.log('📥 [LLM_PARSE] Using data.answer');
     } else if (data.result && data.result.response) {
       responseText = data.result.response;
-      console.log('📥 [LLM_PARSE] Using data.result.response');
     } else if (data.response) {
       responseText = data.response;
-      console.log('📥 [LLM_PARSE] Using data.response');
     } else if (typeof data === 'string') {
       responseText = data;
-      console.log('📥 [LLM_PARSE] Using raw string data');
     } else {
       // 最後の手段：data内のテキスト文字列を探索
       const findTextContent = (obj, path = '') => {
         if (typeof obj === 'string' && obj.length > 10) {
-          console.log(`📥 [LLM_PARSE] Found text content at: ${path}`);
           return obj;
         }
         if (obj && typeof obj === 'object') {
@@ -1656,13 +1376,6 @@ ${regionExample}
         throw new Error('レスポンスに有効なテキストコンテンツが見つかりません');
       }
     }
-    
-    console.log('📥 [LLM_PARSE] Response text extracted successfully:', {
-      timestamp: new Date().toISOString(),
-      requestId: requestId,
-      responseLength: responseText?.length || 0,
-      responsePreview: responseText?.substring(0, 300) + '...'
-    });
     
     return parseYokaiSearchResponse(responseText);
     
@@ -1712,9 +1425,6 @@ async function retryWithExponentialBackoff(fn, maxRetries = 3, baseDelay = 1000)
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const result = await fn();
-      if (attempt > 0) {
-        console.log(`🔄 Retry successful on attempt ${attempt + 1}`);
-      }
       return result;
     } catch (error) {
       lastError = error;
@@ -1737,12 +1447,6 @@ async function retryWithExponentialBackoff(fn, maxRetries = 3, baseDelay = 1000)
 // 妖怪検索レスポンス解析（app_old.jsの実証済みロジックに戻る + 軽微な修復）
 function parseYokaiSearchResponse(responseText) {
   const sanitizedText = sanitizeInput(responseText);
-  
-  console.log('🔍 [PARSE_START] Starting response parsing:', {
-    responseLength: sanitizedText.length,
-    responsePreview: sanitizedText.substring(0, 200) + '...',
-    containsJSON: sanitizedText.includes('{') && sanitizedText.includes('}')
-  });
   
   try {
     // app_old.jsと同じシンプルなJSON抽出
@@ -1771,7 +1475,6 @@ function parseYokaiSearchResponse(responseText) {
         // 修復を試行
         try {
           parsed = JSON.parse(repairedJson);
-          console.log('✅ [JSON_REPAIR] Minimal repair successful');
         } catch (repairError) {
           console.warn('🔧 [JSON_REPAIR] Minimal repair failed, using fallback');
           throw repairError;
@@ -1779,15 +1482,6 @@ function parseYokaiSearchResponse(responseText) {
       }
       
       if (parsed && parsed.yokai && Array.isArray(parsed.yokai)) {
-        console.log('👹 解析された妖怪データ:', {
-          妖怪数: parsed.yokai.length,
-          妖怪名リスト: parsed.yokai.map(p => p.commonName || p.scientificName),
-          各妖怪の出現場所: parsed.yokai.map(p => ({ 
-            名前: p.commonName, 
-            出現場所: p.habitat?.substring(0, 100) 
-          }))
-        });
-        
         // 検証とサニタイゼーション（最小限）
         const validatedYokai = parsed.yokai
           .filter(yokai => yokai && yokai.scientificName && yokai.commonName)
@@ -1851,35 +1545,14 @@ class YokaiSearchLLM {
 
   // 妖怪検索実行
   async searchYokai(searchQuery, region = 'japan') {
-    console.log('🔍 YokaiSearchLLM.searchYokai呼び出し:', {
-      searchQuery: searchQuery,
-      region: region,
-      使用するAPI: 'callYokaiSearchAPI'
-    });
-    
     return await callYokaiSearchAPI(searchQuery, region);
   }
 
 
   // 妖怪画像生成（新しいReplicate API使用）
   async generateYokaiImage(yokaiInfo, style = 'traditional', model = 'minimax', imageOptions = {}) {
-    console.log('🎯 YokaiSearchLLM.generateYokaiImage呼び出し:', {
-      yokaiInfo: yokaiInfo,
-      style: style,
-      model: model,
-      imageOptions: imageOptions,
-      replicateWorkerUrl: this.replicateWorkerUrl
-    });
-
     try {
-      // プロンプトの詳細ログ出力
-      const prompt = createYokaiImagePrompt(yokaiInfo, style, imageOptions.seed);
-      console.log('🎯 Generated yokai image prompt:', prompt);
-      console.log('🎯 Yokai info:', yokaiInfo);
-      console.log('🎯 Style:', style, 'Model:', model, 'Options:', imageOptions);
-      
       const result = await generateYokaiImage(yokaiInfo, style, this.replicateWorkerUrl, model, imageOptions);
-      console.log('🎯 画像生成結果:', result);
       return result;
     } catch (error) {
       console.error('🎯 妖怪画像生成エラー:', error);

@@ -2072,12 +2072,6 @@
               const previousStyle = this.selectedStyle;
               this.selectedStyle = radio.value;
               this.saveSettings();
-              console.log('🎨 [STYLE_CHANGE] 画像スタイル変更:', {
-                previousStyle: previousStyle,
-                newStyle: radio.value,
-                timestamp: new Date().toISOString(),
-                affectedImages: this.searchResults.filter(r => r.generatedImageUrl).length
-              });
               
               // 既存の生成済み画像がある場合、ユーザーに知らせる
               const existingImages = this.searchResults.filter(r => r.generatedImageUrl).length;
@@ -2096,11 +2090,6 @@
               const previousModel = this.selectedModel;
               this.selectedModel = radio.value;
               this.saveSettings();
-              console.log('🔧 [MODEL_CHANGE] 画像生成モデル変更:', {
-                previousModel: previousModel,
-                newModel: radio.value,
-                timestamp: new Date().toISOString()
-              });
             }
           });
         });
@@ -2111,11 +2100,6 @@
               const previousRegion = this.selectedRegion;
               this.selectedRegion = radio.value;
               this.saveSettings();
-              console.log('🌍 [REGION_CHANGE] 地域設定変更:', {
-                previousRegion: previousRegion,
-                newRegion: radio.value,
-                timestamp: new Date().toISOString()
-              });
             }
           });
         });
@@ -2217,9 +2201,6 @@
         // 新しい検索の場合のみ画像生成回数をリセット（復元時はリセットしない）
         if (!isRestore) {
           this.resetImageGenerationAttempts();
-          console.log('🔄 新しい検索: 画像生成回数をリセット');
-        } else {
-          console.log('🔄 検索状態復元: 画像生成回数は保持');
         }
 
         container.innerHTML = '';
@@ -2437,12 +2418,8 @@
       }
 
       async generateYokaiImage(index) {
-        console.log('generateYokaiImage called with index:', index);
-        console.log('searchResults:', this.searchResults);
         const yokai = this.searchResults[index];
-        console.log('yokai:', yokai);
         const container = document.getElementById(`image-container-${index}`);
-        console.log('container:', container);
         
         // 設定から現在のスタイル、時間帯、モデルを取得
         const selectedStyle = this.selectedStyle;
@@ -2487,16 +2464,6 @@
         try {
           // ランダムシードを生成して画像のバリエーションを作る
           const randomSeed = this.generateRandomSeed();
-          
-          console.log('🎨 [IMAGE_GENERATION] 画像生成開始:', {
-            yokaiName: yokai.scientificName,
-            selectedStyle: selectedStyle,
-            styleLabel: this.getStyleLabel(selectedStyle),
-            model: this.selectedModel,
-            seed: randomSeed,
-            attempt: currentAttempt,
-            timestamp: new Date().toISOString()
-          });
           
           // 2段階の画像生成プロセス
           const result = await this.generateYokaiImageWithProgress(yokai, selectedStyle, this.selectedModel, {
@@ -2607,13 +2574,12 @@
             }
           }
           
-          // サーバーエラーの場合は試行回数をロールバック（再実行可能にする）
-          if (isServerError) {
-            const key = this.getYokaiKey(index);
-            this.imageGenerationAttempts[key] = Math.max(0, (this.imageGenerationAttempts[key] || 1) - 1);
-            this.saveImageGenerationAttempts(); // ロールバック後も保存
-            console.log('🔄 サーバーエラーのため試行回数をロールバック:', key, this.imageGenerationAttempts[key]);
-          }
+                      // サーバーエラーの場合は試行回数をロールバック（再実行可能にする）
+            if (isServerError) {
+              const key = this.getYokaiKey(index);
+              this.imageGenerationAttempts[key] = Math.max(0, (this.imageGenerationAttempts[key] || 1) - 1);
+              this.saveImageGenerationAttempts(); // ロールバック後も保存
+            }
           
           // 再試行可能かチェック
           const canRetry = this.canRegenerate(index) || isServerError;
@@ -2656,7 +2622,6 @@
       async generateYokaiImageWithProgress(yokaiInfo, style, model, imageOptions, container, styleLabel) {
         try {
           // Phase 1: プロンプト最適化開始
-          console.log('🔮 [PROMPT_OPTIMIZATION] プロンプト最適化開始');
           
           // プロンプト最適化完了時のコールバックを設定
           const optionsWithCallback = {
@@ -2664,7 +2629,6 @@
             onOptimizationComplete: (optimizedPrompt) => {
               // Phase 2: プロンプト最適化完了後、画像生成フェーズに移行
               if (container) {
-                console.log('🎨 [IMAGE_GENERATION] 画像生成フェーズ開始');
                 container.innerHTML = `
                   <div class="yokai-image-loading">
                     <div class="yokai-loading-icon">👹</div>
@@ -2750,7 +2714,6 @@
               model: resultOrSaveData.model || this.selectedModel || 'unknown',
               confidence: yokai.confidence || '中程度'
             };
-            console.log('🗂️ [AUTO_SAVE] Saving generated image to history:', historyData.yokaiName);
           } 
           // マイ妖怪集保存時の場合（saveData）
           else {
@@ -2764,7 +2727,6 @@
               model: yokai.generatedImageModel || 'unknown',
               confidence: yokai.confidence || '中程度'
             };
-            console.log('📚 [COLLECTION_SAVE] Saving collection image to history:', historyData.yokaiName);
           }
           
           // 重複チェック: 同じ学名・画像URLの組み合わせが既に存在するかチェック
@@ -2777,13 +2739,8 @@
           if (!isDuplicate) {
             const saved = await imageStorage.saveImage(historyData);
             if (saved) {
-              console.log('✅ [SAVE_SUCCESS] Image saved to history:', historyData.yokaiName);
               this.updateSavedImagesDisplay(); // 保存画像履歴表示を更新
-            } else {
-              console.warn('❌ [SAVE_FAILED] Failed to save image to history:', historyData.yokaiName);
             }
-          } else {
-            console.log('🔄 [DUPLICATE_SKIP] Image already exists in history:', historyData.yokaiName);
           }
         } catch (error) {
           console.error('🚨 [SAVE_ERROR] Failed to save to image history:', error);
@@ -3127,12 +3084,6 @@
         
         // 再生成回数も同時に保存
         this.saveImageGenerationAttempts();
-        
-        console.log('設定を自動保存しました:', {
-          style: this.selectedStyle,
-          model: this.selectedModel,
-          region: this.selectedRegion
-        });
       }
 
       // UIに設定を反映（設定値は既にロード済み）
@@ -3151,12 +3102,6 @@
         if (regionRadio) {
           regionRadio.checked = true;
         }
-        
-        console.log('UIに設定を反映:', {
-          style: this.selectedStyle,
-          model: this.selectedModel,
-          region: this.selectedRegion
-        });
       }
 
       // 設定の読み込み（設定タブで使用）
@@ -3196,8 +3141,6 @@
 
       // プロンプト表示モーダルを開く
       showPromptModal(style) {
-        console.log('showPromptModal called with style:', style); // デバッグ用
-        
         const styleTitles = {
           'traditional': '妖怪画スタイル',
           'anime': 'アニメ風妖怪画スタイル',
@@ -3212,9 +3155,6 @@
 
         const title = styleTitles[style] || '画像スタイル設定';
         const prompt = stylePrompts[style] || 'プロンプトが見つかりません';
-
-        console.log('Selected title:', title); // デバッグ用
-        console.log('Selected prompt:', prompt); // デバッグ用
 
         document.getElementById('prompt-modal-title').textContent = title + ' - ベースプロンプト';
         document.getElementById('prompt-content').textContent = prompt;
@@ -3238,15 +3178,6 @@
         const styleLabel = this.getStyleLabel(this.selectedStyle);
         document.getElementById('prompt-modal-title').textContent = `${yokai.commonName} - 画像生成プロンプト（${styleLabel}スタイル）`;
         document.getElementById('prompt-content').textContent = yokai.generatedImagePrompt;
-        
-        console.log('🔍 [PROMPT_VIEW] プロンプト表示:', {
-          yokaiName: yokai.scientificName,
-          style: this.selectedStyle,
-          styleLabel: styleLabel,
-          promptLength: yokai.generatedImagePrompt.length,
-          hasStyleKeywords: this.checkStyleKeywords(yokai.generatedImagePrompt, this.selectedStyle),
-          timestamp: new Date().toISOString()
-        });
         
         // 最適化情報を表示
         const optimizationInfo = document.getElementById('prompt-optimization-info');
@@ -3308,24 +3239,12 @@
             draftSection.style.display = 'block';
             draftContent.textContent = yokai.generatedImageDraftPrompt;
             
-            // スタイル強度情報があればログ表示
-            if (yokai.styleStrength !== undefined) {
-              console.log(`✅ [UI_OPTIMIZATION] 最適化成功表示${context}:`, {
-                yokaiName: yokai.scientificName,
-                styleStrength: yokai.styleStrength,
-                hasJapanese: hasJapanese
-              });
-            }
+
           } else {
             // 最適化が失敗または不完全な場合は表示しない
             optimizationInfo.style.display = 'none';
             draftSection.style.display = 'none';
-            console.warn(`⚠️ [UI_OPTIMIZATION] 最適化ラベル非表示${context}:`, {
-              hasJapanese: hasJapanese,
-              actuallyOptimized: actuallyOptimized,
-              yokaiName: yokai.scientificName,
-              reason: hasJapanese ? '日本語残存' : '最適化未実行'
-            });
+
           }
         } else {
           // ドラフトプロンプトが存在しない場合は最適化なしとして表示
@@ -3707,7 +3626,6 @@
         const key = this.getYokaiKey(index);
         this.imageGenerationAttempts[key] = (this.imageGenerationAttempts[key] || 0) + 1;
         this.saveImageGenerationAttempts(); // 即座に保存
-        console.log(`🔢 再生成回数更新: ${key} -> ${this.imageGenerationAttempts[key]}`);
         return this.imageGenerationAttempts[key];
       }
 
