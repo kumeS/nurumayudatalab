@@ -225,9 +225,21 @@ class ViewportManager {
   // 座標変換ユーティリティ
   screenToWorld(screenX, screenY) {
     const rect = this.canvas.getBoundingClientRect();
-    return {
-      x: (screenX - rect.left - this.panX) / this.scale,
-      y: (screenY - rect.top - this.panY) / this.scale
+    const canvasX = screenX - rect.left;
+    const canvasY = screenY - rect.top;
+    
+    // パンとスケール補正を正しく適用
+    const worldX = (canvasX / this.scale) - (this.panX / this.scale);
+    const worldY = (canvasY / this.scale) - (this.panY / this.scale);
+    
+    // ノード重複を避けるためのグリッドスナップ機能追加
+    const gridSize = 20;
+    const snappedX = Math.round(worldX / gridSize) * gridSize;
+    const snappedY = Math.round(worldY / gridSize) * gridSize;
+    
+    return { 
+      x: Math.max(0, snappedX), 
+      y: Math.max(0, snappedY) 
     };
   }
 

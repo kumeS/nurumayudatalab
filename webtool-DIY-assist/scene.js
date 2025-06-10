@@ -329,17 +329,31 @@ class SceneManager {
   
     // ========== マテリアル適用 ==========
     applyPartBasedMaterials(object, objData) {
-      // パーツごとの色定義
+      // パーツごとの色定義（明るく調整）
       const partColors = {
-        'SEAT': 0x8b4513,       // 茶色（座面）
-        'BACKREST': 0xa0522d,   // 濃い茶色（背もたれ）
-        'LEG': 0x654321,        // ダークブラウン（脚部）
-        'TABLETOP': 0xdeb887,   // バーリーウッド（天板）
-        'PANEL': 0xf5deb3,      // ウィート（パネル）
-        'SHELF': 0xd2691e,      // チョコレート（棚板）
-        'default': 0x8b4513     // デフォルト
+        'SEAT': 0xDEB887,       // バーリーウッド（座面）- より明るく
+        'BACKREST': 0xD2B48C,   // タン（背もたれ）- より明るく
+        'LEG': 0xB8860B,        // ダークゴールデンロッド（脚部）- より明るく
+        'TABLETOP': 0xF5DEB3,   // ウィート（天板）- 明るく
+        'PANEL': 0xFFE4B5,      // モカシン（パネル）- 非常に明るく
+        'SHELF': 0xEEE8AA,      // ペールゴールデンロッド（棚板）- 明るく
+        'default': 0xDEB887     // デフォルト - 明るく
       };
-  
+
+      // グラデーション用の色パレット（明るく統一感のある色）
+      const gradientColors = [
+        0xF5DEB3, // ウィート（最も明るい）
+        0xFFE4B5, // モカシン
+        0xEEE8AA, // ペールゴールデンロッド
+        0xDEB887, // バーリーウッド
+        0xD2B48C, // タン
+        0xDAA520, // ゴールデンロッド
+        0xB8860B, // ダークゴールデンロッド
+        0xCD853F, // ペルー
+        0xF4A460, // サンディブラウン
+        0xBC8F8F  // ロージーブラウン
+      ];
+
       // パーツ情報を解析
       const lines = objData.split('\n');
       let currentPartColor = partColors.default;
@@ -367,23 +381,107 @@ class SceneManager {
           }
         }
       }
-  
+
       // すべてのメッシュにマテリアルを適用
       object.traverse((child) => {
         if (child.isMesh) {
-          // パーツに応じた色をランダムに選択（デモ用）
-          const colors = [0x8b4513, 0xa0522d, 0x654321, 0xdeb887, 0xf5deb3, 0xd2691e];
-          const randomColor = colors[meshIndex % colors.length];
+          // グラデーション色を選択（メッシュインデックスに基づく）
+          const gradientColor = gradientColors[meshIndex % gradientColors.length];
           
-          child.material = new THREE.MeshLambertMaterial({ 
-            color: randomColor,
-            side: THREE.DoubleSide
+          // マテリアル設定を改善
+          child.material = new THREE.MeshPhongMaterial({ 
+            color: gradientColor,
+            side: THREE.DoubleSide, // 内側も表示
+            transparent: true,
+            opacity: 0.85, // 少し透明にして内部構造を見やすく
+            shininess: 30, // 光沢を追加
+            specular: 0x444444, // スペキュラー色
+            // 環境マップ反射を追加（より立体的に）
+            envMap: null, // 必要に応じて環境マップを設定可能
+            reflectivity: 0.1
           });
+          
+          // 影の設定
           child.castShadow = true;
           child.receiveShadow = true;
+          
+          // デバッグ用ログ
+          this.assistant.log('debug', `メッシュ ${meshIndex} に色を適用`, {
+            meshIndex: meshIndex,
+            color: `#${gradientColor.toString(16).padStart(6, '0')}`,
+            colorName: this.getColorName(gradientColor)
+          });
+          
           meshIndex++;
         }
       });
+      
+      this.assistant.log('info', 'グラデーションマテリアル適用完了', {
+        totalMeshes: meshIndex,
+        colorsUsed: Math.min(meshIndex, gradientColors.length)
+      });
+    }
+  
+    // ========== 色名取得（デバッグ用） ==========
+    getColorName(colorHex) {
+      const colorNames = {
+        0xF5DEB3: 'ウィート',
+        0xFFE4B5: 'モカシン', 
+        0xEEE8AA: 'ペールゴールデンロッド',
+        0xDEB887: 'バーリーウッド',
+        0xD2B48C: 'タン',
+        0xDAA520: 'ゴールデンロッド',
+        0xB8860B: 'ダークゴールデンロッド',
+        0xCD853F: 'ペルー',
+        0xF4A460: 'サンディブラウン',
+        0xBC8F8F: 'ロージーブラウン'
+      };
+      return colorNames[colorHex] || '不明';
+    }
+  
+    // ========== 色設定リセット（実験用） ==========
+    resetMaterialColors(colorScheme = 'gradient') {
+      if (!this.currentModel) {
+        this.assistant.log('warn', '色設定リセット: 現在のモデルがありません');
+        return;
+      }
+
+      let meshIndex = 0;
+      
+      if (colorScheme === 'gradient') {
+        // グラデーション色パレット
+        const colors = [
+          0xF5DEB3, 0xFFE4B5, 0xEEE8AA, 0xDEB887, 0xD2B48C,
+          0xDAA520, 0xB8860B, 0xCD853F, 0xF4A460, 0xBC8F8F
+        ];
+        
+        this.currentModel.traverse((child) => {
+          if (child.isMesh) {
+            const color = colors[meshIndex % colors.length];
+            child.material.color.setHex(color);
+            meshIndex++;
+          }
+        });
+      } else if (colorScheme === 'bright') {
+        // 明るい単色
+        const brightColor = 0xF5DEB3; // ウィート
+        this.currentModel.traverse((child) => {
+          if (child.isMesh) {
+            child.material.color.setHex(brightColor);
+            child.material.opacity = 0.9;
+          }
+        });
+      } else if (colorScheme === 'transparent') {
+        // 半透明
+        this.currentModel.traverse((child) => {
+          if (child.isMesh) {
+            child.material.opacity = 0.6;
+            child.material.transparent = true;
+          }
+        });
+      }
+      
+      this.assistant.log('info', `色設定を${colorScheme}に変更しました`, { meshCount: meshIndex });
     }
   
     // ========== モデル情報更新 ==========

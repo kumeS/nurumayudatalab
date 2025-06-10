@@ -68,12 +68,30 @@ class NodeManager {
   }
 
   createNode(type, x, y) {
+    // 既存ノードとの重複チェック
+    const minDistance = 180; // ノード間最小距離
+    let adjustedX = x;
+    let adjustedY = y;
+    
+    for (const [nodeId, node] of this.nodes) {
+      const distance = Math.sqrt(
+        Math.pow(node.x - adjustedX, 2) + 
+        Math.pow(node.y - adjustedY, 2)
+      );
+      
+      if (distance < minDistance) {
+        // 重複回避: 右下にずらす
+        adjustedX += minDistance;
+        adjustedY += 50;
+      }
+    }
+    
     const nodeId = `node_${this.nodeIdCounter++}`;
     const node = {
       id: nodeId,
       type: type,
-      x: x,
-      y: y,
+      x: adjustedX,
+      y: adjustedY,
       data: this.getDefaultNodeData(type)
     };
 

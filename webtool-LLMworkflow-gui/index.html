@@ -225,6 +225,7 @@
       cursor: pointer;
       position: relative;
       z-index: 20;
+      transition: all 0.2s ease;
     }
     
     .port.input {
@@ -233,6 +234,26 @@
     
     .port.output {
       background: var(--primary);
+    }
+
+    .port.port-active {
+      background: #ff4757 !important;
+      border-color: #ff3742 !important;
+      box-shadow: 0 0 10px rgba(255, 71, 87, 0.5);
+      transform: scale(1.2);
+    }
+
+    .port.port-compatible {
+      background: #2ed573 !important;
+      border-color: #20bf6b !important;
+      box-shadow: 0 0 8px rgba(46, 213, 115, 0.4);
+      cursor: pointer;
+    }
+
+    .port.port-invalid {
+      background: #ff6b6b !important;
+      border-color: #ee5253 !important;
+      opacity: 0.5;
     }
     
     .connection {
@@ -279,11 +300,13 @@
       stroke-width: 2;
       fill: none;
       cursor: pointer;
+      transition: stroke-width 0.2s ease;
     }
 
     .connection-line:hover {
-      stroke-width: 3;
+      stroke-width: 4;
       stroke: #e74c3c;
+      cursor: pointer;
     }
     
     .properties-panel {

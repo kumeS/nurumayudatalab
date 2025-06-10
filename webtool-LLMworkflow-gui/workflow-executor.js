@@ -5,10 +5,19 @@ class WorkflowExecutor {
     this.executionLog = [];
   }
 
+  validateLLMAPIAvailability() {
+    if (!window.llmAPI || typeof window.llmAPI.generateText !== 'function') {
+      throw new Error('LLM API が利用できません。API設定を確認してください。');
+    }
+  }
+
   async executeWorkflow(nodeManager, connectionManager, inputData = {}) {
     if (this.isExecuting) {
       throw new Error('ワークフローは既に実行中です');
     }
+
+    // LLM API可用性チェック
+    this.validateLLMAPIAvailability();
 
     this.isExecuting = true;
     this.executionResults.clear();
@@ -121,6 +130,11 @@ class WorkflowExecutor {
     prompt = prompt.replace(/\{input\}/g, inputText);
     
     try {
+      // window.llmAPI の存在確認
+      if (!window.llmAPI) {
+        throw new Error('LLM API が初期化されていません');
+      }
+      
       // LLM API呼び出し
       const response = await window.llmAPI.generateText(prompt, {
         temperature: node.data.temperature || 0.7,
@@ -129,6 +143,7 @@ class WorkflowExecutor {
       
       return response;
     } catch (error) {
+      console.error('LLM処理エラー:', error);
       throw new Error(`LLM処理エラー: ${error.message}`);
     }
   }

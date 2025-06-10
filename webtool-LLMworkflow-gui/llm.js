@@ -1,4 +1,3 @@
-
 // LLM API呼び出し
 async function callLLMAPI(messages) {
   const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
@@ -179,5 +178,20 @@ function parseDetailedStepsResponse(text) {
     }
   }
 }
+
+// window.llmAPI の初期化
+window.llmAPI = {
+  generateText: async function(prompt, options = {}) {
+    const messages = [{ role: "user", content: prompt }];
+    try {
+      const result = await callLLMAPI(messages);
+      return result;
+    } catch (error) {
+      throw new Error(`LLM API Error: ${error.message}`);
+    }
+  }
+};
+
+console.log('LLM API initialized');
 
  

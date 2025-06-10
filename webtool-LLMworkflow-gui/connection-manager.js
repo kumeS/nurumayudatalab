@@ -47,6 +47,9 @@ class ConnectionManager {
           this.tempLine = null;
         }
         
+        // ポートハイライトをクリア
+        this.clearPortHighlights();
+        
         this.currentConnection = null;
       }
     };
@@ -59,29 +62,70 @@ class ConnectionManager {
     // 出力ポートからのみ接続開始
     if (portType !== 'output') return;
     
+    // 開始ポートをハイライト
+    const startPortElement = e.target;
+    startPortElement.classList.add('port-active');
+    
     const node = this.nodeManager.getNode(nodeId);
     const nodePos = this.nodeManager.getNodePosition(nodeId);
     
-    // 開始ノードの絶対座標を計算
+    // ポートの正確な位置を計算（ビューポート変換を考慮）
+    const nodeElement = document.getElementById(nodeId);
+    const portElement = nodeElement.querySelector('.port.output');
+    
+    if (!portElement) {
+      console.warn('出力ポートが見つかりません:', nodeId);
+      return;
+    }
+    
+    // ワールド座標での計算（ビューポート変換前の座標）
     const nodeWidth = 160;
     const nodeHeight = 90;
-    const startX = nodePos.x + nodeWidth - 12; // 出力ポートの位置
-    const startY = nodePos.y + nodeHeight / 2;
+    const startX = node.x + nodeWidth - 12; // 出力ポートの位置
+    const startY = node.y + nodeHeight / 2;
     
     this.currentConnection = {
       fromNode: nodeId,
       fromPort: portType,
       startX: startX,
-      startY: startY
+      startY: startY,
+      startPortElement: startPortElement
     };
     
     // 一時的な接続線を作成
     this.tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     this.tempLine.setAttribute('stroke', '#ff7e5f');
-    this.tempLine.setAttribute('stroke-width', '2');
+    this.tempLine.setAttribute('stroke-width', '3');
     this.tempLine.setAttribute('fill', 'none');
-    this.tempLine.setAttribute('stroke-dasharray', '5,5');
+    this.tempLine.setAttribute('stroke-dasharray', '8,4');
+    this.tempLine.setAttribute('opacity', '0.8');
     this.connectionsLayer.appendChild(this.tempLine);
+    
+    // 接続可能なポートをハイライト
+    this.highlightCompatiblePorts(nodeId);
+  }
+
+  highlightCompatiblePorts(fromNodeId) {
+    const allNodes = this.nodeManager.getAllNodes();
+    
+    allNodes.forEach(node => {
+      if (node.id !== fromNodeId && node.type !== 'input') {
+        const nodeElement = document.getElementById(node.id);
+        const inputPort = nodeElement?.querySelector('.port.input');
+        
+        if (inputPort && this.isValidConnection(fromNodeId, node.id)) {
+          inputPort.classList.add('port-compatible');
+        } else if (inputPort) {
+          inputPort.classList.add('port-invalid');
+        }
+      }
+    });
+  }
+
+  clearPortHighlights() {
+    document.querySelectorAll('.port').forEach(port => {
+      port.classList.remove('port-active', 'port-compatible', 'port-invalid');
+    });
   }
 
   createConnectionPath(x1, y1, x2, y2) {
@@ -199,6 +243,7 @@ class ConnectionManager {
           path.setAttribute('stroke-width', '2');
           path.setAttribute('fill', 'none');
           path.setAttribute('data-connection-id', connection.id);
+          path.setAttribute('class', 'connection-line');
           path.style.cursor = 'pointer';
           path.style.zIndex = '15';
           

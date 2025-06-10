@@ -1,0 +1,859 @@
+# LLMワークフローエディター プロジェクト分析・開発方針書
+
+## プロジェクト概要
+
+このプロジェクトは「GUIベースのLLMワークフローエディター」を提供するHTML+JavaScript単一ページアプリケーション（SPA）です。ユーザーはノードベースのビジュアルエディターでAIワークフローを構築し、実行・エクスポート・共有することができます。
+
+### コア価値
+- プログラミング知識不要でのAIワークフロー構築
+- ドラッグ&ドロップによる直感的な操作
+- 多段階処理・分岐・統合の視覚的設計
+- JavaScriptコード出力によるAPI化・移植性確保
+
+## アーキテクチャ分析
+
+### 1. ファイル構成と役割
+
+#### コアファイル
+- **index.html** (631行): メインHTMLファイル、CSS、ノードパレット定義
+- **app.js** (112行): アプリケーション初期化、グローバル状態管理、エラーハンドリング
+- **workflow-editor.js** (522行): メインの統合クラス、各マネージャーの調整
+
+#### マネージャークラス群（責任分離設計）
+- **node-manager.js** (384行): ノード作成・削除・移動・レンダリング管理
+- **connection-manager.js** (345行): ノード間接続・線描画・実行順序計算
+- **viewport-manager.js** (241行): ズーム・パン・ビューポート変換
+- **properties-manager.js** (409行): プロパティパネル・ノード設定編集
+- **storage-manager.js** (366行): 自動保存・エクスポート・インポート
+- **workflow-executor.js** (419行): ワークフロー実行エンジン・各ノードタイプ処理
+
+#### 機能拡張モジュール
+- **llm.js** (183行): LLM API呼び出し・レスポンス解析
+- **code-generator.js** (820行): ワークフローからJavaScriptコード生成
+- **workflow-templates.js** (594行): プリセットテンプレート定義
+- **workflow-history.js** (318行): 実行履歴管理
+- **template-integration.js** (407行): テンプレート統合機能
+
+#### 未使用・開発中ファイル
+- **実装案.txt**: プロジェクト仕様書
+- **CLAUDE.md**: 開発記録
+- **workflow-executor-fix.js**: バグ修正実験ファイル
+
+### 2. アーキテクチャパターン
+
+#### Manager Pattern + Facade Pattern
+各機能を独立したManagerクラスに分離し、WorkflowEditorクラスがファサードとして統合。
+
+#### Observer Pattern
+ノード選択・移動・削除などのイベントをコールバック形式で通知。
+
+#### Command Pattern
+ワークフロー実行時に各ノードタイプ別の処理を実行。
+
+## 動作確認結果
+
+### ✅ 正常動作機能
+1. **基本UI表示**: ヘッダー・サイドバー・キャンバス・プロパティパネル
+2. **ノードパレット**: 10種類のノードテンプレート（入力・LLM・分岐・統合等）
+3. **ドラッグ&ドロップ**: ノードテンプレートからキャンバスへの配置
+4. **自動保存**: localStorage利用の状態保存
+5. **初期化システム**: 依存関係解決・イベントリスナー設定
+
+### 🔍 確認必要事項
+1. **ノード接続**: 出力ポートから入力ポートへの線引き
+2. **プロパティ編集**: ノード選択時のプロパティパネル表示
+3. **ワークフロー実行**: LLM API連携・結果表示
+4. **エクスポート機能**: JSON出力・コード生成
+
+## 発見されたバグと課題
+
+### 🐛 重要なバグ
+
+#### 1. ノード重複配置問題
+**症状**: ドラッグ&ドロップでノードが同じ位置に配置され、重なる
+**原因**: `node-manager.js`のワールド座標計算が不正確
+**解決策**: ViewportManagerの座標変換ロジック修正が必要
+
+#### 2. LLM API統合の不完全性
+**症状**: `llm.js`に実装されているAPI呼び出しがワークフロー実行に正しく統合されていない
+**原因**: `workflow-executor.js`のLLMノード実行部分で`window.llmAPI`が未定義
+**解決策**: LLM APIモジュールの適切な初期化と統合
+
+#### 3. HTML script読み込み順序問題
+**症状**: 一部のマネージャークラスが先に読み込まれる前に参照される可能性
+**原因**: index.htmlでのscript読み込み順序
+**解決策**: 依存関係の明確化とmodule patternの採用
+
+### ⚠️ 設計上の課題
+
+#### 1. 責任境界の曖昧さ
+- ConnectionManagerとWorkflowExecutorの実行順序計算が重複
+- StorageManagerとWorkflowEditorの状態管理が分散
+
+#### 2. エラーハンドリング不足
+- ネットワークエラー・API応答エラーの適切な処理が不十分
+- ユーザーフレンドリーなエラーメッセージが不足
+
+#### 3. パフォーマンス最適化
+- 大規模ワークフローでの描画パフォーマンス懸念
+- 自動保存の頻度制御が必要
+
+## 実装すべき機能・改善案
+
+### 🚀 優先度: 高
+
+#### 1. ノード配置アルゴリズム改善
+```javascript
+// viewport-manager.js の screenToWorld メソッド修正
+screenToWorld(screenX, screenY) {
+  const rect = this.canvas.getBoundingClientRect();
+  const canvasX = screenX - rect.left;
+  const canvasY = screenY - rect.top;
+  
+  // パンとスケール補正を正しく適用
+  const worldX = (canvasX / this.scale) - (this.panX / this.scale);
+  const worldY = (canvasY / this.scale) - (this.panY / this.scale);
+  
+  return { x: worldX, y: worldY };
+}
+```
+
+#### 2. 自動レイアウト機能
+- ノード自動整列（Grid/Force-directed layout）
+- 最適な接続線ルーティング
+- ノード間距離の自動調整
+
+#### 3. LLM API統合強化
+```javascript
+// workflow-executor.js に適切なLLM統合
+async executeLLMNode(node, connectionManager) {
+  const inputs = this.getNodeInputs(node.id, connectionManager);
+  const inputText = Array.isArray(inputs) ? inputs.join('\n') : (inputs || '');
+  
+  let prompt = node.data.prompt || '';
+  prompt = prompt.replace(/\{input\}/g, inputText);
+  
+  try {
+    // llm.js のAPI呼び出し使用
+    const messages = [{ role: "user", content: prompt }];
+    const response = await callLLMAPI(messages);
+    return response;
+  } catch (error) {
+    throw new Error(`LLM処理エラー: ${error.message}`);
+  }
+}
+```
+
+### 🔧 優先度: 中
+
+#### 1. テンプレートシステム強化
+- カスタムテンプレート作成機能
+- テンプレートのカテゴリ分類
+- コミュニティテンプレート共有
+
+#### 2. 実行時デバッグ機能
+- ステップ実行・ブレークポイント
+- 中間結果の可視化
+- 実行時間・コスト計測
+
+#### 3. コード生成機能完成
+- TypeScript出力対応
+- Python/Node.js APIサーバーテンプレート
+- Docker化テンプレート
+
+### 💡 優先度: 低
+
+#### 1. 協調編集機能
+- WebSocket/WebRTCによるリアルタイム編集
+- 変更履歴・コンフリクト解決
+- ユーザー権限管理
+
+#### 2. プラグインシステム
+- カスタムノードタイプ追加
+- 外部サービス連携（GitHub, Slack等）
+- サードパーティAPIコネクター
+
+## 推奨開発手順
+
+### Phase 1: バグ修正・基盤強化 (1-2週間)
+1. ノード配置問題の修正
+2. LLM API統合の完成
+3. エラーハンドリング強化
+4. 基本機能の動作確認・テスト
+
+### Phase 2: 機能拡張 (2-3週間)
+1. 自動レイアウト機能実装
+2. プロパティ編集機能完成
+3. ワークフロー実行機能の安定化
+4. エクスポート・インポート機能強化
+
+### Phase 3: 高度機能 (3-4週間)
+1. コード生成機能完成
+2. テンプレートシステム拡張
+3. 実行デバッグ機能追加
+4. パフォーマンス最適化
+
+### Phase 4: 公開準備 (1-2週間)
+1. ドキュメント整備
+2. チュートリアル作成
+3. ユーザビリティテスト
+4. デプロイ・運用準備
+
+## 技術的推奨事項
+
+### 1. モジュール化改善
+```javascript
+// ES6 modules導入推奨
+// workflow-editor-module.js
+export class WorkflowEditor {
+  // ...
+}
+
+// app.js
+import { WorkflowEditor } from './workflow-editor-module.js';
+```
+
+### 2. 型安全性向上
+- JSDocによる型注釈の充実
+- TypeScript移行の検討
+- 設定オブジェクトのバリデーション強化
+
+### 3. テスト戦略
+- 単体テスト（Jest等）の導入
+- E2Eテスト（Playwright）の拡充
+- 回帰テスト自動化
+
+### 4. CI/CD導入
+- GitHub Actions等でのテスト自動化
+- 静的解析ツール（ESLint, Prettier）
+- 自動デプロイメント
+
+## まとめ
+
+本プロジェクトは非常に野心的で価値のあるコンセプトを持ち、基本的な実装は適切に設計されています。マネージャーパターンによるモジュール化、イベント駆動アーキテクチャ、そして豊富な機能セットが印象的です。
+
+主要な課題は座標系の計算バグとLLM API統合の不完全性ですが、これらは比較的修正しやすい技術的問題です。これらを解決すれば、「AI時代のノーコード開発基盤」として大きなインパクトを持つプロダクトになる可能性があります。
+
+特に、GUIで構築したワークフローからJavaScriptコードを生成し、API化できる機能は他に類を見ない独自性があり、AIアプリケーション開発の民主化に大きく貢献する可能性があります。
+
+---
+
+# AIエージェント向け実行プロンプト集
+
+## 🎯 Step 1: ノード配置バグ修正
+
+### 実施内容
+ViewportManagerの座標変換ロジックを修正し、ドラッグ&ドロップ時のノード重複配置問題を解決する。
+
+### 作業ファイル
+- `viewport-manager.js` (メイン修正対象)
+- `node-manager.js` (連携確認)
+- `index.html` (動作テスト)
+
+### 具体的な実装
+
+#### 1.1 viewport-manager.js の screenToWorld メソッド修正
+```javascript
+// 現在のコード（問題あり）を以下に置換:
+screenToWorld(screenX, screenY) {
+  const rect = this.canvas.getBoundingClientRect();
+  const canvasX = screenX - rect.left;
+  const canvasY = screenY - rect.top;
+  
+  // パンとスケール補正を正しく適用
+  const worldX = (canvasX / this.scale) - (this.panX / this.scale);
+  const worldY = (canvasY / this.scale) - (this.panY / this.scale);
+  
+  // ノード重複を避けるためのグリッドスナップ機能追加
+  const gridSize = 20;
+  const snappedX = Math.round(worldX / gridSize) * gridSize;
+  const snappedY = Math.round(worldY / gridSize) * gridSize;
+  
+  return { 
+    x: Math.max(0, snappedX), 
+    y: Math.max(0, snappedY) 
+  };
+}
+```
+
+#### 1.2 node-manager.js の createNode メソッド強化
+```javascript
+// ノード重複チェック機能を追加
+createNode(type, x, y) {
+  // 既存ノードとの重複チェック
+  const minDistance = 180; // ノード間最小距離
+  let adjustedX = x;
+  let adjustedY = y;
+  
+  for (const [nodeId, node] of this.nodes) {
+    const distance = Math.sqrt(
+      Math.pow(node.x - adjustedX, 2) + 
+      Math.pow(node.y - adjustedY, 2)
+    );
+    
+    if (distance < minDistance) {
+      // 重複回避: 右下にずらす
+      adjustedX += minDistance;
+      adjustedY += 50;
+    }
+  }
+  
+  const nodeId = `node_${this.nodeIdCounter++}`;
+  const node = {
+    id: nodeId,
+    type: type,
+    x: adjustedX,
+    y: adjustedY,
+    data: this.getDefaultNodeData(type)
+  };
+
+  this.nodes.set(nodeId, node);
+  this.renderNode(node);
+  
+  return node;
+}
+```
+
+### 注意点
+- 既存のビューポート操作（パン・ズーム）に影響しないよう注意
+- グリッドスナップは必要に応じてON/OFF切り替え可能にする
+- モバイル端末での座標計算も考慮する
+
+### 他の機能との連携チェック
+1. **connection-manager.js**: 接続線の座標計算が正しく更新されるか確認
+2. **storage-manager.js**: ノード位置の保存・復元が正常に動作するか確認
+3. **properties-manager.js**: ノード選択時の座標表示が正確か確認
+
+### 動作確認手順
+1. ブラウザでindex.htmlを開く
+2. 同じノードタイプを複数回ドラッグ&ドロップ
+3. ノードが重複せず、適切に配置されることを確認
+4. ズーム・パン操作後もドラッグ&ドロップが正常動作することを確認
+
+---
+
+## 🤖 Step 2: LLM API統合修正
+
+### 実施内容
+workflow-executor.jsとllm.jsの統合を完成させ、LLMノードの実行を正常化する。
+
+### 作業ファイル
+- `workflow-executor.js` (メイン修正対象)
+- `llm.js` (API仕様確認)
+- `index.html` (script読み込み順序確認)
+
+### 具体的な実装
+
+#### 2.1 llm.js のAPI初期化
+```javascript
+// llm.js の末尾に追加
+window.llmAPI = {
+  generateText: async function(prompt, options = {}) {
+    const messages = [{ role: "user", content: prompt }];
+    try {
+      const result = await callLLMAPI(messages);
+      return result;
+    } catch (error) {
+      throw new Error(`LLM API Error: ${error.message}`);
+    }
+  }
+};
+
+console.log('LLM API initialized');
+```
+
+#### 2.2 workflow-executor.js の executeLLMNode メソッド修正
+```javascript
+async executeLLMNode(node, connectionManager) {
+  const inputs = this.getNodeInputs(node.id, connectionManager);
+  const inputText = Array.isArray(inputs) ? inputs.join('\n') : (inputs || '');
+  
+  // プロンプトの変数置換
+  let prompt = node.data.prompt || '';
+  prompt = prompt.replace(/\{input\}/g, inputText);
+  
+  try {
+    // window.llmAPI の存在確認
+    if (!window.llmAPI) {
+      throw new Error('LLM API が初期化されていません');
+    }
+    
+    // LLM API呼び出し
+    const response = await window.llmAPI.generateText(prompt, {
+      temperature: node.data.temperature || 0.7,
+      max_tokens: node.data.maxTokens || 2000
+    });
+    
+    return response;
+  } catch (error) {
+    console.error('LLM処理エラー:', error);
+    throw new Error(`LLM処理エラー: ${error.message}`);
+  }
+}
+```
+
+#### 2.3 エラーハンドリング強化
+```javascript
+// workflow-executor.js に追加
+validateLLMAPIAvailability() {
+  if (!window.llmAPI || typeof window.llmAPI.generateText !== 'function') {
+    throw new Error('LLM API が利用できません。API設定を確認してください。');
+  }
+}
+
+// executeWorkflow メソッドの開始時に追加
+async executeWorkflow(nodeManager, connectionManager, inputData = {}) {
+  if (this.isExecuting) {
+    throw new Error('ワークフローは既に実行中です');
+  }
+
+  // LLM API可用性チェック
+  this.validateLLMAPIAvailability();
+  
+  // 以下既存コード...
+}
+```
+
+### 注意点
+- API呼び出し時のネットワークエラーハンドリング
+- レート制限・タイムアウト対応
+- APIレスポンスの形式検証
+
+### 他の機能との連携チェック
+1. **workflow-editor.js**: 実行ボタンクリック時のエラー表示
+2. **properties-manager.js**: LLMノードのプロンプト編集機能
+3. **code-generator.js**: 生成コードでのAPI呼び出し部分
+
+### 動作確認手順
+1. 入力ノード → LLMノード → 出力ノードのシンプルなワークフローを作成
+2. LLMノードのプロンプトを編集
+3. 実行ボタンをクリックしてAPI呼び出しが成功することを確認
+4. エラー時の適切なメッセージ表示を確認
+
+---
+
+## 🔗 Step 3: ノード接続機能強化
+
+### 実施内容
+ポート間の接続線描画と接続ロジックを改善し、視覚的なフィードバックを向上させる。
+
+### 作業ファイル
+- `connection-manager.js` (メイン修正対象)
+- `index.html` (CSS修正)
+- `node-manager.js` (ポート描画確認)
+
+### 具体的な実装
+
+#### 3.1 ポートクリック時の視覚フィードバック改善
+```javascript
+// connection-manager.js の startConnection メソッド修正
+startConnection(nodeId, portType, e) {
+  // 出力ポートからのみ接続開始
+  if (portType !== 'output') return;
+  
+  // 開始ポートをハイライト
+  const startPortElement = e.target;
+  startPortElement.classList.add('port-active');
+  
+  const node = this.nodeManager.getNode(nodeId);
+  const nodePos = this.nodeManager.getNodePosition(nodeId);
+  
+  // ポートの正確な位置を計算
+  const nodeElement = document.getElementById(nodeId);
+  const portElement = nodeElement.querySelector('.port.output');
+  const portRect = portElement.getBoundingClientRect();
+  const canvasRect = this.connectionsLayer.getBoundingClientRect();
+  
+  const startX = portRect.left + portRect.width/2 - canvasRect.left;
+  const startY = portRect.top + portRect.height/2 - canvasRect.top;
+  
+  this.currentConnection = {
+    fromNode: nodeId,
+    fromPort: portType,
+    startX: startX,
+    startY: startY,
+    startPortElement: startPortElement
+  };
+  
+  // 一時的な接続線を作成
+  this.tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  this.tempLine.setAttribute('stroke', '#ff7e5f');
+  this.tempLine.setAttribute('stroke-width', '3');
+  this.tempLine.setAttribute('fill', 'none');
+  this.tempLine.setAttribute('stroke-dasharray', '8,4');
+  this.tempLine.setAttribute('opacity', '0.8');
+  this.connectionsLayer.appendChild(this.tempLine);
+  
+  // 接続可能なポートをハイライト
+  this.highlightCompatiblePorts(nodeId);
+}
+```
+
+#### 3.2 接続可能ポートのハイライト機能
+```javascript
+// connection-manager.js に追加
+highlightCompatiblePorts(fromNodeId) {
+  const allNodes = this.nodeManager.getAllNodes();
+  
+  allNodes.forEach(node => {
+    if (node.id !== fromNodeId && node.type !== 'input') {
+      const nodeElement = document.getElementById(node.id);
+      const inputPort = nodeElement?.querySelector('.port.input');
+      
+      if (inputPort && this.isValidConnection(fromNodeId, node.id)) {
+        inputPort.classList.add('port-compatible');
+      }
+    }
+  });
+}
+
+clearPortHighlights() {
+  document.querySelectorAll('.port').forEach(port => {
+    port.classList.remove('port-active', 'port-compatible', 'port-invalid');
+  });
+}
+```
+
+#### 3.3 CSS スタイル強化（index.html に追加）
+```css
+/* ポートの状態別スタイル */
+.port {
+  transition: all 0.2s ease;
+}
+
+.port.port-active {
+  background: #ff4757 !important;
+  border-color: #ff3742 !important;
+  box-shadow: 0 0 10px rgba(255, 71, 87, 0.5);
+  transform: scale(1.2);
+}
+
+.port.port-compatible {
+  background: #2ed573 !important;
+  border-color: #20bf6b !important;
+  box-shadow: 0 0 8px rgba(46, 213, 115, 0.4);
+  cursor: pointer;
+}
+
+.port.port-invalid {
+  background: #ff6b6b !important;
+  border-color: #ee5253 !important;
+  opacity: 0.5;
+}
+
+/* 接続線のスタイル強化 */
+.connection-line {
+  transition: stroke-width 0.2s ease;
+}
+
+.connection-line:hover {
+  stroke-width: 4;
+  stroke: #e74c3c;
+  cursor: pointer;
+}
+```
+
+### 注意点
+- 接続線のパフォーマンス（大量ノード時）
+- タッチデバイスでの操作性
+- 既存接続の削除機能
+
+### 他の機能との連携チェック
+1. **viewport-manager.js**: ズーム時の接続線座標更新
+2. **storage-manager.js**: 接続情報の保存・復元
+3. **workflow-executor.js**: 接続に基づく実行順序計算
+
+---
+
+## 📊 Step 4: プロパティパネル機能完成
+
+### 実施内容
+ノード選択時のプロパティ編集機能を完成させ、リアルタイム更新を実装する。
+
+### 作業ファイル
+- `properties-manager.js` (メイン修正対象)
+- `node-manager.js` (連携確認)
+- `index.html` (UI改善)
+
+### 具体的な実装
+
+#### 4.1 動的プロパティフォーム生成
+```javascript
+// properties-manager.js の showNodeProperties メソッド拡張
+showNodeProperties(nodeId) {
+  const node = this.nodeManager.getNode(nodeId);
+  if (!node) return;
+
+  const content = document.getElementById('propertiesContent');
+  content.innerHTML = '';
+
+  // ノードタイプ別のプロパティフォームを生成
+  const formHTML = this.generatePropertyForm(node);
+  content.innerHTML = formHTML;
+
+  // リアルタイム更新イベントリスナー設定
+  this.attachPropertyEventListeners(nodeId);
+  
+  // プロパティパネルを表示
+  this.showPropertiesPanel();
+}
+
+generatePropertyForm(node) {
+  const nodeTypeConfig = {
+    input: [
+      { key: 'name', label: 'ノード名', type: 'text' },
+      { key: 'description', label: '説明', type: 'textarea' },
+      { key: 'inputType', label: '入力タイプ', type: 'select', 
+        options: ['text', 'number', 'file', 'json'] },
+      { key: 'defaultValue', label: 'デフォルト値', type: 'textarea' }
+    ],
+    llm: [
+      { key: 'name', label: 'ノード名', type: 'text' },
+      { key: 'description', label: '説明', type: 'textarea' },
+      { key: 'prompt', label: 'プロンプト', type: 'textarea', rows: 6 },
+      { key: 'temperature', label: 'Temperature', type: 'range', 
+        min: 0, max: 1, step: 0.1 },
+      { key: 'maxTokens', label: '最大トークン数', type: 'number', min: 1 }
+    ],
+    // 他のノードタイプも同様に定義...
+  };
+
+  const config = nodeTypeConfig[node.type] || [];
+  let formHTML = `<h4><i class="fas fa-cog"></i> ${node.data.name || node.type}</h4>`;
+
+  config.forEach(field => {
+    const value = node.data[field.key] || '';
+    formHTML += this.generateFieldHTML(field, value);
+  });
+
+  return formHTML;
+}
+```
+
+#### 4.2 リアルタイム更新機能
+```javascript
+// properties-manager.js に追加
+attachPropertyEventListeners(nodeId) {
+  const content = document.getElementById('propertiesContent');
+  
+  // 全入力要素にイベントリスナーを設定
+  content.querySelectorAll('input, textarea, select').forEach(element => {
+    const updateHandler = (e) => {
+      const fieldKey = e.target.dataset.field;
+      let value = e.target.value;
+      
+      // 型変換
+      if (e.target.type === 'number') {
+        value = parseFloat(value) || 0;
+      } else if (e.target.type === 'range') {
+        value = parseFloat(value);
+        // range値表示を更新
+        const display = content.querySelector(`[data-display="${fieldKey}"]`);
+        if (display) display.textContent = value;
+      }
+      
+      // ノードデータを更新
+      this.updateNodeProperty(nodeId, fieldKey, value);
+    };
+    
+    element.addEventListener('input', updateHandler);
+    element.addEventListener('change', updateHandler);
+  });
+}
+
+updateNodeProperty(nodeId, key, value) {
+  if (!this.nodeManager) return;
+  
+  const node = this.nodeManager.getNode(nodeId);
+  if (!node) return;
+  
+  // データ更新
+  node.data[key] = value;
+  
+  // ノード表示更新（名前・説明が変更された場合）
+  if (key === 'name' || key === 'description') {
+    this.nodeManager.updateNodeDisplay(nodeId);
+  }
+  
+  // 変更通知
+  if (this.onPropertiesChanged) {
+    this.onPropertiesChanged(nodeId, key, value);
+  }
+}
+```
+
+### 注意点
+- プロパティ変更時のUndoポイント作成
+- 不正な値の入力バリデーション
+- プロパティパネルの レスポンシブ対応
+
+### 他の機能との連携チェック
+1. **storage-manager.js**: プロパティ変更の自動保存
+2. **workflow-executor.js**: 変更されたプロパティでの実行
+3. **code-generator.js**: プロパティ値のコード出力
+
+---
+
+## 🚀 Step 5: 自動レイアウト機能実装
+
+### 実施内容
+ノードの自動整列機能を実装し、大規模ワークフローの可読性を向上させる。
+
+### 作業ファイル
+- `layout-manager.js` (新規作成)
+- `workflow-editor.js` (統合)
+- `index.html` (UI追加)
+
+### 具体的な実装
+
+#### 5.1 新規ファイル作成: layout-manager.js
+```javascript
+class LayoutManager {
+  constructor(nodeManager, connectionManager) {
+    this.nodeManager = nodeManager;
+    this.connectionManager = connectionManager;
+  }
+
+  // 階層レイアウト（左から右）
+  applyHierarchicalLayout() {
+    const nodes = this.nodeManager.getAllNodes();
+    const connections = this.connectionManager.getAllConnections();
+    
+    // トポロジカルソートで階層を決定
+    const layers = this.calculateNodeLayers(nodes, connections);
+    
+    // 各階層でのY座標調整
+    const layerHeight = 150;
+    const nodeSpacing = 200;
+    
+    layers.forEach((layer, layerIndex) => {
+      const layerX = 100 + (layerIndex * 300);
+      
+      layer.forEach((nodeId, nodeIndex) => {
+        const layerY = 100 + (nodeIndex * layerHeight);
+        this.nodeManager.moveNode(nodeId, layerX, layerY);
+      });
+    });
+    
+    // 接続線を更新
+    setTimeout(() => {
+      this.connectionManager.updateConnections();
+    }, 100);
+  }
+
+  // Force-directed レイアウト
+  applyForceDirectedLayout() {
+    const nodes = this.nodeManager.getAllNodes();
+    const connections = this.connectionManager.getAllConnections();
+    
+    // 物理シミュレーション実装
+    const simulation = this.createForceSimulation(nodes, connections);
+    this.runSimulation(simulation, 100); // 100ステップ実行
+  }
+
+  calculateNodeLayers(nodes, connections) {
+    const layers = [];
+    const visited = new Set();
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    
+    // 入力ノードから開始
+    const inputNodes = nodes.filter(n => n.type === 'input');
+    layers[0] = inputNodes.map(n => n.id);
+    visited.add(...layers[0]);
+    
+    let currentLayer = 0;
+    while (visited.size < nodes.length) {
+      const nextLayer = [];
+      
+      connections.forEach(conn => {
+        if (visited.has(conn.from) && !visited.has(conn.to)) {
+          nextLayer.push(conn.to);
+          visited.add(conn.to);
+        }
+      });
+      
+      if (nextLayer.length === 0) break;
+      
+      layers[++currentLayer] = nextLayer;
+    }
+    
+    return layers;
+  }
+}
+```
+
+#### 5.2 workflow-editor.js への統合
+```javascript
+// workflow-editor.js のコンストラクタに追加
+this.layoutManager = new LayoutManager(this.nodeManager, this.connectionManager);
+
+// レイアウトボタンのイベントリスナー追加
+initEventListeners() {
+  // 既存コード...
+  
+  // 自動レイアウトボタン
+  const hierarchicalLayoutBtn = document.getElementById('hierarchicalLayoutBtn');
+  if (hierarchicalLayoutBtn) {
+    hierarchicalLayoutBtn.addEventListener('click', () => {
+      this.layoutManager.applyHierarchicalLayout();
+      this.storageManager.saveWorkflow();
+    });
+  }
+  
+  const forceLayoutBtn = document.getElementById('forceLayoutBtn');
+  if (forceLayoutBtn) {
+    forceLayoutBtn.addEventListener('click', () => {
+      this.layoutManager.applyForceDirectedLayout();
+      this.storageManager.saveWorkflow();
+    });
+  }
+}
+```
+
+#### 5.3 HTML UIコントロール追加
+```html
+<!-- index.html のheader-controls に追加 -->
+<div class="toolbar">
+  <!-- 既存ボタン... -->
+  <button class="button secondary" id="hierarchicalLayoutBtn" title="階層レイアウト">
+    <i class="fas fa-sitemap"></i>
+  </button>
+  <button class="button secondary" id="forceLayoutBtn" title="フォースレイアウト">
+    <i class="fas fa-project-diagram"></i>
+  </button>
+</div>
+```
+
+### 注意点
+- レイアウト計算のパフォーマンス最適化
+- ユーザーによる手動配置の保護
+- アニメーション効果の追加
+
+### 他の機能との連携チェック
+1. **viewport-manager.js**: レイアウト後のビューポート調整
+2. **storage-manager.js**: レイアウト結果の保存
+3. **connection-manager.js**: 接続線の再描画
+
+---
+
+## 📋 全ステップ完了後の総合確認
+
+### 最終動作確認チェックリスト
+1. [ ] ノードドラッグ&ドロップが重複なく正常動作
+2. [ ] ノード間接続が視覚的に分かりやすく動作
+3. [ ] プロパティ編集がリアルタイム反映
+4. [ ] LLM API呼び出しが正常動作
+5. [ ] 自動レイアウトが適切に機能
+6. [ ] エクスポート・インポートが正常動作
+7. [ ] ワークフロー実行が完全動作
+8. [ ] エラーハンドリングが適切に動作
+
+### パフォーマンステスト
+- 50ノード以上の大規模ワークフローでの動作確認
+- モバイルデバイスでの操作性確認
+- ネットワーク切断時のエラーハンドリング確認
+
+### コード品質確認
+- ESLint等での静的解析実行
+- 未使用コードの削除
+- コメント・ドキュメントの整備 

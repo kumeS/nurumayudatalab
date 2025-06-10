@@ -204,7 +204,14 @@ class DIYAssistant {
 • 機能：背もたれクッション、座面クッション
 • デザイン：モダン、ミッドセンチュリー風
 • 用途：ダイニング、カフェテーブル用
-• 特記事項：耐荷重100kg、スタッキング不可、脚部滑り止め付き`,
+• 特記事項：耐荷重100kg、スタッキング不可、脚部滑り止め付き
+
+【構造詳細】
+• 座面：幅40cm × 奥行40cm × 厚み5cm、高さ45cmに配置
+• 背もたれ：幅40cm × 高さ35cm、座面後端から垂直に立ち上がり
+• 脚部：4本脚、各脚は座面の四隅（座面底面）から垂直に床まで伸びる
+• 脚の配置：座面底面の四隅に直接接続、隙間なく一体構造
+• 脚の寸法：5cm × 5cm断面、長さ45cm（座面底面から床まで）`,
         width: 45,
         depth: 50,
         height: 80
@@ -321,6 +328,19 @@ class DIYAssistant {
         this.saveParameters();
         this.saveInputSession(); // 入力セッション保存
       });
+    });
+
+    // 色設定コントロール
+    safeAddEventListener('colorSchemeSelect', 'change', (e) => {
+      const colorScheme = e.target.value;
+      this.log('info', `色設定変更: ${colorScheme}`);
+      
+      if (this.sceneManager && this.sceneManager.currentModel) {
+        this.sceneManager.resetMaterialColors(colorScheme);
+        this.showSuccess(`色設定を「${this.getColorSchemeDisplayName(colorScheme)}」に変更しました`);
+      } else {
+        this.showInfo('3Dモデルが表示されていません。モデル生成後に色設定を変更してください。');
+      }
     });
 
     // ウィンドウリサイズ対応
@@ -1482,6 +1502,21 @@ ${analysisInfo}
     setTimeout(() => successEl.style.display = 'none', 2000);
   }
 
+  showInfo(message) {
+    // 情報メッセージ表示（エラーでもサクセスでもない中立的なメッセージ）
+    const successEl = document.getElementById('successMessage');
+    successEl.textContent = message;
+    successEl.style.display = 'block';
+    successEl.style.backgroundColor = '#e7f3ff';
+    successEl.style.borderColor = '#b3d9ff';
+    setTimeout(() => {
+      successEl.style.display = 'none';
+      // スタイルをリセット
+      successEl.style.backgroundColor = '';
+      successEl.style.borderColor = '';
+    }, 4000);
+  }
+
   hideMessages() {
     document.getElementById('errorMessage').style.display = 'none';
     document.getElementById('successMessage').style.display = 'none';
@@ -1493,6 +1528,16 @@ ${analysisInfo}
 
   hideSuccessMessages() {
     document.getElementById('successMessage').style.display = 'none';
+  }
+
+  // ========== 色設定表示名取得 ==========
+  getColorSchemeDisplayName(colorScheme) {
+    const displayNames = {
+      'gradient': 'グラデーション',
+      'bright': '明るい単色',
+      'transparent': '半透明'
+    };
+    return displayNames[colorScheme] || colorScheme;
   }
 
   enableDownloadButtons() {
