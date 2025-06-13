@@ -389,6 +389,13 @@ class DIYAssistant {
     // イベントリスナーセットアップ完了フラグを設定
     this.eventListenersSetup = true;
     this.log('debug', 'イベントリスナーセットアップ完了');
+
+    // ダウンロード設定のイベントリスナー
+    safeAddEventListener('downloadMethod', 'change', () => this.updateDownloadPreview());
+    safeAddEventListener('customFilename', 'input', () => this.updateDownloadPreview());
+    
+    // ダウンロード設定の初期化
+    this.updateDownloadPreview();
   }
 
   // ========== サンプルボタンセットアップ ==========
@@ -721,6 +728,41 @@ class DIYAssistant {
     if (overlay) {
       overlay.style.display = 'flex';
     }
+    
+    // ダウンロードボタンと関連UI要素をリセット
+    const downloadBtn = document.getElementById('downloadObjBtn');
+    if (downloadBtn) {
+      downloadBtn.disabled = true;
+    }
+    
+    // ファイルサイズ表示をリセット
+    const fileSizeIndicator = document.getElementById('downloadFileSize');
+    if (fileSizeIndicator) {
+      fileSizeIndicator.style.display = 'none';
+      fileSizeIndicator.textContent = '';
+    }
+    
+    // ダウンロードボタングループを非表示
+    const downloadButtonGroup = document.getElementById('downloadButtonGroup');
+    if (downloadButtonGroup) {
+      downloadButtonGroup.style.display = 'none';
+    }
+    
+    // 現在のOBJデータをクリア
+    this.currentObjData = null;
+    
+    // ダウンロード設定のプレビューをリセット
+    const filenamePreview = document.getElementById('filenamePreview');
+    const downloadSizePreview = document.getElementById('downloadSizePreview');
+    if (filenamePreview) {
+      const date = new Date();
+      filenamePreview.textContent = `furniture_${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}.obj`;
+    }
+    if (downloadSizePreview) {
+      downloadSizePreview.textContent = '0 KB';
+    }
+    
+    this.log('info', '3Dプレビューとダウンロード関連UIをクリアしました');
   }
 
   // ========== ダウンロード機能 ==========
@@ -728,11 +770,13 @@ class DIYAssistant {
     // 重複実行を防ぐガード（実行中フラグ + 時間制限）
     if (this.downloadInProgress) {
       this.log('debug', 'ダウンロード実行中のため重複を防止しました');
+      this.showInfo('ダウンロード処理中です。しばらくお待ちください。');
       return;
     }
     
     if (!this.currentObjData) {
       this.log('warn', 'ダウンロードするOBJデータがありません');
+      this.showError('ダウンロード可能なOBJデータがありません。先に3Dモデルを生成してください。');
       return;
     }
     
@@ -749,7 +793,23 @@ class DIYAssistant {
     this.downloadInProgress = true;
     this.lastDownloadTime = now;
     
+    // ダウンロード設定を取得
+    const downloadMethod = document.getElementById('downloadMethod')?.value || 'auto';
+    const customFilename = document.getElementById('customFilename')?.value.trim() || '';
+    
+    // ファイル名の生成
+    let filename;
+    if (customFilename) {
+      const sanitizedFilename = customFilename.replace(/[<>:"/\\|?*]/g, '_');
+      filename = `${sanitizedFilename}.obj`;
+    } else {
+      const date = new Date();
+      filename = `furniture_${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}.obj`;
+    }
+    
     this.log('debug', 'OBJファイルダウンロード開始', {
+      method: downloadMethod,
+      filename: filename,
       dataLength: this.currentObjData.length,
       startsWithV: this.currentObjData.trim().startsWith('v '),
       startsWithHash: this.currentObjData.trim().startsWith('#'),
@@ -764,27 +824,343 @@ class DIYAssistant {
         return;
       }
       
-      const blob = new Blob([this.currentObjData], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `furniture_${now}.obj`; // タイムスタンプを固定してファイル名重複を防ぐ
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      this.log('info', 'OBJファイルダウンロード完了', { filename: `furniture_${now}.obj` });
+      // ダウンロード方法に応じて処理を分岐
+      switch (downloadMethod) {
+        case 'save-as':
+          this.downloadWithSaveAs(filename);
+          break;
+        case 'clipboard':
+          this.downloadToClipboard(filename);
+          break;
+        default:
+          this.downloadAuto(filename);
+          break;
+      }
       
     } catch (error) {
       this.log('error', 'ダウンロード処理でエラー', { error: error.message });
-      this.showError('ダウンロード処理でエラーが発生しました');
+      this.showError(`
+        ダウンロード処理でエラーが発生しました: ${error.message}<br>
+        <small>※ ブラウザの設定やセキュリティ制限が原因の可能性があります</small>
+      `);
+      
+      // エラー時も代替案を提示
+      this.showDownloadFallback(filename, this.currentObjData);
+      
     } finally {
       // ダウンロード処理完了（500ms後にフラグを解除）
       setTimeout(() => {
         this.downloadInProgress = false;
         this.log('debug', 'ダウンロード実行フラグをリセットしました');
       }, 500);
+    }
+  }
+
+  // 名前を付けて保存（File System Access API使用）
+  async downloadWithSaveAs(defaultFilename) {
+    this.showInfo('保存先を選択してください...');
+    
+    try {
+      // File System Access APIをサポートしているかチェック
+      if ('showSaveFilePicker' in window) {
+        const fileHandle = await window.showSaveFilePicker({
+          suggestedName: defaultFilename,
+          types: [{
+            description: 'OBJ 3D Model Files',
+            accept: { 'application/octet-stream': ['.obj'] }
+          }]
+        });
+        
+        const writable = await fileHandle.createWritable();
+        await writable.write(this.currentObjData);
+        await writable.close();
+        
+        this.showSuccess(`
+          <strong>ファイルを保存しました！</strong><br>
+          <small>📁 保存先: ${fileHandle.name}<br>
+          📊 ファイルサイズ: ${this.formatFileSize(new Blob([this.currentObjData]).size)}</small>
+        `);
+        
+        this.log('info', 'File System Access APIで保存成功', { filename: fileHandle.name });
+        
+      } else {
+        // File System Access APIが利用できない場合は通常のダウンロードにフォールバック
+        this.showInfo('お使いのブラウザでは「名前を付けて保存」がサポートされていません。通常のダウンロードを実行します。');
+        this.downloadAuto(defaultFilename);
+      }
+      
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        this.showInfo('保存がキャンセルされました。');
+        this.log('info', 'ユーザーが保存をキャンセル');
+      } else {
+        this.log('error', 'File System Access API エラー', { error: error.message });
+        this.showError(`保存エラー: ${error.message}<br><small>通常のダウンロードを試してください。</small>`);
+        // エラー時は通常のダウンロードにフォールバック
+        this.downloadAuto(defaultFilename);
+      }
+    }
+  }
+
+  // クリップボードにコピー
+  async downloadToClipboard(filename) {
+    this.showInfo('クリップボードにコピー中...');
+    
+    try {
+      await navigator.clipboard.writeText(this.currentObjData);
+      this.showSuccess(`
+        <strong>OBJデータをクリップボードにコピーしました！</strong><br>
+        <small>
+          📋 データサイズ: ${this.formatFileSize(new Blob([this.currentObjData]).size)}<br>
+          💡 テキストエディタに貼り付けて「${filename}」として保存してください
+        </small>
+      `);
+      
+      this.log('info', 'クリップボードコピー成功', { filename });
+      
+    } catch (error) {
+      this.log('error', 'クリップボードコピー失敗', { error: error.message });
+      
+      // 代替方法：テキストエリアを使用
+      const textarea = document.createElement('textarea');
+      textarea.value = this.currentObjData;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      
+      try {
+        document.execCommand('copy');
+        this.showSuccess(`
+          <strong>OBJデータをクリップボードにコピーしました！</strong><br>
+          <small>テキストエディタに貼り付けて「${filename}」として保存してください</small>
+        `);
+        this.log('info', 'フォールバック方式でクリップボードコピー成功', { filename });
+      } catch (fallbackError) {
+        this.showError('クリップボードへのコピーに失敗しました。手動でデータを選択してコピーしてください。');
+        this.log('error', 'クリップボードコピー完全失敗', { error: fallbackError.message });
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+  }
+
+  // 自動ダウンロード（従来の方法）
+  downloadAuto(filename) {
+    this.showInfo('OBJファイルをダウンロード中...');
+    
+    const blob = new Blob([this.currentObjData], { 
+      type: 'application/octet-stream'
+    });
+    
+    // ダウンロード方法を複数試行
+    let downloadSuccess = false;
+    
+    // 方法1: IE/Edge対応
+    if (typeof window.navigator.msSaveBlob !== 'undefined') {
+      try {
+        window.navigator.msSaveBlob(blob, filename);
+        downloadSuccess = true;
+        this.log('info', 'IE/Edge方式でダウンロード成功', { filename });
+      } catch (error) {
+        this.log('warn', 'IE/Edge方式でダウンロード失敗', { error: error.message });
+      }
+    }
+    
+    // 方法2: 標準的なブラウザ対応（方法1が失敗した場合）
+    if (!downloadSuccess) {
+      try {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        a.setAttribute('rel', 'noopener');
+        a.setAttribute('target', '_blank');
+        
+        document.body.appendChild(a);
+        
+        // クリックイベントを強制的に発火
+        const clickEvent = new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        });
+        a.dispatchEvent(clickEvent);
+        
+        downloadSuccess = true;
+        this.log('info', '標準方式でダウンロード成功', { filename });
+        
+        // クリーンアップは少し待ってから実行
+        setTimeout(() => {
+          try {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          } catch (cleanupError) {
+            this.log('warn', 'ダウンロード後のクリーンアップでエラー', { error: cleanupError.message });
+          }
+        }, 1000);
+        
+      } catch (error) {
+        this.log('warn', '標準方式でダウンロード失敗', { error: error.message });
+        downloadSuccess = false;
+      }
+    }
+    
+    // 方法3: データURLを使用した代替方法
+    if (!downloadSuccess) {
+      try {
+        const dataUrl = 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(this.currentObjData);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = dataUrl;
+        a.download = filename;
+        a.setAttribute('rel', 'noopener');
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        setTimeout(() => {
+          try {
+            document.body.removeChild(a);
+          } catch (cleanupError) {
+            this.log('warn', 'データURL方式のクリーンアップでエラー', { error: cleanupError.message });
+          }
+        }, 1000);
+        
+        downloadSuccess = true;
+        this.log('info', 'データURL方式でダウンロード成功', { filename });
+        
+      } catch (error) {
+        this.log('error', 'データURL方式でダウンロード失敗', { error: error.message });
+      }
+    }
+    
+    if (downloadSuccess) {
+      // 成功メッセージ（詳細なダウンロード先情報付き）
+      const downloadPath = this.getDownloadPath();
+      this.showSuccess(`
+        <strong>OBJファイル「${filename}」をダウンロードしました！</strong><br>
+        <small>
+          📁 保存先: ${downloadPath}<br>
+          📊 ファイルサイズ: ${this.formatFileSize(blob.size)}<br>
+          💡 ファイルが見つからない場合は、ブラウザのダウンロード履歴（Ctrl+J / Cmd+Shift+J）をご確認ください
+        </small>
+      `);
+      
+      // ダウンロード履歴を開くボタンを表示
+      this.showDownloadHistoryButton();
+      
+    } else {
+      // 全ての方法が失敗した場合の代替案
+      this.showDownloadFallback(filename, this.currentObjData);
+    }
+    
+    this.log('info', 'OBJファイルダウンロード処理完了', { 
+      filename: filename,
+      fileSize: blob.size,
+      success: downloadSuccess
+    });
+  }
+
+  // ダウンロード先パスを取得
+  getDownloadPath() {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const platform = navigator.platform.toLowerCase();
+    
+    if (platform.includes('mac')) {
+      return '~/Downloads/ (ダウンロードフォルダ)';
+    } else if (platform.includes('win')) {
+      return 'C:\\Users\\[ユーザー名]\\Downloads\\ (ダウンロードフォルダ)';
+    } else if (userAgent.includes('android')) {
+      return '/storage/emulated/0/Download/ (ダウンロードフォルダ)';
+    } else {
+      return 'ブラウザのダウンロードフォルダ';
+    }
+  }
+
+  // ダウンロード履歴を開くボタンを表示
+  showDownloadHistoryButton() {
+    const messageArea = document.getElementById('messageArea');
+    if (!messageArea) return;
+    
+    // 既存のボタンがあれば削除
+    const existingBtn = document.getElementById('openDownloadHistoryBtn');
+    if (existingBtn) existingBtn.remove();
+    
+    const button = document.createElement('button');
+    button.id = 'openDownloadHistoryBtn';
+    button.className = 'button secondary';
+    button.innerHTML = '📥 ダウンロード履歴を開く';
+    button.style.marginTop = '10px';
+    
+    button.onclick = () => {
+      // ブラウザのダウンロード履歴を開く
+      const userAgent = navigator.userAgent.toLowerCase();
+      if (userAgent.includes('chrome')) {
+        window.open('chrome://downloads/', '_blank');
+      } else if (userAgent.includes('firefox')) {
+        window.open('about:downloads', '_blank');
+      } else if (userAgent.includes('safari')) {
+        // Safariの場合はキーボードショートカットを案内
+        this.showInfo('Safari: Option+Cmd+L でダウンロード履歴を開けます');
+      } else if (userAgent.includes('edge')) {
+        window.open('edge://downloads/', '_blank');
+      } else {
+        this.showInfo('Ctrl+J (Windows) または Cmd+Shift+J (Mac) でダウンロード履歴を開けます');
+      }
+    };
+    
+    messageArea.appendChild(button);
+    
+    // 10秒後に自動的に削除
+    setTimeout(() => {
+      if (button && button.parentNode) {
+        button.parentNode.removeChild(button);
+      }
+    }, 10000);
+  }
+
+  // ダウンロード失敗時の代替案を表示
+  showDownloadFallback(filename, objData) {
+    this.showError(`
+      <strong>自動ダウンロードに失敗しました</strong><br>
+      以下の代替方法をお試しください：<br><br>
+      <button onclick="diyAssistant.copyToClipboard('${objData.replace(/'/g, "\\'")}', '${filename}')" class="button secondary">
+        📋 OBJデータをクリップボードにコピー
+      </button><br>
+      <small>
+        1. 上のボタンでデータをコピー<br>
+        2. テキストエディタに貼り付け<br>
+        3. 「${filename}」として保存
+      </small>
+    `);
+  }
+
+  // クリップボードにコピー
+  async copyToClipboard(text, filename) {
+    try {
+      await navigator.clipboard.writeText(text);
+      this.showSuccess(`OBJデータをクリップボードにコピーしました！<br><small>テキストエディタに貼り付けて「${filename}」として保存してください</small>`);
+    } catch (error) {
+      this.log('error', 'クリップボードコピー失敗', { error: error.message });
+      
+      // 代替方法：テキストエリアを使用
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      
+      try {
+        document.execCommand('copy');
+        this.showSuccess(`OBJデータをクリップボードにコピーしました！<br><small>テキストエディタに貼り付けて「${filename}」として保存してください</small>`);
+      } catch (fallbackError) {
+        this.showError('クリップボードへのコピーに失敗しました。手動でデータを選択してコピーしてください。');
+      } finally {
+        document.body.removeChild(textarea);
+      }
     }
   }
 
@@ -918,8 +1294,24 @@ class DIYAssistant {
         
         // 3Dモデルを復元
         if (session.currentProject.objData) {
+          // セッションOBJデータの詳細検証
+          if (typeof session.currentProject.objData !== 'string') {
+            this.log('error', 'セッション復元: OBJデータの型が無効', { 
+              type: typeof session.currentProject.objData,
+              value: session.currentProject.objData
+            });
+            throw new Error('セッションのOBJデータの形式が無効です。');
+          }
+
+          if (session.currentProject.objData.trim().length === 0) {
+            this.log('error', 'セッション復元: OBJデータが空です');
+            throw new Error('セッションのOBJデータが空です。');
+          }
+
           this.log('debug', 'セッション復元: 3Dモデル復元開始', { 
-            objDataSize: session.currentProject.objData.length 
+            objDataSize: session.currentProject.objData.length,
+            startsWithV: session.currentProject.objData.trim().startsWith('v '),
+            startsWithHash: session.currentProject.objData.trim().startsWith('#')
           });
           
           this.currentObjData = session.currentProject.objData;
@@ -1140,10 +1532,28 @@ class DIYAssistant {
       document.getElementById('depthParam').value = project.parameters?.depth || '';
       document.getElementById('heightParam').value = project.parameters?.height || '';
       
-      // OBJデータの検証
-      if (!project.objData || project.objData.trim().length === 0) {
+      // OBJデータの詳細検証
+      if (!project.objData) {
+        throw new Error('プロジェクトにOBJデータが含まれていません。');
+      }
+      
+      if (typeof project.objData !== 'string') {
+        this.log('error', 'OBJデータの型が無効', { 
+          type: typeof project.objData,
+          value: project.objData
+        });
+        throw new Error('プロジェクトのOBJデータの形式が無効です。');
+      }
+      
+      if (project.objData.trim().length === 0) {
         throw new Error('プロジェクトに3Dモデルデータが含まれていません。');
       }
+
+      this.log('debug', 'プロジェクトOBJデータ検証完了', {
+        dataLength: project.objData.length,
+        startsWithV: project.objData.trim().startsWith('v '),
+        startsWithHash: project.objData.trim().startsWith('#')
+      });
       
       // 3Dモデルを読み込み
       this.currentObjData = project.objData;
@@ -1579,10 +1989,29 @@ ${analysisInfo}
     document.getElementById('downloadButtonGroup').style.display = 'block';
     
     // ボタンを有効化
-    document.getElementById('downloadObjBtn').disabled = false;
+    const downloadBtn = document.getElementById('downloadObjBtn');
+    if (downloadBtn) {
+      downloadBtn.disabled = false;
+    }
+    
+    // ファイルサイズを計算して表示
+    const fileSizeIndicator = document.getElementById('downloadFileSize');
+    if (this.currentObjData && fileSizeIndicator) {
+      const sizeKB = (new Blob([this.currentObjData]).size / 1024).toFixed(1);
+      fileSizeIndicator.textContent = `${sizeKB}KB`;
+      fileSizeIndicator.style.display = 'inline';
+      
+      this.log('debug', 'ファイルサイズ表示を更新', { fileSize: `${sizeKB}KB` });
+    }
+    
+    // ダウンロード設定のプレビューを更新
+    this.updateDownloadPreview();
     
     // 再生成セクションを表示
-    document.getElementById('regenerationSection').style.display = 'block';
+    const regenerationSection = document.getElementById('regenerationSection');
+    if (regenerationSection) {
+      regenerationSection.style.display = 'block';
+    }
   }
 
   formatFileSize(bytes) {
@@ -2134,5 +2563,56 @@ ${regenerationComment}
     }
     
     this.showInfo('修正指示をクリアしました。');
+  }
+
+  updateDownloadPreview() {
+    // ダウンロード設定の表示更新
+    const downloadMethodSelect = document.getElementById('downloadMethod');
+    const customFilenameInput = document.getElementById('customFilename');
+    const filenamePreview = document.getElementById('filenamePreview');
+    const downloadSizePreview = document.getElementById('downloadSizePreview');
+    
+    if (!downloadMethodSelect || !customFilenameInput || !filenamePreview) return;
+    
+    const selectedMethod = downloadMethodSelect.value;
+    const customFilename = customFilenameInput.value.trim();
+    
+    // ファイル名の生成
+    let filename;
+    if (customFilename) {
+      // カスタムファイル名から無効な文字を除去
+      const sanitizedFilename = customFilename.replace(/[<>:"/\\|?*]/g, '_');
+      filename = `${sanitizedFilename}.obj`;
+    } else {
+      // デフォルトのファイル名生成
+      const date = new Date();
+      filename = `furniture_${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}.obj`;
+    }
+    
+    // プレビュー更新
+    filenamePreview.textContent = filename;
+    
+    // ファイルサイズの表示
+    if (this.currentObjData && downloadSizePreview) {
+      const blob = new Blob([this.currentObjData], { type: 'application/octet-stream' });
+      downloadSizePreview.textContent = this.formatFileSize(blob.size);
+    }
+    
+    // ダウンロードボタンのテキスト更新
+    const downloadBtn = document.getElementById('downloadObjBtn');
+    if (downloadBtn) {
+      const icon = '<i class="fas fa-download"></i>';
+      switch (selectedMethod) {
+        case 'save-as':
+          downloadBtn.innerHTML = `${icon} 名前を付けて保存`;
+          break;
+        case 'clipboard':
+          downloadBtn.innerHTML = `${icon} クリップボードにコピー`;
+          break;
+        default:
+          downloadBtn.innerHTML = `${icon} OBJダウンロード`;
+          break;
+      }
+    }
   }
 }

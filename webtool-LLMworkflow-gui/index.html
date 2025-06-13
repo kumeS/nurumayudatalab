@@ -1,674 +1,199 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-F54LKE733T"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'G-F54LKE733T');
-  </script>
-  <title>LLMワークフローエディター｜無料でGUIベースのAIワークフロー構築</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  <style>
-    :root {
-      --primary: #ff7e5f;
-      --secondary: #feb47b;
-      --accent: #7ee8fa;
-      --text-primary: #333;
-      --text-secondary: #666;
-      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      --transition-speed: 0.3s;
-      --node-bg: #ffffff;
-      --node-border: #e0e0e0;
-      --canvas-bg: #f8f9fa;
-    }
-    
-    body { 
-      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
-      margin: 0;
-      padding: 0;
-      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
-      min-height: 100vh;
-      overflow: hidden;
-    }
-    
-    .app-container {
-      display: flex;
-      height: 100vh;
-      width: 100vw;
-    }
-    
-    .header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-      color: white;
-      padding: 1rem 2rem;
-      z-index: 1000;
-      box-shadow: var(--card-shadow);
-    }
-    
-    .header h1 {
-      margin: 0;
-      font-size: 1.5rem;
-      display: inline-block;
-    }
-    
-    .header-controls {
-      float: right;
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-    }
-
-    .toolbar {
-      display: flex;
-      gap: 5px;
-      padding: 5px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      margin-right: 10px;
-    }
-
-    .toolbar .button {
-      padding: 8px;
-      min-width: 36px;
-      font-size: 14px;
-    }
-    
-    .sidebar {
-      width: 300px;
-      background: white;
-      margin-top: 80px;
-      box-shadow: var(--card-shadow);
-      overflow-y: auto;
-      z-index: 100;
-    }
-    
-    .sidebar-section {
-      padding: 1rem;
-      border-bottom: 1px solid #e0e0e0;
-    }
-    
-    .sidebar-section h3 {
-      margin: 0 0 1rem 0;
-      color: var(--primary);
-      font-size: 1rem;
-    }
-    
-    .node-palette {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.5rem;
-    }
-    
-    .node-template {
-      padding: 0.75rem;
-      background: var(--node-bg);
-      border: 1px solid var(--node-border);
-      border-radius: 8px;
-      cursor: grab;
-      text-align: center;
-      font-size: 0.85rem;
-      transition: all var(--transition-speed);
-      user-select: none;
-    }
-    
-    .node-template:hover {
-      background: #f0f0f0;
-      transform: translateY(-2px);
-      box-shadow: var(--card-shadow);
-    }
-    
-    .node-template:active {
-      cursor: grabbing;
-    }
-    
-    .node-template i {
-      display: block;
-      font-size: 1.2rem;
-      margin-bottom: 0.5rem;
-      color: var(--primary);
-    }
-    
-    .canvas {
-      flex: 1;
-      margin-top: 80px;
-      background: var(--canvas-bg);
-      position: relative;
-      overflow: hidden;
-      cursor: grab;
-    }
-
-    .canvas.panning {
-      cursor: grabbing !important;
-    }
-    
-    .canvas:active {
-      cursor: grabbing;
-    }
-    
-    .canvas-grid {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 200%;
-      height: 200%;
-      opacity: 0.1;
-      background-image: 
-        linear-gradient(to right, #333 1px, transparent 1px),
-        linear-gradient(to bottom, #333 1px, transparent 1px);
-      background-size: 20px 20px;
-      transform-origin: 0 0;
-      pointer-events: none;
-    }
-    
-    .workflow-node {
-      position: absolute;
-      background: var(--node-bg);
-      border: 2px solid var(--node-border);
-      border-radius: 12px;
-      padding: 1rem;
-      min-width: 160px;
-      box-shadow: var(--card-shadow);
-      cursor: move;
-      user-select: none;
-      z-index: 5;
-    }
-    
-    .workflow-node.selected {
-      border-color: var(--primary);
-      box-shadow: 0 0 20px rgba(255, 126, 95, 0.3);
-      z-index: 10;
-    }
-    
-    .node-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 0.5rem;
-    }
-    
-    .node-icon {
-      margin-right: 0.5rem;
-      color: var(--primary);
-    }
-    
-    .node-title {
-      font-weight: bold;
-      font-size: 0.9rem;
-    }
-    
-    .node-content {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      margin-bottom: 0.5rem;
-    }
-    
-    .node-ports {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: relative;
-    }
-    
-    .port-placeholder {
-      width: 12px;
-      height: 12px;
-      /* 見えない要素でレイアウトを保持 */
-    }
-    
-    .port {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      border: 2px solid var(--primary);
-      background: white;
-      cursor: pointer;
-      position: relative;
-      z-index: 20;
-      transition: all 0.2s ease;
-    }
-    
-    .port.output {
-      margin-left: auto; /* 出力ポートを右端に配置 */
-      background: var(--primary);
-      transform: translateX(6px); /* ポートをノード境界上に配置 */
-    }
-    
-    .port.input {
-      background: var(--accent);
-      transform: translateX(-6px); /* ポートをノード境界上に配置 */
-    }
-    
-    .port.port-active {
-      background: #ff4757 !important;
-      border-color: #ff3742 !important;
-      box-shadow: 0 0 10px rgba(255, 71, 87, 0.5);
-      transform: scale(1.2);
-    }
-
-    .port.port-compatible {
-      background: #2ed573 !important;
-      border-color: #20bf6b !important;
-      box-shadow: 0 0 8px rgba(46, 213, 115, 0.4);
-      cursor: pointer;
-    }
-
-    .port.port-invalid {
-      background: #ff6b6b !important;
-      border-color: #ee5253 !important;
-      opacity: 0.5;
-    }
-    
-    .connection {
-      position: absolute;
-      pointer-events: auto;
-      z-index: 15;
-    }
-
-    #connections {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 10;
-      pointer-events: none;
-      overflow: visible;
-      will-change: transform;
-    }
-
-    #connections path {
-      pointer-events: auto;
-      transition: stroke-width 0.2s ease;
-      vector-effect: non-scaling-stroke;
-    }
-
-    #connections path:hover {
-      stroke-width: 4px !important;
-    }
-
-    .canvas-help {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      z-index: 30;
-      user-select: none;
-      pointer-events: none;
-    }
-
-    .help-item {
-      margin: 2px 0;
-      color: #666;
-    }
-    
-    .connection-line {
-      stroke: var(--primary);
-      stroke-width: 2;
-      fill: none;
-      cursor: pointer;
-      transition: stroke-width 0.2s ease;
-      vector-effect: non-scaling-stroke;
-    }
-
-    .connection-line:hover {
-      stroke-width: 4;
-      stroke: #e74c3c;
-      cursor: pointer;
-    }
-    
-    .properties-panel {
-      width: 350px;
-      background: white;
-      margin-top: 80px;
-      box-shadow: var(--card-shadow);
-      overflow: hidden;
-      z-index: 100;
-      transition: width 0.3s ease;
-      position: relative;
-    }
-    
-    .properties-panel.collapsed {
-      width: 40px;
-    }
-    
-    .properties-header {
-      padding: 1rem;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e0e0e0;
-      font-weight: bold;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      min-height: 60px;
-      box-sizing: border-box;
-    }
-    
-    .properties-title {
-      white-space: nowrap;
-      overflow: hidden;
-      flex: 1;
-    }
-    
-    .properties-toggle {
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 5px;
-      color: var(--text-secondary);
-      border-radius: 4px;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 30px;
-      height: 30px;
-      flex-shrink: 0;
-    }
-    
-    .properties-toggle:hover {
-      background: #e9ecef;
-      color: var(--primary);
-    }
-    
-    .properties-panel.collapsed .properties-toggle i {
-      transform: rotate(180deg);
-    }
-    
-    .properties-content {
-      padding: 1rem;
-      overflow-y: auto;
-      transition: opacity 0.3s ease;
-    }
-    
-    .properties-panel.collapsed .properties-content {
-      opacity: 0;
-      pointer-events: none;
-    }
-    
-    .properties-panel.collapsed .properties-title {
-      opacity: 0;
-    }
-    
-    .form-group {
-      margin-bottom: 1rem;
-    }
-    
-    .form-group label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: bold;
-      color: var(--text-primary);
-    }
-    
-    .form-group input,
-    .form-group textarea,
-    .form-group select {
-      width: 100%;
-      padding: 0.5rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      box-sizing: border-box;
-    }
-    
-    .form-group textarea {
-      min-height: 80px;
-      resize: vertical;
-    }
-    
-    .button {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.6rem 1.2rem;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: all 0.3s;
-      box-shadow: var(--card-shadow);
-      text-decoration: none;
-    }
-    
-    .button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-    }
-    
-    .button i {
-      margin-right: 0.5rem;
-    }
-    
-    .button.secondary {
-      background: linear-gradient(135deg, #6c757d 0%, #868e96 100%);
-    }
-    
-    .toolbar {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-    }
-    
-
-    
-    .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-    
-    .loading-content {
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      text-align: center;
-      box-shadow: var(--card-shadow);
-    }
-    
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid var(--primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 1rem;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    @media (max-width: 768px) {
-      .app-container {
-        flex-direction: column;
-      }
-      
-      .sidebar,
-      .properties-panel {
-        width: 100%;
-        height: auto;
-        margin-top: 0;
-      }
-      
-      .properties-panel.collapsed {
-        width: 100%;
-        height: 60px;
-      }
-      
-      .canvas {
-        margin-top: 0;
-        height: 400px;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Workflow Editor - Visual AI Pipeline Creator</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <div class="app-container">
-    <!-- ヘッダー -->
-    <div class="header">
-      <h1><i class="fas fa-project-diagram"></i> LLMワークフローエディター</h1>
-      <div class="header-controls">
-        <div class="toolbar">
-          <button class="button secondary" id="zoomInBtn" title="ズームイン (Ctrl++)">
-            <i class="fas fa-search-plus"></i>
-          </button>
-          <button class="button secondary" id="zoomOutBtn" title="ズームアウト (Ctrl+-)">
-            <i class="fas fa-search-minus"></i>
-          </button>
-          <button class="button secondary" id="resetZoomBtn" title="ズームリセット (Ctrl+0)">
-            <i class="fas fa-expand-arrows-alt"></i>
-          </button>
+<body class="bg-gray-900">
+    <!-- Main Container -->
+    <div id="app" class="flex flex-col h-screen bg-gray-900">
+        
+        <!-- Header Toolbar -->
+        <div id="toolbar" class="bg-gray-800 border-b border-gray-700 px-4 py-3">
+            <div class="flex items-center justify-between">
+                <!-- Left section -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <h1 class="text-xl font-bold text-white">LLM Workflow Editor</h1>
+                    </div>
+                    
+                    <div class="h-6 w-px bg-gray-600"></div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <button id="execute-btn" class="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m-6 4h1m4 0h1M9 6h1m4 0h1"/>
+                            </svg>
+                            <span>Execute</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Center section - File operations -->
+                <div class="flex items-center space-x-2">
+                    <button id="save-btn" class="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors" title="Save Workflow">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                    </button>
+                    
+                    <label class="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors cursor-pointer" title="Load Workflow">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-5l-2-2H5a2 2 0 00-2 2z"/>
+                        </svg>
+                        <input type="file" accept=".json" id="load-input" class="hidden">
+                    </label>
+                    
+                    <div class="relative">
+                        <button id="export-btn" class="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors" title="Export">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </button>
+                        <div id="export-menu" class="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg opacity-0 invisible transition-all z-50">
+                            <button data-format="json" class="export-option flex items-center space-x-2 px-4 py-2 hover:bg-gray-700 text-white rounded-t-lg transition-colors w-full text-left">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                <span>Export as JSON</span>
+                            </button>
+                            <button data-format="js" class="export-option flex items-center space-x-2 px-4 py-2 hover:bg-gray-700 text-white transition-colors w-full text-left">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                                </svg>
+                                <span>Export as JavaScript</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right section - View toggles -->
+                <div class="flex items-center space-x-2">
+                    <button id="toggle-palette" class="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors" title="Toggle Node Palette">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+                        </svg>
+                    </button>
+                    
+                    <button id="toggle-properties" class="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors" title="Toggle Properties Panel">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
         </div>
-        <button class="button" id="executeBtn">
-          <i class="fas fa-play"></i> 実行
-        </button>
-        <button class="button secondary" id="exportBtn">
-          <i class="fas fa-download"></i> エクスポート
-        </button>
-        <button class="button secondary" id="importBtn">
-          <i class="fas fa-upload"></i> インポート
-        </button>
-        <button class="button secondary" id="clearBtn">
-          <i class="fas fa-trash"></i> クリア
-        </button>
-      </div>
+        
+        <!-- Main Content -->
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Node Palette -->
+            <div id="node-palette" class="w-64 bg-gray-800 border-r border-gray-700 flex-shrink-0">
+                <div class="h-full flex flex-col">
+                    <div class="p-4 border-b border-gray-700">
+                        <h2 class="text-lg font-semibold text-white flex items-center space-x-2">
+                            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                            <span>Node Palette</span>
+                        </h2>
+                        <p class="text-sm text-gray-400 mt-1">Drag nodes to canvas</p>
+                    </div>
+                    
+                    <div id="node-types" class="flex-1 p-4 space-y-3 overflow-y-auto">
+                        <!-- Node types will be populated by JavaScript -->
+                    </div>
+                    
+                    <div class="p-4 border-t border-gray-700">
+                        <div class="bg-gray-700 rounded-lg p-3">
+                            <h4 class="text-sm font-medium text-white mb-2">Quick Start</h4>
+                            <p class="text-xs text-gray-400 leading-relaxed">
+                                Start with an <span class="text-green-400">Input</span> node, 
+                                add <span class="text-blue-400">LLM Process</span> nodes for AI logic, 
+                                and end with an <span class="text-red-400">Output</span> node.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Canvas -->
+            <div class="flex-1 relative">
+                <div id="canvas" class="relative w-full h-full bg-gray-900 overflow-hidden cursor-default">
+                    <!-- Grid Background -->
+                    <svg class="absolute inset-0 w-full h-full pointer-events-none">
+                        <defs>
+                            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#374151" stroke-width="1" opacity="0.3"/>
+                            </pattern>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#grid)"/>
+                    </svg>
+
+                    <!-- Nodes will be added here dynamically -->
+                    <div id="nodes-container"></div>
+
+                    <!-- Connections SVG -->
+                    <svg id="connections-svg" class="absolute inset-0 w-full h-full pointer-events-none">
+                        <!-- Connections will be drawn here -->
+                    </svg>
+
+                    <!-- Welcome message -->
+                    <div id="welcome-message" class="absolute inset-0 flex items-center justify-center">
+                        <div class="text-center">
+                            <div class="w-16 h-16 mx-auto mb-4 bg-gray-700 rounded-full flex items-center justify-center">
+                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Start Building Your Workflow</h3>
+                            <p class="text-gray-400 max-w-md">
+                                Drag nodes from the palette or click on a node type to add it to your canvas. 
+                                Connect nodes to create powerful AI workflows.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Property Panel -->
+            <div id="property-panel" class="w-80 bg-gray-800 border-l border-gray-700 flex-shrink-0 hidden">
+                <div class="h-full flex flex-col">
+                    <!-- Header -->
+                    <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            <h2 class="text-lg font-semibold text-white">Properties</h2>
+                        </div>
+                        <button id="close-properties" class="p-1 hover:bg-gray-700 rounded transition-colors">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Node Type Badge -->
+                    <div id="node-type-badge" class="p-4 border-b border-gray-700">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+
+                    <!-- Dynamic Panel Content -->
+                    <div id="property-content" class="flex-1 overflow-y-auto">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- サイドバー（ノードパレット） -->
-    <div class="sidebar">
-      <div class="sidebar-section">
-        <h3><i class="fas fa-puzzle-piece"></i> ノードパレット</h3>
-        <div class="node-palette">
-          <div class="node-template" data-node-type="input" draggable="true">
-            <i class="fas fa-sign-in-alt"></i>
-            入力
-          </div>
-          <div class="node-template" data-node-type="llm" draggable="true">
-            <i class="fas fa-brain"></i>
-            LLM処理
-          </div>
-          <div class="node-template" data-node-type="branch" draggable="true">
-            <i class="fas fa-code-branch"></i>
-            分岐
-          </div>
-          <div class="node-template" data-node-type="merge" draggable="true">
-            <i class="fas fa-compress-arrows-alt"></i>
-            統合
-          </div>
-          <div class="node-template" data-node-type="transform" draggable="true">
-            <i class="fas fa-exchange-alt"></i>
-            変換
-          </div>
-          <div class="node-template" data-node-type="filter" draggable="true">
-            <i class="fas fa-filter"></i>
-            フィルタ
-          </div>
-          <div class="node-template" data-node-type="sort" draggable="true">
-            <i class="fas fa-sort"></i>
-            ソート
-          </div>
-          <div class="node-template" data-node-type="aggregate" draggable="true">
-            <i class="fas fa-calculator"></i>
-            集約
-          </div>
-          <div class="node-template" data-node-type="split" draggable="true">
-            <i class="fas fa-cut"></i>
-            分割
-          </div>
-          <div class="node-template" data-node-type="output" draggable="true">
-            <i class="fas fa-sign-out-alt"></i>
-            出力
-          </div>
-        </div>
-      </div>
-      
-      <div class="sidebar-section">
-        <h3><i class="fas fa-cog"></i> ワークフロー設定</h3>
-        <div class="form-group">
-          <label>ワークフロー名</label>
-          <input type="text" id="workflowName" placeholder="新しいワークフロー">
-        </div>
-        <div class="form-group">
-          <label>説明</label>
-          <textarea id="workflowDescription" placeholder="ワークフローの説明"></textarea>
-        </div>
-      </div>
-
-
-    </div>
-
-    <!-- メインキャンバス -->
-    <div class="canvas" id="canvas">
-      <div class="canvas-grid"></div>
-      <svg id="connections" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
-        <!-- 接続線がここに描画される -->
-      </svg>
-      <div class="canvas-help">
-        <div class="help-item">🔄 ホイール: ズーム</div>
-      </div>
-    </div>
-
-    <!-- プロパティパネル -->
-    <div class="properties-panel" id="propertiesPanel">
-      <div class="properties-header" id="propertiesHeader">
-        <div class="properties-title">
-          <i class="fas fa-sliders-h"></i> プロパティ
-        </div>
-        <button class="properties-toggle" id="propertiesToggle">
-          <i class="fas fa-chevron-left"></i>
-        </button>
-      </div>
-      <div class="properties-content" id="propertiesContent">
-        <p style="color: var(--text-secondary); text-align: center; margin-top: 2rem;">
-          ノードを選択してプロパティを編集
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ローディングオーバーレイ -->
-  <div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-content">
-      <div class="spinner"></div>
-      <p>ワークフローを実行中...</p>
-    </div>
-  </div>
-
-  <!-- ファイルインポート用の隠しinput -->
-  <input type="file" id="fileInput" accept=".json,.yml,.yaml" style="display: none;">
-
-  <!-- 分割されたJavaScriptファイルを順序通りに読み込み -->
-  <script src="llm.js"></script>
-  <script src="viewport-manager.js"></script>
-  <script src="node-manager.js"></script>
-  <script src="connection-manager.js"></script>
-  <script src="properties-manager.js"></script>
-  <script src="workflow-executor.js"></script>
-  <script src="storage-manager.js"></script>
-  <script src="workflow-editor.js"></script>
-  <script src="app.js"></script>
+    <script src="main.js"></script>
 </body>
-</html> 
+</html>

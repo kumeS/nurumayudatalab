@@ -10,6 +10,11 @@ const AVAILABLE_MODELS = {
     description: 'DeepSeek R1をバージョン0528にアップグレードし、計算能力とポストトレーニングアルゴリズムの改善により、数学、プログラミング、論理のベンチマークで優れた推論性能を発揮します。',
     maxTokens: 12000
   },
+  'private-meta-llama/Llama-3.3-70B-Instruct': {
+    name: 'Llama-3.3-70B-Instruct (Private)',
+    description: 'Meta社のLlama-3.3-70Bモデルのプライベート版。最適化されたトランスフォーマーアーキテクチャで、高い推論性能を実現します。',
+    maxTokens: 12000
+  },
   'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8': {
     name: 'Llama-4-Maverick-17B',
     description: '17Bパラメータ、128エキスパートMoE構成、FP8量子化。高い推論性能と大規模コンテキスト対応（最大430Kトークン）を実現。',
@@ -17,115 +22,168 @@ const AVAILABLE_MODELS = {
   },
   'Qwen/Qwen3-235B-A22B-FP8': {
     name: 'Qwen3-235B-A22B',
-    description: '最新世代のQwenシリーズ（DenseおよびMoE）モデルで、推論、命令フォロー、エージェント機能、多言語対応に優れた性能を提供します。235BパラメータのMoEモデル（A22Bエキスパート構成）、FP8量子化と32Kコンテキスト対応。'
+    description: '最新世代のQwenシリーズ（DenseおよびMoE）モデルで、推論、命令フォロー、エージェント機能、多言語対応に優れた性能を提供します。235BパラメータのMoEモデル（A22Bエキスパート構成）、FP8量子化と32Kコンテキスト対応。',
+    maxTokens: 12000
   },
-  'deepseek-ai/DeepSeek-R1-Distill-Llama-70B': {
-    name: 'DeepSeek-R1-Distill-Llama-70B',
-    description: 'オープンソースのLlama 3.3 70BをベースにDeepSeek-R1の生成サンプルでファインチューニングし、設定とトークナイザを微調整したモデルです。'
+  'meta-llama/Llama-3.2-90B-Vision-Instruct': {
+    name: 'Llama-3.2-90B-Vision',
+    description: '90Bパラメータでビジョン入力も扱えるマルチモーダルインストラクションモデル。画像とテキストの両方を処理できます。',
+    maxTokens: 12000
   },
-  'deepseek-ai/DeepSeek-R1': {
-    name: 'DeepSeek-R1',
-    description: '大規模強化学習で訓練された初代推論モデルで、数学、コード、論理タスクにおいてOpenAI-o1と同等の性能を発揮します。'
-  },
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B': {
-    name: 'DeepSeek-R1-Distill-Qwen-32B',
-    description: 'Qwen-32をベースにDeepSeek-R1の生成サンプルでファインチューニングし、設定とトークナイザを微調整したモデルです。'
-  },
-  'Qwen/QwQ-32B': {
-    name: 'QwQ-32B',
-    description: '中規模推論モデルで、従来の命令チューニングモデルに比べ難易度の高いタスクでも顕著に性能を向上させます。'
-  },
-  'meta-llama/Llama-3.3-70B-Instruct': {
-    name: 'Llama-3.3-70B-Instruct',
-    description: '最適化されたトランスフォーマーアーキテクチャを採用し、SFT（教師ありファインチューニング）とRLHF（人間フィードバックによる強化学習）で人間の好みに合わせ指示チューニングを行ったオートレグレッシブ言語モデルです。'
-  },
-  'databricks/dbrx-instruct': {
-    name: 'DBRX-Instruct',
-    description: 'Databricksがスクラッチから開発したMoEモデルで、少数回の対話（few-shot）インタラクションに最適化されています。'
-  },
-  'mistralai/Ministral-8B-Instruct-2410': {
-    name: 'Ministral-8B-Instruct',
-    description: 'Mistral Research Licenseの下でリリースされた、同規模モデルを大きく上回る性能を誇るファインチューニング済み言語モデルです。'
-  },
-  'netease/Confucius-o1-14B': {
-    name: 'Confucius-o1-14B',
-    description: 'Qwen2.5-14B-Instructをベースに二段階学習戦略を採用し、14Bモデルでo1と同等の思考能力を実現したモデルです。'
-  },
-  'nvidia/AceMath-7B-Instruct': {
-    name: 'AceMath-7B-Instruct',
-    description: 'Chain-of-Thought推論を活用し、英語の数学問題を高精度で解く能力を備えています。'
+  'Qwen/Qwen2.5-VL-32B-Instruct': {
+    name: 'Qwen2.5-VL-32B',
+    description: 'Qwen2.5シリーズのビジョン-言語モデル。画像理解とテキスト生成を組み合わせたマルチモーダル処理に対応。',
+    maxTokens: 12000
   },
   'google/gemma-3-27b-it': {
     name: 'Gemma-3-27B-IT',
-    description: 'Gemini技術を基にしたマルチモーダル対応モデルで、テキストと画像の入力を処理しテキスト出力を生成します。'
+    description: 'Gemini技術を基にしたマルチモーダル対応モデルで、テキストと画像の入力を処理しテキスト出力を生成します。',
+    maxTokens: 12000
   },
-  'nvidia/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic': {
+  'meta-llama/Llama-3.3-70B-Instruct': {
+    name: 'Llama-3.3-70B-Instruct',
+    description: '最適化されたトランスフォーマーアーキテクチャを採用し、SFT（教師ありファインチューニング）とRLHF（人間フィードバックによる強化学習）で人間の好みに合わせ指示チューニングを行ったオートレグレッシブ言語モデルです。',
+    maxTokens: 12000
+  },
+  'mistralai/Devstral-Small-2505': {
+    name: 'Devstral-Small-2505',
+    description: 'Mistral AIの開発者向けモデル。コード生成とプログラミング支援に特化した小型モデル。',
+    maxTokens: 10000
+  },
+  'mistralai/Magistral-Small-2506': {
+    name: 'Magistral-Small-2506',
+    description: 'Mistral AIの新世代小型モデル。高性能な推論能力を維持しながら軽量化を実現。',
+    maxTokens: 10000
+  },
+  'Qwen/Qwen2-VL-7B-Instruct': {
+    name: 'Qwen2-VL-7B',
+    description: 'Qwen2シリーズの7Bビジョン-言語モデル。画像理解とテキスト生成を組み合わせた処理に対応。',
+    maxTokens: 10000
+  },
+  'deepseek-ai/DeepSeek-R1': {
+    name: 'DeepSeek-R1',
+    description: '大規模強化学習で訓練された初代推論モデルで、数学、コード、論理タスクにおいてOpenAI-o1と同等の性能を発揮します。',
+    maxTokens: 12000
+  },
+  'databricks/dbrx-instruct': {
+    name: 'DBRX-Instruct',
+    description: 'Databricksがスクラッチから開発したMoEモデルで、少数回の対話（few-shot）インタラクションに最適化されています。',
+    maxTokens: 12000
+  },
+  'deepseek-ai/DeepSeek-R1-Distill-Llama-70B': {
+    name: 'DeepSeek-R1-Distill-Llama-70B',
+    description: 'オープンソースのLlama 3.3 70BをベースにDeepSeek-R1の生成サンプルでファインチューニングし、設定とトークナイザを微調整したモデルです。',
+    maxTokens: 12000
+  },
+  'Qwen/QwQ-32B': {
+    name: 'QwQ-32B',
+    description: '中規模推論モデルで、従来の命令チューニングモデルに比べ難易度の高いタスクでも顕著に性能を向上させます。',
+    maxTokens: 12000
+  },
+  'netease-youdao/Confucius-o1-14B': {
+    name: 'Confucius-o1-14B',
+    description: 'Qwen2.5-14B-Instructをベースに二段階学習戦略を採用し、14Bモデルでo1と同等の思考能力を実現したモデルです。',
+    maxTokens: 10000
+  },
+  'nvidia/AceMath-7B-Instruct': {
+    name: 'AceMath-7B-Instruct',
+    description: 'Chain-of-Thought推論を活用し、英語の数学問題を高精度で解く能力を備えています。',
+    maxTokens: 10000
+  },
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B': {
+    name: 'DeepSeek-R1-Distill-Qwen-32B',
+    description: 'Qwen-32をベースにDeepSeek-R1の生成サンプルでファインチューニングし、設定とトークナイザを微調整したモデルです。',
+    maxTokens: 12000
+  },
+  'neuralmagic/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic': {
     name: 'Llama-3.1-Nemotron-70B',
-    description: 'NVIDIAがカスタマイズし、ユーザークエリへの応答の有用性を強化した大規模言語モデルです。'
+    description: 'NVIDIAがカスタマイズし、ユーザークエリへの応答の有用性を強化した大規模言語モデルです。',
+    maxTokens: 12000
   },
   'mistralai/Mistral-Large-Instruct-2411': {
     name: 'Mistral-Large-Instruct',
-    description: '123Bパラメータの高性能モデルで、長文コンテキスト、ファンクションコール、システムプロンプト機能を強化しています。'
+    description: '123Bパラメータの高性能モデルで、長文コンテキスト、ファンクションコール、システムプロンプト機能を強化しています。',
+    maxTokens: 12000
   },
   'microsoft/phi-4': {
     name: 'Phi-4',
-    description: '14Bパラメータの小型モデルながら、複雑な数学的推論を含む高度な推論タスクで優れた性能を発揮します。'
+    description: '14Bパラメータの小型モデルながら、複雑な数学的推論を含む高度な推論タスクで優れた性能を発揮します。',
+    maxTokens: 10000
   },
   'SentientAGI/Dobby-Mini-Unhinged-Llama-3.1-8B': {
     name: 'Dobby-Mini-Unhinged',
-    description: 'Llama-3.1-8B-Instructをベースに、自由主義的な"パーソナリティ"を持つユニークなファインチューニングモデルです。'
+    description: 'Llama-3.1-8B-Instructをベースに、自由主義的な"パーソナリティ"を持つユニークなファインチューニングモデルです。',
+    maxTokens: 10000
   },
   'watt-ai/watt-tool-70B': {
     name: 'Watt-Tool-70B',
-    description: 'LLaMa-3.3-70B-Instructをベースに、ツール使用とマルチターンダイアログに特化し、Berkeley Function-Calling Leaderboardで最先端性能を示します。'
+    description: 'LLaMa-3.3-70B-Instructをベースに、ツール使用とマルチターンダイアログに特化し、Berkeley Function-Calling Leaderboardで最先端性能を示します。',
+    maxTokens: 12000
   },
   'bespokelabs/Bespoke-Stratos-32B': {
     name: 'Bespoke-Stratos-32B',
-    description: 'Qwen2.5-32B-InstructをBespoke-Stratos-17kデータセットで蒸留し、Berkeley NovaSkyのパイプラインで再調整したモデルです。'
+    description: 'Qwen2.5-32B-InstructをBespoke-Stratos-17kデータセットで蒸留し、Berkeley NovaSkyのパイプラインで再調整したモデルです。',
+    maxTokens: 12000
   },
-  'berkeley-novasky/Sky-T1-32B-Preview': {
+  'NovaSky-AI/Sky-T1-32B-Preview': {
     name: 'Sky-T1-32B-Preview',
-    description: 'Qwen2.5-32B-Instructを17Kデータで訓練した32B推論モデルで、数学とコーディングタスクでo1-previewと同等性能を実現します。'
+    description: 'Qwen2.5-32B-Instructを17Kデータで訓練した32B推論モデルで、数学とコーディングタスクでo1-previewと同等性能を実現します。',
+    maxTokens: 12000
   },
   'tiiuae/Falcon3-10B-Instruct': {
     name: 'Falcon3-10B-Instruct',
-    description: '推論、言語理解、コード生成、数学タスクにおいて当時の最先端結果を達成し、最大32Kトークンのコンテキスト長をサポートします。'
+    description: '推論、言語理解、コード生成、数学タスクにおいて当時の最先端結果を達成し、最大32Kトークンのコンテキスト長をサポートします。',
+    maxTokens: 12000
   },
-  'zhipu/glm-4-9b-chat': {
+  'THUDM/glm-4-9b-chat': {
     name: 'GLM-4-9B-Chat',
-    description: 'Zhipu AIのGLM-4シリーズ最新モデルのオープンソース版で、チャット対話に最適化されています。'
+    description: 'Zhipu AIのGLM-4シリーズ最新モデルのオープンソース版で、チャット対話に最適化されています。',
+    maxTokens: 10000
   },
   'Qwen/Qwen2.5-Coder-32B-Instruct': {
     name: 'Qwen2.5-Coder-32B',
-    description: 'Qwen2.5をベースに、ソースコード生成やテキスト／コード連携タスク向けに強化したモデルです。'
+    description: 'Qwen2.5をベースに、ソースコード生成やテキスト／コード連携タスク向けに強化したモデルです。',
+    maxTokens: 12000
   },
-  'aya/aya-expanse-32b': {
+  'CohereForAI/aya-expanse-32b': {
     name: 'Aya-Expanse-32B',
-    description: '高度な多言語機能を持つオープンウェイト研究リリースモデルです。'
+    description: '高度な多言語機能を持つオープンウェイト研究リリースモデルです。',
+    maxTokens: 12000
   },
-  'readerlm/ReaderLM-v2': {
+  'jinaai/ReaderLM-v2': {
     name: 'ReaderLM-v2',
-    description: '生のHTMLを高精度でMarkdownやJSONに変換する、29言語対応の専門モデルです。'
+    description: '生のHTMLを高精度でMarkdownやJSONに変換する、29言語対応の専門モデルです。',
+    maxTokens: 10000
   },
-  'mini-cpm/MiniCPM3-4B': {
+  'openbmb/MiniCPM3-4B': {
     name: 'MiniCPM3-4B',
-    description: '32Kのコンテキストウィンドウを持ち、LLMxMapReduce技術により理論上無限の文脈処理を可能にするモデルです。'
+    description: '32Kのコンテキストウィンドウを持ち、LLMxMapReduce技術により理論上無限の文脈処理を可能にするモデルです。',
+    maxTokens: 10000
+  },
+  'mistralai/Ministral-8B-Instruct-2410': {
+    name: 'Ministral-8B-Instruct',
+    description: 'Mistral Research Licenseの下でリリースされた、同規模モデルを大きく上回る性能を誇るファインチューニング済み言語モデルです。',
+    maxTokens: 10000
   },
   'Qwen/Qwen2.5-1.5B-Instruct': {
     name: 'Qwen2.5-1.5B-Instruct',
-    description: 'Qwenシリーズの最新1.5Bパラメータ指示チューニングモデルです。'
+    description: 'Qwenシリーズの最新1.5Bパラメータ指示チューニングモデルです。',
+    maxTokens: 8000
   },
-  'ozone/0x-lite': {
+  'ozone-ai/0x-lite': {
     name: '0x-Lite',
-    description: 'Ozone AIが開発した軽量ながら高品質なテキスト生成能力を持つモデルです。'
+    description: 'Ozone AIが開発した軽量ながら高品質なテキスト生成能力を持つモデルです。',
+    maxTokens: 8000
   },
   'microsoft/Phi-3.5-mini-instruct': {
     name: 'Phi-3.5-Mini-Instruct',
-    description: 'Phi-3データセットをベースにした軽量モデルで、128Kトークンの長文コンテキストをサポートします。'
+    description: 'Phi-3データセットをベースにした軽量モデルで、128Kトークンの長文コンテキストをサポートします。',
+    maxTokens: 10000
   },
-  'graniteai/granite-3.1-8b-instruct': {
+  'ibm-granite/granite-3.1-8b-instruct': {
     name: 'Granite-3.1-8B-Instruct',
-    description: 'Granite-3.1-8B-Baseを長文問題向けにファインチューニングしたデータセットで訓練された8Bモデルです。'
+    description: 'IBMのGranite-3.1-8B-Baseを長文問題向けにファインチューニングしたデータセットで訓練された8Bモデルです。',
+    maxTokens: 10000
   }
 };
 
@@ -324,13 +382,17 @@ function initializeModelDescriptions() {
       'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B'
     ],
     'Llama系モデル': [
+      'private-meta-llama/Llama-3.3-70B-Instruct',
       'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
+      'meta-llama/Llama-3.2-90B-Vision-Instruct',
       'meta-llama/Llama-3.3-70B-Instruct',
-      'nvidia/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic',
+      'neuralmagic/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic',
       'SentientAGI/Dobby-Mini-Unhinged-Llama-3.1-8B'
     ],
     'Qwen系モデル': [
       'Qwen/Qwen3-235B-A22B-FP8',
+      'Qwen/Qwen2.5-VL-32B-Instruct',
+      'Qwen/Qwen2-VL-7B-Instruct',
       'Qwen/QwQ-32B',
       'Qwen/Qwen2.5-Coder-32B-Instruct',
       'Qwen/Qwen2.5-1.5B-Instruct'
@@ -340,6 +402,8 @@ function initializeModelDescriptions() {
       'microsoft/Phi-3.5-mini-instruct'
     ],
     'Mistral系モデル': [
+      'mistralai/Devstral-Small-2505',
+      'mistralai/Magistral-Small-2506',
       'mistralai/Mistral-Large-Instruct-2411',
       'mistralai/Ministral-8B-Instruct-2410'
     ],
@@ -349,23 +413,23 @@ function initializeModelDescriptions() {
     ],
     '専門特化モデル': [
       'watt-ai/watt-tool-70B',
-      'readerlm/ReaderLM-v2'
+      'jinaai/ReaderLM-v2'
     ],
     '推論特化・実験的モデル': [
-      'netease/Confucius-o1-14B',
+      'netease-youdao/Confucius-o1-14B',
       'bespokelabs/Bespoke-Stratos-32B',
-      'berkeley-novasky/Sky-T1-32B-Preview',
+      'NovaSky-AI/Sky-T1-32B-Preview',
       'tiiuae/Falcon3-10B-Instruct'
     ],
     'エンタープライズ・産業系モデル': [
       'databricks/dbrx-instruct',
-      'zhipu/glm-4-9b-chat',
-      'aya/aya-expanse-32b',
-      'graniteai/granite-3.1-8b-instruct'
+      'THUDM/glm-4-9b-chat',
+      'CohereForAI/aya-expanse-32b',
+      'ibm-granite/granite-3.1-8b-instruct'
     ],
     '軽量・エッジ向けモデル': [
-      'mini-cpm/MiniCPM3-4B',
-      'ozone/0x-lite'
+      'openbmb/MiniCPM3-4B',
+      'ozone-ai/0x-lite'
     ]
   };
   

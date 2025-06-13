@@ -1,0 +1,379 @@
+## 3D家具生成精度向上のための具体的改善策
+
+現在のシステムの問題点を踏まえて、以下の改善策を提案します。
+
+### 1. プロンプト設計の抜本的改善
+
+#### A. 第1段階：自然言語による詳細仕様生成
+
+現在のJSON強制形式を廃止し、LLMの創造性を活かした自然言語での仕様生成に変更します：
+
+```javascript
+// processing.js - 改善された第1段階システムプロンプト
+getSpecificationSystemPrompt() {
+  return `あなたは家具設計の専門家です。ユーザーの要望を分析し、3Dモデル化に適した詳細仕様を作成してください。
+
+【出力形式】
+自然言語で以下の要素を含む詳細仕様を記述：
+1. 家具の全体構造（メインパーツの配置と寸法）
+2. 各部品の詳細（形状、位置、サイズ、接続方法）
+3. 特殊な形状要素（曲線、テーパー、装飾等）
+4. 材質と表面処理の想定
+5. 機能的要素（可動部、収納等）
+
+【重要】
+- 3D空間での具体的な座標と寸法を明記
+- 部品間の接続関係を明確に記述
+- 実際の家具として成立する構造を考慮`;
+}
+```
+
+#### B. 第2段階：家具タイプ別の専門的OBJ生成プロンプト
+
+家具の種類に応じた専門的な生成指示を追加：
+
+```javascript
+// processing.js - 家具タイプ別プロンプト生成
+getStage2PromptByFurnitureType(furnitureType, specification) {
+  const basePrompt = `あなたはOBJ形式の3Dモデル生成専門家です。
+以下の仕様に基づいて、実用的で美しい${furnitureType}の3Dモデルを生成してください。
+
+【仕様】
+${specification}
+
+【OBJ生成ルール】
+- Y軸上向き、単位はcm
+- 頂点（v）は小数点以下2桁まで
+- 面（f）は三角形または四角形
+- 部品ごとにグループ（g）を定義
+- 最低限必要な頂点数で効率的に構成`;
+
+  // 家具タイプ別の追加指示
+  const typeSpecificInstructions = {
+    '椅子': `
+【椅子特有の要件】
+- 座面は人が座れる平面または緩やかな曲面
+- 背もたれは適切な角度（90-110度）
+- 4本脚は安定した配置（座面の四隅から垂直）
+- 脚の太さは構造的に十分な強度を確保
+- 座面高さは40-45cm程度が標準`,
+    
+    '机': `
+【机特有の要件】
+- 天板は完全な平面で、エッジは適切に処理
+- 脚は天板を安定して支える配置
+- 天板下に十分な脚部空間を確保
+- 引き出しがある場合は天板下に適切に配置
+- 標準高さは70-75cm`,
+    
+    '棚': `
+【棚特有の要件】
+- 各段は水平で、適切な間隔
+- 側板は棚板をしっかり支持
+- 背板がある場合は全体を覆う
+- 転倒防止を考慮した重心配置
+- 棚板の厚みは2-3cm程度`,
+    
+    '収納家具': `
+【収納家具特有の要件】
+- 扉は本体に適切に取り付け
+- 引き出しは収納部に収まるサイズ
+- 内部の棚は可動を想定した配置
+- 取っ手は使いやすい位置に配置
+- 全体のバランスと安定性を重視`
+  };
+
+  const furnitureKey = this.getFurnitureTypeKey(furnitureType);
+  return basePrompt + (typeSpecificInstructions[furnitureKey] || '');
+}
+```
+
+### 2. システム構造の統合的改善
+
+#### A. 段階間の情報伝達を強化
+
+```javascript
+// processing.js - 改善された段階間データ構造
+class StageDataPipeline {
+  constructor() {
+    this.context = {
+      originalRequest: '',
+      furnitureType: '',
+      dimensions: {},
+      stage1Output: {
+        specification: '',
+        keyFeatures: [],
+        constraints: []
+      },
+      stage2Output: {
+        objData: '',
+        generationNotes: [],
+        potentialIssues: []
+      },
+      stage3Output: {
+        qualityScore: 0,
+        improvements: [],
+        finalObjData: ''
+      }
+    };
+  }
+
+  // 各段階の出力を次段階の入力に組み込む
+  prepareStage2Input() {
+    return {
+      specification: this.context.stage1Output.specification,
+      constraints: this.context.stage1Output.constraints,
+      focusAreas: this.context.stage1Output.keyFeatures
+    };
+  }
+
+  prepareStage3Input() {
+    return {
+      objData: this.context.stage2Output.objData,
+      knownIssues: this.context.stage2Output.potentialIssues,
+      originalSpec: this.context.stage1Output.specification
+    };
+  }
+}
+```
+
+#### B. インテリジェントなリトライメカニズム
+
+```javascript
+// ai.js - 改善されたリトライロジック
+async callLLMAPIWithIntelligentRetry(prompt, retryCount = 0) {
+  const maxRetries = 3;
+  
+  try {
+    const objData = await this.callLLMAPIInternal(prompt);
+    const validation = this.validateOBJData(objData);
+    
+    if (validation.isValid) {
+      return objData;
+    }
+    
+    // 検証失敗時、問題に応じた修正指示を生成
+    if (retryCount < maxRetries) {
+      const improvedPrompt = this.createImprovedPrompt(
+        prompt, 
+        validation,
+        retryCount
+      );
+      
+      this.assistant.log('info', `改善されたプロンプトでリトライ (${retryCount + 1}/${maxRetries})`, {
+        issues: validation.issues,
+        improvements: improvedPrompt.improvements
+      });
+      
+      return await this.callLLMAPIWithIntelligentRetry(improvedPrompt.text, retryCount + 1);
+    }
+  } catch (error) {
+    // エラー内容に基づいた対処
+    if (retryCount < maxRetries) {
+      const recoveryPrompt = this.createRecoveryPrompt(prompt, error, retryCount);
+      return await this.callLLMAPIWithIntelligentRetry(recoveryPrompt, retryCount + 1);
+    }
+    throw error;
+  }
+}
+
+// 問題に応じた改善プロンプト生成
+createImprovedPrompt(originalPrompt, validation, attemptNumber) {
+  const improvements = [];
+  let modifiedPrompt = originalPrompt;
+  
+  if (validation.vertexCount < 10) {
+    improvements.push('頂点数増加');
+    modifiedPrompt += '\n\n【重要】より詳細な形状を生成し、最低50個以上の頂点を使用してください。';
+  }
+  
+  if (validation.faceCount < 10) {
+    improvements.push('面数増加');
+    modifiedPrompt += '\n【重要】すべての表面を適切な面で覆い、最低20個以上の面を生成してください。';
+  }
+  
+  if (validation.hasDisconnectedParts) {
+    improvements.push('部品接続修正');
+    modifiedPrompt += '\n【重要】すべての部品が物理的に接続された一体構造として生成してください。';
+  }
+  
+  if (validation.hasInvalidFaces) {
+    improvements.push('面定義修正');
+    modifiedPrompt += '\n【重要】すべての面を三角形(3頂点)または四角形(4頂点)で定義してください。';
+  }
+  
+  return {
+    text: modifiedPrompt,
+    improvements: improvements
+  };
+}
+```
+
+### 3. 品質管理システムの実装
+
+#### A. 第3段階を評価から改善へ
+
+```javascript
+// processing.js - 第3段階の改善実装
+async performFinalQualityCheckAndImprove(objData) {
+  try {
+    // 構造的検証
+    const structuralValidation = this.performStructuralValidation(objData);
+    
+    // LLMによる品質評価と改善提案
+    const qualityAssessment = await this.callQualityImprovementLLM(
+      objData, 
+      structuralValidation
+    );
+    
+    // 改善が必要な場合は修正版を生成
+    if (qualityAssessment.needsImprovement) {
+      const improvedObjData = await this.generateImprovedVersion(
+        objData,
+        qualityAssessment.improvements
+      );
+      
+      // 改善版の再検証
+      const finalValidation = this.performStructuralValidation(improvedObjData);
+      
+      return {
+        originalObjData: objData,
+        improvedObjData: improvedObjData,
+        qualityReport: qualityAssessment.report,
+        improvements: qualityAssessment.improvements,
+        finalScore: finalValidation.score
+      };
+    }
+    
+    return {
+      originalObjData: objData,
+      improvedObjData: objData,
+      qualityReport: qualityAssessment.report,
+      finalScore: structuralValidation.score
+    };
+    
+  } catch (error) {
+    this.assistant.log('error', '品質改善プロセスエラー', { error: error.message });
+    throw error;
+  }
+}
+
+// 構造的検証の実装
+performStructuralValidation(objData) {
+  const validation = {
+    score: 100,
+    issues: [],
+    metrics: {}
+  };
+  
+  // 1. 基本的なジオメトリチェック
+  const geometry = this.analyzeGeometry(objData);
+  validation.metrics = geometry;
+  
+  // 2. 物理的整合性チェック
+  if (geometry.hasFloatingVertices) {
+    validation.score -= 20;
+    validation.issues.push('浮遊頂点が存在');
+  }
+  
+  if (geometry.hasNonManifoldEdges) {
+    validation.score -= 15;
+    validation.issues.push('非多様体エッジが存在');
+  }
+  
+  // 3. 家具としての妥当性チェック
+  const furnitureCheck = this.checkFurnitureValidity(geometry);
+  if (!furnitureCheck.hasStableBase) {
+    validation.score -= 25;
+    validation.issues.push('安定した基底面が不足');
+  }
+  
+  if (!furnitureCheck.hasReasonableDimensions) {
+    validation.score -= 20;
+    validation.issues.push('寸法が非現実的');
+  }
+  
+  // 4. 面の向きの一貫性チェック
+  if (geometry.hasInconsistentNormals) {
+    validation.score -= 10;
+    validation.issues.push('面の向きが不統一');
+  }
+  
+  return validation;
+}
+```
+
+#### B. 高度なOBJ検証機能
+
+```javascript
+// processing.js - 高度なジオメトリ分析
+analyzeGeometry(objData) {
+  const lines = objData.split('\n');
+  const vertices = [];
+  const faces = [];
+  const edges = new Map();
+  
+  // 頂点と面の収集
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('v ')) {
+      const coords = trimmed.substring(2).split(/\s+/).map(Number);
+      vertices.push({ x: coords[0], y: coords[1], z: coords[2], used: false });
+    } else if (trimmed.startsWith('f ')) {
+      const indices = trimmed.substring(2).split(/\s+/)
+        .map(f => parseInt(f.split('/')[0]) - 1);
+      faces.push(indices);
+      
+      // エッジの記録
+      for (let i = 0; i < indices.length; i++) {
+        const v1 = indices[i];
+        const v2 = indices[(i + 1) % indices.length];
+        const edge = [Math.min(v1, v2), Math.max(v1, v2)].join('-');
+        edges.set(edge, (edges.get(edge) || 0) + 1);
+      }
+    }
+  });
+  
+  // 使用されている頂点をマーク
+  faces.forEach(face => {
+    face.forEach(idx => {
+      if (vertices[idx]) vertices[idx].used = true;
+    });
+  });
+  
+  // 分析結果
+  return {
+    vertexCount: vertices.length,
+    faceCount: faces.length,
+    hasFloatingVertices: vertices.some(v => !v.used),
+    hasNonManifoldEdges: Array.from(edges.values()).some(count => count > 2),
+    boundingBox: this.calculateBoundingBox(vertices),
+    centerOfMass: this.calculateCenterOfMass(vertices),
+    hasInconsistentNormals: this.checkNormalConsistency(vertices, faces),
+    volumeEstimate: this.estimateVolume(vertices, faces)
+  };
+}
+
+// 家具としての妥当性チェック
+checkFurnitureValidity(geometry) {
+  const { boundingBox, centerOfMass } = geometry;
+  const width = boundingBox.max.x - boundingBox.min.x;
+  const depth = boundingBox.max.z - boundingBox.min.z;
+  const height = boundingBox.max.y - boundingBox.min.y;
+  
+  return {
+    hasStableBase: (width > height * 0.3) && (depth > height * 0.3),
+    hasReasonableDimensions: (width > 10 && width < 500) && 
+                            (depth > 10 && depth < 500) && 
+                            (height > 10 && height < 300),
+    centerOfMassInBase: (centerOfMass.x > boundingBox.min.x && 
+                        centerOfMass.x < boundingBox.max.x) &&
+                       (centerOfMass.z > boundingBox.min.z && 
+                        centerOfMass.z < boundingBox.max.z),
+    aspectRatioValid: (Math.max(width, depth, height) / 
+                      Math.min(width, depth, height)) < 10
+  };
+}
+```
+
+これらの改善により、3D家具生成の精度と品質が大幅に向上し、より実用的で美しい3Dモデルが生成されるようになります。各段階が有機的に連携し、問題が発生した場合も適切に対処できる堅牢なシステムとなります。

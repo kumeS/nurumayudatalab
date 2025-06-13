@@ -25,63 +25,89 @@ class AIManager {
     return await this.callLLMAPIWithRetry(prompt, 0);
   }
 
-  async callLLMAPIWithRetry(prompt, retryCount = 0) {
-    const maxRetries = 2;
-    const retryTimeoutMs = 15000; // 15秒タイムアウト
+  async callLLMAPIWithIntelligentRetry(prompt, retryCount = 0) {
+    const maxRetries = 3;
     
     try {
-      const objData = await this.callLLMAPIInternal(prompt, retryCount > 0 ? retryTimeoutMs : 30000);
+      const objData = await this.callLLMAPIInternal(prompt);
+      const validation = this.validateOBJData(objData);
       
-      // Step 4: ポストチェック検証
-      const validationResult = this.validateOBJData(objData);
-      
-      if (validationResult.isValid) {
-        this.assistant.log('info', 'OBJ検証成功', {
-          retryCount,
-          vertices: validationResult.vertexCount,
-          faces: validationResult.faceCount
-        });
+      if (validation.isValid) {
         return objData;
       }
       
-      // 検証失敗 - リトライ実行
+      // 検証失敗時、問題に応じた修正指示を生成
       if (retryCount < maxRetries) {
-        this.assistant.log('warn', 'OBJ検証失敗、リトライ実行', {
-          retryCount: retryCount + 1,
-          reason: validationResult.reason,
-          vertices: validationResult.vertexCount,
-          faces: validationResult.faceCount
+        const improvedPrompt = this.createImprovedPrompt(
+          prompt, 
+          validation,
+          retryCount
+        );
+        
+        this.assistant.log('info', `改善されたプロンプトでリトライ (${retryCount + 1}/${maxRetries})`, {
+          issues: validation.issues,
+          improvements: improvedPrompt.improvements
         });
         
-        // リトライ用の簡潔なプロンプト
-        const retryPrompt = `#TASK: OBJ_GENERATION_RETRY
-直前の JSON を忠実に OBJ 行に変換せよ。`;
-        
-        return await this.callLLMAPIWithRetry(retryPrompt, retryCount + 1);
-      } else {
-        // 最大リトライ回数に到達
-        this.assistant.log('error', 'OBJ検証失敗、最大リトライ回数到達', {
-          finalReason: validationResult.reason,
-          vertices: validationResult.vertexCount,
-          faces: validationResult.faceCount
-        });
-        throw new Error(`OBJ生成に失敗しました（${validationResult.reason}）。最大リトライ回数（${maxRetries}回）に到達しました。`);
+        return await this.callLLMAPIWithIntelligentRetry(improvedPrompt.text, retryCount + 1);
       }
-      
     } catch (error) {
-      if (retryCount < maxRetries && !error.message.includes('最大リトライ回数')) {
-        this.assistant.log('warn', 'API呼び出しエラー、リトライ実行', {
-          retryCount: retryCount + 1,
-          error: error.message
-        });
-        
-        const retryPrompt = `#TASK: OBJ_GENERATION_RETRY
-直前の JSON を忠実に OBJ 行に変換せよ。`;
-        
-        return await this.callLLMAPIWithRetry(retryPrompt, retryCount + 1);
+      // エラー内容に基づいた対処
+      if (retryCount < maxRetries) {
+        const recoveryPrompt = this.createRecoveryPrompt(prompt, error, retryCount);
+        return await this.callLLMAPIWithIntelligentRetry(recoveryPrompt, retryCount + 1);
       }
       throw error;
     }
+  }
+
+  // 問題に応じた改善プロンプト生成
+  createImprovedPrompt(originalPrompt, validation, attemptNumber) {
+    const improvements = [];
+    let modifiedPrompt = originalPrompt;
+    
+    if (validation.vertexCount < 10) {
+      improvements.push('頂点数増加');
+      modifiedPrompt += '\n\n【重要】より詳細な形状を生成し、最低50個以上の頂点を使用してください。';
+    }
+    
+    if (validation.faceCount < 10) {
+      improvements.push('面数増加');
+      modifiedPrompt += '\n【重要】すべての表面を適切な面で覆い、最低20個以上の面を生成してください。';
+    }
+    
+    if (validation.hasDisconnectedParts) {
+      improvements.push('部品接続修正');
+      modifiedPrompt += '\n【重要】すべての部品が物理的に接続された一体構造として生成してください。';
+    }
+    
+    if (validation.hasInvalidFaces) {
+      improvements.push('面定義修正');
+      modifiedPrompt += '\n【重要】すべての面を三角形(3頂点)または四角形(4頂点)で定義してください。';
+    }
+    
+    return {
+      text: modifiedPrompt,
+      improvements: improvements
+    };
+  }
+
+  // エラー回復プロンプト生成
+  createRecoveryPrompt(originalPrompt, error, attemptNumber) {
+    let recoveryPrompt = originalPrompt;
+    
+    if (error.message.includes('timeout')) {
+      recoveryPrompt += '\n【重要】シンプルで効率的な形状を生成してください。複雑すぎる処理は避けてください。';
+    } else if (error.message.includes('API')) {
+      recoveryPrompt += '\n【重要】標準的なOBJ形式で、確実に処理できる形状を生成してください。';
+    }
+    
+    return recoveryPrompt;
+  }
+
+  // 従来のリトライメソッドも保持（後方互換性のため）
+  async callLLMAPIWithRetry(prompt, retryCount = 0) {
+    return await this.callLLMAPIWithIntelligentRetry(prompt, retryCount);
   }
 
   // ========== LLM API呼び出しメソッド（内部実装） ==========

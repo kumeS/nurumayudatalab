@@ -1,11 +1,10 @@
 /**
- * scene.js - 3Dシーンと視覚化管理
+ * scene.js - 3Dシーンと視覚化管理（改善版）
  * 
- * 主な責務：
- * - Three.jsシーンの初期化と管理
- * - 3Dモデルの読み込みと表示
- * - カメラ、ライティング、レンダリング
- * - マテリアルとビジュアルエフェクト
+ * 主な改善点：
+ * - より適切なマテリアル設定
+ * - 改善されたエラーハンドリング
+ * - 家具タイプ別の色設定
  */
 
 class SceneManager {
@@ -21,157 +20,467 @@ class SceneManager {
       
       // 状態
       this.isInitialized = false;
+      
+      // 家具タイプ別のカラーパレット
+      this.furnitureColorPalettes = {
+        'chair': {
+          primary: 0x8B6B47,    // 座面・背もたれ（ウォルナット）
+          secondary: 0x4A4A4A,  // 脚部（ダークグレー）
+          accent: 0xD4AF37     // アクセント（ゴールド）
+        },
+        'desk': {
+          primary: 0xF5DEB3,    // 天板（ウィート）
+          secondary: 0x696969,  // 脚部（ディムグレー）
+          accent: 0xC0C0C0     // 金具（シルバー）
+        },
+        'shelf': {
+          primary: 0xDEB887,    // 棚板（バーリーウッド）
+          secondary: 0x8B7355,  // 側板（シェンナ）
+          accent: 0xCD853F     // 背板（ペルー）
+        },
+        'cabinet': {
+          primary: 0xA0522D,    // 本体（シエナ）
+          secondary: 0x8B4513,  // 扉（サドルブラウン）
+          accent: 0xDAA520     // 取っ手（ゴールデンロッド）
+        },
+        'default': {
+          primary: 0xD2B48C,    // タン
+          secondary: 0xBC8F8F,  // ロージーブラウン
+          accent: 0xF4A460     // サンディブラウン
+        }
+      };
     }
   
-    // ========== 3Dシーン初期化 ==========
+    // ========== 3Dシーン初期化（改善版） ==========
     setup3DScene() {
       this.assistant.log('debug', '3Dシーン初期化開始');
       
       try {
-        // ライブラリ読み込み完了まで少し待つ
-        const initializeScene = () => {
-          try {
-            const container = document.getElementById('threeContainer');
-            if (!container) {
-              this.assistant.log('error', '3Dプレビューコンテナが見つかりません');
-              this.showFallbackMessage();
-              return false;
-            }
-
-            // Three.js利用可能性チェック
-            if (typeof THREE === 'undefined') {
-              this.assistant.log('error', 'Three.jsライブラリが読み込まれていません');
-              this.showFallbackMessage();
-              return false;
-            }
-
-            this.assistant.log('info', 'Three.jsライブラリチェック開始');
-            this.assistant.log('debug', 'Three.js version:', THREE.REVISION);
-            this.assistant.log('debug', 'OBJLoader available:', typeof THREE.OBJLoader !== 'undefined');
-            this.assistant.log('debug', 'OrbitControls available:', typeof THREE.OrbitControls !== 'undefined');
-        
-            // シーン作成
-            this.scene = new THREE.Scene();
-            this.scene.background = new THREE.Color(0xf5f5f5);
-        
-            // カメラ作成
-            this.camera = new THREE.PerspectiveCamera(
-              75,
-              container.clientWidth / container.clientHeight,
-              0.1,
-              1000
-            );
-            this.camera.position.set(5, 5, 5);
-        
-            // レンダラー作成
-            this.renderer = new THREE.WebGLRenderer({ 
-              antialias: true 
-            });
-            this.renderer.setSize(container.clientWidth, container.clientHeight);
-            container.appendChild(this.renderer.domElement);
-            this.renderer.shadowMap.enabled = true;
-            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        
-            // ライティング
-            this.setupLighting();
-        
-            // コントロール（利用可能な場合のみ）
-            if (typeof THREE.OrbitControls !== 'undefined') {
-              this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-              this.controls.enableDamping = true;
-              this.controls.dampingFactor = 0.05;
-            }
-        
-            // 床面
-            this.addFloor();
-        
-            // アニメーションループ
-            this.animate();
-            
-            this.isInitialized = true;
-            this.assistant.log('info', '3Dシーン初期化完了', {
-              containerSize: `${container.clientWidth}x${container.clientHeight}`,
-              hasControls: !!this.controls,
-              objLoaderAvailable: typeof THREE.OBJLoader !== 'undefined'
-            });
-            
-            return true;
-          } catch (error) {
-            this.assistant.log('error', '3Dシーン初期化中にエラー', { error: error.message, stack: error.stack });
-            this.showFallbackMessage();
-            this.isInitialized = false;
-            return false;
-          }
-        };
-
-        // ライブラリの読み込み状況に応じて初期化実行
-        if (typeof THREE !== 'undefined') {
-          // Three.jsが利用可能な場合は即座に初期化
-          this.assistant.log('debug', '即座に3Dシーン初期化実行');
-          const success = initializeScene();
-          if (!success) {
-            this.assistant.log('warn', '3Dシーン初期化失敗 - フォールバック表示');
-          }
-        } else {
-          // Three.jsが利用できない場合は少し待ってから再試行
-          this.assistant.log('debug', 'ライブラリ読み込み待機中...');
-          setTimeout(() => {
-            if (typeof THREE !== 'undefined') {
-              this.assistant.log('debug', '遅延3Dシーン初期化実行');
-              const success = initializeScene();
-              if (!success) {
-                this.assistant.log('warn', '遅延3Dシーン初期化失敗 - フォールバック表示');
-              }
-            } else {
-              this.assistant.log('warn', 'ライブラリ読み込みタイムアウト - フォールバック表示');
-              this.showFallbackMessage();
-              this.isInitialized = false;
-            }
-          }, 1000);
+        const container = document.getElementById('threeContainer');
+        if (!container) {
+          this.assistant.log('error', '3Dプレビューコンテナが見つかりません');
+          this.showFallbackMessage('コンテナが見つかりません');
+          return false;
         }
+
+        // Three.js利用可能性チェック（詳細版）
+        if (typeof THREE === 'undefined') {
+          this.assistant.log('error', 'Three.jsライブラリが読み込まれていません');
+          this.showFallbackMessage('Three.jsが利用できません。ページを再読み込みしてください。');
+          return false;
+        }
+
+        // バージョン情報をログに記録
+        this.assistant.log('info', 'Three.js初期化情報', {
+          revision: THREE.REVISION,
+          objLoaderAvailable: typeof THREE.OBJLoader !== 'undefined',
+          orbitControlsAvailable: typeof THREE.OrbitControls !== 'undefined'
+        });
+
+        // 既存のcanvas要素をクリーンアップ
+        const existingCanvas = container.querySelector('canvas');
+        if (existingCanvas) {
+          existingCanvas.remove();
+          this.assistant.log('debug', '既存のcanvas要素を削除');
+        }
+    
+        // シーン作成
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0xf8f9fa);
+        this.scene.fog = new THREE.Fog(0xf8f9fa, 100, 500); // 霧効果を追加
+    
+        // カメラ作成（視野角を調整）
+        this.camera = new THREE.PerspectiveCamera(
+          75, // 視野角を広げて全体が見やすく
+          container.clientWidth / container.clientHeight,
+          0.1,
+          2000 // より遠くまで描画
+        );
+        this.camera.position.set(15, 12, 15); // より遠い初期位置 // 少し遠めから
+    
+        // レンダラー作成（高品質設定）
+        this.renderer = new THREE.WebGLRenderer({ 
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance"
+        });
+        this.renderer.setSize(container.clientWidth, container.clientHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // パフォーマンス考慮
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.2;
+        
+        container.appendChild(this.renderer.domElement);
+    
+        // 改善されたライティング
+        this.setupImprovedLighting();
+    
+        // コントロール（利用可能な場合のみ、改善版）
+        const OrbitControlsClass = THREE.OrbitControls || window.OrbitControls;
+        if (OrbitControlsClass) {
+          this.controls = new OrbitControlsClass(this.camera, this.renderer.domElement);
+          this.controls.enableDamping = true;
+          this.controls.dampingFactor = 0.05;
+          this.controls.minDistance = 2;   // より近くまで寄れるように
+          this.controls.maxDistance = 200; // より遠くまで引けるように
+          this.controls.maxPolarAngle = Math.PI * 0.48; // 床下を見せない
+          
+          // ズーム・回転・パン機能の有効化
+          this.controls.enableZoom = true;   // ズーム明示的に有効化
+          this.controls.enableRotate = true; // 回転有効化
+          this.controls.enablePan = true;    // パン（中心移動）有効化
+          
+          // 操作速度の調整
+          this.controls.zoomSpeed = 1.2;     // ズーム速度を調整
+          this.controls.rotateSpeed = 1.0;   // 回転速度
+          this.controls.panSpeed = 0.8;      // パン速度
+          
+          // マウスボタンの割り当て
+          this.controls.mouseButtons = {
+            LEFT: THREE.MOUSE.ROTATE,   // 左クリック：回転
+            MIDDLE: THREE.MOUSE.DOLLY,  // ホイール：ズーム
+            RIGHT: THREE.MOUSE.PAN      // 右クリック：パン（中心移動）
+          };
+          
+          // 高度な中心点操作機能を追加
+          this.setupAdvancedCenterControls();
+          
+          this.assistant.log('debug', 'OrbitControls初期化完了', {
+            minDistance: this.controls.minDistance,
+            maxDistance: this.controls.maxDistance,
+            enableZoom: this.controls.enableZoom,
+            enablePan: this.controls.enablePan,
+            enableRotate: this.controls.enableRotate
+          });
+        } else {
+          this.assistant.log('warning', 'OrbitControlsが利用できません - マウス操作が制限されます');
+        }
+    
+        // 改善された床面
+        this.addImprovedFloor();
+    
+        // ウィンドウリサイズ対応
+        window.addEventListener('resize', () => this.onWindowResize());
+    
+        // アニメーションループ
+        this.animate();
+        
+        this.isInitialized = true;
+        this.assistant.log('info', '3Dシーン初期化完了', {
+          containerSize: `${container.clientWidth}x${container.clientHeight}`,
+          hasControls: !!this.controls,
+          renderer: {
+            antialias: this.renderer.capabilities.antialias,
+            maxTextures: this.renderer.capabilities.maxTextures,
+            maxVertexTextures: this.renderer.capabilities.maxVertexTextures,
+            precision: this.renderer.capabilities.precision
+          }
+        });
+        
+        return true;
       } catch (error) {
-        this.assistant.log('error', '3Dシーン初期化で致命的エラー', { error: error.message, stack: error.stack });
-        this.showFallbackMessage();
+        this.assistant.log('error', '3Dシーン初期化中にエラー', { 
+          error: error.message, 
+          stack: error.stack 
+        });
+        this.showFallbackMessage(`初期化エラー: ${error.message}`);
         this.isInitialized = false;
+        return false;
       }
     }
   
-    // ========== ライティング設定 ==========
-    setupLighting() {
-      // 環境光
-      const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    // ========== 高度な中心点操作機能 ==========
+    setupAdvancedCenterControls() {
+      if (!this.controls || !this.renderer) return;
+      
+      // Raycaster for object picking
+      this.raycaster = new THREE.Raycaster();
+      this.mouse = new THREE.Vector2();
+      
+      // ダブルクリックで注視点を変更
+      this.renderer.domElement.addEventListener('dblclick', (event) => {
+        this.onDoubleClick(event);
+      });
+      
+      // キーボードショートカット
+      document.addEventListener('keydown', (event) => {
+        this.onKeyDown(event);
+      });
+      
+      // 中心点の可視化
+      this.centerIndicator = null;
+      this.showCenterIndicator = false;
+      
+      this.assistant.log('debug', '高度な中心点操作機能を初期化');
+    }
+    
+    // ダブルクリックイベントハンドラ
+    onDoubleClick(event) {
+      if (!this.currentModel || !this.controls) return;
+      
+      // マウス座標を正規化デバイス座標に変換
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      // Raycastingで交差点を取得
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const intersects = this.raycaster.intersectObject(this.currentModel, true);
+      
+      if (intersects.length > 0) {
+        const intersection = intersects[0];
+        const newTarget = intersection.point.clone();
+        
+        // 注視点を新しい位置に移動（アニメーション付き）
+        this.animateTargetTo(newTarget);
+        
+        this.assistant.log('debug', '注視点を変更', {
+          newTarget: { x: newTarget.x, y: newTarget.y, z: newTarget.z },
+          hitObject: intersection.object.name || 'unnamed'
+        });
+      }
+    }
+    
+    // キーボードショートカットハンドラ
+    onKeyDown(event) {
+      if (!this.controls) return;
+      
+      // Ctrl+Rで中心点をリセット
+      if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
+        event.preventDefault();
+        this.resetCameraTarget();
+      }
+      
+      // Ctrl+Cで中心点インジケーター表示切替
+      if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+        event.preventDefault();
+        this.toggleCenterIndicator();
+      }
+      
+      // 矢印キーで微調整
+      const step = 2;
+      let targetChanged = false;
+      const currentTarget = this.controls.target.clone();
+      
+      switch(event.key) {
+        case 'ArrowLeft':
+          currentTarget.x -= step;
+          targetChanged = true;
+          break;
+        case 'ArrowRight':
+          currentTarget.x += step;
+          targetChanged = true;
+          break;
+        case 'ArrowUp':
+          if (event.shiftKey) {
+            currentTarget.y += step; // Shift+Up: Y軸上方向
+          } else {
+            currentTarget.z -= step; // Up: Z軸前方向
+          }
+          targetChanged = true;
+          break;
+        case 'ArrowDown':
+          if (event.shiftKey) {
+            currentTarget.y -= step; // Shift+Down: Y軸下方向
+          } else {
+            currentTarget.z += step; // Down: Z軸後方向
+          }
+          targetChanged = true;
+          break;
+      }
+      
+      if (targetChanged) {
+        event.preventDefault();
+        this.animateTargetTo(currentTarget);
+      }
+    }
+    
+    // 注視点のアニメーション移動
+    animateTargetTo(newTarget) {
+      if (!this.controls) return;
+      
+      const startTarget = this.controls.target.clone();
+      const duration = 500; // ミリ秒
+      const startTime = performance.now();
+      
+      const animate = (currentTime) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // イージング関数（ease-out）
+        const easeProgress = 1 - Math.pow(1 - progress, 3);
+        
+        // 線形補間
+        const interpolatedTarget = startTarget.clone().lerp(newTarget, easeProgress);
+        this.controls.target.copy(interpolatedTarget);
+        this.controls.update();
+        
+        // 中心インジケーターを更新
+        if (this.centerIndicator) {
+          this.centerIndicator.position.copy(interpolatedTarget);
+        }
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      requestAnimationFrame(animate);
+    }
+    
+    // 中心点をリセット
+    resetCameraTarget() {
+      if (!this.controls || !this.currentModel) return;
+      
+      // モデルの中心に戻す
+      const box = new THREE.Box3().setFromObject(this.currentModel);
+      const center = box.getCenter(new THREE.Vector3());
+      center.y = center.y * 0.4; // 少し下に
+      
+      this.animateTargetTo(center);
+      
+      this.assistant.log('debug', '注視点をリセット', {
+        center: { x: center.x, y: center.y, z: center.z }
+      });
+    }
+    
+    // 中心点インジケーターの表示切替
+    toggleCenterIndicator() {
+      this.showCenterIndicator = !this.showCenterIndicator;
+      
+      if (this.showCenterIndicator) {
+        if (!this.centerIndicator) {
+          // インジケーターを作成
+          const geometry = new THREE.SphereGeometry(0.5, 8, 6);
+          const material = new THREE.MeshBasicMaterial({ 
+            color: 0xff0000, 
+            transparent: true, 
+            opacity: 0.7 
+          });
+          this.centerIndicator = new THREE.Mesh(geometry, material);
+          this.scene.add(this.centerIndicator);
+        }
+        this.centerIndicator.position.copy(this.controls.target);
+        this.centerIndicator.visible = true;
+      } else if (this.centerIndicator) {
+        this.centerIndicator.visible = false;
+      }
+      
+             this.assistant.log('debug', '中心点インジケーター', {
+         visible: this.showCenterIndicator
+       });
+     }
+     
+     // UIイベントリスナーの設定
+     setupUIEventListeners() {
+       // 中心操作パネルを開く
+       const openCenterBtn = document.getElementById('openCenterControlBtn');
+       if (openCenterBtn) {
+         openCenterBtn.addEventListener('click', () => {
+           const panel = document.getElementById('centerControlPanel');
+           if (panel) {
+             panel.style.display = 'block';
+           }
+         });
+       }
+       
+       // 中心操作パネルを閉じる
+       const closeCenterBtn = document.getElementById('closeCenterPanel');
+       if (closeCenterBtn) {
+         closeCenterBtn.addEventListener('click', () => {
+           const panel = document.getElementById('centerControlPanel');
+           if (panel) {
+             panel.style.display = 'none';
+           }
+         });
+       }
+       
+       // 中心リセットボタン
+       const resetCenterBtn = document.getElementById('resetCenterBtn');
+       if (resetCenterBtn) {
+         resetCenterBtn.addEventListener('click', () => {
+           this.resetCameraTarget();
+         });
+       }
+       
+       // 中心インジケーター切替ボタン
+       const toggleIndicatorBtn = document.getElementById('toggleIndicatorBtn');
+       if (toggleIndicatorBtn) {
+         toggleIndicatorBtn.addEventListener('click', () => {
+           this.toggleCenterIndicator();
+           // ボタンの状態を更新
+           if (this.showCenterIndicator) {
+             toggleIndicatorBtn.classList.add('active');
+           } else {
+             toggleIndicatorBtn.classList.remove('active');
+           }
+         });
+       }
+     }
+
+    // ========== 改善されたライティング設定 ==========
+    setupImprovedLighting() {
+      // 環境光（全体を柔らかく照らす）
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
       this.scene.add(ambientLight);
   
-      // 指向性ライト
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      directionalLight.position.set(10, 10, 5);
-      directionalLight.castShadow = true;
-      directionalLight.shadow.mapSize.width = 2048;
-      directionalLight.shadow.mapSize.height = 2048;
-      this.scene.add(directionalLight);
+      // メイン指向性ライト（太陽光）
+      const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      mainLight.position.set(10, 15, 10);
+      mainLight.castShadow = true;
+      mainLight.shadow.mapSize.width = 2048;
+      mainLight.shadow.mapSize.height = 2048;
+      mainLight.shadow.camera.near = 0.5;
+      mainLight.shadow.camera.far = 50;
+      mainLight.shadow.camera.left = -20;
+      mainLight.shadow.camera.right = 20;
+      mainLight.shadow.camera.top = 20;
+      mainLight.shadow.camera.bottom = -20;
+      mainLight.shadow.bias = -0.001;
+      this.scene.add(mainLight);
   
-      // 補助ライト
-      const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-      fillLight.position.set(-5, 5, 5);
+      // フィルライト（影を和らげる）
+      const fillLight = new THREE.DirectionalLight(0x88ccff, 0.4);
+      fillLight.position.set(-5, 8, -5);
       this.scene.add(fillLight);
+      
+      // リムライト（輪郭を強調）
+      const rimLight = new THREE.DirectionalLight(0xffffcc, 0.3);
+      rimLight.position.set(0, 5, -10);
+      this.scene.add(rimLight);
+      
+      // 半球光（自然な環境光）
+      const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x8b7355, 0.3);
+      this.scene.add(hemiLight);
     }
   
-    // ========== 床面追加 ==========
-    addFloor() {
-      const floorGeometry = new THREE.PlaneGeometry(20, 20);
-      const floorMaterial = new THREE.MeshLambertMaterial({ 
+    // ========== 改善された床面追加 ==========
+    addImprovedFloor() {
+      // 床面（より質感のあるマテリアル）
+      const floorGeometry = new THREE.PlaneGeometry(30, 30);
+      const floorMaterial = new THREE.MeshPhongMaterial({ 
         color: 0xffffff,
-        transparent: true,
-        opacity: 0.5
+        shininess: 10,
+        specular: 0x222222
       });
       const floor = new THREE.Mesh(floorGeometry, floorMaterial);
       floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -0.01;
       floor.receiveShadow = true;
       this.scene.add(floor);
   
-      // グリッド
-      const gridHelper = new THREE.GridHelper(20, 20, 0xcccccc, 0xcccccc);
+      // グリッド（より見やすく）
+      const gridHelper = new THREE.GridHelper(30, 30, 0xcccccc, 0xeeeeee);
+      gridHelper.material.opacity = 0.5;
+      gridHelper.material.transparent = true;
       this.scene.add(gridHelper);
+      
+      // 座標軸ヘルパー（デバッグ用、小さめ）
+      if (this.assistant.debugMode) {
+        const axesHelper = new THREE.AxesHelper(5);
+        this.scene.add(axesHelper);
+      }
     }
   
     // ========== アニメーションループ ==========
@@ -182,89 +491,79 @@ class SceneManager {
         this.controls.update();
       }
       
+      // モデルの自動回転（オプション）
+      if (this.currentModel && this.autoRotate) {
+        this.currentModel.rotation.y += 0.005;
+      }
+      
       if (this.renderer && this.scene && this.camera) {
         this.renderer.render(this.scene, this.camera);
       }
     }
   
     // ========== ウィンドウリサイズ対応 ==========
-      onWindowResize() {
-    if (!this.isInitialized) return;
-    
-    const container = document.getElementById('threeContainer');
-    if (container) {
-      this.camera.aspect = container.clientWidth / container.clientHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(container.clientWidth, container.clientHeight);
+    onWindowResize() {
+      if (!this.isInitialized) return;
+      
+      const container = document.getElementById('threeContainer');
+      if (container && this.camera && this.renderer) {
+        this.camera.aspect = container.clientWidth / container.clientHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(container.clientWidth, container.clientHeight);
+      }
     }
-  }
   
-      // ========== OBJモデル読み込み ==========
-  async loadOBJModel(objData) {
-    this.assistant.log('debug', 'OBJモデル読み込み開始', { dataSize: objData.length });
-
-    // OBJデータの基本検証とクリーニング
-    objData = this.validateAndCleanOBJData(objData);
-    if (!objData) {
-      throw new Error('OBJデータの検証に失敗しました');
-    }
-
-    // 初期化チェック
-    if (!this.isInitialized) {
-        this.assistant.log('error', '3Dシーンが初期化されていません - 再初期化を試行');
-        
-        // 再初期化を試行
-        try {
-          this.setup3DScene();
-          
-          // 少し待ってから再チェック
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          if (!this.isInitialized) {
-            throw new Error('3Dシーンの再初期化に失敗しました');
-          }
-          
-          this.assistant.log('info', '3Dシーンの再初期化に成功しました');
-        } catch (error) {
-          this.assistant.log('error', '3Dシーン再初期化失敗', { error: error.message });
-          throw new Error('3Dシーンが初期化されていません。ページを再読み込みしてください。');
-        }
-      }
-
-      // OBJデータの基本検証
-      if (!objData || typeof objData !== 'string' || objData.trim().length === 0) {
-        this.assistant.log('error', '無効なOBJデータ', { objData: objData });
-        throw new Error('無効なOBJデータです');
-      }
-
-      // OBJLoaderの利用可能性チェック
-      if (typeof THREE.OBJLoader === 'undefined') {
-        this.assistant.log('error', 'OBJLoaderが利用できません', {
-          threeAvailable: typeof THREE !== 'undefined',
-          threeRevision: typeof THREE !== 'undefined' ? THREE.REVISION : 'N/A',
-          objLoaderType: typeof THREE.OBJLoader,
-          windowOBJLoaderReady: window.OBJLoaderReady,
-          windowOBJLoaderFailed: window.OBJLoaderFailed
+    // ========== OBJモデル読み込み（改善版） ==========
+    async loadOBJModel(objData) {
+      // 基本的な検証
+      if (!objData || typeof objData !== 'string') {
+        this.assistant.log('error', '無効なOBJデータ', { 
+          objData: objData, 
+          type: typeof objData
         });
-        
-        // フォールバックまたは再試行
-        if (window.OBJLoaderFailed) {
-          throw new Error('OBJLoaderライブラリの読み込みが完全に失敗しました');
-        }
-        
-        // 再試行メカニズム
-        this.assistant.log('info', 'OBJLoader再読み込みを試行します...');
-        return this.waitForOBJLoaderAndLoad(objData);
+        throw new Error('OBJデータが提供されていません');
+      }
+
+      this.assistant.log('debug', 'OBJモデル読み込み開始', { 
+        dataSize: objData.length,
+        preview: objData.substring(0, 100) + '...'
+      });
+
+      // OBJデータの検証とクリーニング
+      objData = this.validateAndCleanOBJData(objData);
+      if (!objData) {
+        throw new Error('OBJデータの検証に失敗しました');
+      }
+
+      // 初期化チェック
+      if (!this.isInitialized) {
+        this.assistant.log('error', '3Dシーンが初期化されていません');
+        throw new Error('3Dシーンが初期化されていません');
+      }
+
+      // OBJLoaderの利用可能性チェック（改善版）
+      const OBJLoaderClass = THREE.OBJLoader || window.OBJLoader;
+      if (!OBJLoaderClass) {
+        this.assistant.log('error', 'OBJLoaderが利用できません');
+        throw new Error('OBJLoaderライブラリが読み込まれていません');
       }
 
       // 既存モデルを削除
       if (this.currentModel) {
         this.scene.remove(this.currentModel);
+        if (this.currentModel.geometry) this.currentModel.geometry.dispose();
+        if (this.currentModel.material) {
+          if (Array.isArray(this.currentModel.material)) {
+            this.currentModel.material.forEach(m => m.dispose());
+          } else {
+            this.currentModel.material.dispose();
+          }
+        }
         this.currentModel = null;
       }
   
       // OBJLoaderでモデルを読み込み
-      const loader = new THREE.OBJLoader();
+      const loader = new OBJLoaderClass();
       
       try {
         this.assistant.log('debug', 'OBJLoader.parse実行開始');
@@ -274,14 +573,19 @@ class SceneManager {
         // NaN値の修正
         this.fixNaNValuesInObject(object);
         
-        // パーツベースマテリアル設定
-        this.applyPartBasedMaterials(object, objData);
+        // 家具タイプを検出
+        const furnitureType = this.detectFurnitureTypeFromOBJ(objData);
+        
+        // 改善されたマテリアル設定
+        this.applyImprovedMaterials(object, furnitureType, objData);
   
         // モデルを中央に配置
         const box = new THREE.Box3().setFromObject(object);
         const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        
         object.position.sub(center);
-        object.position.y = box.min.y * -1;
+        object.position.y = -box.min.y; // 床に設置
   
         this.scene.add(object);
         this.currentModel = object;
@@ -289,257 +593,349 @@ class SceneManager {
         // モデル情報を更新
         this.updateModelInfo(object, objData);
         
-        // カメラ位置を調整
-        this.fitCameraToModel(box);
+        // カメラ位置を最適化
+        this.optimizeCameraPosition(box, size);
   
         // オーバーレイを非表示
         this.hideCanvasOverlay();
         
-        // プレースホルダーオーバーレイも非表示
-        const overlay = document.getElementById('canvasOverlay');
-        if (overlay) {
-          overlay.style.display = 'none';
-        }
-        
         this.assistant.log('info', 'OBJモデル読み込み成功', { 
           vertexCount: this.getModelVertexCount(object),
-          faceCount: this.getModelFaceCount(object)
+          faceCount: this.getModelFaceCount(object),
+          furnitureType: furnitureType,
+          dimensions: `${size.x.toFixed(1)}×${size.y.toFixed(1)}×${size.z.toFixed(1)}`
         });
         
       } catch (error) {
         this.assistant.log('error', 'OBJモデル読み込みエラー', { 
           error: error.message, 
-          stack: error.stack,
-          objDataPreview: objData.substring(0, 200) + '...'
+          stack: error.stack
         });
         
-        // より詳細なエラーメッセージ
-        let errorMessage = '3Dモデルの読み込みに失敗しました。';
-        if (error.message.includes('OBJLoader')) {
-          errorMessage = 'OBJLoaderライブラリが正しく読み込まれていません。';
-        } else if (error.message.includes('parse')) {
-          errorMessage = '生成されたOBJデータの形式が正しくありません。';
-        } else if (error.message.includes('THREE')) {
-          errorMessage = 'Three.jsライブラリが正しく読み込まれていません。';
-        }
-        
-        throw new Error(errorMessage);
+        throw new Error(`3Dモデルの読み込みに失敗しました: ${error.message}`);
       }
     }
   
-    // ========== マテリアル適用 ==========
-    applyPartBasedMaterials(object, objData) {
-      // パーツごとの色定義（明るく調整）
-      const partColors = {
-        'SEAT': 0xDEB887,       // バーリーウッド（座面）- より明るく
-        'BACKREST': 0xD2B48C,   // タン（背もたれ）- より明るく
-        'LEG': 0xB8860B,        // ダークゴールデンロッド（脚部）- より明るく
-        'TABLETOP': 0xF5DEB3,   // ウィート（天板）- 明るく
-        'PANEL': 0xFFE4B5,      // モカシン（パネル）- 非常に明るく
-        'SHELF': 0xEEE8AA,      // ペールゴールデンロッド（棚板）- 明るく
-        'default': 0xDEB887     // デフォルト - 明るく
-      };
-
-      // グラデーション用の色パレット（明るく統一感のある色）
-      const gradientColors = [
-        0xF5DEB3, // ウィート（最も明るい）
-        0xFFE4B5, // モカシン
-        0xEEE8AA, // ペールゴールデンロッド
-        0xDEB887, // バーリーウッド
-        0xD2B48C, // タン
-        0xDAA520, // ゴールデンロッド
-        0xB8860B, // ダークゴールデンロッド
-        0xCD853F, // ペルー
-        0xF4A460, // サンディブラウン
-        0xBC8F8F  // ロージーブラウン
-      ];
-
-      // パーツ情報を解析
+    // ========== 家具タイプ検出 ==========
+    detectFurnitureTypeFromOBJ(objData) {
+      // OBJコメントやグループ名から家具タイプを推測
       const lines = objData.split('\n');
-      let currentPartColor = partColors.default;
-      let meshIndex = 0;
+      let detectedType = 'default';
       
       for (const line of lines) {
-        if (line.startsWith('# Part:')) {
-          const partName = line.replace('# Part:', '').trim().toUpperCase();
-          
-          // パーツ名から色を決定
-          if (partName.includes('SEAT')) {
-            currentPartColor = partColors.SEAT;
-          } else if (partName.includes('BACKREST')) {
-            currentPartColor = partColors.BACKREST;
-          } else if (partName.includes('LEG')) {
-            currentPartColor = partColors.LEG;
-          } else if (partName.includes('TABLETOP')) {
-            currentPartColor = partColors.TABLETOP;
-          } else if (partName.includes('PANEL')) {
-            currentPartColor = partColors.PANEL;
-          } else if (partName.includes('SHELF')) {
-            currentPartColor = partColors.SHELF;
-          } else {
-            currentPartColor = partColors.default;
-          }
+        const lower = line.toLowerCase();
+        if (lower.includes('chair') || lower.includes('seat')) {
+          detectedType = 'chair';
+          break;
+        } else if (lower.includes('desk') || lower.includes('table')) {
+          detectedType = 'desk';
+          break;
+        } else if (lower.includes('shelf') || lower.includes('rack')) {
+          detectedType = 'shelf';
+          break;
+        } else if (lower.includes('cabinet') || lower.includes('storage')) {
+          detectedType = 'cabinet';
+          break;
         }
       }
+      
+      // ProcessingManagerのデータも参照
+      if (this.assistant.processingManager.stage1Data?.furniture_type) {
+        const stage1Type = this.assistant.processingManager.stage1Data.furniture_type;
+        if (stage1Type.includes('椅子')) detectedType = 'chair';
+        else if (stage1Type.includes('机')) detectedType = 'desk';
+        else if (stage1Type.includes('棚')) detectedType = 'shelf';
+        else if (stage1Type.includes('キャビネット')) detectedType = 'cabinet';
+      }
+      
+      return detectedType;
+    }
+  
+    // ========== 改善されたマテリアル適用 ==========
+    applyImprovedMaterials(object, furnitureType, objData) {
+      const palette = this.furnitureColorPalettes[furnitureType] || this.furnitureColorPalettes.default;
+      
+      // パーツ名から色を決定するマッピング
+      const partColorMap = {
+        'seat': palette.primary,
+        'backrest': palette.primary,
+        'cushion': palette.primary,
+        'top': palette.primary,
+        'tabletop': palette.primary,
+        'shelf': palette.primary,
+        'door': palette.secondary,
+        'drawer': palette.secondary,
+        'panel': palette.secondary,
+        'leg': palette.secondary,
+        'frame': palette.secondary,
+        'handle': palette.accent,
+        'knob': palette.accent,
+        'metal': palette.accent
+      };
 
-      // すべてのメッシュにマテリアルを適用
+      let meshIndex = 0;
+      const meshCount = this.countMeshes(object);
+      
       object.traverse((child) => {
         if (child.isMesh) {
-          // グラデーション色を選択（メッシュインデックスに基づく）
-          const gradientColor = gradientColors[meshIndex % gradientColors.length];
+          // グループ名から適切な色を選択
+          let color = palette.primary;
+          const groupName = child.name?.toLowerCase() || '';
           
-          // マテリアル設定を改善
-          child.material = new THREE.MeshPhongMaterial({ 
-            color: gradientColor,
-            side: THREE.DoubleSide, // 内側も表示
-            transparent: true,
-            opacity: 0.85, // 少し透明にして内部構造を見やすく
-            shininess: 30, // 光沢を追加
-            specular: 0x444444, // スペキュラー色
-            // 環境マップ反射を追加（より立体的に）
-            envMap: null, // 必要に応じて環境マップを設定可能
-            reflectivity: 0.1
+          // パーツ名マッチング
+          for (const [partName, partColor] of Object.entries(partColorMap)) {
+            if (groupName.includes(partName)) {
+              color = partColor;
+              break;
+            }
+          }
+          
+          // メッシュインデックスによるグラデーション（フォールバック）
+          if (!groupName && meshCount > 1) {
+            const ratio = meshIndex / Math.max(meshCount - 1, 1);
+            if (ratio < 0.33) color = palette.primary;
+            else if (ratio < 0.66) color = palette.secondary;
+            else color = palette.accent;
+          }
+          
+          // 高品質マテリアルを適用
+          const material = new THREE.MeshPhongMaterial({ 
+            color: color,
+            side: THREE.DoubleSide,
+            shininess: 30,
+            specular: 0x222222,
+            emissive: color,
+            emissiveIntensity: 0.02
           });
           
-          // 影の設定
+          // 元のマテリアルを破棄
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => m.dispose());
+            } else {
+              child.material.dispose();
+            }
+          }
+          
+          child.material = material;
           child.castShadow = true;
           child.receiveShadow = true;
           
-          // デバッグ用ログ
-          this.assistant.log('debug', `メッシュ ${meshIndex} に色を適用`, {
-            meshIndex: meshIndex,
-            color: `#${gradientColor.toString(16).padStart(6, '0')}`,
-            colorName: this.getColorName(gradientColor)
+          this.assistant.log('debug', `マテリアル適用: ${groupName || `mesh_${meshIndex}`}`, {
+            color: `#${color.toString(16).padStart(6, '0')}`,
+            meshIndex: meshIndex
           });
           
           meshIndex++;
         }
       });
       
-      this.assistant.log('info', 'グラデーションマテリアル適用完了', {
+      this.assistant.log('info', '改善されたマテリアル適用完了', {
+        furnitureType: furnitureType,
         totalMeshes: meshIndex,
-        colorsUsed: Math.min(meshIndex, gradientColors.length)
+        palette: {
+          primary: `#${palette.primary.toString(16).padStart(6, '0')}`,
+          secondary: `#${palette.secondary.toString(16).padStart(6, '0')}`,
+          accent: `#${palette.accent.toString(16).padStart(6, '0')}`
+        }
       });
     }
   
-    // ========== 色名取得（デバッグ用） ==========
-    getColorName(colorHex) {
-      const colorNames = {
-        0xF5DEB3: 'ウィート',
-        0xFFE4B5: 'モカシン', 
-        0xEEE8AA: 'ペールゴールデンロッド',
-        0xDEB887: 'バーリーウッド',
-        0xD2B48C: 'タン',
-        0xDAA520: 'ゴールデンロッド',
-        0xB8860B: 'ダークゴールデンロッド',
-        0xCD853F: 'ペルー',
-        0xF4A460: 'サンディブラウン',
-        0xBC8F8F: 'ロージーブラウン'
-      };
-      return colorNames[colorHex] || '不明';
+    // ========== メッシュ数カウント ==========
+    countMeshes(object) {
+      let count = 0;
+      object.traverse((child) => {
+        if (child.isMesh) count++;
+      });
+      return count;
     }
   
-    // ========== 色設定リセット（実験用） ==========
+    // ========== カメラ位置最適化 ==========
+    optimizeCameraPosition(box, size) {
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const distance = Math.max(maxDim * 3.0, 20); // より遠い距離かつ最小値を保証
+      
+      // 家具の高さに応じてカメラの高さを調整
+      const cameraHeight = Math.max(size.y * 0.8 + maxDim * 0.6, 10);
+      
+      this.camera.position.set(
+        distance * 0.7,
+        cameraHeight,
+        distance * 0.7
+      );
+      
+      // 注視点をモデルの中心より少し上に
+      const lookAtY = size.y * 0.4;
+      this.camera.lookAt(0, lookAtY, 0);
+      
+      if (this.controls) {
+        this.controls.target.set(0, lookAtY, 0);
+        // ズーム範囲をモデルサイズに応じて動的調整
+        this.controls.minDistance = Math.max(maxDim * 0.5, 2);
+        this.controls.maxDistance = Math.max(maxDim * 10, 200);
+        this.controls.reset(); // コントロールをリセットして新しい設定を適用
+        this.controls.update();
+        
+        this.assistant.log('debug', 'カメラ位置最適化完了', {
+          modelSize: { x: size.x, y: size.y, z: size.z },
+          cameraPosition: this.camera.position,
+          lookAtY: lookAtY,
+          zoomRange: { min: this.controls.minDistance, max: this.controls.maxDistance }
+        });
+      }
+    }
+  
+    // ========== 色設定リセット（改善版） ==========
     resetMaterialColors(colorScheme = 'gradient') {
       if (!this.currentModel) {
         this.assistant.log('warn', '色設定リセット: 現在のモデルがありません');
         return;
       }
 
+      const furnitureType = this.detectFurnitureTypeFromOBJ('');
+      const palette = this.furnitureColorPalettes[furnitureType] || this.furnitureColorPalettes.default;
       let meshIndex = 0;
       
-      if (colorScheme === 'gradient') {
-        // グラデーション色パレット
-        const colors = [
-          0xF5DEB3, 0xFFE4B5, 0xEEE8AA, 0xDEB887, 0xD2B48C,
-          0xDAA520, 0xB8860B, 0xCD853F, 0xF4A460, 0xBC8F8F
-        ];
-        
-        this.currentModel.traverse((child) => {
-          if (child.isMesh) {
-            const color = colors[meshIndex % colors.length];
-            child.material.color.setHex(color);
-            meshIndex++;
+      this.currentModel.traverse((child) => {
+        if (child.isMesh && child.material) {
+          switch (colorScheme) {
+            case 'gradient':
+              // 家具タイプ別のグラデーション
+              const colors = [palette.primary, palette.secondary, palette.accent];
+              const color = colors[meshIndex % colors.length];
+              child.material.color.setHex(color);
+              child.material.opacity = 1.0;
+              child.material.transparent = false;
+              break;
+              
+            case 'bright':
+              // 明るい単色（プライマリカラー）
+              child.material.color.setHex(palette.primary);
+              child.material.opacity = 1.0;
+              child.material.transparent = false;
+              child.material.emissiveIntensity = 0.1;
+              break;
+              
+            case 'transparent':
+              // 半透明（ガラス風）
+              child.material.opacity = 0.7;
+              child.material.transparent = true;
+              child.material.color.setHex(0xcccccc);
+              child.material.emissiveIntensity = 0.05;
+              break;
           }
-        });
-      } else if (colorScheme === 'bright') {
-        // 明るい単色
-        const brightColor = 0xF5DEB3; // ウィート
-        this.currentModel.traverse((child) => {
-          if (child.isMesh) {
-            child.material.color.setHex(brightColor);
-            child.material.opacity = 0.9;
-          }
-        });
-      } else if (colorScheme === 'transparent') {
-        // 半透明
-        this.currentModel.traverse((child) => {
-          if (child.isMesh) {
-            child.material.opacity = 0.6;
-            child.material.transparent = true;
-          }
-        });
-      }
+          
+          // マテリアルの更新を通知
+          child.material.needsUpdate = true;
+          meshIndex++;
+        }
+      });
       
-      this.assistant.log('info', `色設定を${colorScheme}に変更しました`, { meshCount: meshIndex });
+      this.assistant.log('info', `色設定を${colorScheme}に変更しました`, { 
+        meshCount: meshIndex,
+        furnitureType: furnitureType
+      });
     }
   
-    // ========== モデル情報更新 ==========
+    // ========== モデル情報更新（改善版） ==========
     updateModelInfo(object, objData) {
       const modelInfo = document.getElementById('modelInfo');
-      modelInfo.style.display = 'block';
+      if (modelInfo) {
+        modelInfo.style.display = 'block';
+      }
   
       const vertexCount = this.getModelVertexCount(object);
       const faceCount = this.getModelFaceCount(object);
-  
-      document.getElementById('vertexCount').textContent = vertexCount.toLocaleString();
-      document.getElementById('faceCount').textContent = Math.floor(faceCount).toLocaleString();
+      const groupCount = this.getModelGroupCount(object);
+
+      // 基本統計情報
+      const vertexEl = document.getElementById('vertexCount');
+      if (vertexEl) vertexEl.textContent = vertexCount.toLocaleString();
+      
+      const faceEl = document.getElementById('faceCount');
+      if (faceEl) faceEl.textContent = faceCount.toLocaleString();
       
       const fileSize = new Blob([objData]).size;
-      document.getElementById('fileSize').textContent = this.assistant.formatFileSize(fileSize);
+      const fileSizeEl = document.getElementById('fileSize');
+      if (fileSizeEl) fileSizeEl.textContent = this.assistant.formatFileSize(fileSize);
 
       // 家具説明を更新
       this.updateFurnitureDescription();
+      
+      // 品質指標を計算
+      const qualityMetrics = this.calculateQualityMetrics(vertexCount, faceCount, groupCount);
+      this.assistant.log('info', 'モデル品質指標', qualityMetrics);
+    }
   
-
+    // ========== 品質指標計算 ==========
+    calculateQualityMetrics(vertexCount, faceCount, groupCount) {
+      // 頂点と面の比率（理想は0.5〜2.0）
+      const vertexFaceRatio = vertexCount / Math.max(faceCount, 1);
+      
+      // 複雑度スコア（0-100）
+      let complexityScore = Math.min(100, Math.log10(vertexCount + 1) * 25);
+      
+      // 構造スコア（グループ数に基づく）
+      let structureScore = Math.min(100, groupCount * 20);
+      
+      // 全体的な品質スコア
+      let qualityScore = 50;
+      if (vertexFaceRatio >= 0.5 && vertexFaceRatio <= 2.0) {
+        qualityScore += 30;
+      }
+      if (vertexCount >= 8 && faceCount >= 6) {
+        qualityScore += 20;
+      }
+      
+      return {
+        vertexFaceRatio: vertexFaceRatio.toFixed(2),
+        complexityScore: Math.round(complexityScore),
+        structureScore: Math.round(structureScore),
+        overallQuality: Math.round(qualityScore),
+        rating: qualityScore >= 80 ? '優秀' : qualityScore >= 60 ? '良好' : '改善余地あり'
+      };
+    }
+  
+    // ========== モデルグループ数取得 ==========
+    getModelGroupCount(object) {
+      const groups = new Set();
+      object.traverse((child) => {
+        if (child.name && child.isMesh) {
+          groups.add(child.name);
+        }
+      });
+      return groups.size;
     }
   
     // ========== 家具説明更新 ==========
     updateFurnitureDescription() {
       const furnitureDescription = document.getElementById('furnitureDescription');
       
-      // 第1段階データから家具情報を取得
       if (this.assistant.processingManager.stage1Data) {
         const stage1Data = this.assistant.processingManager.stage1Data;
         
         // 家具種別を更新
         const furnitureType = document.getElementById('furnitureType');
-        furnitureType.textContent = stage1Data.furniture_type || '不明';
+        if (furnitureType) {
+          furnitureType.textContent = stage1Data.furniture_type || '不明';
+        }
         
         // 寸法を更新
         const furnitureDimensions = document.getElementById('furnitureDimensions');
-        if (stage1Data.dimensions) {
+        if (furnitureDimensions && stage1Data.dimensions) {
           const { width, depth, height } = stage1Data.dimensions;
           furnitureDimensions.textContent = `${width}×${depth}×${height}cm`;
-        } else {
-          furnitureDimensions.textContent = '情報なし';
         }
         
         // 3D構造詳細を更新
         this.updateStructureDetails(stage1Data.structural_analysis);
         
         // 家具説明セクションを表示
-        furnitureDescription.style.display = 'block';
-        
-        this.assistant.log('debug', '家具説明を更新しました', {
-          furnitureType: stage1Data.furniture_type,
-          dimensions: stage1Data.dimensions,
-          hasStructuralAnalysis: !!stage1Data.structural_analysis
-        });
-      } else {
-        // データがない場合は非表示
+        if (furnitureDescription) {
+          furnitureDescription.style.display = 'block';
+        }
+      } else if (furnitureDescription) {
         furnitureDescription.style.display = 'none';
-        this.assistant.log('debug', '第1段階データがないため家具説明を非表示にしました');
       }
     }
 
@@ -549,9 +945,7 @@ class SceneManager {
       const specialFeatures = document.getElementById('specialFeatures');
       const specialFeaturesList = document.getElementById('specialFeaturesList');
       
-      if (!structuralAnalysis) {
-        mainComponentsList.textContent = '構造分析データがありません';
-        specialFeatures.style.display = 'none';
+      if (!structuralAnalysis || !mainComponentsList) {
         return;
       }
       
@@ -562,29 +956,32 @@ class SceneManager {
         });
         mainComponentsList.innerHTML = componentTexts.join('<br>');
       } else {
-        mainComponentsList.textContent = '主要部品情報なし';
+        mainComponentsList.textContent = '部品情報を解析中...';
       }
       
       // 特殊形状の表示
-      const specialShapes = [];
-      
-      if (structuralAnalysis.curved_parts && structuralAnalysis.curved_parts.length > 0) {
-        specialShapes.push(`<strong>曲線部分:</strong> ${structuralAnalysis.curved_parts.join(', ')}`);
-      }
-      
-      if (structuralAnalysis.tapered_parts && structuralAnalysis.tapered_parts.length > 0) {
-        specialShapes.push(`<strong>テーパー部分:</strong> ${structuralAnalysis.tapered_parts.join(', ')}`);
-      }
-      
-      if (structuralAnalysis.beveled_edges && structuralAnalysis.beveled_edges.length > 0) {
-        specialShapes.push(`<strong>面取り部分:</strong> ${structuralAnalysis.beveled_edges.join(', ')}`);
-      }
-      
-      if (specialShapes.length > 0) {
-        specialFeaturesList.innerHTML = specialShapes.join('<br>');
-        specialFeatures.style.display = 'block';
-      } else {
-        specialFeatures.style.display = 'none';
+      if (specialFeatures && specialFeaturesList) {
+        const features = structuralAnalysis.design_features || {};
+        const specialShapes = [];
+        
+        if (features.curved_parts && features.curved_parts.length > 0) {
+          specialShapes.push(`<strong>曲線部分:</strong> ${features.curved_parts.join(', ')}`);
+        }
+        
+        if (features.tapered_parts && features.tapered_parts.length > 0) {
+          specialShapes.push(`<strong>テーパー部分:</strong> ${features.tapered_parts.join(', ')}`);
+        }
+        
+        if (features.beveled_edges && features.beveled_edges.length > 0) {
+          specialShapes.push(`<strong>面取り部分:</strong> ${features.beveled_edges.join(', ')}`);
+        }
+        
+        if (specialShapes.length > 0) {
+          specialFeaturesList.innerHTML = specialShapes.join('<br>');
+          specialFeatures.style.display = 'block';
+        } else {
+          specialFeatures.style.display = 'none';
+        }
       }
     }
   
@@ -593,7 +990,9 @@ class SceneManager {
       let vertexCount = 0;
       object.traverse((child) => {
         if (child.isMesh && child.geometry) {
-          vertexCount += child.geometry.attributes.position.count;
+          if (child.geometry.attributes.position) {
+            vertexCount += child.geometry.attributes.position.count;
+          }
         }
       });
       return vertexCount;
@@ -603,64 +1002,56 @@ class SceneManager {
       let faceCount = 0;
       object.traverse((child) => {
         if (child.isMesh && child.geometry) {
-          faceCount += child.geometry.index ? 
-            child.geometry.index.count / 3 : 
-            child.geometry.attributes.position.count / 3;
+          if (child.geometry.index) {
+            faceCount += child.geometry.index.count / 3;
+          } else if (child.geometry.attributes.position) {
+            faceCount += child.geometry.attributes.position.count / 3;
+          }
         }
       });
-      return faceCount;
-    }
-  
-    // ========== カメラ調整 ==========
-    fitCameraToModel(box) {
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const distance = maxDim * 2;
-      
-      this.camera.position.set(distance, distance, distance);
-      this.camera.lookAt(0, size.y / 2, 0);
-      this.controls.target.set(0, size.y / 2, 0);
-      this.controls.update();
+      return Math.floor(faceCount);
     }
   
     // ========== キャンバス管理 ==========
     resetCanvas() {
       if (this.currentModel) {
         this.scene.remove(this.currentModel);
+        
+        // リソースの解放
+        this.currentModel.traverse((child) => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => m.dispose());
+            } else {
+              child.material.dispose();
+            }
+          }
+        });
+        
         this.currentModel = null;
       }
       
       this.showCanvasOverlay();
-      document.getElementById('modelInfo').style.display = 'none';
       
-      // 家具説明セクションを非表示
+      const modelInfo = document.getElementById('modelInfo');
+      if (modelInfo) modelInfo.style.display = 'none';
+      
       const furnitureDescription = document.getElementById('furnitureDescription');
-      if (furnitureDescription) {
-        furnitureDescription.style.display = 'none';
-      }
+      if (furnitureDescription) furnitureDescription.style.display = 'none';
       
-      // ボタングループを非表示
-      document.getElementById('downloadButtonGroup').style.display = 'none';
+      const downloadButtonGroup = document.getElementById('downloadButtonGroup');
+      if (downloadButtonGroup) downloadButtonGroup.style.display = 'none';
       
-      // 品質チェック結果や仕様情報も非表示
-      const qualityResults = document.getElementById('qualityResults');
-      if (qualityResults) {
-        qualityResults.style.display = 'none';
-      }
-      const optimizedSpecDisplay = document.getElementById('optimizedSpecDisplay');
-      if (optimizedSpecDisplay) {
-        optimizedSpecDisplay.style.display = 'none';
-      }
-      
-      // ボタンを無効化
-      document.getElementById('downloadObjBtn').disabled = true;
-      
-
+      const downloadObjBtn = document.getElementById('downloadObjBtn');
+      if (downloadObjBtn) downloadObjBtn.disabled = true;
       
       // カメラをリセット
       if (this.camera && this.controls) {
-        this.camera.position.set(5, 5, 5);
+        this.camera.position.set(15, 12, 15); // 修正された初期位置
         this.controls.target.set(0, 0, 0);
+        this.controls.minDistance = 2;
+        this.controls.maxDistance = 200;
         this.controls.update();
       }
     }
@@ -670,6 +1061,23 @@ class SceneManager {
       if (overlay) {
         overlay.style.display = 'flex';
       }
+      
+      // 3D操作ヒントを非表示
+      const hints = document.getElementById('threeDHints');
+      if (hints) {
+        hints.style.display = 'none';
+      }
+      
+      // 中心操作UIを非表示
+      const centerBtn = document.getElementById('openCenterControlBtn');
+      if (centerBtn) {
+        centerBtn.style.display = 'none';
+      }
+      
+      const centerPanel = document.getElementById('centerControlPanel');
+      if (centerPanel) {
+        centerPanel.style.display = 'none';
+      }
     }
     
     hideCanvasOverlay() {
@@ -677,158 +1085,29 @@ class SceneManager {
       if (overlay) {
         overlay.style.display = 'none';
       }
-    }
-  
-    // ========== OBJLoader待機と読み込み ==========
-    async waitForOBJLoaderAndLoad(objData) {
-      this.assistant.log('debug', 'OBJLoader待機開始');
       
-      return new Promise((resolve, reject) => {
-        let attempts = 0;
-        const maxAttempts = 20; // 10秒間（500ms × 20回）
-        
-        const checkOBJLoader = () => {
-          attempts++;
-          
-          if (typeof THREE.OBJLoader !== 'undefined') {
-            this.assistant.log('info', 'OBJLoader利用可能になりました', { attempts });
-            this.loadOBJModelDirect(objData).then(resolve).catch(reject);
-            return;
-          }
-          
-          if (window.OBJLoaderFailed) {
-            this.assistant.log('error', 'OBJLoader読み込み失敗フラグ検出');
-            reject(new Error('OBJLoaderライブラリの読み込みに失敗しました'));
-            return;
-          }
-          
-          if (attempts >= maxAttempts) {
-            this.assistant.log('error', 'OBJLoader待機タイムアウト', { attempts });
-            // 最後の試行として動的読み込み
-            this.retryOBJLoader(objData).then(resolve).catch(reject);
-            return;
-          }
-          
-          this.assistant.log('debug', 'OBJLoader待機中...', { attempts, maxAttempts });
-          setTimeout(checkOBJLoader, 500);
-        };
-        
-        checkOBJLoader();
-      });
-    }
-
-    // ========== OBJLoader再試行 ==========
-    async retryOBJLoader(objData) {
-      this.assistant.log('debug', 'OBJLoader最終再試行開始');
-      
-      return new Promise((resolve, reject) => {
-        // より確実なCDNから読み込み
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/examples/js/loaders/OBJLoader.js';
-        
-        script.onload = () => {
-          this.assistant.log('info', 'OBJLoader最終動的読み込み成功');
-          
-          // 少し待ってからチェック
-          setTimeout(() => {
-            if (typeof THREE.OBJLoader !== 'undefined') {
-              this.loadOBJModelDirect(objData).then(resolve).catch(reject);
-            } else {
-              this.assistant.log('error', 'OBJLoader最終読み込み後も利用できません');
-              reject(new Error('OBJLoaderライブラリの読み込みに失敗しました'));
-            }
-          }, 100);
-        };
-        
-        script.onerror = () => {
-          this.assistant.log('error', 'OBJLoader最終動的読み込み失敗');
-          reject(new Error('OBJLoaderライブラリの動的読み込みに失敗しました'));
-        };
-        
-        document.head.appendChild(script);
-        
-        // タイムアウト設定
-        setTimeout(() => {
-          reject(new Error('OBJLoader読み込みタイムアウト'));
-        }, 5000);
-      });
-    }
-
-    // ========== OBJモデル直接読み込み ==========
-    async loadOBJModelDirect(objData) {
-      this.assistant.log('debug', 'OBJモデル直接読み込み開始');
-      
-      // OBJデータの基本検証とクリーニング
-      objData = this.validateAndCleanOBJData(objData);
-      if (!objData) {
-        throw new Error('OBJデータの検証に失敗しました');
+      // 3D操作ヒントを表示
+      const hints = document.getElementById('threeDHints');
+      if (hints) {
+        hints.style.display = 'block';
       }
       
-      // 既存モデルを削除
-      if (this.currentModel) {
-        this.scene.remove(this.currentModel);
-        this.currentModel = null;
+      // 中心操作ボタンを表示
+      const centerBtn = document.getElementById('openCenterControlBtn');
+      if (centerBtn) {
+        centerBtn.style.display = 'flex';
       }
-
-      const loader = new THREE.OBJLoader();
       
-      try {
-        this.assistant.log('debug', 'OBJLoader.parse実行開始');
-        const object = loader.parse(objData);
-        this.assistant.log('debug', 'OBJLoader.parse実行完了', { hasObject: !!object });
-        
-        // NaN値の修正
-        this.fixNaNValuesInObject(object);
-        
-        // パーツベースマテリアル設定
-        this.applyPartBasedMaterials(object, objData);
-
-        // モデルを中央に配置
-        const box = new THREE.Box3().setFromObject(object);
-        const center = box.getCenter(new THREE.Vector3());
-        object.position.sub(center);
-        object.position.y = box.min.y * -1;
-
-        this.scene.add(object);
-        this.currentModel = object;
-
-        // モデル情報を更新
-        this.updateModelInfo(object, objData);
-        
-        // カメラ位置を調整
-        this.fitCameraToModel(box);
-
-        // オーバーレイを非表示
-        this.hideCanvasOverlay();
-        
-        // プレースホルダーオーバーレイも非表示
-        const overlay = document.getElementById('canvasOverlay');
-        if (overlay) {
-          overlay.style.display = 'none';
-        }
-        
-        this.assistant.log('info', 'OBJモデル読み込み成功', { 
-          vertexCount: this.getModelVertexCount(object),
-          faceCount: this.getModelFaceCount(object)
-        });
-        
-        return object;
-        
-      } catch (error) {
-        this.assistant.log('error', 'OBJモデル直接読み込みエラー', { 
-          error: error.message, 
-          stack: error.stack,
-          objDataPreview: objData.substring(0, 200) + '...'
-        });
-        
-        throw error;
-      }
+      // UIイベントリスナーを設定
+      this.setupUIEventListeners();
     }
 
-    // ========== OBJデータ検証とクリーニング ==========
+    // ========== OBJデータ検証とクリーニング（改善版） ==========
     validateAndCleanOBJData(objData) {
       try {
-        this.assistant.log('debug', 'OBJデータ検証開始');
+        this.assistant.log('debug', 'OBJデータ検証開始', {
+          originalLength: objData.length
+        });
         
         if (!objData || typeof objData !== 'string') {
           this.assistant.log('error', 'OBJデータが文字列ではありません', { type: typeof objData });
@@ -837,125 +1116,110 @@ class SceneManager {
         
         const lines = objData.split('\n');
         const cleanedLines = [];
-        let vertexCount = 0;
-        let faceCount = 0;
-        let invalidVertexCount = 0;
-        let invalidFaceCount = 0;
+        const vertices = [];
+        const faces = [];
+        let currentGroup = 'default';
+        let vertexOffset = 0;
+        const vertexMap = new Map(); // 元のインデックスから新しいインデックスへのマッピング
         
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim();
           
-          if (line.startsWith('#') || line === '') {
-            // コメント行と空行はそのまま保持
+          if (line === '' || line.startsWith('#')) {
             cleanedLines.push(line);
-          } else if (line.startsWith('v ')) {
-            // 頂点データの検証
+            continue;
+          }
+          
+          if (line.startsWith('v ')) {
+            // 頂点データの検証と正規化
             const parts = line.split(/\s+/);
             if (parts.length >= 4) {
-              const x = parseFloat(parts[1]);
-              const y = parseFloat(parts[2]);
-              const z = parseFloat(parts[3]);
+              const coords = parts.slice(1, 4).map(Number);
               
-              // より厳密なNaN値と有効性チェック
-              const isValidX = !isNaN(x) && isFinite(x) && Math.abs(x) < 10000;
-              const isValidY = !isNaN(y) && isFinite(y) && Math.abs(y) < 10000;
-              const isValidZ = !isNaN(z) && isFinite(z) && Math.abs(z) < 10000;
+              // NaN値と無限大のチェック
+              const isValid = coords.every(c => !isNaN(c) && isFinite(c) && Math.abs(c) < 10000);
               
-              if (isValidX && isValidY && isValidZ) {
-                // 小数点以下6桁に制限して精度を統一
-                const cleanX = parseFloat(x.toFixed(6));
-                const cleanY = parseFloat(y.toFixed(6));
-                const cleanZ = parseFloat(z.toFixed(6));
-                
-                // 再度NaNチェック（toFixedでもNaNが残る可能性）
-                if (!isNaN(cleanX) && !isNaN(cleanY) && !isNaN(cleanZ)) {
-                  cleanedLines.push(`v ${cleanX} ${cleanY} ${cleanZ}`);
-                  vertexCount++;
-                } else {
-                  this.assistant.log('warn', `座標クリーニング後もNaN値が残存（行${i+1}）`, { 
-                    original: { x, y, z },
-                    cleaned: { cleanX, cleanY, cleanZ }
-                  });
-                  invalidVertexCount++;
-                  cleanedLines.push(`v 0.0 0.0 0.0`);
-                }
+              if (isValid) {
+                // 小数点以下を適切に丸める
+                const cleanedCoords = coords.map(c => parseFloat(c.toFixed(6)));
+                vertices.push(cleanedCoords);
+                vertexMap.set(vertices.length + vertexOffset, vertices.length);
+                cleanedLines.push(`v ${cleanedCoords.join(' ')}`);
               } else {
-                invalidVertexCount++;
-                this.assistant.log('warn', `無効な頂点データを除去（行${i+1}）`, { 
-                  line: line,
-                  originalValues: { x, y, z },
-                  validityCheck: { isValidX, isValidY, isValidZ },
-                  isNaN: { x: isNaN(x), y: isNaN(y), z: isNaN(z) },
-                  isFinite: { x: isFinite(x), y: isFinite(y), z: isFinite(z) }
+                this.assistant.log('warn', `無効な頂点を修正（行${i+1}）`, { 
+                  original: line,
+                  coords: coords
                 });
-                // 無効な頂点は原点に置き換え
-                cleanedLines.push(`v 0.0 0.0 0.0`);
+                vertices.push([0, 0, 0]);
+                vertexMap.set(vertices.length + vertexOffset, vertices.length);
+                cleanedLines.push('v 0 0 0');
               }
-            } else {
-              this.assistant.log('warn', `不正な頂点行形式（行${i+1}）`, { line: line });
-              invalidVertexCount++;
-              cleanedLines.push(`v 0.0 0.0 0.0`);
+            }
+          } else if (line.startsWith('vn ')) {
+            // 法線ベクトルの検証
+            const parts = line.split(/\s+/);
+            if (parts.length >= 4) {
+              const coords = parts.slice(1, 4).map(Number);
+              if (coords.every(c => !isNaN(c) && isFinite(c))) {
+                // 正規化
+                const length = Math.sqrt(coords[0]**2 + coords[1]**2 + coords[2]**2);
+                if (length > 0) {
+                  const normalized = coords.map(c => (c / length).toFixed(6));
+                  cleanedLines.push(`vn ${normalized.join(' ')}`);
+                }
+              }
             }
           } else if (line.startsWith('f ')) {
-            // 面データの検証
-            const parts = line.split(/\s+/);
-            if (parts.length >= 4) {
-              const indices = [];
-              let validFace = true;
-              
-              for (let j = 1; j < parts.length; j++) {
-                const indexPart = parts[j].split('/')[0]; // 頂点インデックスのみ取得
-                const index = parseInt(indexPart);
-                if (isNaN(index) || index <= 0) {
-                  validFace = false;
-                  break;
-                }
-                indices.push(index);
+            // 面データの検証と修正
+            const parts = line.substring(2).split(/\s+/);
+            const validIndices = [];
+            
+            for (const part of parts) {
+              const index = parseInt(part.split('/')[0]);
+              if (!isNaN(index) && index > 0 && index <= vertices.length + vertexOffset) {
+                const mappedIndex = vertexMap.get(index) || index;
+                validIndices.push(mappedIndex);
               }
-              
-              if (validFace && indices.length >= 3) {
-                cleanedLines.push(line);
-                faceCount++;
-              } else {
-                this.assistant.log('warn', `無効な面データを除去（行${i+1}）`, { line: line });
-                invalidFaceCount++;
-              }
-            } else {
-              this.assistant.log('warn', `不正な面行形式（行${i+1}）`, { line: line });
-              invalidFaceCount++;
             }
-          } else if (line.startsWith('vn ') || line.startsWith('vt ') || 
-                     line.startsWith('o ') || line.startsWith('g ') ||
-                     line.startsWith('s ') || line.startsWith('mtllib ') ||
-                     line.startsWith('usemtl ')) {
-            // その他の有効なOBJ要素はそのまま保持
+            
+            if (validIndices.length >= 3) {
+              // 重複頂点を除去
+              const uniqueIndices = [...new Set(validIndices)];
+              if (uniqueIndices.length >= 3) {
+                faces.push(uniqueIndices);
+                cleanedLines.push(`f ${uniqueIndices.join(' ')}`);
+              }
+            }
+          } else if (line.startsWith('g ')) {
+            currentGroup = line.substring(2).trim();
             cleanedLines.push(line);
-          } else if (line.trim().length > 0) {
-            // 未知の行は警告してコメント化
-            this.assistant.log('debug', `未知のOBJ行をコメント化（行${i+1}）`, { line: line });
-            cleanedLines.push(`# ${line}`);
+          } else if (line.startsWith('o ') || line.startsWith('s ') || 
+                     line.startsWith('mtllib ') || line.startsWith('usemtl ') ||
+                     line.startsWith('vt ')) {
+            cleanedLines.push(line);
           }
         }
         
         const cleanedObjData = cleanedLines.join('\n');
         
-        this.assistant.log('info', 'OBJデータ検証・クリーニング完了', {
-          totalLines: lines.length,
-          validVertices: vertexCount,
-          validFaces: faceCount,
-          invalidVertices: invalidVertexCount,
-          invalidFaces: invalidFaceCount,
-          cleanedSize: cleanedObjData.length
-        });
-        
-        // 最低限の頂点と面が必要
-        if (vertexCount < 3 || faceCount < 1) {
-          this.assistant.log('error', 'OBJデータに十分な頂点・面データがありません', {
-            vertexCount: vertexCount,
-            faceCount: faceCount
-          });
+        // 品質チェック
+        if (vertices.length < 4) {
+          this.assistant.log('error', '頂点数が不足しています', { vertexCount: vertices.length });
           return null;
         }
+        
+        if (faces.length < 1) {
+          this.assistant.log('error', '面が定義されていません', { faceCount: faces.length });
+          return null;
+        }
+        
+        this.assistant.log('info', 'OBJデータ検証・クリーニング完了', {
+          originalLines: lines.length,
+          cleanedLines: cleanedLines.length,
+          vertexCount: vertices.length,
+          faceCount: faces.length,
+          removedLines: lines.length - cleanedLines.length
+        });
         
         return cleanedObjData;
         
@@ -968,65 +1232,84 @@ class SceneManager {
       }
     }
 
-    // ========== フォールバック表示 ==========
-    showFallbackMessage() {
+    // ========== フォールバック表示（改善版） ==========
+    showFallbackMessage(reason = '') {
       const container = document.getElementById('threeContainer');
       if (container) {
+        const iconClass = reason.includes('エラー') ? 'fa-exclamation-triangle' : 'fa-cube';
+        const iconColor = reason.includes('エラー') ? '#ff5252' : '#ff9800';
+        
         container.innerHTML = `
           <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666; flex-direction: column; padding: 2rem;">
-            <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #ff9800; margin-bottom: 1rem;"></i>
-            <p style="text-align: center; margin: 0;">3Dプレビューライブラリの読み込みに失敗しました</p>
-            <p style="text-align: center; margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #999;">ページを再読み込みしてください</p>
+            <i class="fas ${iconClass}" style="font-size: 48px; color: ${iconColor}; margin-bottom: 1rem;"></i>
+            <p style="text-align: center; margin: 0; font-weight: 500;">3Dプレビューを初期化できません</p>
+            <p style="text-align: center; margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #999;">${reason || 'ページを再読み込みしてください'}</p>
+            <button onclick="location.reload()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              <i class="fas fa-sync"></i> 再読み込み
+            </button>
           </div>
         `;
       }
     }
 
-    // ========== NaN値修正 ==========
+    // ========== NaN値修正（改善版） ==========
     fixNaNValuesInObject(object) {
-      let fixedVertices = 0;
+      let fixedCount = 0;
       let totalVertices = 0;
       
       object.traverse((child) => {
-        if (child.isMesh && child.geometry && child.geometry.attributes.position) {
-          const positions = child.geometry.attributes.position.array;
-          totalVertices += positions.length / 3;
+        if (child.isMesh && child.geometry) {
+          const geometry = child.geometry;
           
-          for (let i = 0; i < positions.length; i++) {
-            if (isNaN(positions[i]) || !isFinite(positions[i])) {
-              positions[i] = 0.0; // NaN値を0に置き換え
-              fixedVertices++;
-            }
-          }
-          
-          // 位置属性を更新
-          child.geometry.attributes.position.needsUpdate = true;
-          
-          // 法線属性も修正
-          if (child.geometry.attributes.normal) {
-            const normals = child.geometry.attributes.normal.array;
-            for (let i = 0; i < normals.length; i++) {
-              if (isNaN(normals[i]) || !isFinite(normals[i])) {
-                normals[i] = 0.0;
+          // 位置属性の修正
+          if (geometry.attributes.position) {
+            const positions = geometry.attributes.position.array;
+            totalVertices += positions.length / 3;
+            
+            for (let i = 0; i < positions.length; i++) {
+              if (isNaN(positions[i]) || !isFinite(positions[i])) {
+                positions[i] = 0;
+                fixedCount++;
               }
             }
-            child.geometry.attributes.normal.needsUpdate = true;
+            geometry.attributes.position.needsUpdate = true;
           }
           
-          // バウンディングボックスを再計算
-          child.geometry.computeBoundingBox();
-          child.geometry.computeBoundingSphere();
+          // 法線属性の修正
+          if (geometry.attributes.normal) {
+            const normals = geometry.attributes.normal.array;
+            for (let i = 0; i < normals.length; i += 3) {
+              const x = normals[i];
+              const y = normals[i + 1];
+              const z = normals[i + 2];
+              
+              if (isNaN(x) || isNaN(y) || isNaN(z) || !isFinite(x) || !isFinite(y) || !isFinite(z)) {
+                // デフォルトの上向き法線
+                normals[i] = 0;
+                normals[i + 1] = 1;
+                normals[i + 2] = 0;
+              }
+            }
+            geometry.attributes.normal.needsUpdate = true;
+          }
+          
+          // ジオメトリの再計算
+          geometry.computeBoundingBox();
+          geometry.computeBoundingSphere();
+          
+          // 法線が存在しない場合は計算
+          if (!geometry.attributes.normal) {
+            geometry.computeVertexNormals();
+          }
         }
       });
       
-      if (fixedVertices > 0) {
+      if (fixedCount > 0) {
         this.assistant.log('warn', 'NaN値を修正しました', { 
-          fixedVertices: fixedVertices,
+          fixedCount: fixedCount,
           totalVertices: totalVertices,
-          fixedPercentage: ((fixedVertices / totalVertices) * 100).toFixed(2) + '%'
+          percentage: ((fixedCount / (totalVertices * 3)) * 100).toFixed(2) + '%'
         });
-      } else {
-        this.assistant.log('debug', 'NaN値は検出されませんでした', { totalVertices: totalVertices });
       }
     }
 
@@ -1046,8 +1329,13 @@ class SceneManager {
         normal[0] /= length;
         normal[1] /= length;
         normal[2] /= length;
+      } else {
+        // ゼロベクトルの場合はデフォルト法線
+        normal[0] = 0;
+        normal[1] = 1;
+        normal[2] = 0;
       }
       
       return normal;
     }
-  }
+}

@@ -3,27 +3,132 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DIYアシスタント｜3D家具設計ツール</title>
+  <meta name="description" content="AIを活用した3D家具設計ツール。自然言語で家具の要求を入力すると、3Dモデルを自動生成します。">
+  <title>DIYアシスタント｜AI 3D家具設計ツール</title>
   
-  <!-- Three.js CDN -->
-  <script src="https://unpkg.com/three@0.143.0/build/three.min.js"></script>
-  <script src="https://unpkg.com/three@0.143.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://unpkg.com/three@0.143.0/examples/js/loaders/OBJLoader.js"></script>
+  <!-- Three.js ES Modules対応（確実な読み込み） -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+      }
+    }
+  </script>
+  
+  <!-- Three.js読み込み＆初期化スクリプト -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    
+    // グローバルオブジェクトに追加（互換性のため）
+    window.THREE = THREE;
+    
+    // Three.jsが拡張不可能な場合の対処
+    try {
+      THREE.OBJLoader = OBJLoader;
+      THREE.OrbitControls = OrbitControls;
+    } catch (error) {
+      console.warn('Three.jsオブジェクトに直接プロパティを追加できません。代替方法を使用します。');
+      // 代替方法：独立したオブジェクトとして追加
+      window.OBJLoader = OBJLoader;
+      window.OrbitControls = OrbitControls;
+      
+      // また、THREE.OBJLoaderの存在をチェックするコードのために、
+      // アクセサーを追加して互換性を保つ
+      Object.defineProperty(window, 'THREE', {
+        value: new Proxy(THREE, {
+          get(target, prop) {
+            if (prop === 'OBJLoader') return OBJLoader;
+            if (prop === 'OrbitControls') return OrbitControls;
+            return target[prop];
+          }
+        }),
+        writable: false,
+        configurable: false
+      });
+    }
+    
+    console.log('✅ Three.js ES Modules loaded successfully:', {
+      version: THREE.REVISION,
+      OBJLoader: !!OBJLoader,
+      OrbitControls: !!OrbitControls,
+      threeType: typeof THREE,
+      objLoaderType: typeof (THREE.OBJLoader || window.OBJLoader),
+      orbitControlsType: typeof (THREE.OrbitControls || window.OrbitControls)
+    });
+    
+    // アプリケーション初期化イベントを発火
+    window.dispatchEvent(new CustomEvent('threejs-ready'));
+  </script>
+  
+  <!-- フォールバック用のクラシック読み込み（ES Modules非対応ブラウザ用） -->
+  <script nomodule>
+    console.warn('ES Modules非対応ブラウザのためフォールバックを実行');
+    
+    // フォールバック用の確実なCDN
+    const scripts = [
+      'https://cdnjs.cloudflare.com/ajax/libs/three.js/158/three.min.js',
+      'https://cdn.skypack.dev/three@0.158.0/examples/js/loaders/OBJLoader.js',
+      'https://cdn.skypack.dev/three@0.158.0/examples/js/controls/OrbitControls.js'
+    ];
+    
+    let loadedCount = 0;
+    scripts.forEach((src, index) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = () => {
+        loadedCount++;
+        console.log(`✅ Fallback script ${index + 1} loaded`);
+        if (loadedCount === scripts.length) {
+          console.log('✅ All fallback scripts loaded');
+          window.dispatchEvent(new CustomEvent('threejs-ready'));
+        }
+      };
+      script.onerror = () => console.error(`❌ Fallback script ${index + 1} failed`);
+      document.head.appendChild(script);
+    });
+  </script>
   
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   
   <style>
     :root {
-      --primary: #4CAF50;
-      --secondary: #8BC34A;
-      --accent: #FFC107;
-      --danger: #F44336;
-      --text-primary: #333;
-      --text-secondary: #666;
-      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --primary: #2196f3;
+      --primary-dark: #1976d2;
+      --primary-light: #42a5f5;
+      --secondary: #4caf50;
+      --secondary-dark: #388e3c;
+      --accent: #ff9800;
+      --danger: #f44336;
+      --warning: #ff9800;
+      --info: #2196f3;
+      --success: #4caf50;
+      --text-primary: #212121;
+      --text-secondary: #757575;
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f5f5;
+      --bg-tertiary: #e0e0e0;
+      --border-color: #e0e0e0;
+      --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.15);
       --transition-speed: 0.3s;
       --border-radius: 8px;
+      --border-radius-sm: 4px;
+      --spacing-xs: 0.25rem;
+      --spacing-sm: 0.5rem;
+      --spacing-md: 1rem;
+      --spacing-lg: 1.5rem;
+      --spacing-xl: 2rem;
+    }
+    
+    /* ダークモード対応（将来実装用） */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        /* ダークモードカラー定義 */
+      }
     }
     
     * {
@@ -31,214 +136,384 @@
     }
     
     body { 
-      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 
+                   'Hiragino Sans', 'メイリオ', Meiryo, sans-serif;
       margin: 0;
       padding: 0;
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       min-height: 100vh;
       color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    /* スクロールバーカスタマイズ */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: var(--bg-tertiary);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: var(--primary);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary-dark);
     }
     
     .container {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 2rem;
+      padding: var(--spacing-xl);
     }
     
+    /* ヘッダー改善 */
     .header {
       text-align: center;
-      margin-bottom: 2rem;
+      margin-bottom: var(--spacing-xl);
+      animation: fadeInDown 0.6s ease-out;
+    }
+    
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
     
     h1 {
       color: var(--primary);
-      margin-bottom: 0.5rem;
+      margin-bottom: var(--spacing-sm);
       font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
     }
     
     .description {
       color: var(--text-secondary);
-      font-size: 1rem;
+      font-size: 1.1rem;
+      margin-bottom: var(--spacing-md);
     }
     
+    /* バッジ追加 */
+    .beta-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--border-radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-left: var(--spacing-sm);
+      vertical-align: middle;
+    }
+    
+    /* ワークフローステップ改善 */
     .workflow-steps {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-xl);
     }
     
     .step-card {
-      background: white;
-      padding: 1.5rem;
+      background: var(--bg-primary);
+      padding: var(--spacing-lg);
       border-radius: var(--border-radius);
       box-shadow: var(--card-shadow);
       text-align: center;
+      transition: all var(--transition-speed);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .step-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--primary);
+      transform: scaleX(0);
       transition: transform var(--transition-speed);
     }
     
     .step-card:hover {
-      transform: translateY(-2px);
+      transform: translateY(-4px);
+      box-shadow: var(--card-shadow-hover);
+    }
+    
+    .step-card:hover::before {
+      transform: scaleX(1);
     }
     
     .step-number {
       background: var(--primary);
       color: white;
-      width: 40px;
-      height: 40px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 1rem;
+      margin: 0 auto var(--spacing-md);
       font-weight: bold;
-      font-size: 1.2rem;
+      font-size: 1.3rem;
+      box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
     }
     
     .step-title {
-      font-weight: bold;
-      margin-bottom: 0.5rem;
-      color: var(--primary);
+      font-weight: 600;
+      margin-bottom: var(--spacing-sm);
+      color: var(--text-primary);
+      font-size: 1.1rem;
     }
     
+    .step-description {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+    
+    /* メインコンテンツグリッド改善 */
     .main-content {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-      margin-bottom: 2rem;
+      gap: var(--spacing-xl);
+      margin-bottom: var(--spacing-xl);
     }
     
     .input-section, .preview-section {
-      background: white;
-      padding: 2rem;
+      background: var(--bg-primary);
       border-radius: var(--border-radius);
       box-shadow: var(--card-shadow);
+      overflow: hidden;
+    }
+    
+    .section-header {
+      background: var(--bg-secondary);
+      padding: var(--spacing-lg);
+      border-bottom: 1px solid var(--border-color);
     }
     
     .section-title {
-      color: var(--primary);
-      margin-bottom: 1rem;
-      font-size: 1.5rem;
-      border-bottom: 2px solid var(--primary);
-      padding-bottom: 0.5rem;
+      color: var(--text-primary);
+      margin: 0;
+      font-size: 1.3rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
     }
     
-    .input-form {
-      margin-bottom: 2rem;
+    .section-content {
+      padding: var(--spacing-lg);
     }
     
+    /* フォーム改善 */
     .form-group {
-      margin-bottom: 1.5rem;
+      margin-bottom: var(--spacing-lg);
     }
     
     .form-group label {
       display: block;
-      margin-bottom: 0.5rem;
-      font-weight: bold;
+      margin-bottom: var(--spacing-sm);
+      font-weight: 600;
       color: var(--text-primary);
+      font-size: 0.95rem;
+    }
+    
+    .form-helper {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: var(--spacing-xs);
     }
     
     .input-area {
       width: 100%;
       min-height: 150px;
-      padding: 1rem;
-      border: 2px solid #e0e0e0;
-      border-radius: var(--border-radius);
+      padding: var(--spacing-md);
+      border: 2px solid var(--border-color);
+      border-radius: var(--border-radius-sm);
       resize: vertical;
       font-size: 1rem;
       font-family: inherit;
-      transition: border-color var(--transition-speed);
+      transition: all var(--transition-speed);
+      background: var(--bg-primary);
     }
     
     .input-area:focus {
       outline: none;
       border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
     }
     
+    .input-area:hover {
+      border-color: var(--primary-light);
+    }
+    
+    /* パラメータコントロール改善 */
     .parameter-controls {
-      background: #f8f9fa;
-      padding: 1rem;
-      border-radius: var(--border-radius);
-      margin-bottom: 1rem;
+      background: var(--bg-secondary);
+      padding: var(--spacing-md);
+      border-radius: var(--border-radius-sm);
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .parameter-controls h4 {
+      margin: 0 0 var(--spacing-md) 0;
+      color: var(--text-primary);
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
     }
     
     .parameter-row {
       display: flex;
       align-items: center;
-      margin-bottom: 0.5rem;
+      margin-bottom: var(--spacing-sm);
+      gap: var(--spacing-md);
     }
     
     .parameter-row label {
       flex: 1;
-      margin-right: 1rem;
+      margin: 0;
+      font-weight: normal;
+      color: var(--text-secondary);
     }
     
     .parameter-row input[type="number"] {
-      width: 80px;
-      padding: 0.5rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      width: 100px;
+      padding: var(--spacing-sm);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-sm);
+      font-size: 0.95rem;
+      transition: all var(--transition-speed);
     }
     
+    .parameter-row input[type="number"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+    
+    .parameter-unit {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    /* ボタンスタイル改善 */
     .button-group {
       display: flex;
-      gap: 1rem;
-      margin-bottom: 1rem;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+      flex-wrap: wrap;
     }
-    
-
     
     .button {
       display: inline-flex;
       align-items: center;
-      padding: 0.8rem 1.5rem;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-lg);
+      background: var(--primary);
       color: white;
       border: none;
-      border-radius: var(--border-radius);
+      border-radius: var(--border-radius-sm);
       cursor: pointer;
       font-size: 1rem;
+      font-weight: 500;
       transition: all var(--transition-speed);
-      box-shadow: var(--card-shadow);
       text-decoration: none;
+      white-space: nowrap;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .button::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+    
+    .button:hover::before {
+      width: 300px;
+      height: 300px;
     }
     
     .button:hover {
+      background: var(--primary-dark);
       transform: translateY(-2px);
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+    }
+    
+    .button:active {
+      transform: translateY(0);
     }
     
     .button.danger {
-      background: linear-gradient(135deg, var(--danger) 0%, #E91E63 100%);
+      background: var(--danger);
+    }
+    
+    .button.danger:hover {
+      background: #d32f2f;
+      box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
     }
     
     .button.secondary {
-      background: linear-gradient(135deg, var(--accent) 0%, #FF9800 100%);
+      background: var(--secondary);
+    }
+    
+    .button.secondary:hover {
+      background: var(--secondary-dark);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
     }
     
     .button:disabled {
       background: #ccc;
       cursor: not-allowed;
       transform: none;
+      opacity: 0.6;
     }
     
-    .button i {
-      margin-right: 0.5rem;
+    .button:disabled:hover {
+      background: #ccc;
+      transform: none;
+      box-shadow: none;
     }
     
+    /* 3Dプレビューコンテナ改善 */
     .canvas-container {
       position: relative;
       width: 100%;
-      height: 400px;
-      border: 2px solid #e0e0e0;
-      border-radius: var(--border-radius);
-      background: #f8f9fa;
+      height: 450px;
+      border: 2px solid var(--border-color);
+      border-radius: var(--border-radius-sm);
+      background: var(--bg-secondary);
       overflow: hidden;
     }
     
-    #three-canvas {
+    #threeContainer {
       width: 100%;
       height: 100%;
+      position: relative;
     }
     
     .canvas-overlay {
@@ -247,134 +522,298 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(248, 249, 250, 0.95);
+      background: rgba(245, 245, 245, 0.95);
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 8px;
       text-align: center;
-      color: #6c757d;
+      color: var(--text-secondary);
       z-index: 1;
+      backdrop-filter: blur(5px);
     }
     
     .overlay-content {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
+      gap: var(--spacing-md);
     }
     
     .overlay-content i {
-      color: #ccc;
+      font-size: 4rem;
+      color: #ddd;
     }
     
     .overlay-content p {
       margin: 0;
       font-weight: 500;
+      font-size: 1.1rem;
     }
     
     .overlay-content small {
       color: #999;
+      font-size: 0.9rem;
     }
     
+    /* 3D操作ヒント */
+    .three-d-hints {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-sm);
+      padding: var(--spacing-sm);
+      backdrop-filter: blur(5px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      z-index: 10;
+    }
+    
+    .hints-content {
+      display: flex;
+      gap: var(--spacing-md);
+      flex-wrap: wrap;
+    }
+    
+    .hint-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    
+    .hint-item i {
+      color: var(--primary);
+      font-size: 0.9rem;
+    }
+    
+    /* 中心点操作パネル */
+    .center-control-panel {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-sm);
+      backdrop-filter: blur(5px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      z-index: 10;
+      min-width: 200px;
+    }
+    
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--spacing-sm);
+      background: rgba(33, 150, 243, 0.1);
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--primary);
+    }
+    
+    .close-panel-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 0;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .close-panel-btn:hover {
+      color: var(--primary);
+    }
+    
+    .panel-content {
+      padding: var(--spacing-sm);
+    }
+    
+    .control-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-xs);
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .control-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-sm);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-sm);
+      background: white;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s ease;
+    }
+    
+    .control-btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--primary);
+    }
+    
+    .control-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    
+    .control-btn i {
+      font-size: 1rem;
+    }
+    
+    .keyboard-hints {
+      border-top: 1px solid var(--border-color);
+      padding-top: var(--spacing-sm);
+    }
+    
+    .hint-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-xs);
+      font-size: 0.75rem;
+    }
+    
+    .key-combo {
+      background: var(--bg-secondary);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    
+    /* ヘッダーコントロール */
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      margin-left: auto;
+    }
+    
+    .header-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-sm);
+      background: white;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+    }
+    
+    .header-btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    
+    .header-btn i {
+      font-size: 0.9rem;
+    }
+    
+    /* 色設定コントロール改善 */
     .color-controls {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: var(--spacing-sm);
     }
     
     .color-controls label {
       font-weight: normal;
       margin: 0;
-      color: #666;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
     }
     
     .color-controls select {
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-sm);
       background: white;
-      color: #333;
+      color: var(--text-primary);
       font-family: inherit;
+      font-size: 0.9rem;
+      cursor: pointer;
     }
     
     .color-controls select:focus {
       outline: none;
-      border-color: #007bff;
-      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
     }
     
-    /* 3Dコンテナのスタイル改善 */
-    #threeContainer {
-      width: 100%;
-      height: 400px;
-      background: #f8f9fa;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    /* カードヘッダーのスタイル調整 */
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 15px;
-      background: #f8f9fa;
-      border-bottom: 1px solid #dee2e6;
-      border-radius: calc(0.375rem - 1px) calc(0.375rem - 1px) 0 0;
-    }
-    
-    .card-header h3,
-    .card-header > span {
-      margin: 0;
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #495057;
-    }
-    
-    .card-header i {
-      margin-right: 8px;
-      color: #007bff;
-    }
-    
+    /* モデル情報表示改善 */
     .model-info {
-      background: #f0f8ff;
-      padding: 1rem;
+      background: var(--bg-secondary);
+      padding: var(--spacing-lg);
       border-radius: var(--border-radius);
-      margin-bottom: 1rem;
+      margin-bottom: var(--spacing-md);
       border-left: 4px solid var(--primary);
+    }
+    
+    .model-info h4 {
+      margin: 0 0 var(--spacing-md) 0;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
     }
     
     .model-stats {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-      margin: 1rem 0;
+      gap: var(--spacing-md);
+      margin: var(--spacing-md) 0;
     }
     
     .stat-item {
       text-align: center;
-      padding: 0.5rem;
+      padding: var(--spacing-sm);
       background: white;
-      border-radius: 4px;
+      border-radius: var(--border-radius-sm);
+      border: 1px solid var(--border-color);
     }
     
     .stat-value {
-      font-size: 1.2rem;
+      font-size: 1.3rem;
       font-weight: bold;
       color: var(--primary);
+      display: block;
     }
     
     .stat-label {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: var(--text-secondary);
+      margin-top: var(--spacing-xs);
     }
     
+    /* ローディング表示改善 */
     .loading {
       display: none;
       align-items: center;
-      margin: 1rem 0;
+      justify-content: center;
+      padding: var(--spacing-lg);
+      background: var(--info);
+      color: white;
+      border-radius: var(--border-radius-sm);
+      margin: var(--spacing-md) 0;
     }
     
     .loading.active {
@@ -382,13 +821,13 @@
     }
     
     .loading-spinner {
-      width: 20px;
-      height: 20px;
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid var(--primary);
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid white;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin-right: 10px;
+      margin-right: var(--spacing-md);
     }
     
     @keyframes spin {
@@ -397,212 +836,185 @@
     }
     
     .loading-text {
-      color: var(--primary);
+      font-weight: 500;
+    }
+    
+    .loading-progress {
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.3);
+      margin-top: var(--spacing-md);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    .loading-progress > div {
+      width: 0%;
+      height: 100%;
+      background: white;
+      transition: width 0.3s;
+    }
+    
+    /* メッセージ表示改善 */
+    .message {
+      padding: var(--spacing-md) var(--spacing-lg);
+      border-radius: var(--border-radius-sm);
+      margin: var(--spacing-md) 0;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
     }
     
     .error-message {
       background: #ffebee;
       color: #c62828;
-      padding: 1rem;
-      border-radius: var(--border-radius);
-      border-left: 4px solid #f44336;
-      margin: 1rem 0;
+      border-left: 4px solid var(--danger);
     }
     
     .success-message {
       background: #e8f5e8;
       color: #2e7d32;
-      padding: 1rem;
-      border-radius: var(--border-radius);
-      border-left: 4px solid #4caf50;
-      margin: 1rem 0;
+      border-left: 4px solid var(--success);
     }
     
+    /* プロジェクトリスト改善 */
     .project-list {
-      background: white;
-      padding: 2rem;
+      background: var(--bg-primary);
       border-radius: var(--border-radius);
       box-shadow: var(--card-shadow);
-      margin-bottom: 2rem;
+      margin-bottom: var(--spacing-xl);
+      overflow: hidden;
+    }
+    
+    .project-list .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     
     .project-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1rem;
-      border: 1px solid #e0e0e0;
-      border-radius: var(--border-radius);
-      margin-bottom: 1rem;
-      transition: background-color var(--transition-speed);
+      padding: var(--spacing-lg);
+      border-bottom: 1px solid var(--border-color);
+      transition: all var(--transition-speed);
+    }
+    
+    .project-item:last-child {
+      border-bottom: none;
     }
     
     .project-item:hover {
-      background-color: #f8f9fa;
+      background-color: var(--bg-secondary);
     }
     
     .project-item.project-highlighted {
       background-color: #e8f5e8;
-      border-color: var(--primary);
-      box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
-      transform: translateY(-1px);
+      border-left: 4px solid var(--success);
+      animation: highlight 0.5s ease-out;
+    }
+    
+    @keyframes highlight {
+      0% { background-color: #c8e6c9; }
+      100% { background-color: #e8f5e8; }
     }
     
     .project-info h4 {
-      margin: 0 0 0.5rem 0;
-      color: var(--primary);
+      margin: 0 0 var(--spacing-sm) 0;
+      color: var(--text-primary);
+      font-size: 1.1rem;
+    }
+    
+    .project-type-badge {
+      background: var(--primary);
+      color: white;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--border-radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-right: var(--spacing-sm);
+      display: inline-block;
     }
     
     .project-meta {
       font-size: 0.9rem;
       color: var(--text-secondary);
+      display: flex;
+      gap: var(--spacing-md);
+      align-items: center;
+    }
+    
+    .project-meta i {
+      color: var(--primary);
     }
     
     .project-actions {
       display: flex;
-      gap: 0.5rem;
+      gap: var(--spacing-sm);
     }
     
-    .quality-check-results {
-      background: #f8f9fa;
-      padding: 1.5rem;
-      border-radius: var(--border-radius);
-      margin-top: 1rem;
-      border-left: 4px solid var(--primary);
-    }
-    
-    .overall-score {
-      font-size: 1.2rem;
-      font-weight: bold;
-      text-align: center;
-      padding: 1rem;
-      border-radius: var(--border-radius);
-      margin-bottom: 1rem;
-    }
-    
-    .overall-score.excellent {
-      background: #e8f5e8;
-      color: #2e7d32;
-      border: 1px solid #4caf50;
-    }
-    
-    .overall-score.good {
-      background: #fff3e0;
-      color: #f57c00;
-      border: 1px solid #ff9800;
-    }
-    
-    .overall-score.fair {
-      background: #fff8e1;
-      color: #f9a825;
-      border: 1px solid #ffc107;
-    }
-    
-    .overall-score.poor {
-      background: #ffebee;
-      color: #c62828;
-      border: 1px solid #f44336;
-    }
-    
-    .evaluation-details {
-      display: grid;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-    
-    .eval-item {
-      display: grid;
-      grid-template-columns: 1fr 60px 2fr;
-      gap: 1rem;
-      align-items: center;
-      padding: 0.5rem;
-      background: white;
-      border-radius: 4px;
+    .project-actions .button {
+      padding: var(--spacing-xs) var(--spacing-md);
       font-size: 0.9rem;
     }
     
-    .eval-label {
-      font-weight: bold;
-      color: var(--text-primary);
-    }
-    
-    .eval-score {
-      text-align: center;
-      font-weight: bold;
-      color: var(--primary);
-    }
-    
-    .eval-comment {
-      color: var(--text-secondary);
-      font-size: 0.85rem;
-    }
-    
-    .issues-section, .recommendations-section {
-      margin-top: 1rem;
-      padding: 1rem;
-      border-radius: var(--border-radius);
-    }
-    
-    .issues-section {
-      background: #fff3e0;
-      border-left: 4px solid #ff9800;
-    }
-    
-    .recommendations-section {
-      background: #e3f2fd;
-      border-left: 4px solid #2196f3;
-    }
-    
-    .issues-section h5, .recommendations-section h5 {
-      margin: 0 0 0.5rem 0;
-      color: var(--text-primary);
-    }
-    
-    .issues-section ul, .recommendations-section ul {
-      margin: 0;
-      padding-left: 1.5rem;
-    }
-    
-    .issues-section li, .recommendations-section li {
-      margin-bottom: 0.3rem;
-      font-size: 0.9rem;
-    }
-    
+    /* 3段階プログレス表示改善 */
     .three-stage-progress {
-      background: #f8f9fa;
-      padding: 1.5rem;
+      background: linear-gradient(to right, #e3f2fd, #e8f5e8);
+      padding: var(--spacing-lg);
       border-radius: var(--border-radius);
-      margin: 1rem 0;
-      border-left: 4px solid var(--primary);
+      margin: var(--spacing-md) 0;
+      border: 1px solid var(--border-color);
+    }
+    
+    .three-stage-progress h4 {
+      margin: 0 0 var(--spacing-md) 0;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
     }
     
     .stages-container {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
-      margin-top: 1rem;
+      gap: var(--spacing-md);
     }
     
     .stage-item {
       display: flex;
       align-items: center;
-      gap: 1rem;
-      transition: all var(--transition-speed);
-      padding: 1rem;
+      gap: var(--spacing-md);
+      padding: var(--spacing-md);
       background: white;
-      border-radius: var(--border-radius);
-      border: 1px solid #e0e0e0;
+      border-radius: var(--border-radius-sm);
+      border: 2px solid var(--border-color);
+      transition: all var(--transition-speed);
     }
     
     .stage-icon {
-      width: 40px;
-      height: 40px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 1.2rem;
       transition: all var(--transition-speed);
+      flex-shrink: 0;
     }
     
     .stage-content {
@@ -610,9 +1022,9 @@
     }
     
     .stage-title {
-      font-weight: bold;
+      font-weight: 600;
       color: var(--text-primary);
-      margin-bottom: 0.3rem;
+      margin-bottom: var(--spacing-xs);
     }
     
     .stage-status {
@@ -620,13 +1032,15 @@
       color: var(--text-secondary);
     }
     
-    .stage-connector {
-      display: none;
+    /* ステージ状態スタイル */
+    .stage-pending .stage-icon {
+      background: var(--bg-tertiary);
+      color: #999;
     }
     
-    .stage-pending .stage-icon {
-      background: #e0e0e0;
-      color: #999;
+    .stage-active {
+      border-color: var(--primary);
+      background: #e3f2fd;
     }
     
     .stage-active .stage-icon {
@@ -635,9 +1049,25 @@
       animation: pulse 1.5s infinite;
     }
     
+    @keyframes pulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.4); }
+      50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
+    }
+    
+    .stage-completed {
+      border-color: var(--success);
+      background: #e8f5e8;
+    }
+    
     .stage-completed .stage-icon {
-      background: #4caf50;
+      background: var(--success);
       color: white;
+    }
+    
+    .stage-error {
+      border-color: var(--danger);
+      background: #ffebee;
     }
     
     .stage-error .stage-icon {
@@ -645,272 +1075,69 @@
       color: white;
     }
     
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
-    }
-    
-    .optimized-spec-results {
-      background: #f0f8ff;
-      padding: 1.5rem;
-      border-radius: var(--border-radius);
-      margin-bottom: 1rem;
-      border-left: 4px solid #2196f3;
-    }
-    
-    .spec-summary {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-      color: var(--text-primary);
-    }
-    
-    .spec-section {
-      margin-bottom: 1rem;
-    }
-    
-    .spec-section h5 {
-      margin: 0 0 0.5rem 0;
-      color: var(--primary);
-      font-size: 1rem;
-    }
-    
-    .dimension-grid {
-      display: grid;
-      gap: 0.5rem;
-    }
-    
-    .dim-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.5rem;
-      background: white;
-      border-radius: 4px;
-    }
-    
-    .dim-label {
-      font-weight: bold;
-      color: var(--text-primary);
-    }
-    
-    .dim-value {
-      color: var(--primary);
-      font-weight: bold;
-    }
-    
-    .spec-description {
-      font-size: 0.95rem;
-      line-height: 1.5;
-      color: var(--text-primary);
-      margin: 0;
-    }
-
-    /* 第2段階：3Dモデル生成結果 */
-    .model-generation-results {
-      background: #f0fff0;
-      padding: 1.5rem;
-      border-radius: var(--border-radius);
-      margin-bottom: 1rem;
-      border-left: 4px solid #4caf50;
-    }
-
-    .model-summary {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-      color: var(--text-primary);
-    }
-
-    .model-section {
-      margin-bottom: 1rem;
-    }
-
-    .model-section h5 {
-      margin: 0 0 0.5rem 0;
-      color: #4caf50;
-      font-size: 1rem;
-    }
-
-    .model-info {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-
-    .model-dimensions ul,
-    .model-structure ul {
-      margin: 0.5rem 0;
-      padding-left: 1.5rem;
-    }
-
-    .model-dimensions li,
-    .model-structure li {
-      margin-bottom: 0.3rem;
-      font-size: 0.9rem;
-      color: var(--text-primary);
-    }
-
-    /* 第3段階：品質検証結果 */
-    .quality-check-results {
-      background: #fff8f0;
-      padding: 1.5rem;
-      border-radius: var(--border-radius);
-      margin-bottom: 1rem;
-      border-left: 4px solid #ff9800;
-    }
-
-    .quality-summary {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-      color: var(--text-primary);
-    }
-
-    .quality-section {
-      margin-bottom: 1rem;
-    }
-
-    .quality-section h5 {
-      margin: 0 0 0.5rem 0;
-      color: #ff9800;
-      font-size: 1rem;
-    }
-
-    .quality-evaluations {
-      display: grid;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-
-    .evaluation-item {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem;
-      background: white;
-      border-radius: 4px;
-    }
-
-    .evaluation-comment {
-      font-size: 0.9rem;
-      color: #666;
-      margin-left: auto;
-    }
-
-    .quality-issues {
-      background: #ffebee;
-      padding: 1rem;
-      border-radius: 4px;
-      margin-bottom: 0.5rem;
-    }
-
-    .quality-issues h6 {
-      margin: 0 0 0.5rem 0;
-      color: #d32f2f;
-    }
-
-    .quality-recommendations {
-      background: #e8f5e8;
-      padding: 1rem;
-      border-radius: 4px;
-    }
-
-    .quality-recommendations h6 {
-      margin: 0 0 0.5rem 0;
-      color: #2e7d32;
-    }
-
-    .quality-issues ul,
-    .quality-recommendations ul {
-      margin: 0;
-      padding-left: 1.5rem;
-    }
-
-    .quality-issues li,
-    .quality-recommendations li {
-      margin-bottom: 0.3rem;
-      font-size: 0.9rem;
-    }
-    
-    .safety-list {
-      margin: 0;
-      padding-left: 1.5rem;
-    }
-    
-    .safety-list li {
-      margin-bottom: 0.3rem;
-      font-size: 0.9rem;
-      color: var(--text-primary);
-    }
-    
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      color: var(--primary);
-      text-decoration: none;
-      margin-top: 2rem;
-      transition: all var(--transition-speed);
-    }
-    
-    .back-link:hover {
-      color: var(--secondary);
-    }
-    
-    .back-link i {
-      margin-right: 0.5rem;
-    }
-    
-    /* 再生成セクションのスタイル */
+    /* 再生成セクション改善 */
     .regeneration-section {
-      background: #f0f8ff;
-      padding: 1.5rem;
+      background: #e3f2fd;
+      padding: var(--spacing-lg);
       border-radius: var(--border-radius);
-      margin-top: 1rem;
-      border-left: 4px solid #2196f3;
+      margin-top: var(--spacing-md);
+      border: 1px solid var(--primary-light);
     }
     
     .regeneration-section h4 {
-      margin: 0 0 1rem 0;
-      color: #2196f3;
-      font-size: 1.1rem;
+      margin: 0 0 var(--spacing-md) 0;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
     }
     
     .regeneration-content {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
-    }
-    
-    .regeneration-buttons {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
+      gap: var(--spacing-md);
     }
     
     .regeneration-info {
       background: rgba(255, 255, 255, 0.8);
-      padding: 1rem;
-      border-radius: var(--border-radius);
-      border: 1px solid #e3f2fd;
+      padding: var(--spacing-md);
+      border-radius: var(--border-radius-sm);
+      border: 1px solid var(--border-color);
     }
     
     .info-item {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
+      gap: var(--spacing-sm);
       font-size: 0.9rem;
       color: var(--text-secondary);
     }
     
-    .info-item:last-child {
-      margin-bottom: 0;
-    }
-    
     .info-item i {
-      color: #2196f3;
-      font-size: 0.85rem;
+      color: var(--info);
     }
     
-    /* モーダルスタイル */
+    /* セレクトボックススタイル改善 */
+    select {
+      width: 100%;
+      padding: var(--spacing-sm) var(--spacing-md);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-sm);
+      background: white;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+    }
+    
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+    
+    /* モーダルスタイル改善 */
     .modal {
       position: fixed;
       top: 0;
@@ -922,33 +1149,55 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      backdrop-filter: blur(5px);
+      animation: fadeIn 0.3s ease-out;
     }
-
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
     .modal-content {
       background: white;
-      border-radius: 8px;
+      border-radius: var(--border-radius);
       max-width: 800px;
       width: 90%;
       max-height: 90%;
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease-out;
     }
-
+    
+    @keyframes slideUp {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
     .modal-header {
-      padding: 20px;
-      border-bottom: 1px solid #eee;
+      padding: var(--spacing-lg);
+      border-bottom: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: var(--primary-color);
+      background: var(--primary);
       color: white;
     }
-
+    
     .modal-header h3 {
       margin: 0;
-      font-size: 1.2rem;
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
     }
-
+    
     .close-btn {
       background: none;
       border: none;
@@ -956,120 +1205,93 @@
       color: white;
       cursor: pointer;
       padding: 0;
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 50%;
-      transition: background 0.3s;
+      transition: all var(--transition-speed);
     }
-
+    
     .close-btn:hover {
       background: rgba(255, 255, 255, 0.2);
     }
-
+    
     .modal-body {
-      padding: 20px;
-      max-height: 500px;
+      padding: var(--spacing-lg);
+      max-height: 600px;
       overflow-y: auto;
     }
-
+    
     .modal-footer {
-      padding: 20px;
-      border-top: 1px solid #eee;
+      padding: var(--spacing-lg);
+      border-top: 1px solid var(--border-color);
       display: flex;
-      gap: 10px;
+      gap: var(--spacing-md);
       justify-content: flex-end;
+      background: var(--bg-secondary);
     }
-
-    /* サンプルボタンのスタイル */
+    
+    /* サンプルボタン改善 */
+    .sample-buttons {
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .sample-buttons h5 {
+      margin: 0 0 var(--spacing-sm) 0;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    
+    .sample-btn {
+      background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%);
+      border: 1px solid var(--primary-light);
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--border-radius-sm);
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      transition: all var(--transition-speed);
+      box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    
     .sample-btn:hover {
       transform: translateY(-2px) scale(1.02);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
       filter: brightness(1.05);
     }
     
     .sample-btn:active {
       transform: translateY(-1px) scale(1.01);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
     }
-
-    /* 各ボタンの個別ホバー効果 */
-    .sample-btn[data-sample="desk"]:hover {
-      border-color: #1976d2 !important;
-      background: linear-gradient(135deg, #bbdefb 0%, #e3f2fd 100%) !important;
-    }
-
-    .sample-btn[data-sample="shelf"]:hover {
-      border-color: #7b1fa2 !important;
-      background: linear-gradient(135deg, #e1bee7 0%, #f3e5f5 100%) !important;
-    }
-
-    .sample-btn[data-sample="chair"]:hover {
-      border-color: #f57c00 !important;
-      background: linear-gradient(135deg, #ffcc02 0%, #fff3e0 100%) !important;
-    }
-
-    .sample-btn[data-sample="cabinet"]:hover {
-      border-color: #388e3c !important;
-      background: linear-gradient(135deg, #c8e6c9 0%, #e8f5e8 100%) !important;
-    }
-
-    /* アイコンのアニメーション効果 */
+    
     .sample-btn i {
-      transition: all 0.3s ease;
+      transition: all var(--transition-speed);
     }
-
+    
     .sample-btn:hover i {
       transform: scale(1.1) rotate(5deg);
     }
-
-    .sample-btn[data-sample="desk"]:hover i {
-      animation: bounce 0.6s ease-in-out;
-    }
-
-    .sample-btn[data-sample="shelf"]:hover i {
-      animation: wiggle 0.6s ease-in-out;
-    }
-
-    .sample-btn[data-sample="chair"]:hover i {
-      animation: pulse 0.6s ease-in-out;
-    }
-
-    .sample-btn[data-sample="cabinet"]:hover i {
-      animation: rotate 0.6s ease-in-out;
-    }
-
-    @keyframes bounce {
-      0%, 20%, 60%, 100% { transform: scale(1.1) translateY(0); }
-      40% { transform: scale(1.1) translateY(-3px); }
-      80% { transform: scale(1.1) translateY(-1px); }
-    }
-
-    @keyframes wiggle {
-      0%, 100% { transform: scale(1.1) rotate(0deg); }
-      25% { transform: scale(1.1) rotate(5deg); }
-      75% { transform: scale(1.1) rotate(-5deg); }
-    }
-
-    @keyframes pulse {
-      0%, 100% { transform: scale(1.1); }
-      50% { transform: scale(1.2); }
-    }
-
-    @keyframes rotate {
-      0% { transform: scale(1.1) rotate(0deg); }
-      100% { transform: scale(1.1) rotate(360deg); }
-    }
-
+    
+    /* レスポンシブデザイン改善 */
     @media (max-width: 768px) {
-      .main-content {
-        grid-template-columns: 1fr;
+      .container {
+        padding: var(--spacing-md);
       }
       
-      .container {
-        padding: 1rem;
+      h1 {
+        font-size: 2rem;
+      }
+      
+      .main-content {
+        grid-template-columns: 1fr;
       }
       
       .workflow-steps {
@@ -1078,6 +1300,11 @@
       
       .button-group {
         flex-direction: column;
+      }
+      
+      .button {
+        width: 100%;
+        justify-content: center;
       }
       
       .model-stats {
@@ -1090,25 +1317,107 @@
       }
       
       .sample-buttons div {
-        justify-content: center;
+        flex-direction: column;
+        gap: var(--spacing-sm);
       }
       
       .sample-btn {
-        flex: 1;
-        min-width: 120px;
+        width: 100%;
+        justify-content: center;
       }
       
-      .model-info {
-        grid-template-columns: 1fr;
+      .project-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+      }
+      
+      .project-actions {
+        width: 100%;
+      }
+      
+      .project-actions .button {
+        flex: 1;
+      }
+      
+      .stages-container {
+        gap: var(--spacing-sm);
+      }
+      
+      .stage-item {
+        padding: var(--spacing-sm);
+      }
+      
+      .stage-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
       }
     }
+    
+    /* 印刷スタイル */
+    @media print {
+      body {
+        background: white;
+      }
+      
+      .button, .controls, .modal {
+        display: none !important;
+      }
+      
+      .container {
+        max-width: 100%;
+      }
+    }
+    
+    /* アクセシビリティ改善 */
+    :focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+    
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+    
+    /* アニメーション設定 */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    
+    /* ファイルサイズ表示 */
+    .file-size-indicator {
+      margin-left: var(--spacing-xs);
+      padding: 2px 6px;
+      background: rgba(33, 150, 243, 0.1);
+      border: 1px solid rgba(33, 150, 243, 0.3);
+      border-radius: 10px;
+      font-size: 0.75rem;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1><i class="fas fa-hammer"></i> DIYアシスタントβ</h1>
-      <p class="description">AI活用3D家具設計ツール｜自然言語から3Dモデルを生成</p>
+      <h1><i class="fas fa-hammer"></i> DIYアシスタント<span class="beta-badge">BETA</span></h1>
+      <p class="description">AIを活用した3D家具設計ツール｜自然言語から3Dモデルを自動生成</p>
     </div>
     
     <!-- ワークフロー説明 -->
@@ -1116,22 +1425,22 @@
       <div class="step-card">
         <div class="step-number">1</div>
         <div class="step-title">要件入力</div>
-        <div>自然言語で家具の仕様を記述</div>
+        <div class="step-description">自然言語で家具の仕様を記述</div>
       </div>
       <div class="step-card">
         <div class="step-number">2</div>
         <div class="step-title">AI生成</div>
-        <div>LLMが3Dモデルデータを生成</div>
+        <div class="step-description">LLMが3Dモデルデータを生成</div>
       </div>
       <div class="step-card">
         <div class="step-number">3</div>
         <div class="step-title">3Dプレビュー</div>
-        <div>ブラウザ上で3Dモデルを確認</div>
+        <div class="step-description">ブラウザ上で3Dモデルを確認</div>
       </div>
       <div class="step-card">
         <div class="step-number">4</div>
         <div class="step-title">ファイル出力</div>
-        <div>STLファイルをダウンロード</div>
+        <div class="step-description">OBJファイルをダウンロード</div>
       </div>
     </div>
     
@@ -1139,29 +1448,29 @@
     <div class="main-content">
       <!-- 入力セクション -->
       <div class="input-section">
-        <h2 class="section-title"><i class="fas fa-edit"></i> 設計要件入力</h2>
+        <div class="section-header">
+          <h2 class="section-title"><i class="fas fa-edit"></i> 設計要件入力</h2>
+        </div>
         
-        <div class="input-form">
+        <div class="section-content">
           <div class="form-group">
             <label for="designPrompt">家具の仕様を自然言語で記述してください</label>
             
-            <!-- サンプルボタンを追加 -->
-            <div class="sample-buttons" style="margin-bottom: 1rem;">
-              <h5 style="margin: 0 0 0.5rem 0; color: var(--text-secondary); font-size: 0.9rem;">
-                <i class="fas fa-lightbulb"></i> サンプル例：
-              </h5>
-              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                <button class="sample-btn" data-sample="desk" style="background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%); border: 1px solid #2196f3; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary); transition: all 0.3s; box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);">
-                  <i class="fas fa-table" style="color: #2196f3; margin-right: 0.3rem;"></i> 学習デスク
+            <!-- サンプルボタン -->
+            <div class="sample-buttons">
+              <h5><i class="fas fa-lightbulb"></i> クイックスタート：</h5>
+              <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+                <button class="sample-btn" data-sample="desk">
+                  <i class="fas fa-table"></i> 学習デスク
                 </button>
-                <button class="sample-btn" data-sample="shelf" style="background: linear-gradient(135deg, #f3e5f5 0%, #fce4ec 100%); border: 1px solid #9c27b0; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary); transition: all 0.3s; box-shadow: 0 2px 4px rgba(156, 39, 176, 0.1);">
-                  <i class="fas fa-book-open" style="color: #9c27b0; margin-right: 0.3rem;"></i> 本棚
+                <button class="sample-btn" data-sample="shelf">
+                  <i class="fas fa-book-open"></i> 本棚
                 </button>
-                <button class="sample-btn" data-sample="chair" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border: 1px solid #ff9800; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary); transition: all 0.3s; box-shadow: 0 2px 4px rgba(255, 152, 0, 0.1);">
-                  <i class="fas fa-chair" style="color: #ff9800; margin-right: 0.3rem;"></i> ダイニングチェア
+                <button class="sample-btn" data-sample="chair">
+                  <i class="fas fa-chair"></i> ダイニングチェア
                 </button>
-                <button class="sample-btn" data-sample="cabinet" style="background: linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%); border: 1px solid #4caf50; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary); transition: all 0.3s; box-shadow: 0 2px 4px rgba(76, 175, 80, 0.1);">
-                  <i class="fas fa-archive" style="color: #4caf50; margin-right: 0.3rem;"></i> キャビネット
+                <button class="sample-btn" data-sample="cabinet">
+                  <i class="fas fa-archive"></i> キャビネット
                 </button>
               </div>
             </div>
@@ -1169,40 +1478,35 @@
             <textarea 
               id="designPrompt" 
               class="input-area" 
-              placeholder="家具の設計仕様を自然言語で記述してください。
-
-【記載内容の例】
-• サイズ：幅○○cm × 奥行○○cm × 高さ○○cm
-• 材質：木材、金属、プラスチックなど
-• 機能：引き出し、扉、棚、キャスターなど
-• デザイン：北欧風、モダン、クラシックなど
-• 用途：リビング用、オフィス用、子供部屋用など
-• 特記事項：耐荷重、組み立て方式、安全性要件など
-
-上記サンプルボタンを参考に、具体的な仕様をご入力ください。"
+              placeholder="例: シンプルな学習デスク、幅120cm、引き出し付き"
+              aria-label="家具の設計仕様"
             ></textarea>
+            <div class="form-helper">
+              具体的な寸法、材質、機能、デザインなどを含めると、より正確な3Dモデルが生成されます
+            </div>
           </div>
           
           <div class="parameter-controls">
-            <h4><i class="fas fa-sliders-h"></i> 詳細パラメータ</h4>
+            <h4><i class="fas fa-sliders-h"></i> 詳細パラメータ（オプション）</h4>
             <div class="parameter-row">
-              <label>幅 (cm):</label>
-              <input type="number" id="widthParam" min="10" max="300" step="1">
+              <label for="widthParam">幅</label>
+              <input type="number" id="widthParam" min="10" max="500" step="1" placeholder="auto">
+              <span class="parameter-unit">cm</span>
             </div>
             <div class="parameter-row">
-              <label>奥行 (cm):</label>
-              <input type="number" id="depthParam" min="10" max="300" step="1">
+              <label for="depthParam">奥行</label>
+              <input type="number" id="depthParam" min="10" max="500" step="1" placeholder="auto">
+              <span class="parameter-unit">cm</span>
             </div>
             <div class="parameter-row">
-              <label>高さ (cm):</label>
-              <input type="number" id="heightParam" min="10" max="300" step="1">
+              <label for="heightParam">高さ</label>
+              <input type="number" id="heightParam" min="10" max="500" step="1" placeholder="auto">
+              <span class="parameter-unit">cm</span>
             </div>
           </div>
           
-
-          
           <div class="button-group">
-            <button id="generateBtn" class="button">
+            <button id="generateBtn" class="button" title="Ctrl+Enter">
               <i class="fas fa-magic"></i> 3Dモデル生成
             </button>
             <button id="clearBtn" class="button danger">
@@ -1210,8 +1514,9 @@
             </button>
           </div>
           
+          <!-- 3段階プログレス表示 -->
           <div id="threeStageProgress" class="three-stage-progress" style="display: none;">
-            <h4><i class="fas fa-tasks"></i> AI処理進行状況（3段階プロセス）</h4>
+            <h4><i class="fas fa-tasks"></i> AI処理進行状況</h4>
             <div class="stages-container">
               <div id="stage1" class="stage-item stage-pending">
                 <div class="stage-icon">
@@ -1223,26 +1528,22 @@
                 </div>
               </div>
               
-              <div class="stage-connector"></div>
-              
               <div id="stage2" class="stage-item stage-pending">
                 <div class="stage-icon">
                   <i id="stage2Icon" class="fas fa-circle"></i>
                 </div>
                 <div class="stage-content">
-                  <div class="stage-title">第2段階：統合3Dモデル生成</div>
+                  <div class="stage-title">第2段階：3Dモデル生成</div>
                   <div id="stage2Text" class="stage-status">待機中</div>
                 </div>
               </div>
-              
-              <div class="stage-connector"></div>
               
               <div id="stage3" class="stage-item stage-pending">
                 <div class="stage-icon">
                   <i id="stage3Icon" class="fas fa-circle"></i>
                 </div>
                 <div class="stage-content">
-                  <div class="stage-title">第3段階：品質検証</div>
+                  <div class="stage-title">第3段階：品質改善</div>
                   <div id="stage3Text" class="stage-status">待機中</div>
                 </div>
               </div>
@@ -1254,167 +1555,268 @@
             <span class="loading-text">AI が3Dモデルを生成中...</span>
           </div>
           
-          <div id="errorMessage" class="error-message" style="display: none;"></div>
-          <div id="successMessage" class="success-message" style="display: none;"></div>
+          <div id="errorMessage" class="message error-message" style="display: none;"></div>
+          <div id="successMessage" class="message success-message" style="display: none;"></div>
         </div>
       </div>
       
       <!-- プレビューセクション -->
       <div class="preview-section">
-        <h2 class="section-title"><i class="fas fa-cube"></i> 3Dプレビュー</h2>
-        
-        <!-- 3Dプレビュー -->
-        <div class="card" id="previewSection">
-          <div class="card-header">
+        <div class="section-header">
+          <h2 class="section-title">
             <i class="fas fa-cube"></i> 3Dプレビュー
-            <!-- 色設定コントロールを追加 -->
-            <div class="color-controls" style="float: right; margin-top: -5px;">
-              <label for="colorSchemeSelect" style="font-size: 0.8rem; margin-right: 5px;">色設定:</label>
-              <select id="colorSchemeSelect" style="font-size: 0.8rem; padding: 2px 5px;">
-                <option value="gradient">グラデーション</option>
-                <option value="bright">明るい単色</option>
-                <option value="transparent">半透明</option>
-              </select>
+            <div class="header-controls">
+              <button id="openCenterControlBtn" class="header-btn" style="display: none;" title="中心点操作パネルを開く">
+                <i class="fas fa-crosshairs"></i>
+                <span>中心操作</span>
+              </button>
+              <div class="color-controls">
+                <label for="colorSchemeSelect">色設定:</label>
+                <select id="colorSchemeSelect">
+                  <option value="gradient">グラデーション</option>
+                  <option value="bright">明るい単色</option>
+                  <option value="transparent">半透明</option>
+                </select>
+              </div>
             </div>
-          </div>
-          <div class="card-body">
+          </h2>
+        </div>
+        
+        <div class="section-content">
+          <div class="canvas-container">
             <div id="threeContainer">
-              <!-- Three.jsキャンバスがここに挿入される -->
               <div id="canvasOverlay" class="canvas-overlay">
                 <div class="overlay-content">
-                  <i class="fas fa-cube fa-3x"></i>
+                  <i class="fas fa-cube"></i>
                   <p>3Dモデルがここに表示されます</p>
                   <small>モデル生成後にプレビューが表示されます</small>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-        
-        <div id="modelInfo" class="model-info" style="display: none;">
-          <h4><i class="fas fa-info-circle"></i> モデル情報</h4>
-          <div class="model-stats">
-            <div class="stat-item">
-              <div class="stat-value" id="vertexCount">-</div>
-              <div class="stat-label">頂点数</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value" id="faceCount">-</div>
-              <div class="stat-label">面数</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value" id="fileSize">-</div>
-              <div class="stat-label">ファイルサイズ</div>
-            </div>
-          </div>
-          
-          <!-- 家具説明セクション -->
-          <div id="furnitureDescription" class="furniture-description" style="display: none; margin-top: 1rem; border-top: 1px solid #e0e0e0; padding-top: 1rem;">
-            <h5 style="margin: 0 0 0.75rem 0; color: var(--primary); font-size: 1rem;">
-              <i class="fas fa-couch"></i> 家具詳細
-            </h5>
-            
-            <!-- 家具種別と基本情報 -->
-            <div class="furniture-basic-info" style="background: #f8f9fa; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.75rem;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <span style="font-weight: 600; color: var(--primary);">
-                  <i class="fas fa-tag"></i> 家具種別
-                </span>
-                <span id="furnitureType" style="color: #495057; font-weight: 500;">-</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; color: var(--primary);">
-                  <i class="fas fa-ruler-combined"></i> 寸法
-                </span>
-                <span id="furnitureDimensions" style="color: #495057; font-weight: 500;">-</span>
+            <!-- 3D操作ヒント -->
+            <div id="threeDHints" class="three-d-hints" style="display: none;">
+              <div class="hints-content">
+                <div class="hint-item">
+                  <i class="fas fa-mouse-pointer"></i>
+                  <span>ドラッグ: 回転</span>
+                </div>
+                <div class="hint-item">
+                  <i class="fas fa-arrows-alt"></i>
+                  <span>右クリック: パン</span>
+                </div>
+                <div class="hint-item">
+                  <i class="fas fa-search-plus"></i>
+                  <span>ホイール: ズーム</span>
+                </div>
+                <div class="hint-item">
+                  <i class="fas fa-crosshairs"></i>
+                  <span>ダブルクリック: 中心変更</span>
+                </div>
               </div>
             </div>
             
-            <!-- 3D構造詳細 -->
-            <div class="structure-details" style="background: #f8f9fa; padding: 0.75rem; border-radius: 6px;">
-              <div style="font-weight: 600; color: var(--primary); margin-bottom: 0.5rem;">
-                <i class="fas fa-cube"></i> 3D構造詳細
+            <!-- 中心点操作パネル -->
+            <div id="centerControlPanel" class="center-control-panel" style="display: none;">
+              <div class="panel-header">
+                <span>中心点操作</span>
+                <button id="closeCenterPanel" class="close-panel-btn" title="パネルを閉じる">×</button>
               </div>
-              
-              <!-- 主要部品 -->
-              <div id="mainComponents" style="margin-bottom: 0.5rem;">
-                <div style="font-size: 0.9rem; font-weight: 500; color: #6c757d; margin-bottom: 0.25rem;">主要部品：</div>
-                <div id="mainComponentsList" style="font-size: 0.85rem; color: #495057; line-height: 1.4;">-</div>
-              </div>
-              
-              <!-- 特殊形状 -->
-              <div id="specialFeatures" style="display: none;">
-                <div style="font-size: 0.9rem; font-weight: 500; color: #6c757d; margin-bottom: 0.25rem;">特殊形状：</div>
-                <div id="specialFeaturesList" style="font-size: 0.85rem; color: #495057; line-height: 1.4;"></div>
+              <div class="panel-content">
+                <div class="control-row">
+                  <button id="resetCenterBtn" class="control-btn" title="中心をリセット (Ctrl+R)">
+                    <i class="fas fa-home"></i>
+                    <span>リセット</span>
+                  </button>
+                  <button id="toggleIndicatorBtn" class="control-btn" title="中心点を表示 (Ctrl+C)">
+                    <i class="fas fa-crosshairs"></i>
+                    <span>中心表示</span>
+                  </button>
+                </div>
+                <div class="keyboard-hints">
+                  <div class="hint-row">
+                    <span class="key-combo">矢印キー</span>
+                    <span>中心微調整</span>
+                  </div>
+                  <div class="hint-row">
+                    <span class="key-combo">Shift+↑↓</span>
+                    <span>上下移動</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
           
-          <!-- 段階別結果表示ボタン -->
-          <div class="stage-results-buttons" style="margin-top: 1rem;">
-            <h5 style="margin: 0 0 0.5rem 0; color: var(--primary); font-size: 1rem;">
-              <i class="fas fa-chart-line"></i> 処理結果詳細
-            </h5>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-              <button id="showStage1ResultBtn" class="button secondary" style="display: none; padding: 0.5rem; font-size: 0.85rem;">
-                <i class="fas fa-cogs"></i> 第1段階結果
-              </button>
-              <button id="showStage2ResultBtn" class="button secondary" style="display: none; padding: 0.5rem; font-size: 0.85rem;">
-                <i class="fas fa-cube"></i> 第2段階結果
-              </button>
-              <button id="showStage3ResultBtn" class="button secondary" style="display: none; padding: 0.5rem; font-size: 0.85rem;">
-                <i class="fas fa-check-circle"></i> 第3段階結果
-              </button>
+          <div id="modelInfo" class="model-info" style="display: none;">
+            <h4><i class="fas fa-info-circle"></i> モデル情報</h4>
+            <div class="model-stats">
+              <div class="stat-item">
+                <span class="stat-value" id="vertexCount">-</span>
+                <div class="stat-label">頂点数</div>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value" id="faceCount">-</span>
+                <div class="stat-label">面数</div>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value" id="fileSize">-</span>
+                <div class="stat-label">ファイルサイズ</div>
+              </div>
             </div>
-
+            
+            <!-- 家具説明セクション -->
+            <div id="furnitureDescription" class="furniture-description" style="display: none; margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-color);">
+              <h5 style="margin: 0 0 var(--spacing-md) 0; color: var(--primary); font-size: 1rem; display: flex; align-items: center; gap: var(--spacing-sm);">
+                <i class="fas fa-couch"></i> 家具詳細
+              </h5>
+              
+              <div class="furniture-basic-info" style="background: white; padding: var(--spacing-md); border-radius: var(--border-radius-sm); margin-bottom: var(--spacing-md); border: 1px solid var(--border-color);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm);">
+                  <span style="font-weight: 600; color: var(--primary);">
+                    <i class="fas fa-tag"></i> 家具種別
+                  </span>
+                  <span id="furnitureType" style="color: var(--text-primary); font-weight: 500;">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 600; color: var(--primary);">
+                    <i class="fas fa-ruler-combined"></i> 寸法
+                  </span>
+                  <span id="furnitureDimensions" style="color: var(--text-primary); font-weight: 500;">-</span>
+                </div>
+              </div>
+              
+              <div class="structure-details" style="background: white; padding: var(--spacing-md); border-radius: var(--border-radius-sm); border: 1px solid var(--border-color);">
+                <div style="font-weight: 600; color: var(--primary); margin-bottom: var(--spacing-sm); display: flex; align-items: center; gap: var(--spacing-sm);">
+                  <i class="fas fa-cubes"></i> 3D構造詳細
+                </div>
+                
+                <div id="mainComponents" style="margin-bottom: var(--spacing-sm);">
+                  <div style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); margin-bottom: var(--spacing-xs);">主要部品：</div>
+                  <div id="mainComponentsList" style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.5;">-</div>
+                </div>
+                
+                <div id="specialFeatures" style="display: none;">
+                  <div style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); margin-bottom: var(--spacing-xs);">特殊形状：</div>
+                  <div id="specialFeaturesList" style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.5;"></div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 段階別結果表示ボタン -->
+            <div class="stage-results-buttons" style="margin-top: var(--spacing-md);">
+              <h5 style="margin: 0 0 var(--spacing-sm) 0; color: var(--primary); font-size: 1rem; display: flex; align-items: center; gap: var(--spacing-sm);">
+                <i class="fas fa-chart-line"></i> 処理結果詳細
+              </h5>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--spacing-sm);">
+                <button id="showStage1ResultBtn" class="button secondary" style="display: none; padding: var(--spacing-sm); font-size: 0.9rem;">
+                  <i class="fas fa-cogs"></i> 第1段階結果
+                </button>
+                <button id="showStage2ResultBtn" class="button secondary" style="display: none; padding: var(--spacing-sm); font-size: 0.9rem;">
+                  <i class="fas fa-cube"></i> 第2段階結果
+                </button>
+                <button id="showStage3ResultBtn" class="button secondary" style="display: none; padding: var(--spacing-sm); font-size: 0.9rem;">
+                  <i class="fas fa-check-circle"></i> 第3段階結果
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-        
-        <div id="downloadButtonGroup" class="button-group" style="display: none;">
-          <button id="downloadObjBtn" class="button" disabled>
-            <i class="fas fa-download"></i> OBJダウンロード
-          </button>
-        </div>
-        
-        <!-- 再生成セクション -->
-        <div id="regenerationSection" class="regeneration-section" style="display: none;">
-          <h4><i class="fas fa-redo"></i> モデル再生成</h4>
-          <div class="regeneration-content">
-            <div class="form-group">
-              <label>よくある修正指示</label>
-              <select id="commonModifications" class="input-field">
-                <option value="">-- 選択してください --</option>
-                <option value="接合部が離れているので修正してください">接合部が離れている</option>
-                <option value="棚が高すぎるので低くしてください">棚が高すぎる</option>
-                <option value="引き出しを深くして収納量を増やしてください">引き出しが浅い</option>
-                <option value="角を丸くして安全性を向上させてください">角が鋭い</option>
-                <option value="強度不足なので板を厚くしてください">強度が不足している</option>
-              </select>
+          
+          <div id="downloadButtonGroup" class="button-group" style="display: none; margin-top: var(--spacing-md);">
+            <!-- ダウンロード設定セクション -->
+            <div class="download-settings" style="background: white; padding: var(--spacing-md); border-radius: var(--border-radius-sm); border: 1px solid var(--border-color); margin-bottom: var(--spacing-md);">
+              <h5 style="margin: 0 0 var(--spacing-md) 0; color: var(--primary); font-size: 1rem; display: flex; align-items: center; gap: var(--spacing-sm);">
+                <i class="fas fa-cog"></i> ダウンロード設定
+              </h5>
+              
+              <div class="form-group" style="margin-bottom: var(--spacing-md);">
+                <label for="downloadMethod" style="display: block; margin-bottom: var(--spacing-sm); font-weight: 600; color: var(--text-primary);">
+                  <i class="fas fa-download"></i> ダウンロード方法
+                </label>
+                <select id="downloadMethod" class="input" style="width: 100%;">
+                  <option value="auto">自動ダウンロード（ブラウザ標準）</option>
+                  <option value="save-as">名前を付けて保存</option>
+                  <option value="clipboard">クリップボードにコピー</option>
+                </select>
+                <small style="color: var(--text-secondary); font-size: 0.85rem; margin-top: var(--spacing-xs); display: block;">
+                  💡 「名前を付けて保存」を選択すると、保存先とファイル名を指定できます
+                </small>
+              </div>
+              
+              <div class="form-group" style="margin-bottom: var(--spacing-md);">
+                <label for="customFilename" style="display: block; margin-bottom: var(--spacing-sm); font-weight: 600; color: var(--text-primary);">
+                  <i class="fas fa-file-signature"></i> ファイル名（オプション）
+                </label>
+                <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                  <input 
+                    type="text" 
+                    id="customFilename" 
+                    class="input" 
+                    placeholder="例: my_desk_design"
+                    style="flex: 1;"
+                  >
+                  <span style="color: var(--text-secondary); font-weight: 500;">.obj</span>
+                </div>
+                <small style="color: var(--text-secondary); font-size: 0.85rem; margin-top: var(--spacing-xs); display: block;">
+                  空白の場合は自動生成されます（furniture_YYYYMMDD_HHMM.obj）
+                </small>
+              </div>
+              
+              <div class="download-preview" style="background: var(--bg-light); padding: var(--spacing-sm); border-radius: var(--border-radius-sm); border: 1px solid var(--border-color);">
+                <div style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); margin-bottom: var(--spacing-xs);">
+                  <i class="fas fa-eye"></i> プレビュー
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-family: monospace; color: var(--text-primary); font-size: 0.9rem;" id="filenamePreview">furniture_20250613_2346.obj</span>
+                  <span style="color: var(--text-secondary); font-size: 0.85rem;" id="downloadSizePreview">1.98 KB</span>
+                </div>
+              </div>
             </div>
             
-            <div class="form-group">
-              <label for="regenerationComment">追加コメント・修正指示</label>
-              <textarea 
-                id="regenerationComment" 
-                class="input-area" 
-                style="min-height: 80px;"
-                placeholder="上記以外の修正指示があれば入力してください"
-              ></textarea>
-            </div>
-            
-            <div class="regeneration-buttons">
-              <button id="regenerateBtn" class="button">
-                <i class="fas fa-magic"></i> 修正版を再生成
-              </button>
-              <button id="clearRegenerationBtn" class="button secondary">
-                <i class="fas fa-eraser"></i> コメントクリア
-              </button>
-            </div>
-            
-            <div class="regeneration-info">
-              <div class="info-item">
-                <i class="fas fa-info-circle"></i>
-                <span>第2段階から再実行（約30-60秒）</span>
+            <button id="downloadObjBtn" class="button" disabled title="3DモデルのOBJファイルをダウンロードします">
+              <i class="fas fa-download"></i> OBJダウンロード
+              <span id="downloadFileSize" class="file-size-indicator" style="display: none;"></span>
+            </button>
+          </div>
+          
+          <!-- 再生成セクション -->
+          <div id="regenerationSection" class="regeneration-section" style="display: none;">
+            <h4><i class="fas fa-redo"></i> モデル再生成</h4>
+            <div class="regeneration-content">
+              <div class="form-group">
+                <label for="commonModifications">よくある修正指示</label>
+                <select id="commonModifications">
+                  <option value="">-- 選択してください --</option>
+                  <option value="接合部が離れているので修正してください">接合部が離れている</option>
+                  <option value="脚部をもっと安定させてください">脚部が不安定</option>
+                  <option value="収納スペースを増やしてください">収納が少ない</option>
+                  <option value="角を丸くして安全性を向上させてください">角が鋭い</option>
+                  <option value="材質感をより表現してください">材質感が不足</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="regenerationComment">追加コメント・修正指示</label>
+                <textarea 
+                  id="regenerationComment" 
+                  class="input-area" 
+                  style="min-height: 100px;"
+                  placeholder="例: 引き出しを3つに増やして、取っ手を追加してください"
+                ></textarea>
+              </div>
+              
+              <div class="button-group">
+                <button id="regenerateBtn" class="button">
+                  <i class="fas fa-magic"></i> 修正版を再生成
+                </button>
+                <button id="clearRegenerationBtn" class="button secondary">
+                  <i class="fas fa-eraser"></i> コメントクリア
+                </button>
+              </div>
+              
+              <div class="regeneration-info">
+                <div class="info-item">
+                  <i class="fas fa-info-circle"></i>
+                  <span>第2段階から再実行されます（約30-60秒）</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1430,26 +1832,25 @@
           <i class="fas fa-trash-alt"></i> 全履歴削除
         </button>
       </div>
-      <div id="projectListContainer">
-        <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
-          まだプロジェクトが作成されていません
+      <div class="section-content" id="projectListContainer">
+        <div style="text-align: center; color: var(--text-secondary); padding: var(--spacing-xl);">
+          <i class="fas fa-folder-open" style="font-size: 3rem; margin-bottom: var(--spacing-md); opacity: 0.3;"></i>
+          <p>まだプロジェクトが作成されていません</p>
+          <p style="font-size: 0.9rem; margin-top: var(--spacing-sm);">上記のフォームから家具デザインを生成してください</p>
         </div>
       </div>
     </div>
-    
   </div>
 
-
-
-  <!-- 段階別結果表示ポップアップ -->
+  <!-- 段階別結果表示モーダル -->
   <div id="stageResultModal" class="modal" style="display: none;">
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="stageResultModalTitle"><i class="fas fa-chart-line"></i> 処理結果詳細</h3>
-        <button id="closeStageResultModal" class="close-btn">&times;</button>
+        <button id="closeStageResultModal" class="close-btn" aria-label="閉じる">&times;</button>
       </div>
       <div class="modal-body">
-        <div id="stageResultContent" style="max-height: 500px; overflow-y: auto;"></div>
+        <div id="stageResultContent"></div>
       </div>
       <div class="modal-footer">
         <button id="closeStageResultModalBtn" class="button">
@@ -1459,108 +1860,9 @@
     </div>
   </div>
 
-  <!-- Three.jsライブラリ - 統一されたCDNを使用 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/examples/js/loaders/OBJLoader.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/examples/js/controls/OrbitControls.js"></script>
+
   
-  <script>
-    // Three.js読み込み確認とフォールバック
-    function checkThreeJSLibraries() {
-      console.log('=== Three.js Library Check ===');
-      
-      if (typeof THREE !== 'undefined') {
-        console.log('✅ Three.js loaded successfully:', THREE.REVISION);
-        
-        // OBJLoaderチェック
-        if (typeof THREE.OBJLoader !== 'undefined') {
-          console.log('✅ OBJLoader loaded successfully');
-        } else {
-          console.log('❌ OBJLoader not found - loading fallback');
-          loadOBJLoaderFallback();
-        }
-        
-        // OrbitControlsチェック
-        if (typeof THREE.OrbitControls !== 'undefined') {
-          console.log('✅ OrbitControls loaded successfully');
-        } else {
-          console.log('❌ OrbitControls not found - loading fallback');
-          loadOrbitControlsFallback();
-        }
-        
-      } else {
-        console.error('❌ Three.js not loaded - loading fallback');
-        loadThreeJSFallback();
-      }
-    }
-    
-    // OBJLoaderフォールバック
-    function loadOBJLoaderFallback() {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/three@0.152.0/examples/js/loaders/OBJLoader.js';
-      script.onload = () => {
-        console.log('✅ OBJLoader fallback loaded');
-        window.OBJLoaderReady = true;
-      };
-      script.onerror = () => {
-        console.error('❌ OBJLoader fallback failed - trying alternative');
-        const altScript = document.createElement('script');
-        altScript.src = 'https://threejs.org/examples/js/loaders/OBJLoader.js';
-        altScript.onload = () => {
-          console.log('✅ OBJLoader alternative loaded');
-          window.OBJLoaderReady = true;
-        };
-        altScript.onerror = () => {
-          console.error('❌ All OBJLoader sources failed');
-          window.OBJLoaderFailed = true;
-        };
-        document.head.appendChild(altScript);
-      };
-      document.head.appendChild(script);
-    }
-    
-    // OrbitControlsフォールバック
-    function loadOrbitControlsFallback() {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/three@0.152.0/examples/js/controls/OrbitControls.js';
-      script.onload = () => {
-        console.log('✅ OrbitControls fallback loaded');
-      };
-      script.onerror = () => {
-        console.error('❌ OrbitControls fallback failed');
-      };
-      document.head.appendChild(script);
-    }
-    
-    // Three.js完全フォールバック
-    function loadThreeJSFallback() {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/three@0.152.0/build/three.min.js';
-      script.onload = () => {
-        console.log('✅ Three.js fallback loaded');
-        setTimeout(() => {
-          loadOBJLoaderFallback();
-          loadOrbitControlsFallback();
-        }, 100);
-      };
-      script.onerror = () => {
-        console.error('❌ All Three.js sources failed');
-      };
-      document.head.appendChild(script);
-    }
-    
-    // DOMContentLoaded後にチェック実行
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', checkThreeJSLibraries);
-    } else {
-      checkThreeJSLibraries();
-    }
-    
-    // 追加のチェック（少し遅延して）
-    setTimeout(checkThreeJSLibraries, 500);
-  </script>
-  
-  <!-- 分割されたJavaScriptファイル -->
+  <!-- アプリケーションスクリプト -->
   <script src="core.js"></script>
   <script src="scene.js"></script>
   <script src="ai.js"></script>

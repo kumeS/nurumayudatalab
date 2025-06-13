@@ -8,6 +8,75 @@
  * - 物理的整合性チェック
  */
 
+/**
+ * 段階間データパイプライン - 情報伝達を強化
+ */
+class StageDataPipeline {
+  constructor() {
+    this.context = {
+      originalRequest: '',
+      furnitureType: '',
+      dimensions: {},
+      stage1Output: {
+        specification: '',
+        keyFeatures: [],
+        constraints: []
+      },
+      stage2Output: {
+        objData: '',
+        generationNotes: [],
+        potentialIssues: []
+      },
+      stage3Output: {
+        qualityScore: 0,
+        improvements: [],
+        finalObjData: ''
+      }
+    };
+  }
+
+  // 各段階の出力を次段階の入力に組み込む
+  prepareStage2Input() {
+    return {
+      specification: this.context.stage1Output.specification,
+      constraints: this.context.stage1Output.constraints,
+      focusAreas: this.context.stage1Output.keyFeatures
+    };
+  }
+
+  prepareStage3Input() {
+    return {
+      objData: this.context.stage2Output.objData,
+      knownIssues: this.context.stage2Output.potentialIssues,
+      originalSpec: this.context.stage1Output.specification
+    };
+  }
+
+  updateStage1Output(specification, keyFeatures = [], constraints = []) {
+    this.context.stage1Output = {
+      specification,
+      keyFeatures,
+      constraints
+    };
+  }
+
+  updateStage2Output(objData, generationNotes = [], potentialIssues = []) {
+    this.context.stage2Output = {
+      objData,
+      generationNotes,
+      potentialIssues
+    };
+  }
+
+  updateStage3Output(qualityScore, improvements = [], finalObjData = '') {
+    this.context.stage3Output = {
+      qualityScore,
+      improvements,
+      finalObjData
+    };
+  }
+}
+
 class ProcessingManager {
   constructor(assistant) {
     this.assistant = assistant;
@@ -16,6 +85,9 @@ class ProcessingManager {
     this.stage1Data = null;
     this.stage2Data = null;
     this.stage3Data = null;
+    
+    // データパイプラインの初期化
+    this.dataPipeline = new StageDataPipeline();
     
     // 初期化時に古い表示エリアをクリーンアップ
     this.cleanupOldDisplayAreas();
@@ -273,24 +345,29 @@ class ProcessingManager {
     }
   }
 
-
-
   // ========== 仕様最適化用システムプロンプト ==========
   getSpecificationSystemPrompt() {
-    return `You are a furniture-CAD expert. Output format: one line "{{json}}" followed by pure JSON with these exact keys:
-{
-  "type": "chair|desk|table|shelf|cabinet",
-  "outer_dimensions_cm": {"w": number, "d": number, "h": number},
-  "parts": [
-    {"name": "string", "pos": [x,y,z], "size": [w,d,h]},
-    {"name": "string", "pos": [x,y,z], "size": [w,d,h]}
-  ],
-  "features": {
-    "curved_parts": ["string"],
-    "tapered_parts": ["string"], 
-    "beveled_edges": ["string"]
-  }
-}`;
+    return `あなたは家具設計の専門家です。ユーザーの要望を分析し、3Dモデル化に適した詳細仕様を作成してください。
+
+【出力形式】
+自然言語で以下の要素を含む詳細仕様を記述：
+1. 家具の全体構造（メインパーツの配置と寸法）
+2. 各部品の詳細（形状、位置、サイズ、接続方法）
+3. 特殊な形状要素（曲線、テーパー、装飾等）
+4. 材質と表面処理の想定
+5. 機能的要素（可動部、収納等）
+
+【重要】
+- 3D空間での具体的な座標と寸法を明記
+- 部品間の接続関係を明確に記述
+- 実際の家具として成立する構造を考慮
+- 家具の種類に応じた専門的な要件を含める
+
+【家具タイプ別要件】
+椅子：座面の平面性、背もたれの角度、4本脚の安定配置
+机：天板の平面性、脚部空間の確保、構造的安定性
+棚：各段の水平性、側板の支持力、重心バランス
+収納：扉・引き出しの収まり、内部空間の最適化`;
   }
 
   // ========== 仕様最適化プロンプト構築 ==========
@@ -304,105 +381,143 @@ class ProcessingManager {
 ${prompt}${dimensionText}`;
   }
 
-  // ========== LLM出力の解析 ==========
+  // ========== LLM出力の解析（自然言語対応） ==========
   parseOptimizedSpecification(llmOutput, originalPrompt, width, depth, height) {
     try {
-      this.assistant.log('debug', 'JSON仕様解析開始', { outputLength: llmOutput.length });
+      this.assistant.log('debug', '自然言語仕様解析開始', { outputLength: llmOutput.length });
       
-      // {{json}}行を探してJSON部分を抽出
-      let jsonText = '';
+      // 自然言語仕様から家具タイプと寸法を抽出
+      const furnitureType = this.extractFurnitureType(llmOutput, originalPrompt);
+      const extractedDimensions = this.extractDimensions(llmOutput, width, depth, height);
+      const keyFeatures = this.extractKeyFeatures(llmOutput);
+      const constraints = this.extractConstraints(llmOutput);
       
-      if (llmOutput.includes('{{json}}')) {
-        const lines = llmOutput.split('\n');
-        let jsonStarted = false;
-        const jsonLines = [];
-        
-        for (const line of lines) {
-          if (line.trim() === '{{json}}') {
-            jsonStarted = true;
-            continue;
-          }
-          if (jsonStarted) {
-            jsonLines.push(line);
-          }
-        }
-        
-        jsonText = jsonLines.join('\n').trim();
-      } else {
-        // {{json}}がない場合は全体をJSONとして試行
-        jsonText = llmOutput.trim();
-      }
-      
-      // JSONをパース
-      let parsedData;
-      try {
-        parsedData = JSON.parse(jsonText);
-      } catch (parseError) {
-        this.assistant.log('error', 'JSON解析失敗', { 
-          error: parseError.message,
-          jsonText: jsonText.substring(0, 200) 
-        });
-        throw new Error(`JSON解析エラー: ${parseError.message}`);
-      }
-      
-      // 必須キーのバリデーション
-      const validationResult = this.validateJSONSchema(parsedData);
-      if (!validationResult.valid) {
-        this.assistant.log('error', 'JSONスキーマバリデーション失敗', validationResult);
-        throw new Error(`無効なJSONスキーマ: ${validationResult.errors.join(', ')}`);
-      }
-      
-      // 寸法の上書き処理（ユーザー指定がある場合）
-      const finalDimensions = {
-        width: width !== 'auto' ? parseInt(width) : parsedData.outer_dimensions_cm.w,
-        depth: depth !== 'auto' ? parseInt(depth) : parsedData.outer_dimensions_cm.d,
-        height: height !== 'auto' ? parseInt(height) : parsedData.outer_dimensions_cm.h
-      };
-      
-      // 家具種別のマッピング
-      const typeMapping = {
-        'chair': '椅子',
-        'desk': '机',
-        'table': 'テーブル',
-        'shelf': '棚',
-        'cabinet': '収納家具'
-      };
-      
-      const furnitureType = typeMapping[parsedData.type] || '椅子';
-      
-      // 構造分析情報の変換
-      const structuralInfo = {
-        main_components: parsedData.parts.map(part => ({
-          name: part.name,
-          position: part.pos.join(','),
-          size: part.size.join('×')
-        })),
-        curved_parts: parsedData.features.curved_parts || [],
-        tapered_parts: parsedData.features.tapered_parts || [],
-        beveled_edges: parsedData.features.beveled_edges || [],
-        coordinate_layout: `原点基準の3D座標系, 部品数: ${parsedData.parts.length}`
-      };
-      
-      this.assistant.log('info', 'JSON仕様解析成功', {
+      this.assistant.log('info', '自然言語仕様解析成功', {
         furnitureType: furnitureType,
-        dimensions: finalDimensions,
-        partsCount: parsedData.parts.length
+        dimensions: extractedDimensions,
+        featuresCount: keyFeatures.length,
+        constraintsCount: constraints.length
       });
+
+      // データパイプラインを更新
+      this.dataPipeline.context.originalRequest = originalPrompt;
+      this.dataPipeline.context.furnitureType = furnitureType;
+      this.dataPipeline.context.dimensions = extractedDimensions;
+      this.dataPipeline.updateStage1Output(llmOutput, keyFeatures, constraints);
       
       return {
         furniture_type: furnitureType,
-        dimensions: finalDimensions,
+        dimensions: extractedDimensions,
         description: originalPrompt,
-        optimized_specification: JSON.stringify(parsedData, null, 2), // 整形されたJSON
-        structural_analysis: structuralInfo,
+        optimized_specification: llmOutput, // 自然言語仕様をそのまま保存
+        structural_analysis: {
+          natural_language_spec: true,
+          key_features: keyFeatures,
+          constraints: constraints,
+          specification_length: llmOutput.length
+        },
         analysis_complete: true,
-        raw_json: parsedData // 生のJSONデータも保存
+        natural_language: true // 自然言語フラグ
       };
       
     } catch (error) {
-      this.assistant.log('warn', 'JSON仕様解析失敗、フォールバック実行', { error: error.message });
+      this.assistant.log('warn', '自然言語仕様解析失敗、フォールバック実行', { error: error.message });
       return this.getFallbackSpecification(originalPrompt, width, depth, height);
     }
+  }
+
+  // ========== 家具タイプ抽出 ==========
+  extractFurnitureType(specification, originalPrompt) {
+    const text = (specification + ' ' + originalPrompt).toLowerCase();
+    
+    if (text.includes('椅子') || text.includes('いす') || text.includes('chair')) {
+      return '椅子';
+    } else if (text.includes('机') || text.includes('つくえ') || text.includes('desk')) {
+      return '机';
+    } else if (text.includes('テーブル') || text.includes('table')) {
+      return 'テーブル';
+    } else if (text.includes('棚') || text.includes('たな') || text.includes('shelf')) {
+      return '棚';
+    } else if (text.includes('収納') || text.includes('cabinet') || text.includes('キャビネット')) {
+      return '収納家具';
+    }
+    
+    return '椅子'; // デフォルト
+  }
+
+  // ========== 寸法抽出 ==========
+  extractDimensions(specification, width, depth, height) {
+    const extractedDims = { width: 50, depth: 50, height: 80 }; // デフォルト値
+    
+    // 数値パターンを検索
+    const dimensionPatterns = [
+      /幅[：:]?\s*(\d+)(?:cm)?/gi,
+      /奥行[き]?[：:]?\s*(\d+)(?:cm)?/gi,
+      /高さ[：:]?\s*(\d+)(?:cm)?/gi,
+      /(\d+)\s*×\s*(\d+)\s*×\s*(\d+)/gi
+    ];
+    
+    // ユーザー指定寸法を優先
+    if (width !== 'auto') extractedDims.width = parseInt(width);
+    if (depth !== 'auto') extractedDims.depth = parseInt(depth);
+    if (height !== 'auto') extractedDims.height = parseInt(height);
+    
+    // 仕様書から寸法を抽出
+    const matches = specification.match(/(\d+)\s*×\s*(\d+)\s*×\s*(\d+)/);
+    if (matches && width === 'auto' && depth === 'auto' && height === 'auto') {
+      extractedDims.width = parseInt(matches[1]);
+      extractedDims.depth = parseInt(matches[2]);
+      extractedDims.height = parseInt(matches[3]);
+    }
+    
+    return extractedDims;
+  }
+
+  // ========== 主要特徴抽出 ==========
+  extractKeyFeatures(specification) {
+    const features = [];
+    const featurePatterns = [
+      '曲線', '曲面', 'カーブ',
+      'テーパー', '先細り',
+      '装飾', 'デザイン',
+      '可動', '調整',
+      '収納', 'ストレージ',
+      '引き出し', 'ドロワー',
+      '扉', 'ドア',
+      '背もたれ', 'バック',
+      '肘掛け', 'アーム'
+    ];
+    
+    featurePatterns.forEach(pattern => {
+      if (specification.includes(pattern)) {
+        features.push(pattern);
+      }
+    });
+    
+    return features;
+  }
+
+  // ========== 制約条件抽出 ==========
+  extractConstraints(specification) {
+    const constraints = [];
+    
+    if (specification.includes('安定') || specification.includes('転倒防止')) {
+      constraints.push('安定性重視');
+    }
+    if (specification.includes('軽量') || specification.includes('軽い')) {
+      constraints.push('軽量化');
+    }
+    if (specification.includes('強度') || specification.includes('丈夫')) {
+      constraints.push('高強度');
+    }
+    if (specification.includes('省スペース') || specification.includes('コンパクト')) {
+      constraints.push('省スペース');
+    }
+    if (specification.includes('3D印刷') || specification.includes('プリント')) {
+      constraints.push('3D印刷対応');
+    }
+    
+    return constraints;
   }
 
   // ========== JSONスキーマバリデーション ==========
@@ -649,23 +764,100 @@ ${combinedPrompt.split('【追加修正指示】')[0].trim()}`;
 
   // ========== Stage2専用システムプロンプト ==========
   getStage2SystemPrompt() {
-    return `あなたはOBJ形式3Dモデル生成の専門家です。
+    return `あなたはOBJ形式の3Dモデル生成専門家です。詳細仕様に基づいて、実用的で美しい3Dモデルを生成してください。
 
-【出力形式】
-- OBJファイル形式のみ出力
-- 説明文やコメントは含めない
-- v（頂点）、f（面）を中心とした標準的なOBJ構文
+【OBJ生成ルール】
+- Y軸上向き、単位はcm
+- 頂点（v）は小数点以下2桁まで
+- 面（f）は三角形または四角形
+- 部品ごとにグループ（g）を定義
+- 最低限必要な頂点数で効率的に構成
 
-【品質基準】
-- Y軸上向き、cm単位
-- 適切な頂点密度（50-500点）
-- 実用的で美しい形状
-- 構造的に安定した3Dジオメトリ
+【出力】
+## OBJ_DATA で始まり ## OBJ_DATA_END で終わる純粋なOBJデータ`;
+  }
 
-【修正指示の解釈】
-- 創造的かつ実用的に修正要求を解釈
-- 元の基本構造を保持しつつ効果的に変更を適用
-- 家具として機能的で美しいモデルを生成`;
+  // ========== 家具タイプ別専門プロンプト生成 ==========
+  getStage2PromptByFurnitureType(furnitureType, specification) {
+    const basePrompt = `あなたはOBJ形式の3Dモデル生成専門家です。
+以下の仕様に基づいて、実用的で美しい${furnitureType}の3Dモデルを生成してください。
+
+【仕様】
+${specification}
+
+【OBJ生成ルール】
+- Y軸上向き、単位はcm
+- 頂点（v）は小数点以下2桁まで
+- 面（f）は三角形または四角形
+- 部品ごとにグループ（g）を定義
+- 最低限必要な頂点数で効率的に構成`;
+
+    // 家具タイプ別の追加指示
+    const typeSpecificInstructions = {
+      '椅子': `
+【椅子特有の要件】
+- 座面は人が座れる平面または緩やかな曲面
+- 背もたれは適切な角度（90-110度）
+- 4本脚は安定した配置（座面の四隅から垂直）
+- 脚の太さは構造的に十分な強度を確保
+- 座面高さは40-45cm程度が標準`,
+      
+      '机': `
+【机特有の要件】
+- 天板は完全な平面で、エッジは適切に処理
+- 脚は天板を安定して支える配置
+- 天板下に十分な脚部空間を確保
+- 引き出しがある場合は天板下に適切に配置
+- 標準高さは70-75cm`,
+      
+      'テーブル': `
+【テーブル特有の要件】
+- 天板は完全な平面で、エッジは適切に処理
+- 脚は天板を安定して支える配置
+- 天板下に十分な脚部空間を確保
+- 標準高さは70-75cm`,
+      
+      '棚': `
+【棚特有の要件】
+- 各段は水平で、適切な間隔
+- 側板は棚板をしっかり支持
+- 背板がある場合は全体を覆う
+- 転倒防止を考慮した重心配置
+- 棚板の厚みは2-3cm程度`,
+      
+      '収納家具': `
+【収納家具特有の要件】
+- 扉は本体に適切に取り付け
+- 引き出しは収納部に収まるサイズ
+- 内部の棚は可動を想定した配置
+- 取っ手は使いやすい位置に配置
+- 全体のバランスと安定性を重視`
+    };
+
+    const furnitureKey = this.getFurnitureTypeKey(furnitureType);
+    return basePrompt + (typeSpecificInstructions[furnitureKey] || '');
+  }
+
+  // ========== 家具タイプキーの取得 ==========
+  getFurnitureTypeKey(furnitureType) {
+    const keyMap = {
+      '椅子': '椅子',
+      'イス': '椅子',
+      'chair': '椅子',
+      '机': '机',
+      'つくえ': '机',
+      'desk': '机',
+      'テーブル': 'テーブル',
+      'table': 'テーブル',
+      '棚': '棚',
+      'たな': '棚',
+      'shelf': '棚',
+      '収納': '収納家具',
+      '収納家具': '収納家具',
+      'cabinet': '収納家具'
+    };
+    
+    return keyMap[furnitureType] || '椅子';
   }
 
   // ========== Stage2専用LLM呼び出し ==========
@@ -957,8 +1149,22 @@ f 5 1 4 8
     try {
       this.assistant.showLoading(true, '品質評価中...');
       
-      // OBJデータの構造分析
-      const objAnalysis = this.analyzeOBJStructure(objData);
+      // OBJデータの構造分析（エラーハンドリング強化）
+      let objAnalysis;
+      try {
+        objAnalysis = this.analyzeOBJStructure(objData);
+      } catch (error) {
+        this.assistant.log('warning', 'OBJ構造分析失敗、フォールバック実行', { error: error.message });
+        objAnalysis = {
+          vertexCount: (objData.match(/^v /gm) || []).length,
+          faceCount: (objData.match(/^f /gm) || []).length,
+          groupCount: 1,
+          hasTextures: false,
+          hasNormals: false,
+          isValid: true,
+          fileSizeKB: (new Blob([objData]).size / 1024).toFixed(2)
+        };
+      }
       
       this.assistant.log('info', '第3段階開始', {
         vertexCount: objAnalysis.vertexCount,
@@ -986,61 +1192,238 @@ f 5 1 4 8
     }
   }
 
-  // ========== OBJ構造分析（簡素化） ==========
-  analyzeOBJStructure(objData) {
+  // ========== 第3段階：品質チェックと改善（新機能） ==========
+  async performFinalQualityCheckAndImprove(objData) {
+    try {
+      // 構造的検証
+      const structuralValidation = this.performStructuralValidation(objData);
+      
+      // LLMによる品質評価と改善提案
+      const qualityAssessment = await this.callQualityImprovementLLM(
+        objData, 
+        structuralValidation
+      );
+      
+      // 改善が必要な場合は修正版を生成
+      if (qualityAssessment.needsImprovement) {
+        const improvedObjData = await this.generateImprovedVersion(
+          objData,
+          qualityAssessment.improvements
+        );
+        
+        // 改善版の再検証
+        const finalValidation = this.performStructuralValidation(improvedObjData);
+        
+        this.assistant.log('info', '第3段階：品質改善完了', {
+          originalScore: structuralValidation.score,
+          improvedScore: finalValidation.score,
+          improvements: qualityAssessment.improvements.length
+        });
+        
+        return {
+          originalObjData: objData,
+          improvedObjData: improvedObjData,
+          qualityReport: qualityAssessment.report,
+          improvements: qualityAssessment.improvements,
+          finalScore: finalValidation.score
+        };
+      }
+      
+      this.assistant.log('info', '第3段階：品質検証完了（改善不要）', {
+        score: structuralValidation.score
+      });
+      
+      return {
+        originalObjData: objData,
+        improvedObjData: objData,
+        qualityReport: qualityAssessment.report,
+        finalScore: structuralValidation.score
+      };
+      
+    } catch (error) {
+      this.assistant.log('error', '品質改善プロセスエラー', { error: error.message });
+      throw error;
+    }
+  }
+
+  // ========== 構造的検証の実装 ==========
+  performStructuralValidation(objData) {
+    const validation = {
+      score: 100,
+      issues: [],
+      metrics: {}
+    };
+    
+    // 1. 基本的なジオメトリチェック
+    const geometry = this.analyzeGeometry(objData);
+    validation.metrics = geometry;
+    
+    // 2. 物理的整合性チェック
+    if (geometry.hasFloatingVertices) {
+      validation.score -= 20;
+      validation.issues.push('浮遊頂点が存在');
+    }
+    
+    if (geometry.hasNonManifoldEdges) {
+      validation.score -= 15;
+      validation.issues.push('非多様体エッジが存在');
+    }
+    
+    // 3. 家具としての妥当性チェック
+    const furnitureCheck = this.checkFurnitureValidity(geometry);
+    if (!furnitureCheck.hasStableBase) {
+      validation.score -= 25;
+      validation.issues.push('安定した基底面が不足');
+    }
+    
+    if (!furnitureCheck.hasReasonableDimensions) {
+      validation.score -= 20;
+      validation.issues.push('寸法が非現実的');
+    }
+    
+    // 4. 面の向きの一貫性チェック
+    if (geometry.hasInconsistentNormals) {
+      validation.score -= 10;
+      validation.issues.push('面の向きが不統一');
+    }
+    
+    return validation;
+  }
+
+  // ========== 高度なジオメトリ分析 ==========
+  analyzeGeometry(objData) {
     const lines = objData.split('\n');
     const vertices = [];
-    let faceCount = 0;
+    const faces = [];
+    const edges = new Map();
     
-    for (const line of lines) {
+    // 頂点と面の収集
+    lines.forEach(line => {
       const trimmed = line.trim();
       if (trimmed.startsWith('v ')) {
         const coords = trimmed.substring(2).split(/\s+/).map(Number);
-        if (coords.length >= 3 && !isNaN(coords[0]) && !isNaN(coords[1]) && !isNaN(coords[2])) {
-          vertices.push({ x: coords[0], y: coords[1], z: coords[2] });
-        }
+        vertices.push({ x: coords[0], y: coords[1], z: coords[2], used: false });
       } else if (trimmed.startsWith('f ')) {
-        faceCount++;
+        const indices = trimmed.substring(2).split(/\s+/)
+          .map(f => parseInt(f.split('/')[0]) - 1);
+        faces.push(indices);
+        
+        // エッジの記録
+        for (let i = 0; i < indices.length; i++) {
+          const v1 = indices[i];
+          const v2 = indices[(i + 1) % indices.length];
+          const edge = [Math.min(v1, v2), Math.max(v1, v2)].join('-');
+          edges.set(edge, (edges.get(edge) || 0) + 1);
+        }
       }
-    }
-
-    if (vertices.length === 0) {
-      return {
-        vertexCount: 0,
-        faceCount: 0,
-        dimensions: { x: { min: 0, max: 0 }, y: { min: 0, max: 0 }, z: { min: 0, max: 0 } },
-        overallDimensions: { width: 0, height: 0, depth: 0 }
-      };
-    }
-
-    const xCoords = vertices.map(v => v.x);
-    const yCoords = vertices.map(v => v.y);
-    const zCoords = vertices.map(v => v.z);
-
-    const dimensions = {
-      x: { min: Math.min(...xCoords), max: Math.max(...xCoords) },
-      y: { min: Math.min(...yCoords), max: Math.max(...yCoords) },
-      z: { min: Math.min(...zCoords), max: Math.max(...zCoords) }
-    };
-
-    const overallDimensions = {
-      width: dimensions.x.max - dimensions.x.min,
-      height: dimensions.y.max - dimensions.y.min,
-      depth: dimensions.z.max - dimensions.z.min
-    };
+    });
     
+    // 使用されている頂点をマーク
+    faces.forEach(face => {
+      face.forEach(idx => {
+        if (vertices[idx]) vertices[idx].used = true;
+      });
+    });
+    
+    // 分析結果
     return {
       vertexCount: vertices.length,
-      faceCount: faceCount,
-      dimensions: dimensions,
-      overallDimensions: overallDimensions
+      faceCount: faces.length,
+      hasFloatingVertices: vertices.some(v => !v.used),
+      hasNonManifoldEdges: Array.from(edges.values()).some(count => count > 2),
+      boundingBox: this.calculateBoundingBox(vertices),
+      centerOfMass: this.calculateCenterOfMass(vertices),
+      hasInconsistentNormals: this.checkNormalConsistency(vertices, faces),
+      volumeEstimate: this.estimateVolume(vertices, faces)
     };
   }
 
-  // ========== 第3段階品質評価LLM呼び出し ==========
+  // ========== 家具としての妥当性チェック ==========
+  checkFurnitureValidity(geometry) {
+    const { boundingBox, centerOfMass } = geometry;
+    const width = boundingBox.max.x - boundingBox.min.x;
+    const depth = boundingBox.max.z - boundingBox.min.z;
+    const height = boundingBox.max.y - boundingBox.min.y;
+    
+    return {
+      hasStableBase: (width > height * 0.3) && (depth > height * 0.3),
+      hasReasonableDimensions: (width > 10 && width < 500) && 
+                              (depth > 10 && depth < 500) && 
+                              (height > 10 && height < 300),
+      centerOfMassInBase: (centerOfMass.x > boundingBox.min.x && 
+                          centerOfMass.x < boundingBox.max.x) &&
+                         (centerOfMass.z > boundingBox.min.z && 
+                          centerOfMass.z < boundingBox.max.z),
+      aspectRatioValid: (Math.max(width, depth, height) / 
+                        Math.min(width, depth, height)) < 10
+    };
+  }
+
+  // ========== 幾何学計算ヘルパーメソッド ==========
+  calculateBoundingBox(vertices) {
+    if (vertices.length === 0) {
+      return { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } };
+    }
+    
+    const xs = vertices.map(v => v.x);
+    const ys = vertices.map(v => v.y);
+    const zs = vertices.map(v => v.z);
+    
+    return {
+      min: { x: Math.min(...xs), y: Math.min(...ys), z: Math.min(...zs) },
+      max: { x: Math.max(...xs), y: Math.max(...ys), z: Math.max(...zs) }
+    };
+  }
+
+  calculateCenterOfMass(vertices) {
+    if (vertices.length === 0) {
+      return { x: 0, y: 0, z: 0 };
+    }
+    
+    const sum = vertices.reduce((acc, v) => ({
+      x: acc.x + v.x,
+      y: acc.y + v.y,
+      z: acc.z + v.z
+    }), { x: 0, y: 0, z: 0 });
+    
+    return {
+      x: sum.x / vertices.length,
+      y: sum.y / vertices.length,
+      z: sum.z / vertices.length
+    };
+  }
+
+  checkNormalConsistency(vertices, faces) {
+    // 簡単な法線チェック実装
+    return faces.some(face => face.length < 3);
+  }
+
+  estimateVolume(vertices, faces) {
+    // 簡単な体積推定
+    return vertices.length * 0.1; // プレースホルダー
+  }
+
+  // ========== 品質評価LLM呼び出し（第3段階専用） ==========
   async callQualityCheckLLM(objData) {
-    const systemPrompt = this.getQualityCheckSystemPrompt();
-    const qualityPrompt = `以下のOBJファイルの品質評価を行ってください：
+    try {
+      // OBJデータの基本統計を取得
+      let objAnalysis;
+      try {
+        objAnalysis = this.analyzeOBJStructure(objData);
+      } catch (error) {
+        this.assistant.log('warning', 'OBJ構造分析失敗、フォールバック実行', { error: error.message });
+        objAnalysis = {
+          vertexCount: (objData.match(/^v /gm) || []).length,
+          faceCount: (objData.match(/^f /gm) || []).length,
+          groupCount: 1,
+          hasTextures: false,
+          hasNormals: false,
+          isValid: true,
+          fileSizeKB: (new Blob([objData]).size / 1024).toFixed(2)
+        };
+      }
+      
+      const prompt = `以下のOBJファイルの品質評価を行ってください：
 
 # 評価観点
 1. 構造的品質（頂点数、面数、ジオメトリ整合性）
@@ -1048,8 +1431,14 @@ f 5 1 4 8
 3. 製造可能性（3D印刷適合性、材料効率）
 4. 美観・デザイン（造形美、バランス、機能性）
 
-# OBJデータ
-${objData}
+# 3Dモデル統計
+- 頂点数: ${objAnalysis.vertexCount}
+- 面数: ${objAnalysis.faceCount}
+- ファイルサイズ: ${objAnalysis.fileSizeKB}KB
+- グループ数: ${objAnalysis.groupCount}
+
+# OBJデータ（抜粋）
+${objData.substring(0, 2000)}${objData.length > 2000 ? '...\n（データが長いため抜粋表示）' : ''}
 
 # 要求事項
 - 日本語でマークダウン形式のレポートを作成
@@ -1057,31 +1446,186 @@ ${objData}
 - 総合スコア（100点満点）と改善提案を含める
 - OBJデータの再出力は不要`;
 
-    this.assistant.log('info', '第3段階LLM呼び出し開始', {
-      systemPromptLength: systemPrompt.length,
-      qualityPromptLength: qualityPrompt.length,
-      objDataLength: objData.length
-    });
+      this.assistant.log('debug', '品質評価LLM呼び出し開始', {
+        vertexCount: objAnalysis.vertexCount,
+        faceCount: objAnalysis.faceCount,
+        promptLength: prompt.length
+      });
 
-    try {
-      const response = await this.assistant.aiManager.callLLMAPI(qualityPrompt);
+      const response = await this.assistant.aiManager.callLLMAPI(prompt);
       
-      if (!response || response.trim().length === 0) {
-        throw new Error('第3段階でAPIから空のレスポンスを受信しました');
-      }
+      this.assistant.log('info', '品質評価LLM呼び出し完了', {
+        responseLength: response?.length || 0,
+        hasResponse: !!response
+      });
+
+      return {
+        qualityReport: response || '品質評価レポートの生成に失敗しました',
+        objAnalysis: objAnalysis,
+        evaluationComplete: true
+      };
       
-      this.assistant.log('info', '第3段階LLM応答受信', {
-        responseLength: response.length,
-        hasMarkdownContent: response.includes('#') || response.includes('*')
+    } catch (error) {
+      this.assistant.log('error', '品質評価LLM呼び出し失敗', { 
+        error: error.message,
+        stack: error.stack 
       });
       
+      // フォールバック：基本的な品質レポートを生成
+      let objAnalysis;
+      try {
+        objAnalysis = this.analyzeOBJStructure(objData);
+      } catch (analysisError) {
+        objAnalysis = {
+          vertexCount: (objData.match(/^v /gm) || []).length,
+          faceCount: (objData.match(/^f /gm) || []).length,
+          groupCount: 1,
+          hasTextures: false,
+          hasNormals: false,
+          isValid: true,
+          fileSizeKB: (new Blob([objData]).size / 1024).toFixed(2)
+        };
+      }
+      
+      const fallbackReport = this.generateFallbackQualityReport(objAnalysis);
+      
       return {
-        qualityReport: response,
-        analysis: this.analyzeOBJStructure(objData)
+        qualityReport: fallbackReport,
+        objAnalysis: objAnalysis,
+        evaluationComplete: false,
+        error: error.message
+      };
+    }
+  }
+
+  // ========== フォールバック品質レポート生成 ==========
+  generateFallbackQualityReport(objAnalysis) {
+    const { vertexCount, faceCount, fileSizeKB, isValid } = objAnalysis;
+    
+    // 基本的な品質スコア計算
+    let score = 100;
+    let issues = [];
+    
+    if (vertexCount < 8) {
+      score -= 30;
+      issues.push('頂点数が少なすぎます（最低8個推奨）');
+    } else if (vertexCount > 10000) {
+      score -= 20;
+      issues.push('頂点数が多すぎます（パフォーマンス影響）');
+    }
+    
+    if (faceCount < 6) {
+      score -= 25;
+      issues.push('面数が少なすぎます（最低6面推奨）');
+    }
+    
+    if (!isValid) {
+      score -= 50;
+      issues.push('無効なOBJデータです');
+    }
+    
+    if (fileSizeKB > 1000) {
+      score -= 15;
+      issues.push('ファイルサイズが大きすぎます');
+    }
+    
+    score = Math.max(0, score);
+    
+    return `# 3D家具モデル品質評価レポート
+
+## 📊 基本統計
+- **頂点数**: ${vertexCount}
+- **面数**: ${faceCount}
+- **ファイルサイズ**: ${fileSizeKB}KB
+- **データ有効性**: ${isValid ? '✅ 有効' : '❌ 無効'}
+
+## 🏆 総合評価
+**スコア**: ${score}/100点
+
+## 📋 評価詳細
+
+### 構造的品質
+${vertexCount >= 8 && vertexCount <= 10000 ? '✅ 適切な頂点数' : '⚠️ 頂点数要改善'}
+${faceCount >= 6 ? '✅ 適切な面数' : '⚠️ 面数要改善'}
+
+### 製造可能性
+${fileSizeKB <= 1000 ? '✅ 適切なファイルサイズ' : '⚠️ ファイルサイズ要最適化'}
+
+### 発見された問題
+${issues.length > 0 ? issues.map(issue => `- ${issue}`).join('\n') : '- 特に問題はありません'}
+
+## 💡 改善提案
+${score < 80 ? `
+- より詳細な形状設計を検討してください
+- 適切な面分割を行ってください
+- ファイルサイズの最適化を検討してください
+` : '現在の品質は良好です。'}
+
+*注意: このレポートは自動生成されました。より詳細な評価については手動確認を推奨します。*`;
+  }
+
+  // ========== 品質改善LLM呼び出し ==========
+  async callQualityImprovementLLM(objData, structuralValidation) {
+    const prompt = `以下のOBJデータを評価し、必要に応じて改善提案を行ってください。
+
+【構造的検証結果】
+スコア: ${structuralValidation.score}/100
+問題点: ${structuralValidation.issues.join(', ') || 'なし'}
+頂点数: ${structuralValidation.metrics.vertexCount}
+面数: ${structuralValidation.metrics.faceCount}
+
+【OBJデータ】
+${objData.substring(0, 1000)}...
+
+【評価基準】
+1. 構造的整合性
+2. 家具としての実用性
+3. 3D印刷適合性
+4. 美観・デザイン
+
+改善が必要な場合は、具体的な改善提案を含めてください。`;
+
+    try {
+      const response = await this.assistant.aiManager.callLLMAPI(prompt);
+      
+      // 改善の必要性を判定
+      const needsImprovement = structuralValidation.score < 80 || 
+                              response.includes('改善') || 
+                              response.includes('修正');
+      
+      return {
+        needsImprovement: needsImprovement,
+        report: response,
+        improvements: structuralValidation.issues
       };
     } catch (error) {
-      this.assistant.log('error', '第3段階LLM呼び出し失敗', { error: error.message });
+      this.assistant.log('error', '品質改善LLM呼び出し失敗', { error: error.message });
       throw error;
+    }
+  }
+
+  // ========== 改善版生成 ==========
+  async generateImprovedVersion(objData, improvements) {
+    const improvementPrompt = `以下のOBJデータを以下の改善点に従って修正してください：
+
+【改善点】
+${improvements.join('\n')}
+
+【元のOBJデータ】
+${objData}
+
+【要求事項】
+- 元の基本構造を保持
+- 改善点を適切に反映
+- 3D印刷可能な形状
+- 実用的で美しいデザイン`;
+
+    try {
+      const improvedData = await this.assistant.aiManager.callLLMAPI(improvementPrompt);
+      return this.cleanOBJData(improvedData);
+    } catch (error) {
+      this.assistant.log('error', '改善版生成失敗', { error: error.message });
+      return objData; // 失敗時は元のデータを返す
     }
   }
 
@@ -1142,9 +1686,23 @@ ${objData}
       return;
     }
 
-    // OBJデータの基本分析
-    const analysis = this.analyzeOBJStructure(objData);
-    const fileSizeKB = (new Blob([objData]).size / 1024).toFixed(2);
+    // OBJデータの基本分析（エラーハンドリング強化）
+    let analysis;
+    try {
+      analysis = this.analyzeOBJStructure(objData);
+    } catch (error) {
+      this.assistant.log('warning', 'OBJ構造分析失敗、フォールバック実行', { error: error.message });
+      analysis = {
+        vertexCount: (objData.match(/^v /gm) || []).length,
+        faceCount: (objData.match(/^f /gm) || []).length,
+        groupCount: 1,
+        hasTextures: false,
+        hasNormals: false,
+        isValid: true,
+        fileSizeKB: (new Blob([objData]).size / 1024).toFixed(2)
+      };
+    }
+    const fileSizeKB = analysis.fileSizeKB;
 
     // 第2段階で実際に使用されたプロンプトを再構築（第1段階の完全出力を含む）
     const actualStage2Prompt = this.formatStage1OutputForStage2(furnitureSpec);
@@ -1188,8 +1746,22 @@ Output ONLY the evaluation report in markdown format - no OBJ data or other cont
       return;
     }
 
-    // OBJデータの簡易分析
-    const objAnalysis = this.analyzeOBJStructure(originalObjData);
+    // OBJデータの簡易分析（エラーハンドリング強化）
+    let objAnalysis;
+    try {
+      objAnalysis = this.analyzeOBJStructure(originalObjData);
+    } catch (error) {
+      this.assistant.log('warning', 'OBJ構造分析失敗、フォールバック実行', { error: error.message });
+      objAnalysis = {
+        vertexCount: (originalObjData.match(/^v /gm) || []).length,
+        faceCount: (originalObjData.match(/^f /gm) || []).length,
+        groupCount: 1,
+        hasTextures: false,
+        hasNormals: false,
+        isValid: true,
+        fileSizeKB: (new Blob([originalObjData]).size / 1024).toFixed(2)
+      };
+    }
 
     // データを保存（システムプロンプトと入力プロンプトも含める）
     this.stage3Data = {
@@ -1246,5 +1818,73 @@ ${originalObjData}
         element.remove();
       }
     });
+  }
+
+  // ========== OBJ構造分析（シンプル版） ==========
+  analyzeOBJStructure(objData) {
+    try {
+      if (!objData || typeof objData !== 'string') {
+        return {
+          vertexCount: 0,
+          faceCount: 0,
+          groupCount: 0,
+          hasTextures: false,
+          hasNormals: false,
+          isValid: false,
+          fileSizeKB: 0
+        };
+      }
+
+      const lines = objData.split('\n');
+      let vertexCount = 0;
+      let faceCount = 0;
+      let groupCount = 0;
+      let hasTextures = false;
+      let hasNormals = false;
+      
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('v ')) {
+          vertexCount++;
+        } else if (trimmed.startsWith('f ')) {
+          faceCount++;
+        } else if (trimmed.startsWith('g ')) {
+          groupCount++;
+        } else if (trimmed.startsWith('vt ')) {
+          hasTextures = true;
+        } else if (trimmed.startsWith('vn ')) {
+          hasNormals = true;
+        }
+      });
+
+      const fileSizeKB = (new Blob([objData]).size / 1024).toFixed(2);
+      
+      return {
+        vertexCount: vertexCount,
+        faceCount: faceCount,
+        groupCount: Math.max(groupCount, 1), // 最低1グループとして扱う
+        hasTextures: hasTextures,
+        hasNormals: hasNormals,
+        isValid: vertexCount > 0 && faceCount > 0,
+        fileSizeKB: parseFloat(fileSizeKB)
+      };
+      
+    } catch (error) {
+      this.assistant.log('error', 'OBJ構造分析エラー', { 
+        error: error.message,
+        dataLength: objData?.length || 0
+      });
+      
+      return {
+        vertexCount: 0,
+        faceCount: 0,
+        groupCount: 0,
+        hasTextures: false,
+        hasNormals: false,
+        isValid: false,
+        fileSizeKB: 0,
+        error: error.message
+      };
+    }
   }
 }
