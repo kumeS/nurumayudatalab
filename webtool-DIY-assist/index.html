@@ -1361,16 +1361,19 @@
     .sample-btn {
       background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%);
       border: 1px solid var(--primary-light);
-      padding: var(--spacing-sm) var(--spacing-md);
+      padding: var(--spacing-xs) var(--spacing-sm);
       border-radius: var(--border-radius-sm);
       cursor: pointer;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: var(--text-primary);
       transition: all var(--transition-speed);
       box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);
       display: inline-flex;
       align-items: center;
-      gap: var(--spacing-sm);
+      gap: var(--spacing-xs);
+      min-width: 120px;
+      justify-content: center;
+      flex: 1 1 auto;
     }
     
     .sample-btn:hover {
@@ -1385,10 +1388,18 @@
     
     .sample-btn i {
       transition: all var(--transition-speed);
+      font-size: 0.9rem;
     }
     
     .sample-btn:hover i {
       transform: scale(1.1) rotate(5deg);
+    }
+    
+    .sample-buttons div {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: var(--spacing-xs);
+      max-width: 100%;
     }
     
     /* レスポンシブデザイン改善 */
@@ -1567,17 +1578,35 @@
             <div class="sample-buttons">
               <h5><i class="fas fa-lightbulb"></i> クイックスタート：</h5>
               <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
-                <button class="sample-btn" data-sample="desk">
-                  <i class="fas fa-table"></i> 学習デスク
+                <button class="sample-btn" data-sample="simple-chair">
+                  <i class="fas fa-chair"></i> シンプル椅子
                 </button>
-                <button class="sample-btn" data-sample="shelf">
-                  <i class="fas fa-book-open"></i> 本棚
+                <button class="sample-btn" data-sample="simple-desk">
+                  <i class="fas fa-table"></i> シンプル机
                 </button>
-                <button class="sample-btn" data-sample="chair">
-                  <i class="fas fa-chair"></i> ダイニングチェア
+                <button class="sample-btn" data-sample="simple-shelf">
+                  <i class="fas fa-book-open"></i> シンプル棚
                 </button>
-                <button class="sample-btn" data-sample="cabinet">
-                  <i class="fas fa-archive"></i> キャビネット
+                <button class="sample-btn" data-sample="simple-stool">
+                  <i class="fas fa-circle"></i> スツール
+                </button>
+                <button class="sample-btn" data-sample="simple-cabinet">
+                  <i class="fas fa-archive"></i> 収納箱
+                </button>
+                <button class="sample-btn" data-sample="coffee-table">
+                  <i class="fas fa-coffee"></i> コーヒーテーブル
+                </button>
+                <button class="sample-btn" data-sample="night-stand">
+                  <i class="fas fa-bed"></i> ナイトスタンド
+                </button>
+                <button class="sample-btn" data-sample="plant-stand">
+                  <i class="fas fa-seedling"></i> 植物台
+                </button>
+                <button class="sample-btn" data-sample="shoe-rack">
+                  <i class="fas fa-shoe-prints"></i> 靴置き
+                </button>
+                <button class="sample-btn" data-sample="magazine-rack">
+                  <i class="fas fa-newspaper"></i> 雑誌立て
                 </button>
               </div>
             </div>
@@ -1585,7 +1614,7 @@
             <textarea 
               id="designPrompt" 
               class="input-area" 
-              placeholder="例: シンプルな学習デスク、幅120cm、引き出し付き"
+              placeholder="例: シンプルな木製の椅子を作ってください"
               aria-label="家具の設計仕様"
             ></textarea>
             <div class="form-helper">

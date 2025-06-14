@@ -170,72 +170,75 @@ class DIYAssistant {
   // ========== サンプルデータ定義 ==========
   getSampleData() {
     return {
-      desk: {
-        title: "学習デスク",
-        prompt: `幅120cm × 奥行60cm × 高さ75cmの学習デスク
-
-【基本仕様】
-• サイズ：幅120cm × 奥行60cm × 高さ75cm
-• 材質：メラミン化粧板（ホワイト）、スチール脚（ブラック）
-• 機能：引き出し2つ（右側）、配線穴1つ（奥側中央）
-• デザイン：シンプルモダン、北欧風
-• 用途：子供部屋、書斎用
-• 特記事項：耐荷重30kg、組み立て式、角は安全な丸み加工`,
+      'simple-chair': {
+        title: "シンプルな木製椅子",
+        prompt: "シンプルな木製の椅子を作ってください",
+        width: 40,
+        depth: 40,
+        height: 80
+      },
+      'simple-desk': {
+        title: "シンプルな木製机",
+        prompt: "シンプルな木製の机を作ってください",
         width: 120,
         depth: 60,
         height: 75
       },
-      shelf: {
-        title: "本棚",
-        prompt: `幅80cm × 奥行30cm × 高さ180cmの本棚
-
-【基本仕様】
-• サイズ：幅80cm × 奥行30cm × 高さ180cm
-• 材質：パイン材（ナチュラル）
-• 機能：可動棚板5枚、固定棚板2枚
-• デザイン：ナチュラルウッド、カントリー風
-• 用途：リビング、書斎用
-• 特記事項：各段耐荷重15kg、転倒防止金具付き、背板あり`,
+      'simple-shelf': {
+        title: "シンプルな本棚",
+        prompt: "シンプルな木製の本棚を作ってください",
         width: 80,
         depth: 30,
-        height: 180
+        height: 150
       },
-      chair: {
-        title: "ダイニングチェア",
-        prompt: `ダイニングチェア（幅45cm × 奥行50cm × 高さ80cm）
-
-【基本仕様】
-• サイズ：幅45cm × 奥行50cm × 高さ80cm（座面高45cm）
-• 材質：ウォールナット材、ファブリック座面（グレー）
-• 機能：背もたれクッション、座面クッション
-• デザイン：モダン、ミッドセンチュリー風
-• 用途：ダイニング、カフェテーブル用
-• 特記事項：耐荷重100kg、スタッキング不可、脚部滑り止め付き
-
-【構造詳細】
-• 座面：幅40cm × 奥行40cm × 厚み5cm、高さ45cmに配置
-• 背もたれ：幅40cm × 高さ35cm、座面後端から垂直に立ち上がり
-• 脚部：4本脚、各脚は座面の四隅（座面底面）から垂直に床まで伸びる
-• 脚の配置：座面底面の四隅に直接接続、隙間なく一体構造
-• 脚の寸法：5cm × 5cm断面、長さ45cm（座面底面から床まで）`,
-        width: 45,
-        depth: 50,
+      'simple-stool': {
+        title: "シンプルなスツール",
+        prompt: "シンプルな木製のスツールを作ってください",
+        width: 35,
+        depth: 35,
+        height: 45
+      },
+      'simple-cabinet': {
+        title: "シンプルな収納箱",
+        prompt: "シンプルな木製の収納箱を作ってください",
+        width: 60,
+        depth: 40,
         height: 80
       },
-      cabinet: {
-        title: "キャビネット",
-        prompt: `幅90cm × 奥行40cm × 高さ85cmのキャビネット
-
-【基本仕様】
-• サイズ：幅90cm × 奥行40cm × 高さ85cm
-• 材質：オーク材（ダークブラウン）
-• 機能：観音扉2枚、内部棚板2枚（可動式）、引き出し2段
-• デザイン：クラシック、アンティーク風
-• 用途：リビング、ダイニング用収納
-• 特記事項：各棚耐荷重20kg、ソフトクローズ機能付き、鍵なし`,
-        width: 90,
-        depth: 40,
-        height: 85
+      'coffee-table': {
+        title: "コーヒーテーブル",
+        prompt: "低めのコーヒーテーブルを作ってください",
+        width: 100,
+        depth: 50,
+        height: 40
+      },
+      'night-stand': {
+        title: "ナイトスタンド",
+        prompt: "ベッドサイドのナイトスタンドを作ってください",
+        width: 40,
+        depth: 30,
+        height: 60
+      },
+      'plant-stand': {
+        title: "植物台",
+        prompt: "観葉植物を置く台を作ってください",
+        width: 30,
+        depth: 30,
+        height: 70
+      },
+      'shoe-rack': {
+        title: "靴置き台",
+        prompt: "玄関用の靴置き台を作ってください",
+        width: 80,
+        depth: 30,
+        height: 40
+      },
+      'magazine-rack': {
+        title: "雑誌立て",
+        prompt: "雑誌や本を立てて収納する棚を作ってください",
+        width: 40,
+        depth: 20,
+        height: 60
       }
     };
   }
@@ -276,11 +279,6 @@ class DIYAssistant {
     // イベントリスナーの登録（ヘルパー関数で安全に）
     safeAddEventListener('generateBtn', 'click', () => this.generateModel());
     safeAddEventListener('clearBtn', 'click', () => this.clearForm());
-    
-    // サンプル選択
-    safeAddEventListener('sampleChair', 'click', () => this.selectSample('chair'));
-    safeAddEventListener('sampleDesk', 'click', () => this.selectSample('desk'));
-    safeAddEventListener('sampleShelf', 'click', () => this.selectSample('shelf'));
     
     // ホーム画面での初期状態処理
     if (window.location.hash === '#home' || window.location.hash === '') {
