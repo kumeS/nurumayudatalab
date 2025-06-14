@@ -288,6 +288,9 @@ class DIYAssistant {
     // プロジェクト管理
     safeAddEventListener('clearAllProjectsBtn', 'click', () => this.clearAllProjects());
     
+    // OBJダウンロード
+    safeAddEventListener('downloadCurrentObjBtn', 'click', () => this.downloadCurrentOBJ());
+    
     // ステージ結果表示
 
     
@@ -820,12 +823,26 @@ class DIYAssistant {
       const projectId = Date.now().toString();
       const furnitureType = optimizedSpec?.furniture_type || 'unknown';
       
+      this.log('debug', 'プロジェクト保存開始', { 
+        projectId: projectId,
+        projectIdType: typeof projectId,
+        furnitureType: furnitureType
+      });
+      
+      // パラメータを取得
+      const parameters = {
+        width: document.getElementById('widthParam').value || '',
+        depth: document.getElementById('depthParam').value || '',
+        height: document.getElementById('heightParam').value || ''
+      };
+
       const projectData = {
         id: projectId,
         prompt: prompt,
         objData: objData,
         furnitureType: furnitureType,
         timestamp: new Date().toISOString(),
+        parameters: parameters,
         optimizedSpec: optimizedSpec,
         stage1Data: this.processingManager.stagePipeline?.context?.stage1Output || null,
         stage2Data: this.processingManager.stage2Data || null
@@ -840,13 +857,17 @@ class DIYAssistant {
       }
       
       localStorage.setItem('diy_projects', JSON.stringify(projects));
+      
+      // プロジェクトリストを更新
+      this.projects = projects;
       this.renderProjectList();
       
       this.log('info', 'プロジェクト保存完了', { 
         projectId, 
         furnitureType,
         hasObjData: !!objData,
-        hasOptimizedSpec: !!optimizedSpec
+        hasOptimizedSpec: !!optimizedSpec,
+        totalProjects: projects.length
       });
       
     } catch (error) {
@@ -972,13 +993,26 @@ class DIYAssistant {
             }
             
             // 段階別データを復元
-            if (session.currentProject.stage1Data) {
-              this.processingManager.stage1Data = session.currentProject.stage1Data;
-            }
-            if (session.currentProject.stage2Data) {
-              this.processingManager.stage2Data = session.currentProject.stage2Data;
+            try {
+              if (session.currentProject.stage1Data) {
+                // stagePipelineの初期化確認
+                if (!this.processingManager.stagePipeline) {
+                  this.processingManager.stagePipeline = { context: {} };
+                }
+                if (!this.processingManager.stagePipeline.context) {
+                  this.processingManager.stagePipeline.context = {};
+                }
+                this.processingManager.stagePipeline.context.stage1Output = session.currentProject.stage1Data;
+              }
+              if (session.currentProject.stage2Data) {
+                this.processingManager.stage2Data = session.currentProject.stage2Data;
+              }
+            } catch (error) {
+              this.log('warn', 'セッション復元: 段階別データ復元でエラー', { error: error.message });
             }
 
+            // 生の出力データとiマーク状態を復元
+            this.restoreStageRawDataFromProject(session.currentProject);
             
             this.log('info', 'セッション復元完了: 3Dモデル表示成功');
             this.showSuccess('前回のセッション状態を復元しました。');
@@ -996,6 +1030,10 @@ class DIYAssistant {
                 this.sceneManager.setup3DScene();
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 await this.sceneManager.loadOBJModel(session.currentProject.objData);
+                
+                // 再試行時も生の出力データとiマーク状態を復元
+                this.restoreStageRawDataFromProject(session.currentProject);
+                
                 this.log('info', 'セッション復元: 再初期化後に復元成功');
                 this.showSuccess('前回のセッション状態を復元しました。');
               } catch (retryError) {
@@ -1095,6 +1133,14 @@ class DIYAssistant {
     const container = document.getElementById('projectListContainer');
     const clearAllBtn = document.getElementById('clearAllProjectsBtn');
     
+    // プロジェクトリストを最新に更新
+    this.projects = this.loadProjects();
+    
+    this.log('debug', 'プロジェクトリスト表示', { 
+      projectCount: this.projects.length,
+      projects: this.projects.map(p => ({ id: p.id, prompt: p.prompt?.substring(0, 30) }))
+    });
+    
     if (this.projects.length === 0) {
       container.innerHTML = `
         <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
@@ -1115,14 +1161,19 @@ class DIYAssistant {
           <h4>${this.truncateText(project.prompt, 50)}</h4>
           <div class="project-meta">
             作成日時: ${new Date(project.timestamp).toLocaleString('ja-JP')}
-            ${project.parameters?.width ? ` | ${project.parameters.width}×${project.parameters.depth}×${project.parameters.height}cm` : ''}
+            ${project.parameters?.width && project.parameters?.depth && project.parameters?.height ? 
+              ` | ${project.parameters.width}×${project.parameters.depth}×${project.parameters.height}cm` : 
+              project.furnitureType ? ` | ${project.furnitureType}` : ''}
           </div>
         </div>
         <div class="project-actions">
-          <button class="button" onclick="diyAssistant.loadProject(${project.id})" title="このプロジェクトを読み込んで3Dプレビューで表示">
+          <button class="button" onclick="diyAssistant.loadProject('${project.id}')" title="このプロジェクトを読み込んで3Dプレビューで表示">
             <i class="fas fa-folder-open"></i> 読み込み
           </button>
-          <button class="button danger" onclick="diyAssistant.deleteProject(${project.id})" title="このプロジェクトを削除">
+          <button class="button secondary" onclick="diyAssistant.downloadProjectOBJ('${project.id}')" title="このプロジェクトのOBJファイルをダウンロード">
+            <i class="fas fa-download"></i> OBJ
+          </button>
+          <button class="button danger" onclick="diyAssistant.deleteProject('${project.id}')" title="このプロジェクトを削除">
             <i class="fas fa-trash"></i> 削除
           </button>
         </div>
@@ -1131,9 +1182,26 @@ class DIYAssistant {
   }
 
   async loadProject(projectId) {
-    const project = this.projects.find(p => p.id === projectId);
+    // デバッグ情報を追加
+    this.log('debug', 'loadProject呼び出し', { 
+      projectId: projectId, 
+      projectIdType: typeof projectId,
+      projectsCount: this.projects.length,
+      projectIds: this.projects.map(p => ({ id: p.id, type: typeof p.id }))
+    });
+    
+    // プロジェクトリストを最新に更新
+    this.projects = this.loadProjects();
+    
+    // IDの型を統一（文字列として比較）
+    const project = this.projects.find(p => String(p.id) === String(projectId));
     if (!project) {
-      this.showError('プロジェクトが見つかりません。');
+      this.log('error', 'プロジェクトが見つかりません', { 
+        searchId: projectId,
+        availableIds: this.projects.map(p => p.id),
+        projectsData: this.projects
+      });
+      this.showError(`プロジェクトが見つかりません。ID: ${projectId}`);
       return;
     }
     
@@ -1200,11 +1268,22 @@ class DIYAssistant {
       }
       
       // 段階別データを復元（保存されている場合）
-      if (project.stage1Data) {
-        this.processingManager.stagePipeline.context.stage1Output = project.stage1Data;
-      }
-      if (project.stage2Data) {
-        this.processingManager.stage2Data = project.stage2Data;
+      try {
+        if (project.stage1Data) {
+          // stagePipelineの初期化確認
+          if (!this.processingManager.stagePipeline) {
+            this.processingManager.stagePipeline = { context: {} };
+          }
+          if (!this.processingManager.stagePipeline.context) {
+            this.processingManager.stagePipeline.context = {};
+          }
+          this.processingManager.stagePipeline.context.stage1Output = project.stage1Data;
+        }
+        if (project.stage2Data) {
+          this.processingManager.stage2Data = project.stage2Data;
+        }
+      } catch (error) {
+        this.log('warn', '段階別データ復元でエラー', { error: error.message });
       }
       
 
@@ -1255,10 +1334,19 @@ class DIYAssistant {
 
   deleteProject(projectId) {
     if (confirm('このプロジェクトを削除しますか？')) {
-      this.projects = this.projects.filter(p => p.id !== projectId);
+      // プロジェクトリストを最新に更新
+      this.projects = this.loadProjects();
+      
+      // IDの型を統一して削除
+      this.projects = this.projects.filter(p => String(p.id) !== String(projectId));
       localStorage.setItem('diy_projects', JSON.stringify(this.projects));
       this.renderProjectList();
       this.showSuccess('プロジェクトが削除されました。');
+      
+      this.log('info', 'プロジェクト削除完了', { 
+        deletedId: projectId,
+        remainingCount: this.projects.length 
+      });
     }
   }
 
@@ -1269,6 +1357,92 @@ class DIYAssistant {
       localStorage.removeItem('diy_current_session'); // セッション情報もクリア
       this.renderProjectList();
       this.showSuccess('全てのプロジェクト履歴が削除されました。');
+    }
+  }
+
+  // ========== OBJダウンロード機能 ==========
+  downloadProjectOBJ(projectId) {
+    try {
+      // プロジェクトリストを最新に更新
+      this.projects = this.loadProjects();
+      
+      // IDの型を統一してプロジェクトを検索
+      const project = this.projects.find(p => String(p.id) === String(projectId));
+      if (!project) {
+        this.showError(`プロジェクトが見つかりません。ID: ${projectId}`);
+        return;
+      }
+      
+      if (!project.objData) {
+        this.showError('このプロジェクトにはOBJデータが含まれていません。');
+        return;
+      }
+      
+      this.downloadOBJFile(project.objData, project.prompt, project.id);
+      
+    } catch (error) {
+      this.log('error', 'プロジェクトOBJダウンロードエラー', { 
+        projectId: projectId,
+        error: error.message 
+      });
+      this.showError(`OBJファイルのダウンロードに失敗しました: ${error.message}`);
+    }
+  }
+
+  downloadCurrentOBJ() {
+    try {
+      if (!this.currentObjData) {
+        this.showError('現在表示中のOBJデータがありません。');
+        return;
+      }
+      
+      const prompt = document.getElementById('designPrompt').value || 'furniture';
+      this.downloadOBJFile(this.currentObjData, prompt, 'current');
+      
+    } catch (error) {
+      this.log('error', '現在のOBJダウンロードエラー', { error: error.message });
+      this.showError(`OBJファイルのダウンロードに失敗しました: ${error.message}`);
+    }
+  }
+
+  downloadOBJFile(objData, prompt, projectId) {
+    try {
+      // ファイル名を生成（日本語文字を安全な文字に変換）
+      const safePrompt = prompt
+        .replace(/[^\w\s-]/g, '') // 特殊文字を削除
+        .replace(/\s+/g, '_') // スペースをアンダースコアに
+        .substring(0, 30); // 長さ制限
+      
+      const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const filename = `DIY_${safePrompt}_${timestamp}_${projectId}.obj`;
+      
+      // Blobを作成してダウンロード
+      const blob = new Blob([objData], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      // メモリリークを防ぐためURLを解放
+      URL.revokeObjectURL(url);
+      
+      this.log('info', 'OBJファイルダウンロード完了', { 
+        filename: filename,
+        dataSize: objData.length,
+        projectId: projectId
+      });
+      
+      this.showSuccess(`OBJファイル「${filename}」をダウンロードしました。`);
+      
+    } catch (error) {
+      this.log('error', 'OBJファイルダウンロード処理エラー', { error: error.message });
+      throw error;
     }
   }
 
@@ -1457,6 +1631,14 @@ class DIYAssistant {
         this.saveStageRawData(2, projectData.stage2Data.rawOutput);
         // iマークを表示
         setTimeout(() => this.showStageInfoButton(2), 50);
+      } else if (projectData.stage2Data) {
+        // 旧形式のデータ構造にも対応
+        this.log('debug', 'stage2データの旧形式を検出', { stage2Data: projectData.stage2Data });
+        // stage2Dataが直接文字列の場合
+        if (typeof projectData.stage2Data === 'string') {
+          this.saveStageRawData(2, projectData.stage2Data);
+          setTimeout(() => this.showStageInfoButton(2), 50);
+        }
       }
       
       this.log('info', 'セッション復元: 生の出力データを復元', {
@@ -1563,10 +1745,11 @@ class DIYAssistant {
   }
 
   enableDownloadButtons() {
-    // ダウンロード機能は削除されました - 再生成セクションのみ表示
-    const regenerationSection = document.getElementById('regenerationSection');
-    if (regenerationSection) {
-      regenerationSection.style.display = 'block';
+    // 現在表示中のOBJをダウンロード可能にする
+    const downloadCurrentBtn = document.getElementById('downloadCurrentObjBtn');
+    if (downloadCurrentBtn) {
+      downloadCurrentBtn.disabled = false;
+      downloadCurrentBtn.style.display = 'inline-flex';
     }
   }
 

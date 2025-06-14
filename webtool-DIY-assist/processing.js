@@ -1853,9 +1853,9 @@ Remember: Your reasoning is valuable, but the complete OBJ data at the end is ab
     
     const requestData = {
       model: "deepseek-ai/DeepSeek-R1-0528",
-      temperature: 0.1,  // 推論モデルのため低めの温度設定
+      temperature: 0.5,  // より創造的で多様な出力を促進
       stream: false,
-      max_completion_tokens: 40000,  // DeepSeek-R1の詳細な推論過程に対応（4000→40000）
+      max_completion_tokens: 40000,  // DeepSeek-R1の詳細な推論過程に対応
       messages: [
         {
           role: "system",
@@ -1958,6 +1958,19 @@ Remember: Your reasoning is valuable, but the complete OBJ data at the end is ab
         truncationInfo
       });
       
+      // 第2段階の生出力データを保存（iマーク表示用）
+      this.stage2Data = {
+        rawOutput: responseText,
+        timestamp: new Date().toISOString(),
+        model: 'deepseek-ai/DeepSeek-R1-0528',
+        truncationInfo: truncationInfo
+      };
+      
+      this.assistant.log('debug', '第2段階データを保存', {
+        hasStage2Data: !!this.stage2Data,
+        rawOutputLength: this.stage2Data.rawOutput.length
+      });
+      
       return responseText;
       
     } catch (error) {
@@ -1987,7 +2000,7 @@ Remember: Your reasoning is valuable, but the complete OBJ data at the end is ab
       if (finishReason === 'length') {
         truncationInfo.wasTruncated = true;
         truncationInfo.reason = 'トークン制限';
-        truncationInfo.recommendedTokens = 50000; // 40000ベースでさらに余裕を持たせた値
+        truncationInfo.recommendedTokens = 50000; // 切断検出時の推奨値を調整
       } else if (finishReason === 'content_filter') {
         truncationInfo.wasTruncated = true;
         truncationInfo.reason = 'コンテンツフィルター';
