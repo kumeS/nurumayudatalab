@@ -29,14 +29,17 @@ DIYアシスタントは、自然言語の入力からAIが3D家具モデルを�
 ## ファイル構成
 
 ```
-webtool-DIYassist/
-├── index.html              # 翻訳・校閲ツール（既存）
-├── app.js                  # 翻訳・校閲機能（既存）
-├── diy-assistant.html      # DIYアシスタントメインページ
-├── diy-assistant.js        # DIYアシスタント機能
-├── 実装案.txt              # 設計仕様書
-├── CLAUDE.md              # Claude Code用ガイド
-└── README.md              # このファイル
+webtool-DIY-assist/
+├── index.html       # メインUI
+├── app.js           # アプリ初期化処理
+├── core.js          # DIYAssistant クラス
+├── scene.js         # Three.js 管理
+├── ai.js            # LLM 連携ロジック
+├── processing.js    # 3段階処理ワークフロー
+├── obj/             # サンプルOBJファイル
+├── Dev/             # 開発用ドキュメント
+├── CLAUDE.md        # Claude向けガイド
+└── README.md        # このファイル
 ```
 
 ## 技術仕様
@@ -76,12 +79,17 @@ webtool-DIYassist/
 - **ズーム**: マウスホイール
 - **パン**: マウス右ドラッグ
 
+### キーボードショートカット
+- **Ctrl+Shift+D** : デバッグモード切替
+- **Ctrl+R** : カメラ中心リセット
+- **Ctrl+C** : 中心マーカー表示切替
+
 ## 開発者向け情報
 
 ### セットアップ
 1. リポジトリをクローン
-2. `diy-assistant.html`をブラウザで開く
-3. HTTPサーバー推奨（CORS対応）
+2. `index.html` をブラウザで開く（ローカルHTTPサーバー推奨）
+3. Three.js 読み込みのためオンライン環境を推奨
 
 ### 主要クラス
 - `DIYAssistant`: メインアプリケーションクラス
@@ -118,3 +126,7 @@ webtool-DIYassist/
 ## サポート
 
 問題や提案がある場合は、プロジェクトのIssueとして報告してください。
+
+## 既知の問題
+
+- 履歴からプロジェクトを読み込んだ際、OBJデータの検証に失敗し3Dモデルが表示されない場合があります【Dev/dev.txt参照】。
