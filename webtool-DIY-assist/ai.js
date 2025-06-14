@@ -66,14 +66,14 @@ class AIManager {
     const improvements = [];
     let modifiedPrompt = originalPrompt;
     
-    if (validation.vertexCount < 10) {
-      improvements.push('頂点数増加');
-      modifiedPrompt += '\n\n【重要】より詳細な形状を生成し、最低50個以上の頂点を使用してください。';
+    if (validation.vertexCount < 100) {
+      improvements.push('頂点数大幅増加');
+      modifiedPrompt += '\n\n【緊急改善要求】現在の頂点数が不足しています。最低150個以上の頂点で複雑な家具構造を生成してください。各部品（脚、天板、支柱など）を個別の立体として詳細にモデリングしてください。';
     }
     
-    if (validation.faceCount < 10) {
-      improvements.push('面数増加');
-      modifiedPrompt += '\n【重要】すべての表面を適切な面で覆い、最低20個以上の面を生成してください。';
+    if (validation.faceCount < 50) {
+      improvements.push('面数大幅増加');
+      modifiedPrompt += '\n【緊急改善要求】現在の面数が不足しています。最低100個以上の面で家具の全ての表面を詳細に覆ってください。各構造部品を立体的に表現し、単純な平面ではなく厚みのある部品として作成してください。';
     }
     
     if (validation.hasDisconnectedParts) {
@@ -151,9 +151,9 @@ class AIManager {
     
     const requestData = {
       model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-      temperature: 0.2,
+      temperature: 0.1,
       stream: false,
-      max_completion_tokens: 2000,
+      max_completion_tokens: 4000,
       messages: [
         {
           role: "system",
@@ -406,12 +406,20 @@ class AIManager {
       // 面がなくても頂点があれば一旦合格とする
     }
 
-    // 最低限の3D形状要件（さらに緩和）
-    if (vertexCount < 3 && faceCount === 0) {
+    // 複雑な3D家具要件
+    if (vertexCount < 50) {
       return {
         ...result,
         isValid: false,
-        reason: `最小3D形状要件不足 (頂点: ${vertexCount}, 面: ${faceCount})`
+        reason: `家具の複雑さが不足 (頂点: ${vertexCount}, 最低50必要) - 詳細な構造部品が必要です`
+      };
+    }
+    
+    if (faceCount < 30) {
+      return {
+        ...result,
+        isValid: false,
+        reason: `家具の面数が不足 (面: ${faceCount}, 最低30必要) - 立体的な部品構造が必要です`
       };
     }
 
@@ -436,63 +444,79 @@ class AIManager {
 
   // ========== 第2段階：OBJ形式ファイル出力特化システムプロンプト ==========
   getSystemPrompt() {
-    return `You are a professional 3D furniture modeling expert specializing in generating detailed OBJ format 3D models.
+    return `You are an expert 3D furniture designer specializing in creating detailed, structurally accurate OBJ format 3D models. You must generate complex, realistic furniture with proper proportions and multiple structural components.
 
-CRITICAL REQUIREMENTS:
-1. Generate ONLY valid OBJ format data (vertices and faces)
-2. Create realistic furniture geometry with proper proportions
-3. Include ALL structural components (legs, surfaces, supports, etc.)
-4. Use appropriate vertex density for smooth surfaces
-5. Ensure all parts are properly connected
-6. Output ONLY the raw OBJ data - no explanations or markdown
+🔥 CRITICAL MODELING REQUIREMENTS:
+1. NEVER create simple boxes or primitive shapes
+2. ALWAYS include multiple structural elements (legs, supports, frames, panels)
+3. Generate MINIMUM 100+ vertices and 50+ faces for realistic detail
+4. Create separate geometric components for each furniture part
+5. Use proper thickness for all structural elements (3-8cm typical)
+6. Output ONLY raw OBJ data - no explanations, markdown, or comments
 
-FURNITURE MODELING GUIDELINES:
+🏗️ STRUCTURAL COMPLEXITY REQUIREMENTS:
 
-FOR CHAIRS:
-- Create 4 separate legs with proper thickness (not just lines)
-- Add a horizontal seat surface with thickness
-- Include backrest with appropriate angle (95-105 degrees)
-- Add crossbeams between legs for stability
-- Ensure legs extend to floor level (y=0)
+FOR CHAIRS - MINIMUM 8 COMPONENTS:
+- 4 individual legs (rectangular prisms, 3x3x45cm each)
+- Seat surface with thickness (40x40x3cm)
+- Backrest with proper angle (35x3x40cm, tilted 15°)
+- 4 horizontal cross-braces between legs (2x2x35cm each)
+- Leg-to-seat connection blocks (small cubes at joints)
 
-FOR DESKS:
-- Create a thick desktop surface (3-5cm thickness)
-- Add 4 legs or pedestal base with proper dimensions
-- Include support structures between legs
-- Add any specified drawers or compartments as separate geometry
-- Ensure proper clearance for knees (70cm+ height)
+FOR DESKS - MINIMUM 6 COMPONENTS:
+- Desktop with significant thickness (120x60x4cm)
+- 4 legs with proper proportions (5x5x71cm each)
+- 2 horizontal support beams (110x4x4cm connecting legs)
+- Leg mounting brackets (small rectangular elements)
+- Optional: Drawer box with separate geometry
 
-FOR SHELVES/BOOKCASES:
-- Create vertical side panels with thickness
-- Add multiple horizontal shelves with proper spacing
-- Include back panel if specified
-- Add proper depth for book storage (25-35cm typical)
-- Ensure proper proportions for stability
+FOR SHELVES - MINIMUM 7 COMPONENTS:
+- 2 vertical side panels (30x2x180cm each)
+- 4-6 horizontal shelves (76x30x2cm each)
+- Back panel (80x1x180cm)
+- Top and bottom reinforcement pieces
+- Optional shelf support pegs (small cylinders)
 
-FOR CABINETS:
-- Create main body structure with thickness
-- Add doors/drawers as separate geometric elements
-- Include handles and hinges as simple geometry
-- Add internal shelving if specified
-- Ensure realistic proportions and clearances
+FOR CABINETS - MINIMUM 10 COMPONENTS:
+- Main body frame (sides, top, bottom, back)
+- Front door panels (separate from body)
+- Door handles (cylindrical or rectangular)
+- Internal shelves (multiple levels)
+- Hinge mounting points
+- Base/feet elements
 
-TECHNICAL SPECIFICATIONS:
-- Use world coordinates where Y-axis is vertical (up)
-- Place furniture base at Y=0 (floor level)
-- Use centimeter units for consistency
-- Generate 50-200+ vertices for detailed geometry
-- Create 30-150+ faces for proper surface coverage
-- Ensure all faces are triangles or quads only
-- No degenerate faces (faces with duplicate vertices)
+🎯 GEOMETRIC PRECISION GUIDELINES:
+- Use Y-axis as vertical (up direction)
+- Place all furniture on floor plane (Y=0)
+- Generate vertices in logical groups by component
+- Create faces that properly connect related vertices
+- Ensure realistic proportions (human-scale furniture)
+- Add small details like rounded edges where appropriate
 
-EXAMPLE OUTPUT FORMAT:
-# [Furniture Type] - [Brief Description]
-v [x] [y] [z]  # vertex coordinates
-...
-f [v1] [v2] [v3] [v4]  # face definitions
-...
+💡 DETAIL ENHANCEMENT STRATEGIES:
+- Create beveled edges instead of sharp corners
+- Add small connecting elements at joints
+- Include mounting hardware as separate geometry
+- Create recessed or raised surface details
+- Generate proper thickness for all panels (not flat surfaces)
 
-Generate detailed, realistic furniture geometry that matches the specifications provided.`;
+📐 TECHNICAL SPECIFICATIONS:
+- Minimum 100 vertices, target 150-300 for high detail
+- Minimum 50 faces, target 100-200 for complexity
+- Use triangular and quad faces only
+- Maintain consistent scale (centimeters)
+- Ensure structural integrity (connected components)
+
+⚠️ FORBIDDEN PRACTICES:
+- DO NOT create simple box shapes
+- DO NOT use less than 100 vertices
+- DO NOT make flat, thin panels without thickness
+- DO NOT create disconnected floating parts
+- DO NOT output explanatory text or markdown
+
+EXPECTED OUTPUT: Pure OBJ format starting with vertices (v), followed by faces (f), creating a complex, multi-component furniture piece with realistic structural details.
+
+Generate sophisticated furniture geometry with architectural-level detail and complexity.`;
   }
 
   // ========== プロンプト最適化 ==========
@@ -500,7 +524,9 @@ Generate detailed, realistic furniture geometry that matches the specifications 
     // 寸法文字列の構築
     let dimensionText = '';
     if (width !== 'auto' || depth !== 'auto' || height !== 'auto') {
-      dimensionText = `横${width} × 奥${depth} × 高さ${height} cm`;
+      dimensionText = `EXACT DIMENSIONS: Width ${width}cm × Depth ${depth}cm × Height ${height}cm`;
+    } else {
+      dimensionText = 'Use standard furniture proportions';
     }
 
     // 家具タイプの推定
@@ -509,27 +535,90 @@ Generate detailed, realistic furniture geometry that matches the specifications 
     // タイプ別の詳細指示を生成
     const detailedInstructions = this.generateDetailedInstructions(furnitureType, userPrompt, width, depth, height);
 
+    // 複雑性を強制する追加指示
+    const complexityEnforcement = this.generateComplexityRequirements(furnitureType);
+
     // 最適化されたプロンプト
-    const optimizedPrompt = `#FURNITURE_3D_GENERATION
-
-## 基本仕様
+    const optimizedPrompt = `🎯 FURNITURE DESIGN BRIEF:
 ${userPrompt}
-${dimensionText ? '寸法: ' + dimensionText : ''}
 
-## 詳細モデリング要件
+📏 ${dimensionText}
+
+🏗️ STRUCTURAL REQUIREMENTS:
 ${detailedInstructions}
 
-## 技術要件
-- OBJ形式での出力
-- 各部品の厚みを考慮した立体構造
-- 接合部は物理的に接続
-- 床面（Y=0）に設置
-- 最小50頂点、30面以上
-- 各面は三角形または四角形のみ
+⚡ MANDATORY COMPLEXITY FEATURES:
+${complexityEnforcement}
 
-Generate a detailed 3D furniture model with proper structural components.`;
+🔧 CRITICAL MODELING CONSTRAINTS:
+- MINIMUM 150 vertices (target 200-400 for premium detail)
+- MINIMUM 100 faces (target 150-300 for rich geometry)  
+- Each structural component must be separate 3D volume
+- All panels/surfaces MUST have thickness (3-8cm)
+- Include connection hardware, joints, and mounting details
+- Add realistic edge beveling and corner treatments
+- Create multi-level surface details (grooves, raised areas)
+
+⚠️ ABSOLUTE REQUIREMENTS:
+- NO simple box or cube shapes allowed
+- MUST include ALL structural support elements
+- MUST create realistic joinery and connections
+- MUST generate architectural-level geometric detail
+
+OUTPUT: Generate complex, multi-component OBJ geometry with professional furniture construction details.`;
 
     return optimizedPrompt;
+  }
+
+  // 複雑性要件生成
+  generateComplexityRequirements(furnitureType) {
+    const baseComplexity = [
+      "Create rounded edges with multiple vertices (not sharp corners)",
+      "Add detailed joint connections between components", 
+      "Include mounting hardware (screws, brackets, hinges)",
+      "Generate surface texturing through geometric detail",
+      "Create realistic material thickness throughout"
+    ];
+
+    const typeSpecific = {
+      'chair': [
+        "Add curved seat contours (10+ vertices for seat edge)",
+        "Create angled backrest with proper lumbar curve", 
+        "Include leg-to-seat reinforcement brackets",
+        "Add armrests with ergonomic shaping (if specified)",
+        "Create detailed leg caps and floor contact points"
+      ],
+      'desk': [
+        "Add desktop edge profiling with rounded corners",
+        "Create cable management grommets (circular cutouts)",
+        "Include detailed leg mounting plates",
+        "Add keyboard tray slides (if mentioned)",
+        "Create modular drawer systems with separate components"
+      ],
+      'shelf': [
+        "Add adjustable shelf pin holes (small cylindrical cutouts)",
+        "Create dados/grooves where shelves connect to sides",
+        "Include anti-tip wall anchoring points",
+        "Add dust shields between shelf levels", 
+        "Create detailed corner joint assemblies"
+      ],
+      'cabinet': [
+        "Add detailed door frame with raised/recessed panels",
+        "Create realistic hinge mortises and mounting points",
+        "Include adjustable shelf pins and holes",
+        "Add toe-kick base with separate geometry",
+        "Create detailed handle mounting and door catches"
+      ]
+    };
+
+    const specific = typeSpecific[furnitureType] || [
+      "Add component-specific structural details",
+      "Create realistic assembly joints and connections",
+      "Include functional hardware elements",
+      "Add surface detail through geometric complexity"
+    ];
+
+    return [...baseComplexity, ...specific].map((item, index) => `${index + 1}. ${item}`).join('\n');
   }
 
   // 家具タイプ検出
@@ -553,77 +642,151 @@ Generate a detailed 3D furniture model with proper structural components.`;
   generateDetailedInstructions(furnitureType, userPrompt, width, depth, height) {
     switch (furnitureType) {
       case 'chair':
+        const seatWidth = width !== 'auto' ? width : 45;
+        const seatDepth = depth !== 'auto' ? depth : 42;
+        const totalHeight = height !== 'auto' ? height : 80;
+        const seatHeight = totalHeight * 0.55;
         return `
-### 椅子の構造要素
-1. 座面: 厚み3-5cm、${width !== 'auto' ? width + 'cm' : '40-50cm'}幅、${depth !== 'auto' ? depth + 'cm' : '40-45cm'}奥行
-2. 背もたれ: 座面から${height !== 'auto' ? (height - 45) + 'cm' : '35-40cm'}高、適切な角度（95-105度）
-3. 脚部: 4本、各々厚み3-5cm、${height !== 'auto' ? height + 'cm' : '80cm'}高
-4. 補強材: 脚間の横材、H型またはX型
-5. 接合部: 各部品が物理的に接続された一体構造
+🪑 CHAIR STRUCTURAL BREAKDOWN (8+ Components Required):
 
-### モデリング指示
-- 脚部は床面（Y=0）に接地
-- 座面は${height !== 'auto' ? (height * 0.55) : '44-46'}cm高に配置
-- 背もたれは座面後端から立ち上がり
-- すべての部品に適切な厚みを付与`;
+COMPONENT 1-4: LEGS (Individual rectangular prisms)
+- Dimensions: 4cm × 4cm × ${seatHeight}cm each leg
+- Position: Corner placement under seat with proper spacing
+- Material thickness: Solid wood/metal construction
+- Base contact: All legs must touch floor (Y=0)
+
+COMPONENT 5: SEAT SURFACE (Thick panel with contours)
+- Dimensions: ${seatWidth}cm × ${seatDepth}cm × 4cm thick
+- Height placement: ${seatHeight}cm above floor
+- Shape: Ergonomic contours with curved edges (15+ vertices)
+- Overhang: 2-3cm beyond leg positions
+
+COMPONENT 6: BACKREST (Angled support panel)
+- Dimensions: ${seatWidth-5}cm wide × 3cm thick × ${totalHeight - seatHeight}cm high
+- Angle: 15° backward tilt from vertical
+- Connection: Integrated with rear seat edge
+- Lumbar curve: Subtle convex shaping
+
+COMPONENT 7-8: CROSS-BRACES (H-pattern support)
+- Front/Back braces: ${seatWidth-8}cm × 3cm × 3cm each
+- Side braces: ${seatDepth-8}cm × 3cm × 3cm each  
+- Height: 20cm above floor level
+- Joinery: Mortise-tenon connections to legs`;
 
       case 'desk':
+        const deskWidth = width !== 'auto' ? width : 120;
+        const deskDepth = depth !== 'auto' ? depth : 60;
+        const deskHeight = height !== 'auto' ? height : 75;
         return `
-### デスクの構造要素
-1. 天板: 厚み3-5cm、${width !== 'auto' ? width + 'cm' : '120cm'}幅、${depth !== 'auto' ? depth + 'cm' : '60cm'}奥行
-2. 脚部: 4本または2本のペデスタル、${height !== 'auto' ? height + 'cm' : '75cm'}高
-3. 補強材: 脚間の横材またはパネル
-4. 引き出し（記載がある場合）: 天板下に配置
-5. 配線穴（記載がある場合）: 天板に円形の穴
+🗂️ DESK STRUCTURAL BREAKDOWN (6+ Components Required):
 
-### モデリング指示
-- 天板は${height !== 'auto' ? height + 'cm' : '75cm'}高に配置
-- 脚部は床面（Y=0）に接地
-- 膝下クリアランス65cm以上を確保
-- 引き出しは別の立体として作成`;
+COMPONENT 1: DESKTOP (Main work surface)
+- Dimensions: ${deskWidth}cm × ${deskDepth}cm × 4cm thick
+- Height: ${deskHeight}cm above floor
+- Edge profile: Rounded corners with 2cm radius
+- Details: Cable management grommets (5cm diameter holes)
+
+COMPONENT 2-5: LEGS (4 individual supports)
+- Dimensions: 5cm × 5cm × ${deskHeight-4}cm each
+- Spacing: Inset 5cm from desktop edges
+- Taper: Slight narrowing toward floor (optional)
+- Mounting: Brackets connecting to desktop underside
+
+COMPONENT 6: STRETCHER SYSTEM (Support framework)
+- Front rail: ${deskWidth-10}cm × 4cm × 4cm
+- Back rail: ${deskWidth-10}cm × 4cm × 4cm  
+- Side rails: ${deskDepth-10}cm × 4cm × 4cm (2 pieces)
+- Height: 15cm above floor for knee clearance
+
+OPTIONAL COMPONENT 7: DRAWER ASSEMBLY
+- Dimensions: 40cm × ${deskDepth-5}cm × 12cm
+- Position: Right side under desktop
+- Hardware: Separate drawer box with slide mechanisms`;
 
       case 'shelf':
+        const shelfWidth = width !== 'auto' ? width : 80;
+        const shelfDepth = depth !== 'auto' ? depth : 30;
+        const shelfHeight = height !== 'auto' ? height : 180;
+        const numShelves = Math.floor(shelfHeight / 35);
         return `
-### 棚の構造要素
-1. 側板: 2枚、厚み2-3cm、${width !== 'auto' ? width + 'cm' : '80cm'}幅、${height !== 'auto' ? height + 'cm' : '180cm'}高
-2. 棚板: 複数枚、厚み2-3cm、適切な間隔で配置
-3. 背板（記載がある場合）: 薄いパネル、厚み1-2cm
-4. 固定棚と可動棚の区別
-5. 底板: 最下段の棚板
+📚 SHELF STRUCTURAL BREAKDOWN (7+ Components Required):
 
-### モデリング指示
-- 底板は床面（Y=0）に設置
-- 棚板間隔は25-35cm
-- 奥行は${depth !== 'auto' ? depth + 'cm' : '30cm'}
-- 側板は棚板を挟み込む構造`;
+COMPONENT 1-2: SIDE PANELS (Vertical supports)
+- Dimensions: ${shelfDepth}cm × 3cm × ${shelfHeight}cm each
+- Spacing: ${shelfWidth-3}cm apart (inside measurement)
+- Details: Shelf pin holes every 5cm (3mm diameter)
+- Base: Integrated feet extending 2cm beyond depth
+
+COMPONENT 3-${2+numShelves}: SHELF BOARDS (${numShelves} horizontal surfaces)
+- Dimensions: ${shelfWidth-6}cm × ${shelfDepth-2}cm × 2.5cm each
+- Spacing: 35cm vertical intervals
+- Mounting: Dados cut into side panels (5mm deep)
+- Edge: Rounded front edge profile
+
+COMPONENT ${3+numShelves}: BACK PANEL (Stability board)
+- Dimensions: ${shelfWidth}cm × 1.5cm × ${shelfHeight}cm
+- Installation: Rabbeted into rear edges of sides
+- Purpose: Structural rigidity and anti-racking
+
+COMPONENT ${4+numShelves}: BASE PLATFORM (Foundation)
+- Dimensions: ${shelfWidth}cm × ${shelfDepth+2}cm × 8cm
+- Design: Toe-kick recess 5cm deep × 3cm high
+- Purpose: Stability and floor protection`;
 
       case 'cabinet':
+        const cabWidth = width !== 'auto' ? width : 90;
+        const cabDepth = depth !== 'auto' ? depth : 40;
+        const cabHeight = height !== 'auto' ? height : 85;
         return `
-### キャビネットの構造要素
-1. 本体: 側板、上板、底板で構成
-2. 扉: 開閉可能な前面パネル
-3. 取っ手: 扉の適切な位置に配置
-4. 内部棚板: 収納効率を考慮した配置
-5. 背板: 薄いパネルで背面を覆う
+🗃️ CABINET STRUCTURAL BREAKDOWN (10+ Components Required):
 
-### モデリング指示
-- 底板は床面（Y=0）に設置
-- 扉は別の立体として作成
-- 取っ手は小さな立体要素
-- 内部空間は実用的な寸法`;
+COMPONENT 1-6: MAIN CARCASE (Box structure)
+- Left side: ${cabDepth}cm × 2cm × ${cabHeight-8}cm
+- Right side: ${cabDepth}cm × 2cm × ${cabHeight-8}cm  
+- Top: ${cabWidth-4}cm × ${cabDepth}cm × 2cm
+- Bottom: ${cabWidth-4}cm × ${cabDepth}cm × 2cm
+- Back: ${cabWidth}cm × 1cm × ${cabHeight-8}cm
+- Base platform: ${cabWidth}cm × ${cabDepth}cm × 8cm with toe-kick
+
+COMPONENT 7-8: DOOR PANELS (2 doors)
+- Dimensions: ${(cabWidth-3)/2}cm × ${cabHeight-10}cm × 2cm each
+- Style: Raised panel with 1cm frame and recessed center
+- Clearance: 2mm gap around all edges
+- Overlay: 1cm beyond opening on all sides
+
+COMPONENT 9-10: DOOR HARDWARE (Hinges and handles)
+- Hinges: 3 per door, mortised mounting (separate geometry)
+- Handles: Cylindrical bar handles 12cm long × 1.5cm diameter
+- Position: Vertical center, 5cm from door edge
+
+COMPONENT 11-12: INTERNAL STORAGE (Adjustable shelves)
+- Fixed shelf: ${cabWidth-6}cm × ${cabDepth-2}cm × 2cm (middle)
+- Adjustable shelf: Same dimensions with pin hole system
+- Purpose: Maximize storage efficiency and organization`;
 
       default:
         return `
-### 一般的家具の構造要素
-1. 主要構造部: 荷重を支える骨組み
-2. 表面パネル: 外観を形成する面材
-3. 接合部: 各部品の連結部分
-4. 支持部: 床面との接触部分
+🔧 GENERAL FURNITURE STRUCTURAL BREAKDOWN (6+ Components Required):
 
-### モデリング指示
-- 各部品に適切な厚みを付与
-- 物理的に安定した構造
-- 実用的な寸法比率`;
+COMPONENT 1-2: PRIMARY FRAME (Main structure)
+- Load-bearing frame elements with proper joints
+- Material thickness: 4-8cm for structural integrity
+- Connections: Mortise-tenon or dowel joinery
+
+COMPONENT 3-4: SURFACE PANELS (Functional surfaces)
+- Working surfaces with realistic thickness (3-5cm)
+- Edge treatments and corner rounding
+- Surface details for texture and function
+
+COMPONENT 5-6: SUPPORT ELEMENTS (Stability features)
+- Cross-bracing, stretchers, or base platforms
+- Hardware mounting points and connection details
+- Anti-tip features and floor contact points
+
+ADDITIONAL DETAILS:
+- Joint hardware and fastener geometry
+- Surface texturing through geometric complexity
+- Realistic proportions for human interaction`;
     }
   }
 

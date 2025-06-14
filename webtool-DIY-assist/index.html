@@ -1186,47 +1186,7 @@
       pointer-events: none;
     }
     
-    /* 再生成セクション改善 */
-    .regeneration-section {
-      background: #e3f2fd;
-      padding: var(--spacing-lg);
-      border-radius: var(--border-radius);
-      margin-top: var(--spacing-md);
-      border: 1px solid var(--primary-light);
-    }
-    
-    .regeneration-section h4 {
-      margin: 0 0 var(--spacing-md) 0;
-      color: var(--primary);
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-sm);
-    }
-    
-    .regeneration-content {
-      display: flex;
-      flex-direction: column;
-      gap: var(--spacing-md);
-    }
-    
-    .regeneration-info {
-      background: rgba(255, 255, 255, 0.8);
-      padding: var(--spacing-md);
-      border-radius: var(--border-radius-sm);
-      border: 1px solid var(--border-color);
-    }
-    
-    .info-item {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-sm);
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-    }
-    
-    .info-item i {
-      color: var(--info);
-    }
+
     
     /* セレクトボックススタイル改善 */
     select {
@@ -1358,6 +1318,13 @@
       gap: var(--spacing-sm);
     }
     
+    .sample-buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: var(--spacing-xs);
+      max-width: 100%;
+    }
+    
     .sample-btn {
       background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%);
       border: 1px solid var(--primary-light);
@@ -1393,13 +1360,6 @@
     
     .sample-btn:hover i {
       transform: scale(1.1) rotate(5deg);
-    }
-    
-    .sample-buttons div {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: var(--spacing-xs);
-      max-width: 100%;
     }
     
     /* レスポンシブデザイン改善 */
@@ -1438,7 +1398,7 @@
         margin: 10px;
       }
       
-      .sample-buttons div {
+      .sample-buttons-grid {
         flex-direction: column;
         gap: var(--spacing-sm);
       }
@@ -1577,7 +1537,7 @@
             <!-- サンプルボタン -->
             <div class="sample-buttons">
               <h5><i class="fas fa-lightbulb"></i> クイックスタート：</h5>
-              <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+              <div class="sample-buttons-grid">
                 <button class="sample-btn" data-sample="simple-chair">
                   <i class="fas fa-chair"></i> シンプル椅子
                 </button>
@@ -1854,51 +1814,6 @@
 
           </div>
           
-
-          
-          <!-- 再生成セクション -->
-          <div id="regenerationSection" class="regeneration-section" style="display: none;">
-            <h4><i class="fas fa-redo"></i> モデル再生成</h4>
-            <div class="regeneration-content">
-              <div class="form-group">
-                <label for="commonModifications">よくある修正指示</label>
-                <select id="commonModifications">
-                  <option value="">-- 選択してください --</option>
-                  <option value="接合部が離れているので修正してください">接合部が離れている</option>
-                  <option value="脚部をもっと安定させてください">脚部が不安定</option>
-                  <option value="収納スペースを増やしてください">収納が少ない</option>
-                  <option value="角を丸くして安全性を向上させてください">角が鋭い</option>
-                  <option value="材質感をより表現してください">材質感が不足</option>
-                </select>
-              </div>
-              
-              <div class="form-group">
-                <label for="regenerationComment">追加コメント・修正指示</label>
-                <textarea 
-                  id="regenerationComment" 
-                  class="input-area" 
-                  style="min-height: 100px;"
-                  placeholder="例: 引き出しを3つに増やして、取っ手を追加してください"
-                ></textarea>
-              </div>
-              
-              <div class="button-group">
-                <button id="regenerateBtn" class="button">
-                  <i class="fas fa-magic"></i> 修正版を再生成
-                </button>
-                <button id="clearRegenerationBtn" class="button secondary">
-                  <i class="fas fa-eraser"></i> コメントクリア
-                </button>
-              </div>
-              
-              <div class="regeneration-info">
-                <div class="info-item">
-                  <i class="fas fa-info-circle"></i>
-                  <span>第2段階から再実行されます（DeepSeek-R1推論モデル使用・約120-180秒）</span>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
