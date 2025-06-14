@@ -436,9 +436,63 @@ class AIManager {
 
   // ========== 第2段階：OBJ形式ファイル出力特化システムプロンプト ==========
   getSystemPrompt() {
-    return `You are a furniture-CAD expert specializing in 3D model generation. 
-Generate valid OBJ format data only. Output ONLY the OBJ file content with vertices (v) and faces (f).
-Do not include any explanations, markdown, or other text - just pure OBJ data.`;
+    return `You are a professional 3D furniture modeling expert specializing in generating detailed OBJ format 3D models.
+
+CRITICAL REQUIREMENTS:
+1. Generate ONLY valid OBJ format data (vertices and faces)
+2. Create realistic furniture geometry with proper proportions
+3. Include ALL structural components (legs, surfaces, supports, etc.)
+4. Use appropriate vertex density for smooth surfaces
+5. Ensure all parts are properly connected
+6. Output ONLY the raw OBJ data - no explanations or markdown
+
+FURNITURE MODELING GUIDELINES:
+
+FOR CHAIRS:
+- Create 4 separate legs with proper thickness (not just lines)
+- Add a horizontal seat surface with thickness
+- Include backrest with appropriate angle (95-105 degrees)
+- Add crossbeams between legs for stability
+- Ensure legs extend to floor level (y=0)
+
+FOR DESKS:
+- Create a thick desktop surface (3-5cm thickness)
+- Add 4 legs or pedestal base with proper dimensions
+- Include support structures between legs
+- Add any specified drawers or compartments as separate geometry
+- Ensure proper clearance for knees (70cm+ height)
+
+FOR SHELVES/BOOKCASES:
+- Create vertical side panels with thickness
+- Add multiple horizontal shelves with proper spacing
+- Include back panel if specified
+- Add proper depth for book storage (25-35cm typical)
+- Ensure proper proportions for stability
+
+FOR CABINETS:
+- Create main body structure with thickness
+- Add doors/drawers as separate geometric elements
+- Include handles and hinges as simple geometry
+- Add internal shelving if specified
+- Ensure realistic proportions and clearances
+
+TECHNICAL SPECIFICATIONS:
+- Use world coordinates where Y-axis is vertical (up)
+- Place furniture base at Y=0 (floor level)
+- Use centimeter units for consistency
+- Generate 50-200+ vertices for detailed geometry
+- Create 30-150+ faces for proper surface coverage
+- Ensure all faces are triangles or quads only
+- No degenerate faces (faces with duplicate vertices)
+
+EXAMPLE OUTPUT FORMAT:
+# [Furniture Type] - [Brief Description]
+v [x] [y] [z]  # vertex coordinates
+...
+f [v1] [v2] [v3] [v4]  # face definitions
+...
+
+Generate detailed, realistic furniture geometry that matches the specifications provided.`;
   }
 
   // ========== プロンプト最適化 ==========
@@ -449,11 +503,128 @@ Do not include any explanations, markdown, or other text - just pure OBJ data.`;
       dimensionText = `横${width} × 奥${depth} × 高さ${height} cm`;
     }
 
-    // 簡潔なタスク指定プロンプト
-    const taskPrompt = `#TASK: OBJ_GENERATION
-${userPrompt}${dimensionText ? '\n' + dimensionText : ''}`;
+    // 家具タイプの推定
+    const furnitureType = this.detectFurnitureType(userPrompt);
+    
+    // タイプ別の詳細指示を生成
+    const detailedInstructions = this.generateDetailedInstructions(furnitureType, userPrompt, width, depth, height);
 
-    return taskPrompt;
+    // 最適化されたプロンプト
+    const optimizedPrompt = `#FURNITURE_3D_GENERATION
+
+## 基本仕様
+${userPrompt}
+${dimensionText ? '寸法: ' + dimensionText : ''}
+
+## 詳細モデリング要件
+${detailedInstructions}
+
+## 技術要件
+- OBJ形式での出力
+- 各部品の厚みを考慮した立体構造
+- 接合部は物理的に接続
+- 床面（Y=0）に設置
+- 最小50頂点、30面以上
+- 各面は三角形または四角形のみ
+
+Generate a detailed 3D furniture model with proper structural components.`;
+
+    return optimizedPrompt;
+  }
+
+  // 家具タイプ検出
+  detectFurnitureType(prompt) {
+    const lowerPrompt = prompt.toLowerCase();
+    
+    if (lowerPrompt.includes('椅子') || lowerPrompt.includes('チェア') || lowerPrompt.includes('chair')) {
+      return 'chair';
+    } else if (lowerPrompt.includes('机') || lowerPrompt.includes('デスク') || lowerPrompt.includes('desk') || lowerPrompt.includes('テーブル')) {
+      return 'desk';
+    } else if (lowerPrompt.includes('棚') || lowerPrompt.includes('本棚') || lowerPrompt.includes('shelf') || lowerPrompt.includes('bookshelf')) {
+      return 'shelf';
+    } else if (lowerPrompt.includes('キャビネット') || lowerPrompt.includes('cabinet') || lowerPrompt.includes('収納')) {
+      return 'cabinet';
+    }
+    
+    return 'general';
+  }
+
+  // タイプ別詳細指示生成
+  generateDetailedInstructions(furnitureType, userPrompt, width, depth, height) {
+    switch (furnitureType) {
+      case 'chair':
+        return `
+### 椅子の構造要素
+1. 座面: 厚み3-5cm、${width !== 'auto' ? width + 'cm' : '40-50cm'}幅、${depth !== 'auto' ? depth + 'cm' : '40-45cm'}奥行
+2. 背もたれ: 座面から${height !== 'auto' ? (height - 45) + 'cm' : '35-40cm'}高、適切な角度（95-105度）
+3. 脚部: 4本、各々厚み3-5cm、${height !== 'auto' ? height + 'cm' : '80cm'}高
+4. 補強材: 脚間の横材、H型またはX型
+5. 接合部: 各部品が物理的に接続された一体構造
+
+### モデリング指示
+- 脚部は床面（Y=0）に接地
+- 座面は${height !== 'auto' ? (height * 0.55) : '44-46'}cm高に配置
+- 背もたれは座面後端から立ち上がり
+- すべての部品に適切な厚みを付与`;
+
+      case 'desk':
+        return `
+### デスクの構造要素
+1. 天板: 厚み3-5cm、${width !== 'auto' ? width + 'cm' : '120cm'}幅、${depth !== 'auto' ? depth + 'cm' : '60cm'}奥行
+2. 脚部: 4本または2本のペデスタル、${height !== 'auto' ? height + 'cm' : '75cm'}高
+3. 補強材: 脚間の横材またはパネル
+4. 引き出し（記載がある場合）: 天板下に配置
+5. 配線穴（記載がある場合）: 天板に円形の穴
+
+### モデリング指示
+- 天板は${height !== 'auto' ? height + 'cm' : '75cm'}高に配置
+- 脚部は床面（Y=0）に接地
+- 膝下クリアランス65cm以上を確保
+- 引き出しは別の立体として作成`;
+
+      case 'shelf':
+        return `
+### 棚の構造要素
+1. 側板: 2枚、厚み2-3cm、${width !== 'auto' ? width + 'cm' : '80cm'}幅、${height !== 'auto' ? height + 'cm' : '180cm'}高
+2. 棚板: 複数枚、厚み2-3cm、適切な間隔で配置
+3. 背板（記載がある場合）: 薄いパネル、厚み1-2cm
+4. 固定棚と可動棚の区別
+5. 底板: 最下段の棚板
+
+### モデリング指示
+- 底板は床面（Y=0）に設置
+- 棚板間隔は25-35cm
+- 奥行は${depth !== 'auto' ? depth + 'cm' : '30cm'}
+- 側板は棚板を挟み込む構造`;
+
+      case 'cabinet':
+        return `
+### キャビネットの構造要素
+1. 本体: 側板、上板、底板で構成
+2. 扉: 開閉可能な前面パネル
+3. 取っ手: 扉の適切な位置に配置
+4. 内部棚板: 収納効率を考慮した配置
+5. 背板: 薄いパネルで背面を覆う
+
+### モデリング指示
+- 底板は床面（Y=0）に設置
+- 扉は別の立体として作成
+- 取っ手は小さな立体要素
+- 内部空間は実用的な寸法`;
+
+      default:
+        return `
+### 一般的家具の構造要素
+1. 主要構造部: 荷重を支える骨組み
+2. 表面パネル: 外観を形成する面材
+3. 接合部: 各部品の連結部分
+4. 支持部: 床面との接触部分
+
+### モデリング指示
+- 各部品に適切な厚みを付与
+- 物理的に安定した構造
+- 実用的な寸法比率`;
+    }
   }
 
   // ========== OBJデータクリーニング ==========

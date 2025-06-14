@@ -392,9 +392,8 @@ window.DIYDebug = {
       currentObjData: app.currentObjData ? app.currentObjData.length : 0,
       projectCount: app.projects.length,
       sceneInitialized: app.sceneManager.isInitialized,
-      stage1Data: !!app.processingManager.stage1Data,
+      stage1Data: !!app.processingManager.stagePipeline?.context?.stage1Output,
       stage2Data: !!app.processingManager.stage2Data,
-      stage3Data: !!app.processingManager.stage3Data,
       memoryUsage: this.getMemoryUsage(),
       storageUsage: this.getStorageUsage()
     };
@@ -439,3 +438,4 @@ console.log(`
   'color: #666; font-size: 14px;',
   'color: #999; font-size: 12px;'
 );
+

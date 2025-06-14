@@ -6,26 +6,26 @@
     <title>LLM Workflow Editor - Visual AI Pipeline Creator</title>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-gray-900">
+<body>
     <!-- Main Container -->
-    <div id="app" class="flex flex-col h-screen bg-gray-900">
+    <div id="app" class="flex flex-col h-screen">
         
         <!-- Header Toolbar -->
-        <div id="toolbar" class="bg-gray-800 border-b border-gray-700 px-4 py-3">
+        <div id="toolbar" class="bg-blue-600 border-b border-gray-700 px-4 py-3" style="background: var(--primary-gradient); border-bottom: 1px solid var(--node-border); color: white;">
             <div class="flex items-center justify-between">
                 <!-- Left section -->
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-2">
-                        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: white;">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
-                        <h1 class="text-xl font-bold text-white">LLM Workflow Editor</h1>
+                        <h1 class="text-xl font-bold" style="color: white;">LLM Workflow Editor</h1>
                     </div>
                     
-                    <div class="h-6 w-px bg-gray-600"></div>
+                    <div class="h-6 w-px" style="background-color: rgba(255,255,255,0.3);"></div>
                     
                     <div class="flex items-center space-x-2">
-                        <button id="execute-btn" class="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                        <button id="execute-btn" class="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors" style="background: var(--secondary-gradient); color: white;">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m-6 4h1m4 0h1M9 6h1m4 0h1"/>
                             </svg>
@@ -34,53 +34,20 @@
                     </div>
                 </div>
 
-                <!-- Center section - File operations -->
+                <!-- Center section - Removed file operations -->
                 <div class="flex items-center space-x-2">
-                    <button id="save-btn" class="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors" title="Save Workflow">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12"/>
-                        </svg>
-                    </button>
-                    
-                    <label class="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors cursor-pointer" title="Load Workflow">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-5l-2-2H5a2 2 0 00-2 2z"/>
-                        </svg>
-                        <input type="file" accept=".json" id="load-input" class="hidden">
-                    </label>
-                    
-                    <div class="relative">
-                        <button id="export-btn" class="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors" title="Export">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
-                        </button>
-                        <div id="export-menu" class="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg opacity-0 invisible transition-all z-50">
-                            <button data-format="json" class="export-option flex items-center space-x-2 px-4 py-2 hover:bg-gray-700 text-white rounded-t-lg transition-colors w-full text-left">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                </svg>
-                                <span>Export as JSON</span>
-                            </button>
-                            <button data-format="js" class="export-option flex items-center space-x-2 px-4 py-2 hover:bg-gray-700 text-white transition-colors w-full text-left">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
-                                </svg>
-                                <span>Export as JavaScript</span>
-                            </button>
-                        </div>
-                    </div>
+                    <!-- File operations removed -->
                 </div>
 
                 <!-- Right section - View toggles -->
                 <div class="flex items-center space-x-2">
-                    <button id="toggle-palette" class="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors" title="Toggle Node Palette">
+                    <button id="toggle-palette" class="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors" title="Toggle Node Palette" style="background: rgba(255,255,255,0.2); color: white;">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
                         </svg>
                     </button>
                     
-                    <button id="toggle-properties" class="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors" title="Toggle Properties Panel">
+                    <button id="toggle-properties" class="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors" title="Toggle Properties Panel" style="background: rgba(255,255,255,0.2); color: white;">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -93,29 +60,29 @@
         <!-- Main Content -->
         <div class="flex flex-1 overflow-hidden">
             <!-- Node Palette -->
-            <div id="node-palette" class="w-64 bg-gray-800 border-r border-gray-700 flex-shrink-0">
+            <div id="node-palette" class="w-64 bg-gray-800 border-r border-gray-700 flex-shrink-0" style="background: white; border-right: 1px solid var(--node-border); box-shadow: var(--card-shadow);">
                 <div class="h-full flex flex-col">
-                    <div class="p-4 border-b border-gray-700">
-                        <h2 class="text-lg font-semibold text-white flex items-center space-x-2">
-                            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="p-4 border-b border-gray-700" style="border-bottom: 1px solid var(--node-border);">
+                        <h2 class="text-lg font-semibold flex items-center space-x-2" style="color: var(--primary);">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--primary);">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                             </svg>
                             <span>Node Palette</span>
                         </h2>
-                        <p class="text-sm text-gray-400 mt-1">Drag nodes to canvas</p>
+                        <p class="text-sm mt-1" style="color: var(--text-secondary);">Drag nodes to canvas</p>
                     </div>
                     
                     <div id="node-types" class="flex-1 p-4 space-y-3 overflow-y-auto">
                         <!-- Node types will be populated by JavaScript -->
                     </div>
                     
-                    <div class="p-4 border-t border-gray-700">
-                        <div class="bg-gray-700 rounded-lg p-3">
-                            <h4 class="text-sm font-medium text-white mb-2">Quick Start</h4>
-                            <p class="text-xs text-gray-400 leading-relaxed">
-                                Start with an <span class="text-green-400">Input</span> node, 
-                                add <span class="text-blue-400">LLM Process</span> nodes for AI logic, 
-                                and end with an <span class="text-red-400">Output</span> node.
+                    <div class="p-4 border-t border-gray-700" style="border-top: 1px solid var(--node-border);">
+                        <div class="bg-gray-700 rounded-lg p-3" style="background: #f8f9fa; border-radius: 8px;">
+                            <h4 class="text-sm font-medium mb-2" style="color: var(--text-primary);">Quick Start</h4>
+                            <p class="text-xs leading-relaxed" style="color: var(--text-secondary);">
+                                Start with an <span style="color: #28a745;">Input</span> node, 
+                                add <span style="color: var(--primary);">LLM Process</span> nodes for AI logic, 
+                                and end with an <span style="color: #dc3545;">Output</span> node.
                             </p>
                         </div>
                     </div>
@@ -124,12 +91,12 @@
             
             <!-- Canvas -->
             <div class="flex-1 relative">
-                <div id="canvas" class="relative w-full h-full bg-gray-900 overflow-hidden cursor-default">
+                <div id="canvas" class="relative w-full h-full bg-gray-900 overflow-hidden cursor-default" style="background: var(--canvas-bg);">
                     <!-- Grid Background -->
                     <svg class="absolute inset-0 w-full h-full pointer-events-none">
                         <defs>
                             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#374151" stroke-width="1" opacity="0.3"/>
+                                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="1" opacity="0.3"/>
                             </pattern>
                         </defs>
                         <rect width="100%" height="100%" fill="url(#grid)"/>
@@ -139,20 +106,20 @@
                     <div id="nodes-container"></div>
 
                     <!-- Connections SVG -->
-                    <svg id="connections-svg" class="absolute inset-0 w-full h-full pointer-events-none">
+                    <svg id="connections-svg" class="absolute inset-0 w-full h-full" style="pointer-events: auto; z-index: 10;">
                         <!-- Connections will be drawn here -->
                     </svg>
 
                     <!-- Welcome message -->
                     <div id="welcome-message" class="absolute inset-0 flex items-center justify-center">
                         <div class="text-center">
-                            <div class="w-16 h-16 mx-auto mb-4 bg-gray-700 rounded-full flex items-center justify-center">
-                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="w-16 h-16 mx-auto mb-4 bg-gray-700 rounded-full flex items-center justify-center" style="background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);">
+                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: white;">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                                 </svg>
                             </div>
-                            <h3 class="text-xl font-semibold text-white mb-2">Start Building Your Workflow</h3>
-                            <p class="text-gray-400 max-w-md">
+                            <h3 class="text-xl font-semibold mb-2" style="color: var(--text-primary);">Start Building Your Workflow</h3>
+                            <p class="max-w-md" style="color: var(--text-secondary);">
                                 Drag nodes from the palette or click on a node type to add it to your canvas. 
                                 Connect nodes to create powerful AI workflows.
                             </p>
@@ -162,26 +129,26 @@
             </div>
             
             <!-- Property Panel -->
-            <div id="property-panel" class="w-80 bg-gray-800 border-l border-gray-700 flex-shrink-0 hidden">
+            <div id="property-panel" class="w-80 bg-gray-800 border-l border-gray-700 flex-shrink-0 hidden" style="background: white; border-left: 1px solid var(--node-border); box-shadow: var(--card-shadow);">
                 <div class="h-full flex flex-col">
                     <!-- Header -->
-                    <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+                    <div class="p-4 border-b border-gray-700 flex items-center justify-between" style="border-bottom: 1px solid var(--node-border);">
                         <div class="flex items-center space-x-2">
-                            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--primary);">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             </svg>
-                            <h2 class="text-lg font-semibold text-white">Properties</h2>
+                            <h2 class="text-lg font-semibold" style="color: var(--text-primary);">Properties</h2>
                         </div>
-                        <button id="close-properties" class="p-1 hover:bg-gray-700 rounded transition-colors">
-                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button id="close-properties" class="p-1 hover:bg-gray-700 rounded transition-colors" style="color: var(--text-secondary);">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
                         </button>
                     </div>
 
                     <!-- Node Type Badge -->
-                    <div id="node-type-badge" class="p-4 border-b border-gray-700">
+                    <div id="node-type-badge" class="p-4 border-b border-gray-700" style="border-bottom: 1px solid var(--node-border);">
                         <!-- Will be populated by JavaScript -->
                     </div>
 
@@ -194,6 +161,93 @@
         </div>
     </div>
 
-    <script src="main.js"></script>
+    <!-- Context Menus -->
+    <!-- Node Context Menu -->
+    <div id="node-context-menu" class="context-menu" style="display: none;">
+        <div class="context-menu-header">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            <span id="context-node-label">Node</span>
+        </div>
+        <hr class="context-menu-divider">
+        <div class="context-menu-item" id="context-select-node">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+            </svg>
+            <span>Select Node</span>
+        </div>
+        <div class="context-menu-item" id="context-duplicate-node">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            <span>Duplicate Node</span>
+        </div>
+        <hr class="context-menu-divider">
+        <div class="context-menu-item context-menu-item-danger" id="context-delete-node">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+            <span>Delete Node</span>
+        </div>
+    </div>
+
+    <!-- Canvas Context Menu -->
+    <div id="canvas-context-menu" class="context-menu" style="display: none;">
+        <div class="context-menu-header">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+            <span>Add Node</span>
+        </div>
+        <hr class="context-menu-divider">
+        <div class="context-menu-submenu">
+            <div class="context-menu-item" id="context-add-input">
+                <div class="node-icon icon-input" style="width: 16px; height: 16px; border-radius: 3px;"></div>
+                <span>Input Node</span>
+            </div>
+            <div class="context-menu-item" id="context-add-llm">
+                <div class="node-icon icon-llm" style="width: 16px; height: 16px; border-radius: 3px;"></div>
+                <span>LLM Process</span>
+            </div>
+            <div class="context-menu-item" id="context-add-branch">
+                <div class="node-icon icon-branch" style="width: 16px; height: 16px; border-radius: 3px;"></div>
+                <span>Branch Logic</span>
+            </div>
+            <div class="context-menu-item" id="context-add-merge">
+                <div class="node-icon icon-merge" style="width: 16px; height: 16px; border-radius: 3px;"></div>
+                <span>Merge Data</span>
+            </div>
+            <div class="context-menu-item" id="context-add-filter">
+                <div class="node-icon icon-filter" style="width: 16px; height: 16px; border-radius: 3px;"></div>
+                <span>Filter Data</span>
+            </div>
+            <div class="context-menu-item" id="context-add-loop">
+                <div class="node-icon icon-loop" style="width: 16px; height: 16px; border-radius: 3px;"></div>
+                <span>Loop Process</span>
+            </div>
+            <div class="context-menu-item" id="context-add-custom">
+                <div class="node-icon icon-custom" style="width: 16px; height: 16px; border-radius: 3px;"></div>
+                <span>Custom Logic</span>
+            </div>
+            <div class="context-menu-item" id="context-add-output">
+                <div class="node-icon icon-output" style="width: 16px; height: 16px; border-radius: 3px;"></div>
+                <span>Output Result</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load LLM API module first -->
+    <script src="llm.js"></script>
+    
+    <!-- Load workflow editor modules in dependency order -->
+    <script src="node-manager.js"></script>
+    <script src="connection-manager.js"></script>
+    <script src="event-handlers.js"></script>
+    <script src="ui-manager.js"></script>
+    <script src="workflow-executor.js"></script>
+    
+    <!-- Load main workflow editor last -->
+    <script src="workflow-editor.js"></script>
 </body>
 </html>

@@ -41,9 +41,10 @@ The application follows a modular class-based architecture with separation of co
 
 4. **ProcessingManager (processing.js)** - 3-stage processing workflow
    - Stage 1: Specification analysis and optimization
-   - Stage 2: 3D model generation
+   - Stage 2: 3D model generation  
    - Stage 3: Quality validation and checking
    - Progress tracking and error handling
+   - Uses StageDataPipeline for inter-stage communication
 
 ### Application Flow
 
@@ -60,17 +61,29 @@ The application follows a modular class-based architecture with separation of co
 - `index.html` - Main application interface with embedded CSS and structure
 - `app.js` - Application initialization and module integration
 - `core.js` - Main DIYAssistant class and UI management
-- `scene.js` - 3D scene management with Three.js
-- `ai.js` - LLM API integration and model processing
-- `processing.js` - 3-stage workflow management
-- `3step_progress.html` - Standalone UI demo for progress visualization
+- `scene.js` - SceneManager class for 3D scene management with Three.js
+- `ai.js` - AIManager class for LLM API integration and model processing
+- `processing.js` - ProcessingManager class for 3-stage workflow management
+- `obj/` - Directory containing sample OBJ files for testing
 
 ## Development Workflow
 
+### Running the Application
+```bash
+# Option 1: Simple HTTP server (Python 3)
+python -m http.server 8000
+
+# Option 2: Node.js http-server (if installed)
+npx http-server -p 8000
+
+# Then open: http://localhost:8000/index.html
+```
+
 ### Testing the Application
 - Open `index.html` in a web browser (HTTP server recommended for CORS)
-- Use sample buttons to quickly test different furniture types
+- Use sample buttons to quickly test different furniture types (Desk, Shelf, Chair, Cabinet)
 - Check browser console for debug information when debug mode is enabled
+- Test with sample OBJ files from the `obj/` directory
 
 ### Debug Mode
 - **Enable**: Press `Ctrl+Shift+D` or set `diy_debug_mode=true` in localStorage
@@ -157,3 +170,31 @@ Built-in furniture samples with predefined specifications:
 ## Current Status
 
 This is a functional 3D furniture design assistant with complete workflow from natural language input to downloadable 3D models. The modular architecture supports future enhancements such as material selection, collaborative features, or integration with CAD software.
+
+## Class Interaction Patterns
+
+### Manager Dependencies 
+- **DIYAssistant** (core.js) creates and coordinates all other managers
+- **ProcessingManager** (processing.js) orchestrates **AIManager** for LLM calls
+- **SceneManager** (scene.js) handles 3D visualization independently with advanced features
+- **AIManager** (ai.js) processes OBJ data and handles API communication
+
+### Event Flow
+1. User input → **DIYAssistant** → **ProcessingManager**
+2. **ProcessingManager** → **AIManager** (3 stages) → **StageDataPipeline**
+3. **AIManager** returns OBJ data → **SceneManager** for 3D display
+4. **DIYAssistant** manages state persistence and UI updates
+
+### Key State Variables
+- `currentObjData` - Active 3D model data (DIYAssistant)
+- `currentStage` - Processing stage indicator (DIYAssistant)  
+- `projects[]` - Saved project list (DIYAssistant)
+- `context` - Inter-stage data pipeline (StageDataPipeline)
+
+### Advanced 3D Features (SceneManager)
+- **Camera Controls**: OrbitControls with zoom, rotate, pan
+- **Advanced Center Controls**: Double-click to change focus point, keyboard shortcuts
+- **Material System**: Furniture-type specific color palettes and materials
+- **Quality Validation**: OBJ data cleaning, NaN value fixing, vertex/face validation
+- **Interactive Elements**: Center indicator, keyboard shortcuts (Ctrl+R, Ctrl+C)
+- **Lighting System**: Multiple light sources including directional, ambient, and hemisphere lighting

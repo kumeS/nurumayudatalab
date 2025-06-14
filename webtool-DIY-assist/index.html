@@ -477,6 +477,49 @@
       box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
     }
     
+    /* 停止ボタン専用スタイル */
+    #stopProcessingBtn {
+      background: linear-gradient(135deg, #ff4757 0%, #ff3838 100%);
+      color: white;
+      border: none;
+      padding: var(--spacing-md) var(--spacing-lg);
+      border-radius: var(--border-radius-sm);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-sm);
+      box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3);
+      animation: pulse-warning 2s infinite;
+    }
+    
+    #stopProcessingBtn:hover {
+      background: linear-gradient(135deg, #ff3838 0%, #ff2f2f 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(255, 71, 87, 0.4);
+      animation: none;
+    }
+    
+    #stopProcessingBtn:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 6px rgba(255, 71, 87, 0.3);
+    }
+    
+    #stopProcessingBtn i {
+      font-size: 1rem;
+    }
+    
+    @keyframes pulse-warning {
+      0%, 100% {
+        box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3);
+      }
+      50% {
+        box-shadow: 0 2px 12px rgba(255, 71, 87, 0.5);
+      }
+    }
+    
     .button.secondary {
       background: var(--secondary);
     }
@@ -497,6 +540,43 @@
       background: #ccc;
       transform: none;
       box-shadow: none;
+    }
+    
+    /* DeepSeek推論モデル注意事項スタイル */
+    .generation-notice {
+      margin-top: var(--spacing-md);
+      padding: var(--spacing-md);
+      background: linear-gradient(135deg, #e3f2fd 0%, #f0f7ff 100%);
+      border: 1px solid #bbdefb;
+      border-radius: var(--border-radius-sm);
+    }
+    
+    .notice-content {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+    }
+    
+    .notice-content i {
+      color: #1976d2;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+    
+    .notice-text {
+      font-size: 0.9rem;
+      color: #1565c0;
+      line-height: 1.4;
+    }
+    
+    .notice-text strong {
+      color: #0d47a1;
+    }
+    
+    .notice-text small {
+      color: #1976d2;
+      display: block;
+      margin-top: var(--spacing-xs);
     }
     
     /* 3Dプレビューコンテナ改善 */
@@ -1003,6 +1083,7 @@
       border-radius: var(--border-radius-sm);
       border: 2px solid var(--border-color);
       transition: all var(--transition-speed);
+      position: relative;
     }
     
     .stage-icon {
@@ -1073,6 +1154,36 @@
     .stage-error .stage-icon {
       background: var(--danger);
       color: white;
+    }
+    
+    /* 段階情報ボタン */
+    .stage-info-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(33, 150, 243, 0.1);
+      border: 2px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-size: 0.9rem;
+      color: var(--primary);
+    }
+    
+    .stage-info-btn:hover {
+      background: var(--primary);
+      color: white;
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+    }
+    
+    .stage-info-btn i {
+      pointer-events: none;
     }
     
     /* 再生成セクション改善 */
@@ -1437,11 +1548,7 @@
         <div class="step-title">3Dプレビュー</div>
         <div class="step-description">ブラウザ上で3Dモデルを確認</div>
       </div>
-      <div class="step-card">
-        <div class="step-number">4</div>
-        <div class="step-title">ファイル出力</div>
-        <div class="step-description">OBJファイルをダウンロード</div>
-      </div>
+
     </div>
     
     <!-- メインコンテンツ -->
@@ -1514,6 +1621,19 @@
             </button>
           </div>
           
+          <!-- DeepSeek推論モデル使用に関する注意事項 -->
+          <div class="generation-notice">
+            <div class="notice-content">
+              <i class="fas fa-info-circle"></i>
+              <div class="notice-text">
+                <strong>AI処理について：</strong>
+                第2段階の3Dモデル生成では<strong>DeepSeek-R1推論モデル</strong>を使用します。
+                <br>
+                <small>⏱️ 推論モデルのため、通常より時間がかかる場合があります（120-180秒程度）</small>
+              </div>
+            </div>
+          </div>
+          
           <!-- 3段階プログレス表示 -->
           <div id="threeStageProgress" class="three-stage-progress" style="display: none;">
             <h4><i class="fas fa-tasks"></i> AI処理進行状況</h4>
@@ -1526,6 +1646,9 @@
                   <div class="stage-title">第1段階：仕様分析と最適化</div>
                   <div id="stage1Text" class="stage-status">待機中</div>
                 </div>
+                <div id="stage1InfoBtn" class="stage-info-btn" style="display: none;" title="生の出力結果を確認">
+                  <i class="fas fa-info-circle"></i>
+                </div>
               </div>
               
               <div id="stage2" class="stage-item stage-pending">
@@ -1533,18 +1656,11 @@
                   <i id="stage2Icon" class="fas fa-circle"></i>
                 </div>
                 <div class="stage-content">
-                  <div class="stage-title">第2段階：3Dモデル生成</div>
+                  <div class="stage-title">第2段階：3Dモデル生成 (DeepSeek-R1)</div>
                   <div id="stage2Text" class="stage-status">待機中</div>
                 </div>
-              </div>
-              
-              <div id="stage3" class="stage-item stage-pending">
-                <div class="stage-icon">
-                  <i id="stage3Icon" class="fas fa-circle"></i>
-                </div>
-                <div class="stage-content">
-                  <div class="stage-title">第3段階：品質改善</div>
-                  <div id="stage3Text" class="stage-status">待機中</div>
+                <div id="stage2InfoBtn" class="stage-info-btn" style="display: none;" title="生の出力結果を確認">
+                  <i class="fas fa-info-circle"></i>
                 </div>
               </div>
             </div>
@@ -1554,6 +1670,11 @@
             <div class="loading-spinner"></div>
             <span class="loading-text">AI が3Dモデルを生成中...</span>
           </div>
+          
+          <!-- 停止ボタン -->
+          <button id="stopProcessingBtn" class="button danger" style="display: none; margin-top: var(--spacing-md);">
+            <i class="fas fa-stop"></i> AI処理を停止
+          </button>
           
           <div id="errorMessage" class="message error-message" style="display: none;"></div>
           <div id="successMessage" class="message success-message" style="display: none;"></div>
@@ -1701,81 +1822,10 @@
               </div>
             </div>
             
-            <!-- 段階別結果表示ボタン -->
-            <div class="stage-results-buttons" style="margin-top: var(--spacing-md);">
-              <h5 style="margin: 0 0 var(--spacing-sm) 0; color: var(--primary); font-size: 1rem; display: flex; align-items: center; gap: var(--spacing-sm);">
-                <i class="fas fa-chart-line"></i> 処理結果詳細
-              </h5>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--spacing-sm);">
-                <button id="showStage1ResultBtn" class="button secondary" style="display: none; padding: var(--spacing-sm); font-size: 0.9rem;">
-                  <i class="fas fa-cogs"></i> 第1段階結果
-                </button>
-                <button id="showStage2ResultBtn" class="button secondary" style="display: none; padding: var(--spacing-sm); font-size: 0.9rem;">
-                  <i class="fas fa-cube"></i> 第2段階結果
-                </button>
-                <button id="showStage3ResultBtn" class="button secondary" style="display: none; padding: var(--spacing-sm); font-size: 0.9rem;">
-                  <i class="fas fa-check-circle"></i> 第3段階結果
-                </button>
-              </div>
-            </div>
+
           </div>
           
-          <div id="downloadButtonGroup" class="button-group" style="display: none; margin-top: var(--spacing-md);">
-            <!-- ダウンロード設定セクション -->
-            <div class="download-settings" style="background: white; padding: var(--spacing-md); border-radius: var(--border-radius-sm); border: 1px solid var(--border-color); margin-bottom: var(--spacing-md);">
-              <h5 style="margin: 0 0 var(--spacing-md) 0; color: var(--primary); font-size: 1rem; display: flex; align-items: center; gap: var(--spacing-sm);">
-                <i class="fas fa-cog"></i> ダウンロード設定
-              </h5>
-              
-              <div class="form-group" style="margin-bottom: var(--spacing-md);">
-                <label for="downloadMethod" style="display: block; margin-bottom: var(--spacing-sm); font-weight: 600; color: var(--text-primary);">
-                  <i class="fas fa-download"></i> ダウンロード方法
-                </label>
-                <select id="downloadMethod" class="input" style="width: 100%;">
-                  <option value="auto">自動ダウンロード（ブラウザ標準）</option>
-                  <option value="save-as">名前を付けて保存</option>
-                  <option value="clipboard">クリップボードにコピー</option>
-                </select>
-                <small style="color: var(--text-secondary); font-size: 0.85rem; margin-top: var(--spacing-xs); display: block;">
-                  💡 「名前を付けて保存」を選択すると、保存先とファイル名を指定できます
-                </small>
-              </div>
-              
-              <div class="form-group" style="margin-bottom: var(--spacing-md);">
-                <label for="customFilename" style="display: block; margin-bottom: var(--spacing-sm); font-weight: 600; color: var(--text-primary);">
-                  <i class="fas fa-file-signature"></i> ファイル名（オプション）
-                </label>
-                <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
-                  <input 
-                    type="text" 
-                    id="customFilename" 
-                    class="input" 
-                    placeholder="例: my_desk_design"
-                    style="flex: 1;"
-                  >
-                  <span style="color: var(--text-secondary); font-weight: 500;">.obj</span>
-                </div>
-                <small style="color: var(--text-secondary); font-size: 0.85rem; margin-top: var(--spacing-xs); display: block;">
-                  空白の場合は自動生成されます（furniture_YYYYMMDD_HHMM.obj）
-                </small>
-              </div>
-              
-              <div class="download-preview" style="background: var(--bg-light); padding: var(--spacing-sm); border-radius: var(--border-radius-sm); border: 1px solid var(--border-color);">
-                <div style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); margin-bottom: var(--spacing-xs);">
-                  <i class="fas fa-eye"></i> プレビュー
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-family: monospace; color: var(--text-primary); font-size: 0.9rem;" id="filenamePreview">furniture_20250613_2346.obj</span>
-                  <span style="color: var(--text-secondary); font-size: 0.85rem;" id="downloadSizePreview">1.98 KB</span>
-                </div>
-              </div>
-            </div>
-            
-            <button id="downloadObjBtn" class="button" disabled title="3DモデルのOBJファイルをダウンロードします">
-              <i class="fas fa-download"></i> OBJダウンロード
-              <span id="downloadFileSize" class="file-size-indicator" style="display: none;"></span>
-            </button>
-          </div>
+
           
           <!-- 再生成セクション -->
           <div id="regenerationSection" class="regeneration-section" style="display: none;">
@@ -1815,7 +1865,7 @@
               <div class="regeneration-info">
                 <div class="info-item">
                   <i class="fas fa-info-circle"></i>
-                  <span>第2段階から再実行されます（約30-60秒）</span>
+                  <span>第2段階から再実行されます（DeepSeek-R1推論モデル使用・約120-180秒）</span>
                 </div>
               </div>
             </div>
@@ -1842,18 +1892,22 @@
     </div>
   </div>
 
-  <!-- 段階別結果表示モーダル -->
-  <div id="stageResultModal" class="modal" style="display: none;">
+
+
+  <!-- 生の出力結果モーダル -->
+  <div id="rawOutputModal" class="modal" style="display: none;">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="stageResultModalTitle"><i class="fas fa-chart-line"></i> 処理結果詳細</h3>
-        <button id="closeStageResultModal" class="close-btn" aria-label="閉じる">&times;</button>
+        <h3 id="rawOutputModalTitle"><i class="fas fa-file-code"></i> 生の出力結果</h3>
+        <button id="closeRawOutputModal" class="close-btn" aria-label="閉じる">&times;</button>
       </div>
       <div class="modal-body">
-        <div id="stageResultContent"></div>
+        <div id="rawOutputContent">
+          <!-- 生の出力内容がここに表示されます -->
+        </div>
       </div>
       <div class="modal-footer">
-        <button id="closeStageResultModalBtn" class="button">
+        <button id="closeRawOutputModalBtn" class="button">
           <i class="fas fa-times"></i> 閉じる
         </button>
       </div>

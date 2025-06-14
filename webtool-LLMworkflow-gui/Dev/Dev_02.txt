@@ -1,0 +1,638 @@
+# LLMワークフローエディター 開発優先度別分類
+#定義のみで呼び出しなしの関数を調査して、呼び出しなしの関数は削除してください。
+#ultra-thinkingして解決して欲しい。
+
+playwright mcpで、index.htmlのUI動作をStep by Stepで実行して、動作確認してください。
+ultra-thinlingして、バグ箇所を同定して、そのバグ箇所を修正してください。  
+
+---------------------------------------------------------
+
+
+
+このプロジェクトをよく理解して、ultra-thinkingして、バグ・修正点について、どのファイルをどのように修正すべきかを明らかにして、それぞれの修正を項目分けして提案・修正してください。コードの修正箇所は動作に必要十分であり必要最小限の修正箇所のみに留めるべきです。このコード修正によって他の機能に影響しないように、さらには他のUIの各種動作を妨げないように、細心の注意を払ってコード修正を行なってください。
+
+【バグ・修正点】
+Input Nodeの色合いが良くない。オレンジがInput Nodeの色に加わると見にくい。
+
+ノード接続時に線が表示されない。画面上で、ノードとノードをconnectしたときに、該当のノードが線で結ばれないバグがあります。内部的には接続が作成されているが、視覚的な線が表示されない。DOM要素の位置計算タイミングの問題が原因と推測。プロパティパネルの接続数表示が正しく更新されない。updatePropertyPanel()の呼び出しタイミングの問題。
+Connect nodeは、Nodeの左右の中央にあるべきです。Connect nodeは出力は最大で3つまで増やせるようにしたい。
+
+
+---------------------------------------------------------
+いまだに、先ほどのバグ・修正点がまったく修正されていません。なぜバグが修正されないのか、このプロジェクトをよく理解して、ultra-thinkingして、徹底的な原因究明を行なってください。そして、どのファイルをどのように修正すべきかを明らかにして、明らかになった点に充実に該当コードを適切に修正してください。コードの修正箇所は動作に必要十分であり必要最小限の修正箇所のみに留めるべきです。
+
+---------------------------------------------------------
+このプロジェクトをよく理解して、ultra-thinkingしてください。
+下記のどのファイルをどのように修正すべきのコード修正情報に基づき、このプロジェクトのバグを修正してください。このコード修正によって他の機能に影響しないように、さらには他のUIの各種動作を妨げないように、細心の注意を払ってコード修正を行なってください。コードの修正箇所は動作に必要十分であり必要最小限の修正箇所のみに留めるべきです。
+
+---------------------------------------------------------
+
+
+ページ更新した時に、ページのノードや情報が保持されず、消えます。これを保持されるようにしてください。これを関数として定義して、この関数を使用してください。
+
+
+
+
+UIでは、まだノード間の線が未実装です。ultra-thinkingして解決して欲しい。
+UIでノードの小さいポイント同士をエッジ（線）で繋げるようにしたい。
+NodeのBasic Configurationにも、どのノードと繋げるかを定義できるようにしたい。
+また、この設定で、UIでもノード同士が繋がるようにしてください。
+プロジェクト内のコードを修正してください。
+
+
+## 🚨 現在のバグ修正（最優先・即座に対応必要）
+
+### 1. ノードID重複の修正
+**問題**: `Date.now()`だけでは同時生成時に重複の可能性
+**影響**: システムの基本動作に致命的な影響
+
+```javascript
+// main.js - addNode メソッドを修正
+addNode(nodeType, position) {
+    const newNode = {
+        // UUIDライクな一意性の高いID生成
+        id: `node_${nodeType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${this.workflow.nodes.length}`,
+        type: nodeType,
+        position: position,
+        data: this.getDefaultNodeData(nodeType)
+    };
+    // ...
+}
+```
+
+### 2. ノード間接続の修正
+**問題**: 接続線の描画はあるが、実際の接続作成ができない
+**影響**: ワークフローの中核機能が使えない
+
+```javascript
+// main.js - handlePortClick を修正
+handlePortClick(e, nodeId, portType) {
+    e.stopPropagation();
+    e.preventDefault(); // 追加：親要素へのイベント伝播を完全に防ぐ
+    
+    if (portType === 'output') {
+        // 既存の接続をキャンセル
+        if (this.dragState.connecting && this.dragState.connecting.fromNodeId === nodeId) {
+            this.dragState.connecting = null;
+        } else {
+            this.dragState.connecting = { fromNodeId: nodeId, fromPort: 'output' };
+        }
+    } else if (portType === 'input' && this.dragState.connecting) {
+        // 自己接続を防ぐ
+        if (this.dragState.connecting.fromNodeId !== nodeId) {
+            this.connectNodes(this.dragState.connecting.fromNodeId, nodeId);
+        }
+        this.dragState.connecting = null;
+    }
+    this.renderConnections();
+}
+```
+
+### 3. ノードドラッグのオフセット問題
+**問題**: `handleDragStart`でドラッグオフセットが未設定（常に0,0）
+**影響**: パレットからドラッグ時に正しい位置に配置されない
+
+### 4. 接続ポートのイベントバブリング
+**問題**: ポートクリック時にノード選択も発火してしまう
+**影響**: UI操作の混乱
+
+### 5. メモリリーク
+**問題**: ノード削除機能がないため、不要なノードが蓄積
+**影響**: 長時間使用でパフォーマンス低下
+
+---
+
+
+
+## ⚡ すぐに実装できる（1-2日で完了可能）
+
+### 1. Input Nodeの入力フィールド追加
+**概要**: 実際に値を入力できるUIを追加
+**重要度**: 高（基本機能）
+
+```javascript
+// main.js - getNodeSpecificFields に追加
+case 'input':
+    return `
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+                Input Type
+            </label>
+            <select id="node-input-type" class="form-select">
+                <option value="text" ${node.data.inputType === 'text' ? 'selected' : ''}>Text</option>
+                <option value="number" ${node.data.inputType === 'number' ? 'selected' : ''}>Number</option>
+            </select>
+        </div>
+        <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+                Default Value
+            </label>
+            <input
+                type="${node.data.inputType || 'text'}"
+                id="node-default-value"
+                value="${node.data.defaultValue || ''}"
+                class="form-input"
+                placeholder="Enter default value..."
+            />
+        </div>
+        <div class="mt-4 p-3 bg-gray-700 rounded">
+            <label class="block text-sm font-medium text-white mb-2">Test Input</label>
+            <input
+                type="${node.data.inputType || 'text'}"
+                id="node-test-input"
+                class="form-input"
+                placeholder="Enter test value..."
+            />
+        </div>
+    `;
+```
+
+### 2. オートセーブ機能の実装
+**概要**: 5秒ごとの自動保存とページ離脱時の保存
+**重要度**: 高（データ損失防止）
+
+```javascript
+// main.js - 新しいメソッドを追加
+saveToLocalStorage() {
+    const saveData = {
+        workflow: this.workflow,
+        timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('llm-workflow-autosave', JSON.stringify(saveData));
+}
+
+loadFromLocalStorage() {
+    const saved = localStorage.getItem('llm-workflow-autosave');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            this.workflow = data.workflow;
+            this.renderNodes();
+            this.updateWelcomeMessage();
+            return true;
+        } catch (e) {
+            console.error('Failed to load autosave:', e);
+        }
+    }
+    return false;
+}
+
+// init メソッドに追加
+init() {
+    this.setupEventListeners();
+    this.renderNodePalette();
+    this.loadFromLocalStorage(); // 追加
+    this.updateUI();
+    
+    // オートセーブを5秒ごとに実行
+    setInterval(() => this.saveToLocalStorage(), 5000);
+}
+```
+
+### 3. ノード配置の改善
+**概要**: グリッドスナップと重なり防止
+**重要度**: 中（UX改善）
+
+```javascript
+// addNode メソッドを修正
+findNonOverlappingPosition(position) {
+    const nodeWidth = 200;
+    const nodeHeight = 100;
+    const padding = 20;
+    
+    let testPos = { ...position };
+    let attempts = 0;
+    
+    while (attempts < 10) {
+        let overlapping = false;
+        
+        for (const node of this.workflow.nodes) {
+            if (Math.abs(node.position.x - testPos.x) < nodeWidth + padding &&
+                Math.abs(node.position.y - testPos.y) < nodeHeight + padding) {
+                overlapping = true;
+                break;
+            }
+        }
+        
+        if (!overlapping) return testPos;
+        
+        // 少しずらして再試行
+        testPos.x += nodeWidth + padding;
+        if (testPos.x > 800) {
+            testPos.x = position.x;
+            testPos.y += nodeHeight + padding;
+        }
+        attempts++;
+    }
+    
+    return testPos;
+}
+```
+
+### 4. UI/UXの基本改善
+**概要**: ツールチップとボタンのラベル改善
+**重要度**: 中（ユーザビリティ）
+
+```javascript
+// index.html のツールバーボタンにツールチップを追加
+<button id="execute-btn" 
+    class="..." 
+    title="Run the workflow from start to finish">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <span>Run Workflow</span>
+</button>
+```
+
+---
+
+## 🔧 次に簡単に実装できる（3-5日で完了可能）
+
+### 1. 新しいノードタイプの追加（Supervisor, Planner）
+**概要**: ワークフローを管理する高度なノードタイプ
+**重要度**: 高（機能拡張）
+
+```javascript
+// constructor内のnodeTypesに追加
+{
+    type: 'supervisor',
+    label: 'Supervisor',
+    description: 'Manages and orchestrates LLM processes',
+    color: 'icon-supervisor',
+    icon: this.getIcon('supervisor')
+},
+{
+    type: 'planner',
+    label: 'Planner',
+    description: 'Updates prompts based on outputs',
+    color: 'icon-planner',
+    icon: this.getIcon('planner')
+}
+```
+
+### 2. ノード実行の可視化
+**概要**: 実行中のノードをハイライト表示
+**重要度**: 高（ユーザー理解向上）
+
+```javascript
+// executeNode メソッドの前後に追加
+async executeNode(node, previousResults) {
+    // ノードをハイライト
+    const nodeElement = document.querySelector(`[data-node-id="${node.id}"]`);
+    if (nodeElement) {
+        nodeElement.classList.add('executing');
+        // 接続線もハイライト
+        this.highlightNodeConnections(node.id);
+    }
+    
+    try {
+        // 既存の実行ロジック
+        switch (node.type) {
+            // ...
+        }
+    } finally {
+        // ハイライトを削除
+        if (nodeElement) {
+            nodeElement.classList.remove('executing');
+        }
+        this.unhighlightConnections();
+    }
+}
+```
+
+### 3. 基本的なワークフロー検証
+**概要**: 入力/出力ノードの存在チェックと孤立ノード検出
+**重要度**: 中（品質向上）
+
+```javascript
+validateWorkflow() {
+    const errors = [];
+    const warnings = [];
+    
+    // 入力ノードの存在チェック
+    const inputNodes = this.workflow.nodes.filter(n => n.type === 'input');
+    if (inputNodes.length === 0) {
+        errors.push('ワークフローには少なくとも1つの入力ノードが必要です');
+    }
+    
+    // 出力ノードの存在チェック
+    const outputNodes = this.workflow.nodes.filter(n => n.type === 'output');
+    if (outputNodes.length === 0) {
+        errors.push('ワークフローには少なくとも1つの出力ノードが必要です');
+    }
+    
+    return { errors, warnings, isValid: errors.length === 0 };
+}
+```
+
+### 4. ノード削除機能の追加
+**概要**: 右クリックメニューでのノード削除
+**重要度**: 高（基本機能）
+
+---
+
+## 🏗️ 実装にはプロジェクト管理が必要（1-2週間の計画的開発）
+
+### 1. ワークフロー実行の可視化強化
+**概要**: 実行パスのアニメーション、実行ログパネル、データフロープレビュー
+**重要度**: 高（ユーザー体験の大幅向上）
+**必要スキル**: アニメーション、SVG操作、リアルタイムUI更新
+
+```javascript
+// 実行パスのアニメーション表示
+animateExecutionPath(fromNodeId, toNodeId) {
+    const connection = this.workflow.connections.find(
+        c => c.from === fromNodeId && c.to === toNodeId
+    );
+    
+    if (connection) {
+        const svg = document.getElementById('connections-svg');
+        const path = svg.querySelector(`[data-connection-id="${connection.id}"]`);
+        
+        if (path) {
+            // データフローを示すアニメーション
+            const animatedDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            animatedDot.setAttribute('r', '4');
+            animatedDot.setAttribute('fill', '#ff7e5f');
+            
+            // アニメーション設定...
+        }
+    }
+}
+```
+
+### 2. スマートな接続サジェスト機能
+**概要**: 論理的に妥当な接続先をハイライト表示
+**重要度**: 中（UX向上）
+**必要スキル**: ノードタイプ間の互換性ルール設計
+
+```javascript
+// 接続可能なノードをハイライト
+suggestConnections(sourceNodeId) {
+    const sourceNode = this.workflow.nodes.find(n => n.id === sourceNodeId);
+    if (!sourceNode) return;
+    
+    const compatibilityRules = {
+        'input': ['llm', 'branch', 'loop', 'planner'],
+        'llm': ['output', 'branch', 'merge', 'supervisor', 'planner'],
+        'branch': ['llm', 'merge', 'output'],
+        'merge': ['llm', 'output', 'supervisor'],
+        'loop': ['merge', 'output'],
+        'supervisor': ['llm', 'branch', 'output'],
+        'planner': ['llm', 'supervisor'],
+        'output': []  // 出力ノードは他に接続しない
+    };
+    
+    const compatibleTypes = compatibilityRules[sourceNode.type] || [];
+    
+    this.workflow.nodes.forEach(node => {
+        if (node.id !== sourceNodeId && compatibleTypes.includes(node.type)) {
+            const nodeElement = document.querySelector(`[data-node-id="${node.id}"]`);
+            if (nodeElement) {
+                nodeElement.classList.add('suggested-connection');
+            }
+        }
+    });
+}
+```
+
+### 3. ワークフローのJavaScriptエクスポート機能
+**概要**: ワークフローを実行可能なJavaScriptコードとして出力
+**重要度**: 高（実用性向上）
+**必要スキル**: コード生成、テンプレートエンジン
+
+```javascript
+// ワークフローをJavaScriptコードとして生成
+exportToJavaScript() {
+    const sortedNodes = this.topologicalSort();
+    let code = `// Auto-generated LLM Workflow
+// Generated at: ${new Date().toISOString()}
+
+class GeneratedWorkflow {
+    constructor() {
+        this.results = {};
+    }
+    
+    async execute() {
+        console.log('Starting workflow execution...');
+        
+`;
+    
+    sortedNodes.forEach((node, index) => {
+        const inputConnections = this.workflow.connections
+            .filter(c => c.to === node.id)
+            .map(c => `this.results['${c.from}']`);
+        
+        switch (node.type) {
+            case 'input':
+                code += `        // Input Node: ${node.data.label}
+        this.results['${node.id}'] = '${node.data.defaultValue || 'input_value'}';
+        console.log('Input:', this.results['${node.id}']);
+        
+`;
+                break;
+                
+            case 'llm':
+                code += `        // LLM Process: ${node.data.label}
+        const input_${index} = ${inputConnections[0] || "''"};
+        this.results['${node.id}'] = await this.callLLM({
+            prompt: \`${node.data.prompt}\`,
+            input: input_${index},
+            model: '${node.data.model}',
+            temperature: ${node.data.temperature}
+        });
+        console.log('LLM Output:', this.results['${node.id}']);
+        
+`;
+                break;
+        }
+    });
+    
+    return code;
+}
+```
+
+### 4. データ変換とマッピング機能
+**概要**: Transform NodeとビジュアルマッピングUI
+**重要度**: 中（高度な機能）
+**必要スキル**: データ変換ロジック、ドラッグ&ドロップUI
+
+---
+
+## 🚀 今後実装が期待される機能（長期計画・数ヶ月規模）
+
+### 1. 実行制御とモニタリング機能
+**概要**: ステップ実行、ブレークポイント、実行速度制御
+**重要度**: 高（開発者向け機能）
+**必要技術**: デバッガー設計、非同期処理制御
+
+```javascript
+// ブレークポイント管理システム
+class DebugController {
+    constructor(workflowEditor) {
+        this.editor = workflowEditor;
+        this.breakpoints = new Set();
+        this.isPaused = false;
+        this.currentNode = null;
+        this.executionStack = [];
+    }
+    
+    toggleBreakpoint(nodeId) {
+        if (this.breakpoints.has(nodeId)) {
+            this.breakpoints.delete(nodeId);
+            this.updateBreakpointUI(nodeId, false);
+        } else {
+            this.breakpoints.add(nodeId);
+            this.updateBreakpointUI(nodeId, true);
+        }
+    }
+}
+```
+
+### 2. バージョン管理と履歴機能
+**概要**: ワークフローの変更履歴、差分表示、ロールバック
+**重要度**: 中（本格運用には必須）
+**必要技術**: 差分アルゴリズム、バージョン管理システム
+
+```javascript
+class VersionManager {
+    constructor(workflowEditor) {
+        this.editor = workflowEditor;
+        this.versions = [];
+        this.currentVersion = 0;
+        this.maxVersions = 50;
+    }
+    
+    createSnapshot(description = '') {
+        const snapshot = {
+            id: `v${Date.now()}`,
+            timestamp: new Date(),
+            description: description,
+            workflow: JSON.parse(JSON.stringify(this.editor.workflow)),
+            nodeCount: this.editor.workflow.nodes.length,
+            connectionCount: this.editor.workflow.connections.length
+        };
+        
+        this.versions.push(snapshot);
+    }
+}
+```
+
+### 3. テストとバリデーション機能
+**概要**: テストケース管理、パフォーマンスプロファイリング
+**重要度**: 高（品質保証）
+**必要技術**: テスティングフレームワーク、パフォーマンス測定
+
+```javascript
+class TestCaseManager {
+    constructor(workflowEditor) {
+        this.editor = workflowEditor;
+        this.testCases = [];
+    }
+    
+    createTestCase(name, inputs, expectedOutputs) {
+        const testCase = {
+            id: `test_${Date.now()}`,
+            name: name,
+            inputs: inputs,
+            expectedOutputs: expectedOutputs,
+            lastRun: null,
+            status: 'not_run'
+        };
+        
+        this.testCases.push(testCase);
+        return testCase;
+    }
+}
+```
+
+### 4. コラボレーション機能
+**概要**: コメント機能、複数ユーザー同時編集、権限管理
+**重要度**: 中（チーム開発向け）
+**必要技術**: リアルタイム同期、WebSocket、認証システム
+
+```javascript
+// ノードへのコメント機能
+class CommentSystem {
+    constructor() {
+        this.comments = new Map();
+    }
+    
+    addComment(nodeId, comment) {
+        if (!this.comments.has(nodeId)) {
+            this.comments.set(nodeId, []);
+        }
+        
+        const commentData = {
+            id: `comment_${Date.now()}`,
+            text: comment,
+            author: this.getCurrentUser(),
+            timestamp: new Date(),
+            resolved: false
+        };
+        
+        this.comments.get(nodeId).push(commentData);
+        this.renderCommentIndicator(nodeId);
+        
+        return commentData;
+    }
+}
+```
+
+### 5. 高度なワークフロー実行機能
+**概要**: 並列実行、条件分岐、ループ処理、エラーハンドリング
+**重要度**: 高（実用性向上）
+**必要技術**: 非同期処理、グラフ理論、実行エンジン設計
+
+```javascript
+// 非同期実行とBranchノードの実装
+async executeBranchNode(node, inputs) {
+    const branchData = node.data;
+    const condition = branchData.condition;
+    const inputValue = inputs.value || '';
+    
+    // 条件を評価
+    const evaluationResult = await this.evaluateCondition(condition, inputValue);
+    
+    // 分岐先のノードを取得
+    const connections = this.workflow.connections.filter(c => c.from === node.id);
+    const trueBranch = connections.find(c => c.label === 'true');
+    const falseBranch = connections.find(c => c.label === 'false');
+    
+    // 非同期実行のためのPromise配列
+    const executionPromises = [];
+    
+    if (evaluationResult && trueBranch) {
+        const trueNode = this.workflow.nodes.find(n => n.id === trueBranch.to);
+        if (trueNode) {
+            executionPromises.push(
+                this.executeNode(trueNode, inputs)
+                    .then(result => ({ branch: 'true', result }))
+            );
+        }
+    }
+    
+    // 非同期実行
+    const results = await Promise.all(executionPromises);
+    
+    return {
+        condition: condition,
+        evaluationResult: evaluationResult,
+        executedBranches: results
+    };
+}
+```
+
+---
+
+## 📋 実装推奨順序
+
+1. **フェーズ1**: 現在のバグ修正（1週間）
+2. **フェーズ2**: すぐに実装できる機能（1週間）
+3. **フェーズ3**: 次に簡単に実装できる機能（1週間）
+4. **フェーズ4**: プロジェクト管理が必要な機能（2-4週間）
+5. **フェーズ5**: 長期計画の機能（3-6ヶ月）
+
+各フェーズの完了後にユーザーテストを実施し、フィードバックを次のフェーズに反映することを推奨します。 

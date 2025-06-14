@@ -23,15 +23,21 @@ class DIYAssistant {
     // マネージャーの初期化
     this.sceneManager = new SceneManager(this);
     this.aiManager = new AIManager(this);
-    this.processingManager = new ProcessingManager(this);
+    this.processingManager = new ProcessingManager();
+    this.processingManager.setAssistant(this);
     
     // 状態管理
     this.currentObjData = null;
     this.currentOptimizedPrompt = null;
     this.currentStage = null;
     this.eventListenersSetup = false; // イベントリスナー重複防止フラグ
-    this.lastDownloadTime = null; // ダウンロード重複防止用
-    this.downloadInProgress = false; // ダウンロード実行中フラグ
+    
+    // 各段階の生の出力データを保存
+    this.stageRawData = {
+      stage1: null,
+      stage2: null
+    };
+
     
     this.log('info', 'DIYAssistant初期化開始', { debugMode: this.debugMode });
     
@@ -267,135 +273,115 @@ class DIYAssistant {
       }
     };
 
-    // メイン機能ボタン
+    // イベントリスナーの登録（ヘルパー関数で安全に）
     safeAddEventListener('generateBtn', 'click', () => this.generateModel());
     safeAddEventListener('clearBtn', 'click', () => this.clearForm());
-    safeAddEventListener('downloadObjBtn', 'click', () => this.downloadOBJ());
     
-    // 再生成関連ボタン
+    // サンプル選択
+    safeAddEventListener('sampleChair', 'click', () => this.selectSample('chair'));
+    safeAddEventListener('sampleDesk', 'click', () => this.selectSample('desk'));
+    safeAddEventListener('sampleShelf', 'click', () => this.selectSample('shelf'));
+    
+    // ホーム画面での初期状態処理
+    if (window.location.hash === '#home' || window.location.hash === '') {
+      this.setupSampleButtons();
+    }
+    
+    // プロジェクト管理
+    safeAddEventListener('clearAllProjectsBtn', 'click', () => this.clearAllProjects());
+    
+    // ステージ結果表示
+
+    
+    // 段階別生の出力表示ボタン（iマーク）
+    safeAddEventListener('stage1InfoBtn', 'click', () => this.showRawOutput(1));
+    safeAddEventListener('stage2InfoBtn', 'click', () => this.showRawOutput(2));
+    
+    // 生の出力モーダルの閉じるボタン
+    safeAddEventListener('closeRawOutputModal', 'click', () => this.closeRawOutputModal());
+    safeAddEventListener('closeRawOutputModalBtn', 'click', () => this.closeRawOutputModal());
+
+    
+    // 3D操作関連
+    safeAddEventListener('resetCenterBtn', 'click', () => {
+      if (this.sceneManager && this.sceneManager.resetViewCenter) {
+        this.sceneManager.resetViewCenter();
+      }
+    });
+    
+    safeAddEventListener('toggleIndicatorBtn', 'click', () => {
+      if (this.sceneManager && this.sceneManager.toggleCenterIndicator) {
+        this.sceneManager.toggleCenterIndicator();
+      }
+    });
+    
+    // プレビュー色設定
+    safeAddEventListener('colorSchemeSelect', 'change', (e) => {
+      if (this.sceneManager && this.sceneManager.setColorScheme) {
+        this.sceneManager.setColorScheme(e.target.value);
+      }
+    });
+    
+    // 中心点操作パネル
+    safeAddEventListener('openCenterControlBtn', 'click', () => {
+      const panel = document.getElementById('centerControlPanel');
+      if (panel) panel.style.display = 'block';
+    });
+    
+    safeAddEventListener('closeCenterPanel', 'click', () => {
+      const panel = document.getElementById('centerControlPanel');
+      if (panel) panel.style.display = 'none';
+    });
+    
+    // 再生成関連
     safeAddEventListener('regenerateBtn', 'click', () => this.regenerateModel());
     safeAddEventListener('clearRegenerationBtn', 'click', () => this.clearRegenerationComment());
-    
-    // よくある修正指示の選択肢変更時の処理
     safeAddEventListener('commonModifications', 'change', (e) => {
-      const selectedValue = e.target.value;
-      const regenerationComment = document.getElementById('regenerationComment');
-      
-      if (selectedValue && regenerationComment) {
-        // 既存のコメントがある場合は追加、ない場合は設定
-        const currentComment = regenerationComment.value.trim();
-        if (currentComment) {
-          regenerationComment.value = `${selectedValue}\n\n${currentComment}`;
-        } else {
-          regenerationComment.value = selectedValue;
-        }
-        this.log('debug', 'よくある修正指示を設定', { selectedValue });
+      const textarea = document.getElementById('regenerationComment');
+      if (textarea && e.target.value) {
+        textarea.value = e.target.value;
       }
     });
-
-    // サンプルボタンのイベントリスナー（少し遅延して実行）
-    setTimeout(() => {
-      this.log('debug', 'サンプルボタンセットアップ開始（遅延実行）');
-      this.setupSampleButtons();
-    }, 50);
-
     
-
-    // 段階別結果表示ボタン
-    safeAddEventListener('showStage1ResultBtn', 'click', () => this.showStageResult(1));
-    safeAddEventListener('showStage2ResultBtn', 'click', () => this.showStageResult(2));
-    safeAddEventListener('showStage3ResultBtn', 'click', () => this.showStageResult(3));
-
-    // 全履歴削除ボタン
-    safeAddEventListener('clearAllProjectsBtn', 'click', () => this.clearAllProjects());
-
-    // モーダル関連
-    safeAddEventListener('closePromptModal', 'click', () => this.closePromptModal());
-    safeAddEventListener('closePromptModalBtn', 'click', () => this.closePromptModal());
-    safeAddEventListener('copyPromptBtn', 'click', () => this.copyPromptToClipboard());
-
-    // モーダル背景クリックで閉じる
-    const promptModal = document.getElementById('promptModal');
-    if (promptModal) {
-      promptModal.addEventListener('click', (e) => {
-        if (e.target.id === 'promptModal') {
-          this.closePromptModal();
-        }
-      });
-    }
-
-    // 段階別結果モーダル関連
-    safeAddEventListener('closeStageResultModal', 'click', () => this.closeStageResultModal());
-    safeAddEventListener('closeStageResultModalBtn', 'click', () => this.closeStageResultModal());
-    
-    const stageResultModal = document.getElementById('stageResultModal');
-    if (stageResultModal) {
-      stageResultModal.addEventListener('click', (e) => {
-        if (e.target.id === 'stageResultModal') {
-          this.closeStageResultModal();
-        }
-      });
-    }
-
-    // 入力フィールドの保存（即座に保存して復元対応）
-    safeAddEventListener('designPrompt', 'input', () => {
-      localStorage.setItem('diy_prompt', document.getElementById('designPrompt').value);
-      this.saveInputSession(); // 入力セッション保存
-    });
-
-    // パラメータ入力の同期
-    ['widthParam', 'depthParam', 'heightParam'].forEach(id => {
-      safeAddEventListener(id, 'input', () => {
-        this.saveParameters();
-        this.saveInputSession(); // 入力セッション保存
-      });
-    });
-
-    // 色設定コントロール
-    safeAddEventListener('colorSchemeSelect', 'change', (e) => {
-      const colorScheme = e.target.value;
-      this.log('info', `色設定変更: ${colorScheme}`);
-      
-      if (this.sceneManager && this.sceneManager.currentModel) {
-        this.sceneManager.resetMaterialColors(colorScheme);
-        this.showSuccess(`色設定を「${this.getColorSchemeDisplayName(colorScheme)}」に変更しました`);
-      } else {
-        this.showInfo('3Dモデルが表示されていません。モデル生成後に色設定を変更してください。');
+    // 停止ボタン
+    safeAddEventListener('stopProcessingBtn', 'click', () => {
+      if (this.processingManager) {
+        this.processingManager.stopProcessing();
       }
     });
-
-    // ウィンドウリサイズ対応
-    window.addEventListener('resize', () => this.sceneManager.onWindowResize());
-
-    // デバッグ用キーボードショートカット
+    
+    // キーボードショートカット
     document.addEventListener('keydown', (e) => {
-      // Ctrl+Shift+D でデバッグモード切り替え
+      // デバッグモード切り替え
       if (e.ctrlKey && e.shiftKey && e.key === 'D') {
         e.preventDefault();
         this.toggleDebugMode();
       }
-      // Ctrl+Shift+L でログエクスポート
-      if (e.ctrlKey && e.shiftKey && e.key === 'L') {
+      
+      // 中心リセット
+      if (e.ctrlKey && e.key === 'r') {
         e.preventDefault();
-        this.exportLogs();
+        if (this.sceneManager && this.sceneManager.resetViewCenter) {
+          this.sceneManager.resetViewCenter();
+        }
       }
-      // Ctrl+Shift+C でLocalStorageクリア
-      if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+      
+      // 中心表示切り替え
+      if (e.ctrlKey && e.key === 'c') {
         e.preventDefault();
-        this.clearAllData();
+        if (this.sceneManager && this.sceneManager.toggleCenterIndicator) {
+          this.sceneManager.toggleCenterIndicator();
+        }
+      }
+      
+      // 3D操作（矢印キー、shift+上下）
+      if (this.sceneManager && this.sceneManager.handleKeyboardInput) {
+        this.sceneManager.handleKeyboardInput(e);
       }
     });
-
-    // イベントリスナーセットアップ完了フラグを設定
-    this.eventListenersSetup = true;
-    this.log('debug', 'イベントリスナーセットアップ完了');
-
-    // ダウンロード設定のイベントリスナー
-    safeAddEventListener('downloadMethod', 'change', () => this.updateDownloadPreview());
-    safeAddEventListener('customFilename', 'input', () => this.updateDownloadPreview());
     
-    // ダウンロード設定の初期化
-    this.updateDownloadPreview();
+    this.log('info', 'イベントリスナー設定完了');
+    return true;
   }
 
   // ========== サンプルボタンセットアップ ==========
@@ -656,15 +642,83 @@ class DIYAssistant {
       return;
     }
 
+    // ProcessingManagerの状態を確認
+    this.log('debug', 'ProcessingManager状態確認', { 
+      hasProcessingManager: !!this.processingManager,
+      hasAssistant: !!(this.processingManager?.assistant),
+      isProcessing: this.processingManager?.isProcessing
+    });
+
+    if (!this.processingManager) {
+      this.log('error', 'ProcessingManagerが初期化されていません');
+      this.showError('システムエラー: ProcessingManagerが見つかりません');
+      return;
+    }
+
     this.log('debug', 'ProcessingManagerのexecuteFullProcessを呼び出します');
+    
+    // UIを準備
+    this.showLoading(true, 'AI処理を開始しています...');
+    this.hideMessages();
     
     // 処理は ProcessingManager に委譲
     try {
-      await this.processingManager.executeFullProcess(prompt);
-      this.log('debug', 'executeFullProcess完了');
+      const result = await this.processingManager.executeFullProcess(prompt);
+      this.log('debug', 'executeFullProcess完了', { hasResult: !!result, resultKeys: result ? Object.keys(result) : [] });
+      
+      if (result && result.objData) {
+        this.log('debug', '結果データ詳細', { 
+          objDataLength: result.objData.length,
+          hasFurnitureSpec: !!result.furnitureSpec
+        });
+        
+        // 3Dモデルを表示
+        this.currentObjData = result.objData;
+        
+        // SceneManagerでの表示を試行
+        if (this.sceneManager && this.sceneManager.isInitialized) {
+          try {
+            this.log('debug', 'SceneManagerで3Dモデル表示を試行');
+            await this.sceneManager.loadOBJModel(result.objData);
+            this.log('info', 'SceneManagerで3Dモデル表示成功');
+          } catch (error) {
+            this.log('warn', 'SceneManager表示失敗、フォールバック実行', { error: error.message });
+            this.display3DModel(result.objData);
+          }
+        } else {
+          this.log('debug', 'SceneManager未初期化、フォールバック実行');
+          this.display3DModel(result.objData);
+        }
+        
+        // UI更新
+        this.showRegenerationSection();
+        this.showLoading(false);
+        this.showSuccess('3Dモデルの生成が完了しました！');
+        
+        this.log('info', '3Dモデル生成処理完了');
+      } else {
+        this.log('error', '結果データが不正', { result });
+        this.showLoading(false);
+        this.showError('3Dモデルの生成に失敗しました。結果データが不正です。');
+      }
     } catch (error) {
-      this.log('error', 'executeFullProcessでエラー', { error: error.message });
-      throw error;
+      this.log('error', 'executeFullProcessでエラー', { 
+        error: error.message, 
+        stack: error.stack,
+        processingManagerExists: !!this.processingManager,
+        assistantExists: !!(this.processingManager?.assistant)
+      });
+      this.showLoading(false);
+      this.showError(`3Dモデル生成エラー: ${error.message}`);
+      
+      // デバッグ情報を表示
+      if (this.debugMode) {
+        console.error('generateModel デバッグ情報:', {
+          prompt,
+          processingManager: this.processingManager,
+          error: error
+        });
+      }
     }
   }
 
@@ -677,7 +731,6 @@ class DIYAssistant {
     
     // 再生成セクションをクリア・非表示
     document.getElementById('regenerationComment').value = '';
-    document.getElementById('downloadButtonGroup').style.display = 'none';
     document.getElementById('regenerationSection').style.display = 'none';
     
     this.hideMessages(); // クリア時は全メッセージを消去
@@ -692,9 +745,8 @@ class DIYAssistant {
     
     // 処理段階データもクリア（手動クリア時のみ）
     if (this.processingManager) {
-      this.processingManager.stage1Data = null;
+      this.processingManager.stagePipeline.context = {};
       this.processingManager.stage2Data = null;
-      this.processingManager.stage3Data = null;
     }
     
     // ローカルストレージをクリア（セッション状態も含む）
@@ -702,6 +754,9 @@ class DIYAssistant {
     localStorage.removeItem('diy_parameters');
     localStorage.removeItem('diy_current_session'); // セッション状態もクリア
     localStorage.removeItem('diy_input_session'); // 入力セッションもクリア
+    
+    // 生の出力データとiマークをクリア
+    this.clearStageRawData();
   }
 
   clear3DPreview() {
@@ -729,440 +784,24 @@ class DIYAssistant {
       overlay.style.display = 'flex';
     }
     
-    // ダウンロードボタンと関連UI要素をリセット
-    const downloadBtn = document.getElementById('downloadObjBtn');
-    if (downloadBtn) {
-      downloadBtn.disabled = true;
-    }
-    
-    // ファイルサイズ表示をリセット
-    const fileSizeIndicator = document.getElementById('downloadFileSize');
-    if (fileSizeIndicator) {
-      fileSizeIndicator.style.display = 'none';
-      fileSizeIndicator.textContent = '';
-    }
-    
-    // ダウンロードボタングループを非表示
-    const downloadButtonGroup = document.getElementById('downloadButtonGroup');
-    if (downloadButtonGroup) {
-      downloadButtonGroup.style.display = 'none';
-    }
-    
     // 現在のOBJデータをクリア
     this.currentObjData = null;
     
-    // ダウンロード設定のプレビューをリセット
-    const filenamePreview = document.getElementById('filenamePreview');
-    const downloadSizePreview = document.getElementById('downloadSizePreview');
-    if (filenamePreview) {
-      const date = new Date();
-      filenamePreview.textContent = `furniture_${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}.obj`;
-    }
-    if (downloadSizePreview) {
-      downloadSizePreview.textContent = '0 KB';
-    }
-    
-    this.log('info', '3Dプレビューとダウンロード関連UIをクリアしました');
+    this.log('info', '3Dプレビューをクリアしました');
   }
 
-  // ========== ダウンロード機能 ==========
-  downloadOBJ() {
-    // 重複実行を防ぐガード（実行中フラグ + 時間制限）
-    if (this.downloadInProgress) {
-      this.log('debug', 'ダウンロード実行中のため重複を防止しました');
-      this.showInfo('ダウンロード処理中です。しばらくお待ちください。');
-      return;
-    }
-    
-    if (!this.currentObjData) {
-      this.log('warn', 'ダウンロードするOBJデータがありません');
-      this.showError('ダウンロード可能なOBJデータがありません。先に3Dモデルを生成してください。');
-      return;
-    }
-    
-    // 時間ベースの重複防止（500ms以内の重複クリックを防ぐ）
-    const now = Date.now();
-    if (this.lastDownloadTime && (now - this.lastDownloadTime) < 500) {
-      this.log('debug', 'ダウンロード重複実行を防止しました（時間制限）', { 
-        timeSinceLastDownload: now - this.lastDownloadTime 
-      });
-      return;
-    }
-    
-    // ダウンロード実行開始
-    this.downloadInProgress = true;
-    this.lastDownloadTime = now;
-    
-    // ダウンロード設定を取得
-    const downloadMethod = document.getElementById('downloadMethod')?.value || 'auto';
-    const customFilename = document.getElementById('customFilename')?.value.trim() || '';
-    
-    // ファイル名の生成
-    let filename;
-    if (customFilename) {
-      const sanitizedFilename = customFilename.replace(/[<>:"/\\|?*]/g, '_');
-      filename = `${sanitizedFilename}.obj`;
-    } else {
-      const date = new Date();
-      filename = `furniture_${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}.obj`;
-    }
-    
-    this.log('debug', 'OBJファイルダウンロード開始', {
-      method: downloadMethod,
-      filename: filename,
-      dataLength: this.currentObjData.length,
-      startsWithV: this.currentObjData.trim().startsWith('v '),
-      startsWithHash: this.currentObjData.trim().startsWith('#'),
-      preview: this.currentObjData.substring(0, 100) + '...'
-    });
-    
-    try {
-      // 確実にOBJデータであることを確認
-      if (!this.currentObjData.trim().startsWith('v ') && !this.currentObjData.trim().startsWith('#')) {
-        this.log('error', '無効なOBJデータです', { preview: this.currentObjData.substring(0, 100) });
-        this.showError('ダウンロード可能なOBJデータがありません');
-        return;
-      }
-      
-      // ダウンロード方法に応じて処理を分岐
-      switch (downloadMethod) {
-        case 'save-as':
-          this.downloadWithSaveAs(filename);
-          break;
-        case 'clipboard':
-          this.downloadToClipboard(filename);
-          break;
-        default:
-          this.downloadAuto(filename);
-          break;
-      }
-      
-    } catch (error) {
-      this.log('error', 'ダウンロード処理でエラー', { error: error.message });
-      this.showError(`
-        ダウンロード処理でエラーが発生しました: ${error.message}<br>
-        <small>※ ブラウザの設定やセキュリティ制限が原因の可能性があります</small>
-      `);
-      
-      // エラー時も代替案を提示
-      this.showDownloadFallback(filename, this.currentObjData);
-      
-    } finally {
-      // ダウンロード処理完了（500ms後にフラグを解除）
-      setTimeout(() => {
-        this.downloadInProgress = false;
-        this.log('debug', 'ダウンロード実行フラグをリセットしました');
-      }, 500);
-    }
-  }
+  // ========== ブラウザ環境チェック ==========
 
-  // 名前を付けて保存（File System Access API使用）
-  async downloadWithSaveAs(defaultFilename) {
-    this.showInfo('保存先を選択してください...');
-    
-    try {
-      // File System Access APIをサポートしているかチェック
-      if ('showSaveFilePicker' in window) {
-        const fileHandle = await window.showSaveFilePicker({
-          suggestedName: defaultFilename,
-          types: [{
-            description: 'OBJ 3D Model Files',
-            accept: { 'application/octet-stream': ['.obj'] }
-          }]
-        });
-        
-        const writable = await fileHandle.createWritable();
-        await writable.write(this.currentObjData);
-        await writable.close();
-        
-        this.showSuccess(`
-          <strong>ファイルを保存しました！</strong><br>
-          <small>📁 保存先: ${fileHandle.name}<br>
-          📊 ファイルサイズ: ${this.formatFileSize(new Blob([this.currentObjData]).size)}</small>
-        `);
-        
-        this.log('info', 'File System Access APIで保存成功', { filename: fileHandle.name });
-        
-      } else {
-        // File System Access APIが利用できない場合は通常のダウンロードにフォールバック
-        this.showInfo('お使いのブラウザでは「名前を付けて保存」がサポートされていません。通常のダウンロードを実行します。');
-        this.downloadAuto(defaultFilename);
-      }
-      
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        this.showInfo('保存がキャンセルされました。');
-        this.log('info', 'ユーザーが保存をキャンセル');
-      } else {
-        this.log('error', 'File System Access API エラー', { error: error.message });
-        this.showError(`保存エラー: ${error.message}<br><small>通常のダウンロードを試してください。</small>`);
-        // エラー時は通常のダウンロードにフォールバック
-        this.downloadAuto(defaultFilename);
-      }
-    }
-  }
 
-  // クリップボードにコピー
-  async downloadToClipboard(filename) {
-    this.showInfo('クリップボードにコピー中...');
-    
-    try {
-      await navigator.clipboard.writeText(this.currentObjData);
-      this.showSuccess(`
-        <strong>OBJデータをクリップボードにコピーしました！</strong><br>
-        <small>
-          📋 データサイズ: ${this.formatFileSize(new Blob([this.currentObjData]).size)}<br>
-          💡 テキストエディタに貼り付けて「${filename}」として保存してください
-        </small>
-      `);
-      
-      this.log('info', 'クリップボードコピー成功', { filename });
-      
-    } catch (error) {
-      this.log('error', 'クリップボードコピー失敗', { error: error.message });
-      
-      // 代替方法：テキストエリアを使用
-      const textarea = document.createElement('textarea');
-      textarea.value = this.currentObjData;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      
-      try {
-        document.execCommand('copy');
-        this.showSuccess(`
-          <strong>OBJデータをクリップボードにコピーしました！</strong><br>
-          <small>テキストエディタに貼り付けて「${filename}」として保存してください</small>
-        `);
-        this.log('info', 'フォールバック方式でクリップボードコピー成功', { filename });
-      } catch (fallbackError) {
-        this.showError('クリップボードへのコピーに失敗しました。手動でデータを選択してコピーしてください。');
-        this.log('error', 'クリップボードコピー完全失敗', { error: fallbackError.message });
-      } finally {
-        document.body.removeChild(textarea);
-      }
-    }
-  }
 
-  // 自動ダウンロード（従来の方法）
-  downloadAuto(filename) {
-    this.showInfo('OBJファイルをダウンロード中...');
-    
-    const blob = new Blob([this.currentObjData], { 
-      type: 'application/octet-stream'
-    });
-    
-    // ダウンロード方法を複数試行
-    let downloadSuccess = false;
-    
-    // 方法1: IE/Edge対応
-    if (typeof window.navigator.msSaveBlob !== 'undefined') {
-      try {
-        window.navigator.msSaveBlob(blob, filename);
-        downloadSuccess = true;
-        this.log('info', 'IE/Edge方式でダウンロード成功', { filename });
-      } catch (error) {
-        this.log('warn', 'IE/Edge方式でダウンロード失敗', { error: error.message });
-      }
-    }
-    
-    // 方法2: 標準的なブラウザ対応（方法1が失敗した場合）
-    if (!downloadSuccess) {
-      try {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = filename;
-        a.setAttribute('rel', 'noopener');
-        a.setAttribute('target', '_blank');
-        
-        document.body.appendChild(a);
-        
-        // クリックイベントを強制的に発火
-        const clickEvent = new MouseEvent('click', {
-          bubbles: true,
-          cancelable: true,
-          view: window
-        });
-        a.dispatchEvent(clickEvent);
-        
-        downloadSuccess = true;
-        this.log('info', '標準方式でダウンロード成功', { filename });
-        
-        // クリーンアップは少し待ってから実行
-        setTimeout(() => {
-          try {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          } catch (cleanupError) {
-            this.log('warn', 'ダウンロード後のクリーンアップでエラー', { error: cleanupError.message });
-          }
-        }, 1000);
-        
-      } catch (error) {
-        this.log('warn', '標準方式でダウンロード失敗', { error: error.message });
-        downloadSuccess = false;
-      }
-    }
-    
-    // 方法3: データURLを使用した代替方法
-    if (!downloadSuccess) {
-      try {
-        const dataUrl = 'data:application/octet-stream;charset=utf-8,' + encodeURIComponent(this.currentObjData);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = dataUrl;
-        a.download = filename;
-        a.setAttribute('rel', 'noopener');
-        
-        document.body.appendChild(a);
-        a.click();
-        
-        setTimeout(() => {
-          try {
-            document.body.removeChild(a);
-          } catch (cleanupError) {
-            this.log('warn', 'データURL方式のクリーンアップでエラー', { error: cleanupError.message });
-          }
-        }, 1000);
-        
-        downloadSuccess = true;
-        this.log('info', 'データURL方式でダウンロード成功', { filename });
-        
-      } catch (error) {
-        this.log('error', 'データURL方式でダウンロード失敗', { error: error.message });
-      }
-    }
-    
-    if (downloadSuccess) {
-      // 成功メッセージ（詳細なダウンロード先情報付き）
-      const downloadPath = this.getDownloadPath();
-      this.showSuccess(`
-        <strong>OBJファイル「${filename}」をダウンロードしました！</strong><br>
-        <small>
-          📁 保存先: ${downloadPath}<br>
-          📊 ファイルサイズ: ${this.formatFileSize(blob.size)}<br>
-          💡 ファイルが見つからない場合は、ブラウザのダウンロード履歴（Ctrl+J / Cmd+Shift+J）をご確認ください
-        </small>
-      `);
-      
-      // ダウンロード履歴を開くボタンを表示
-      this.showDownloadHistoryButton();
-      
-    } else {
-      // 全ての方法が失敗した場合の代替案
-      this.showDownloadFallback(filename, this.currentObjData);
-    }
-    
-    this.log('info', 'OBJファイルダウンロード処理完了', { 
-      filename: filename,
-      fileSize: blob.size,
-      success: downloadSuccess
-    });
-  }
 
-  // ダウンロード先パスを取得
-  getDownloadPath() {
-    const userAgent = navigator.userAgent.toLowerCase();
-    const platform = navigator.platform.toLowerCase();
-    
-    if (platform.includes('mac')) {
-      return '~/Downloads/ (ダウンロードフォルダ)';
-    } else if (platform.includes('win')) {
-      return 'C:\\Users\\[ユーザー名]\\Downloads\\ (ダウンロードフォルダ)';
-    } else if (userAgent.includes('android')) {
-      return '/storage/emulated/0/Download/ (ダウンロードフォルダ)';
-    } else {
-      return 'ブラウザのダウンロードフォルダ';
-    }
-  }
 
-  // ダウンロード履歴を開くボタンを表示
-  showDownloadHistoryButton() {
-    const messageArea = document.getElementById('messageArea');
-    if (!messageArea) return;
-    
-    // 既存のボタンがあれば削除
-    const existingBtn = document.getElementById('openDownloadHistoryBtn');
-    if (existingBtn) existingBtn.remove();
-    
-    const button = document.createElement('button');
-    button.id = 'openDownloadHistoryBtn';
-    button.className = 'button secondary';
-    button.innerHTML = '📥 ダウンロード履歴を開く';
-    button.style.marginTop = '10px';
-    
-    button.onclick = () => {
-      // ブラウザのダウンロード履歴を開く
-      const userAgent = navigator.userAgent.toLowerCase();
-      if (userAgent.includes('chrome')) {
-        window.open('chrome://downloads/', '_blank');
-      } else if (userAgent.includes('firefox')) {
-        window.open('about:downloads', '_blank');
-      } else if (userAgent.includes('safari')) {
-        // Safariの場合はキーボードショートカットを案内
-        this.showInfo('Safari: Option+Cmd+L でダウンロード履歴を開けます');
-      } else if (userAgent.includes('edge')) {
-        window.open('edge://downloads/', '_blank');
-      } else {
-        this.showInfo('Ctrl+J (Windows) または Cmd+Shift+J (Mac) でダウンロード履歴を開けます');
-      }
-    };
-    
-    messageArea.appendChild(button);
-    
-    // 10秒後に自動的に削除
-    setTimeout(() => {
-      if (button && button.parentNode) {
-        button.parentNode.removeChild(button);
-      }
-    }, 10000);
-  }
 
-  // ダウンロード失敗時の代替案を表示
-  showDownloadFallback(filename, objData) {
-    this.showError(`
-      <strong>自動ダウンロードに失敗しました</strong><br>
-      以下の代替方法をお試しください：<br><br>
-      <button onclick="diyAssistant.copyToClipboard('${objData.replace(/'/g, "\\'")}', '${filename}')" class="button secondary">
-        📋 OBJデータをクリップボードにコピー
-      </button><br>
-      <small>
-        1. 上のボタンでデータをコピー<br>
-        2. テキストエディタに貼り付け<br>
-        3. 「${filename}」として保存
-      </small>
-    `);
-  }
 
-  // クリップボードにコピー
-  async copyToClipboard(text, filename) {
-    try {
-      await navigator.clipboard.writeText(text);
-      this.showSuccess(`OBJデータをクリップボードにコピーしました！<br><small>テキストエディタに貼り付けて「${filename}」として保存してください</small>`);
-    } catch (error) {
-      this.log('error', 'クリップボードコピー失敗', { error: error.message });
-      
-      // 代替方法：テキストエリアを使用
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      
-      try {
-        document.execCommand('copy');
-        this.showSuccess(`OBJデータをクリップボードにコピーしました！<br><small>テキストエディタに貼り付けて「${filename}」として保存してください</small>`);
-      } catch (fallbackError) {
-        this.showError('クリップボードへのコピーに失敗しました。手動でデータを選択してコピーしてください。');
-      } finally {
-        document.body.removeChild(textarea);
-      }
-    }
-  }
+
+
+
+
 
   // ========== プロジェクト管理 ==========
   saveParameters() {
@@ -1192,40 +831,42 @@ class DIYAssistant {
   }
 
   saveCurrentProject(prompt, objData, qualityCheck = null, optimizedSpec = null) {
-    const project = {
-      id: Date.now(),
-      prompt: prompt,
-      objData: objData,
-      qualityCheck: qualityCheck,
-      optimizedSpec: optimizedSpec,
-      optimizedPrompt: this.currentOptimizedPrompt, // 最適化されたプロンプトも保存
-      stage1Data: this.processingManager.stage1Data, // 第1段階データ保存
-      stage2Data: this.processingManager.stage2Data, // 第2段階データ保存
-      stage3Data: this.processingManager.stage3Data, // 第3段階データ保存
-      timestamp: new Date().toISOString(),
-      parameters: {
-        width: document.getElementById('widthParam').value,
-        depth: document.getElementById('depthParam').value,
-        height: document.getElementById('heightParam').value
+    try {
+      const projectId = Date.now().toString();
+      const furnitureType = optimizedSpec?.furniture_type || 'unknown';
+      
+      const projectData = {
+        id: projectId,
+        prompt: prompt,
+        objData: objData,
+        furnitureType: furnitureType,
+        timestamp: new Date().toISOString(),
+        optimizedSpec: optimizedSpec,
+        stage1Data: this.processingManager.stagePipeline?.context?.stage1Output || null,
+        stage2Data: this.processingManager.stage2Data || null
+      };
+      
+      const projects = this.loadProjects();
+      projects.unshift(projectData); // 新しいプロジェクトを先頭に追加
+      
+      // 最大50件で制限
+      if (projects.length > 50) {
+        projects.splice(50);
       }
-    };
-    
-    this.projects.unshift(project);
-    
-    // 最大10プロジェクトまで保持
-    if (this.projects.length > 10) {
-      this.projects = this.projects.slice(0, 10);
+      
+      localStorage.setItem('diy_projects', JSON.stringify(projects));
+      this.renderProjectList();
+      
+      this.log('info', 'プロジェクト保存完了', { 
+        projectId, 
+        furnitureType,
+        hasObjData: !!objData,
+        hasOptimizedSpec: !!optimizedSpec
+      });
+      
+    } catch (error) {
+      this.log('error', 'プロジェクト保存エラー', { error: error.message });
     }
-    
-    localStorage.setItem('diy_projects', JSON.stringify(this.projects));
-    
-    // 現在のセッション状態も保存（ページ更新対応）
-    this.saveCurrentSession(project);
-    
-    // 3Dモデルが保存されたら入力セッションは不要
-    localStorage.removeItem('diy_input_session');
-    
-    this.renderProjectList();
   }
 
   saveCurrentSession(project) {
@@ -1330,10 +971,10 @@ class DIYAssistant {
             // キャンバスオーバーレイを確実に非表示
             this.sceneManager.hideCanvasOverlay();
             
-            // 品質チェック結果を復元
-            if (session.currentProject.qualityCheck) {
-              this.processingManager.storeQualityCheckResults(session.currentProject.qualityCheck);
-            }
+            // 品質チェック結果を復元（第3段階削除により不要）
+            // if (session.currentProject.qualityCheck) {
+            //   this.processingManager.storeQualityCheckResults(session.currentProject.qualityCheck);
+            // }
             
             // 最適化仕様を復元
             if (session.currentProject.optimizedSpec) {
@@ -1352,12 +993,7 @@ class DIYAssistant {
             if (session.currentProject.stage2Data) {
               this.processingManager.stage2Data = session.currentProject.stage2Data;
             }
-            if (session.currentProject.stage3Data) {
-              this.processingManager.stage3Data = session.currentProject.stage3Data;
-            }
-            
-            // 段階別結果ボタンを表示
-            this.showStageResultButtons();
+
             
             this.log('info', 'セッション復元完了: 3Dモデル表示成功');
             this.showSuccess('前回のセッション状態を復元しました。');
@@ -1568,10 +1204,10 @@ class DIYAssistant {
         this.processingManager.storeOptimizedSpec(project.optimizedSpec, project.prompt);
       }
       
-      // 品質チェック結果を保存（保存されている場合）
-      if (project.qualityCheck) {
-        this.processingManager.storeQualityCheckResults(project.qualityCheck);
-      }
+      // 品質チェック結果を保存（第3段階削除により不要）
+      // if (project.qualityCheck) {
+      //   this.processingManager.storeQualityCheckResults(project.qualityCheck);
+      // }
       
       // 最適化されたプロンプトを復元（保存されている場合）
       if (project.optimizedPrompt) {
@@ -1580,17 +1216,16 @@ class DIYAssistant {
       
       // 段階別データを復元（保存されている場合）
       if (project.stage1Data) {
-        this.processingManager.stage1Data = project.stage1Data;
+        this.processingManager.stagePipeline.context.stage1Output = project.stage1Data;
       }
       if (project.stage2Data) {
         this.processingManager.stage2Data = project.stage2Data;
       }
-      if (project.stage3Data) {
-        this.processingManager.stage3Data = project.stage3Data;
-      }
       
-      // 段階別結果ボタンを表示
-      this.showStageResultButtons();
+
+      
+      // 生の出力データとiマーク状態を復元
+      this.restoreStageRawDataFromProject(project);
       
       // パラメータ保存
       this.saveParameters();
@@ -1658,260 +1293,195 @@ class DIYAssistant {
   // ========== 第2段階入力プロンプトモーダル管理 ==========
 
 
-  // ========== 段階別結果モーダル管理 ==========
-  showStageResult(stage) {
-    const modal = document.getElementById('stageResultModal');
-    const title = document.getElementById('stageResultModalTitle');
-    const content = document.getElementById('stageResultContent');
-    
-    let titleText = '';
-    let htmlContent = '';
+
+
+
+
+
+
+
+
+
+
+  // ========== 生の出力結果管理 ==========
+  
+  /**
+   * 段階の生の出力データを保存
+   */
+  saveStageRawData(stage, rawData) {
+    if (stage >= 1 && stage <= 2) {
+      this.stageRawData[`stage${stage}`] = {
+        timestamp: new Date().toISOString(),
+        data: rawData
+      };
+      this.log('info', `第${stage}段階の生出力データを保存`, {
+        dataLength: rawData?.length || 0,
+        stage: stage
+      });
+    }
+  }
+
+  /**
+   * 段階完了時にiマークを表示
+   */
+  showStageInfoButton(stage) {
+    const infoBtn = document.getElementById(`stage${stage}InfoBtn`);
+    if (infoBtn) {
+      // 生の出力データが存在する場合のみ表示
+      if (this.stageRawData[`stage${stage}`]) {
+        infoBtn.style.display = 'flex';
+        this.log('debug', `第${stage}段階のiマークを表示`);
+      } else {
+        // データが存在しない場合は少し待ってから再試行
+        setTimeout(() => {
+          if (this.stageRawData[`stage${stage}`]) {
+            infoBtn.style.display = 'flex';
+            this.log('debug', `第${stage}段階のiマークを表示（遅延）`);
+          } else {
+            this.log('warn', `第${stage}段階の生出力データが見つかりません`);
+          }
+        }, 100);
+      }
+    } else {
+      this.log('error', `第${stage}段階のiマークボタンが見つかりません`);
+    }
+  }
+
+  /**
+   * 生の出力結果を表示
+   */
+  showRawOutput(stage) {
+    const rawData = this.stageRawData[`stage${stage}`];
+    if (!rawData) {
+      this.showError(`第${stage}段階の生出力データが見つかりません。`);
+      return;
+    }
+
+    const modal = document.getElementById('rawOutputModal');
+    const title = document.getElementById('rawOutputModalTitle');
+    const content = document.getElementById('rawOutputContent');
+
+    let stageTitle = '';
+    let stageDescription = '';
     
     switch (stage) {
       case 1:
-        titleText = '<i class="fas fa-cogs"></i> 第1段階：仕様分析結果';
-        htmlContent = this.generateStage1Content();
+        stageTitle = '第1段階：仕様分析と最適化';
+        stageDescription = 'LLMによる自然言語仕様書の生成過程';
         break;
       case 2:
-        titleText = '<i class="fas fa-cube"></i> 第2段階：3Dモデル生成結果';
-        htmlContent = this.generateStage2Content();
-        break;
-      case 3:
-        titleText = '<i class="fas fa-check-circle"></i> 第3段階：品質検証結果';
-        htmlContent = this.generateStage3Content();
+        stageTitle = '第2段階：3Dモデル生成';
+        stageDescription = 'DeepSeek-R1による推論過程を含む生出力';
         break;
       default:
         this.showError('無効な段階が指定されました。');
         return;
     }
+
+    title.innerHTML = `<i class="fas fa-file-code"></i> ${stageTitle} - 生の出力結果`;
     
-    if (!htmlContent) {
-      this.showError(`第${stage}段階のデータが見つかりません。処理を完了してからお試しください。`);
-      return;
-    }
-    
-    title.innerHTML = titleText;
+    const htmlContent = `
+      <div class="raw-output-container">
+        <div class="raw-output-header" style="background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid #2196f3;">
+          <h4 style="margin: 0 0 0.5rem 0; color: #1976d2; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-info-circle"></i> ${stageDescription}
+          </h4>
+          <div style="font-size: 0.9rem; color: #1565c0;">
+            <div style="margin-bottom: 0.25rem;">
+              <strong>処理日時:</strong> ${new Date(rawData.timestamp).toLocaleString('ja-JP')}
+            </div>
+            <div style="margin-bottom: 0.25rem;">
+              <strong>データサイズ:</strong> ${rawData.data?.length || 0} 文字
+            </div>
+            <div>
+              <strong>段階:</strong> ${stageTitle}
+            </div>
+          </div>
+        </div>
+        
+        <div class="raw-output-content">
+          <h5 style="color: #ff9800; margin: 0 0 0.5rem 0; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-code"></i> 生の出力データ
+            <span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;">RAW</span>
+          </h5>
+          <textarea readonly style="width: 100%; height: 400px; padding: 1rem; border: 2px solid #ff9800; border-radius: 4px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.8rem; background: #fff8f0; resize: vertical; line-height: 1.4; white-space: pre-wrap;">${rawData.data || '生の出力データが利用できません'}</textarea>
+          
+          <div style="margin-top: 1rem; padding: 1rem; background: #e8f5e8; border-radius: 4px; border-left: 4px solid #4caf50;">
+            <h6 style="margin: 0 0 0.5rem 0; color: #2e7d32; display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fas fa-lightbulb"></i> ヒント
+            </h6>
+            <ul style="margin: 0; padding-left: 1.5rem; color: #1b5e20; line-height: 1.5;">
+              <li>この生データはAIモデルが生成した未加工の出力です</li>
+              <li>実際の3D表示では、この生データから有効な部分のみが抽出されます</li>
+              <li>デバッグや処理内容の確認にご活用ください</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    `;
+
     content.innerHTML = htmlContent;
     modal.style.display = 'flex';
-  }
-
-  generateStage1Content() {
-    const data = this.processingManager.stage1Data;
-    if (!data) return null;
-
-    const analysisStatus = data.analysis_complete ? '✅ LLM分析完了' : '⚠️ フォールバック使用';
-    const formattedSpec = this.processingManager.convertMarkdownToHTML(data.optimized_specification);
-    const originalPrompt = data.originalPrompt || 'プロンプト情報が利用できません';
-    const systemPrompt = data.systemPrompt || 'システムプロンプト情報が利用できません';
-
-    return `
-      <div class="optimized-spec-results">
-        <h4 style="color: #2196f3; margin: 0 0 1rem 0;">
-          <i class="fas fa-cogs"></i> 第1段階：仕様分析と最適化結果
-        </h4>
-        
-        <div class="spec-section" style="margin-bottom: 1.5rem;">
-          <h5 style="color: #9c27b0; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-robot"></i> システムプロンプト
-          </h5>
-          <textarea readonly style="width: 100%; height: 200px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.8rem; background: #f3e5f5; resize: vertical;">${systemPrompt}</textarea>
-        </div>
-        
-        <div class="spec-section" style="margin-bottom: 1.5rem;">
-          <h5 style="color: #ff9800; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-terminal"></i> 使用されたプロンプト（ユーザー入力）
-          </h5>
-          <textarea readonly style="width: 100%; height: 150px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.85rem; background: #fff8f0; resize: vertical;">${originalPrompt}</textarea>
-        </div>
-        
-        <div class="spec-section">
-          <h5 style="color: #2196f3; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-clipboard-list"></i> 分析結果（OBJ形式3D設計仕様）
-          </h5>
-          <div style="margin-bottom: 1rem;">
-            <strong>分析状況：</strong> ${analysisStatus} |
-            <strong>家具種別：</strong> ${data.furniture_type} |
-            <strong>寸法：</strong> ${data.dimensions.width}×${data.dimensions.depth}×${data.dimensions.height}cm
-          </div>
-          <div style="background: #f0f8ff; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; max-height: 400px; overflow-y: auto;">
-            ${formattedSpec}
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  generateStage2Content() {
-    const data = this.processingManager.stage2Data;
-    if (!data) return null;
-
-    const { objData, furnitureSpec, systemPrompt, actualPrompt } = data;
     
-    // 実際に使用されたプロンプト（第1段階の完全出力を含む）を取得
-    const stage2Prompt = actualPrompt || this.getStage2Prompt(furnitureSpec);
-    const stage2SystemPrompt = systemPrompt || 'システムプロンプト情報が利用できません';
-
-    return `
-      <div class="model-generation-results">
-        <h4 style="color: #4caf50; margin: 0 0 1rem 0;">
-          <i class="fas fa-cube"></i> 第2段階：3Dモデル生成結果
-        </h4>
-        
-        <div class="model-section" style="margin-bottom: 1.5rem;">
-          <h5 style="color: #9c27b0; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-robot"></i> システムプロンプト
-          </h5>
-          <textarea readonly style="width: 100%; height: 250px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.8rem; background: #f3e5f5; resize: vertical;">${stage2SystemPrompt}</textarea>
-        </div>
-        
-        <div class="model-section" style="margin-bottom: 1.5rem;">
-          <h5 style="color: #2196f3; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-terminal"></i> 使用されたプロンプト
-          </h5>
-          <textarea readonly style="width: 100%; height: 200px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.85rem; background: #f0f8ff; resize: vertical;">${stage2Prompt}</textarea>
-        </div>
-        
-        <div class="model-section">
-          <h5 style="color: #4caf50; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-file-code"></i> 生成されたOBJファイル
-          </h5>
-          <textarea readonly style="width: 100%; height: 300px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.85rem; background: #f8f8f8; resize: vertical;">${objData}</textarea>
-        </div>
-      </div>
-    `;
+    this.log('info', `第${stage}段階の生出力を表示`, {
+      dataLength: rawData.data?.length || 0
+    });
   }
-  
-  // 第2段階で使用されたプロンプトを取得
-  getStage2Prompt(furnitureSpec) {
-    if (!furnitureSpec) {
-      return '第1段階の結果データが利用できません。';
+
+  /**
+   * 生の出力結果モーダルを閉じる
+   */
+  closeRawOutputModal() {
+    document.getElementById('rawOutputModal').style.display = 'none';
+  }
+
+  /**
+   * 生の出力データとiマークをクリア
+   */
+  clearStageRawData() {
+    // データをクリア
+    this.stageRawData = {
+      stage1: null,
+      stage2: null
+    };
+    
+    // iマークを非表示
+    const stage1InfoBtn = document.getElementById('stage1InfoBtn');
+    const stage2InfoBtn = document.getElementById('stage2InfoBtn');
+    
+    if (stage1InfoBtn) stage1InfoBtn.style.display = 'none';
+    if (stage2InfoBtn) stage2InfoBtn.style.display = 'none';
+    
+    this.log('debug', '生の出力データとiマークをクリア');
+  }
+
+  /**
+   * セッション復元時に生の出力データとiマーク状態を復元
+   */
+  restoreStageRawDataFromProject(projectData) {
+    try {
+      // stage1データの復元
+      if (projectData.stage1Data && projectData.stage1Data.optimized_specification) {
+        this.saveStageRawData(1, projectData.stage1Data.optimized_specification);
+        // iマークを表示
+        setTimeout(() => this.showStageInfoButton(1), 50);
+      }
+      
+      // stage2データの復元
+      if (projectData.stage2Data && projectData.stage2Data.rawOutput) {
+        this.saveStageRawData(2, projectData.stage2Data.rawOutput);
+        // iマークを表示
+        setTimeout(() => this.showStageInfoButton(2), 50);
+      }
+      
+      this.log('info', 'セッション復元: 生の出力データを復元', {
+        stage1Restored: !!projectData.stage1Data,
+        stage2Restored: !!projectData.stage2Data
+      });
+      
+    } catch (error) {
+      this.log('warn', 'セッション復元: 生の出力データ復元でエラー', { error: error.message });
     }
-    
-    // ProcessingManagerのformatStage1OutputForStage2と同じロジックを使用（第1段階の完全出力を含む）
-    const stage1FullOutput = furnitureSpec.optimized_specification || '第1段階分析結果が利用できません';
-    const furnitureType = furnitureSpec.furniture_type || '家具';
-    const dimensions = furnitureSpec.dimensions || {};
-    const analysisComplete = furnitureSpec.analysis_complete || false;
-    
-    // 寸法情報の詳細構築
-    let dimensionInfo = '';
-    if (dimensions.width || dimensions.depth || dimensions.height) {
-      dimensionInfo = `\n📏 【確定寸法仕様】\n   - 幅: ${dimensions.width || 'auto'}cm\n   - 奥行: ${dimensions.depth || 'auto'}cm\n   - 高さ: ${dimensions.height || 'auto'}cm\n`;
-    }
-    
-    // 分析状況の表示
-    const analysisStatus = analysisComplete ? '✅ LLM分析完了' : '⚠️ フォールバック使用';
-    
-    // 第2段階で実際に使用されたプロンプト（第1段階の完全な出力結果をそのまま含む）
-    const formattedPrompt = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【OBJ形式3Dモデル生成指示】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🎯 【処理概要】
-第1段階で分析・最適化された完全な結果を、そのまま正確にOBJ形式の3Dモデルとして実現してください。
-
-📊 【第1段階分析状況】
-🔧 家具種別: ${furnitureType}
-📋 分析状況: ${analysisStatus}${dimensionInfo}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【第1段階の完全出力結果】※以下の内容をそのまま100%反映してください
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-${stage1FullOutput}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【第2段階実行指示】※上記の第1段階結果の全内容を正確にOBJ化
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-✅ 【実装推奨事項】
-• 第1段階分析結果の主要な寸法・構造・デザインを3D化の基準として活用
-• 寸法は概ね指定通りを目指し、3D化に適した調整を柔軟に適用
-• 重要な構造的特徴を立体形状として表現
-• 材質情報・デザイン要件を参考に、魅力的な形状を創造
-
-✅ 【OBJ品質目標】
-• 安定した基本的な3Dジオメトリ
-• 適切な頂点密度（10-1000点）と面構成（10-1000面）
-• 基本的なOBJ構文に準拠
-• 美しく実用的な家具モデルとしての品質
-
-✅ 【基本方針】
-💡 第1段階結果を参考に、3D化に適した創造的解釈を歓迎
-💡 OBJデータのみを出力（説明文・コメント等は含めない）
-💡 技術的制約を考慮した合理的な最適化を推奨
-
-上記の第1段階分析結果を参考に、美しく実用的なOBJファイルを創造的に生成してください。`;
-
-    return formattedPrompt;
-  }
-
-  generateStage3Content() {
-    const data = this.processingManager.stage3Data;
-    if (!data) return null;
-
-    const inputPrompt = data.inputPrompt || '品質検証の入力プロンプトが利用できません';
-    const systemPrompt = data.systemPrompt || 'システムプロンプト情報が利用できません';
-    const qualityReport = data.qualityReport || 'LLMによる品質評価レポートが利用できません';
-    const improvedObjData = data.improvedObjData || data.originalObjData || '評価されたOBJデータが利用できません';
-    const objAnalysis = data.objAnalysis || {};
-
-    // OBJ分析情報の表示
-    const analysisInfo = objAnalysis ? `
-頂点数: ${objAnalysis.vertexCount || 'N/A'}
-面数: ${objAnalysis.faceCount || 'N/A'}
-寸法: ${objAnalysis.overallDimensions ? 
-  `${objAnalysis.overallDimensions.width?.toFixed(1) || 'N/A'} × ${objAnalysis.overallDimensions.depth?.toFixed(1) || 'N/A'} × ${objAnalysis.overallDimensions.height?.toFixed(1) || 'N/A'} cm` : 'N/A'}
-    `.trim() : '分析情報なし';
-
-    return `
-      <div class="quality-check-results">
-        <h4 style="color: #ff9800; margin: 0 0 1rem 0;">
-          <i class="fas fa-check-circle"></i> 第3段階：品質検証と評価結果
-        </h4>
-        
-        <div class="quality-section" style="margin-bottom: 1.5rem;">
-          <h5 style="color: #e91e63; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-chart-bar"></i> OBJ構造分析
-          </h5>
-          <div style="background: #fce4ec; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.9rem; white-space: pre-line;">
-${analysisInfo}
-          </div>
-        </div>
-        
-        <div class="quality-section" style="margin-bottom: 1.5rem;">
-          <h5 style="color: #4caf50; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-clipboard-check"></i> LLM品質評価レポート
-          </h5>
-          <div style="background: #f8fff8; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 0.9rem; line-height: 1.5;">${qualityReport}</div>
-        </div>
-        
-        <div class="quality-section" style="margin-bottom: 1.5rem;">
-          <h5 style="color: #9c27b0; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-robot"></i> システムプロンプト
-          </h5>
-          <textarea readonly style="width: 100%; height: 120px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.8rem; background: #f3e5f5; resize: vertical;">${systemPrompt}</textarea>
-        </div>
-        
-        <div class="quality-section" style="margin-bottom: 1.5rem;">
-          <h5 style="color: #2196f3; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-terminal"></i> 使用されたプロンプト
-          </h5>
-          <textarea readonly style="width: 100%; height: 150px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.8rem; background: #f0f8ff; resize: vertical;">${inputPrompt}</textarea>
-        </div>
-        
-        <div class="quality-section">
-          <h5 style="color: #ff9800; margin: 0 0 0.5rem 0;">
-            <i class="fas fa-file-code"></i> 評価されたOBJファイル
-          </h5>
-          <textarea readonly style="width: 100%; height: 250px; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.8rem; background: #fff8f0; resize: vertical;">${improvedObjData}</textarea>
-        </div>
-      </div>
-    `;
-  }
-
-  closeStageResultModal() {
-    document.getElementById('stageResultModal').style.display = 'none';
   }
 
   // ========== UI ヘルパーメソッド ==========
@@ -1925,6 +1495,29 @@ ${analysisInfo}
     } else {
       loading.classList.remove('active');
     }
+  }
+
+  showStopButton(show) {
+    const stopBtn = document.getElementById('stopProcessingBtn');
+    if (stopBtn) {
+      stopBtn.style.display = show ? 'inline-block' : 'none';
+    }
+  }
+
+  showWarning(message) {
+    const successEl = document.getElementById('successMessage');
+    successEl.innerHTML = `⚠️ ${message}`;
+    successEl.style.display = 'block';
+    successEl.style.backgroundColor = '#fff3cd';
+    successEl.style.borderColor = '#ffeaa7';
+    successEl.style.color = '#856404';
+    setTimeout(() => {
+      successEl.style.display = 'none';
+      // スタイルをリセット
+      successEl.style.backgroundColor = '';
+      successEl.style.borderColor = '';
+      successEl.style.color = '';
+    }, 5000);
   }
 
   showError(message, isPersistent = true) {
@@ -1985,29 +1578,7 @@ ${analysisInfo}
   }
 
   enableDownloadButtons() {
-    // ボタングループを表示
-    document.getElementById('downloadButtonGroup').style.display = 'block';
-    
-    // ボタンを有効化
-    const downloadBtn = document.getElementById('downloadObjBtn');
-    if (downloadBtn) {
-      downloadBtn.disabled = false;
-    }
-    
-    // ファイルサイズを計算して表示
-    const fileSizeIndicator = document.getElementById('downloadFileSize');
-    if (this.currentObjData && fileSizeIndicator) {
-      const sizeKB = (new Blob([this.currentObjData]).size / 1024).toFixed(1);
-      fileSizeIndicator.textContent = `${sizeKB}KB`;
-      fileSizeIndicator.style.display = 'inline';
-      
-      this.log('debug', 'ファイルサイズ表示を更新', { fileSize: `${sizeKB}KB` });
-    }
-    
-    // ダウンロード設定のプレビューを更新
-    this.updateDownloadPreview();
-    
-    // 再生成セクションを表示
+    // ダウンロード機能は削除されました - 再生成セクションのみ表示
     const regenerationSection = document.getElementById('regenerationSection');
     if (regenerationSection) {
       regenerationSection.style.display = 'block';
@@ -2030,8 +1601,8 @@ ${analysisInfo}
     const progressContainer = document.getElementById('threeStageProgress');
     if (show) {
       progressContainer.style.display = 'block';
-      // 全ステージをリセット（3段階のみ）
-      for (let i = 1; i <= 3; i++) {
+      // 全ステージをリセット（2段階対応）
+      for (let i = 1; i <= 2; i++) {
         this.updateStageProgress(i, 'pending', '待機中');
       }
     } else {
@@ -2040,8 +1611,8 @@ ${analysisInfo}
   }
 
   updateStageProgress(stage, status, message) {
-    // ステージ1-3のみ有効（HTMLに存在する）
-    if (stage < 1 || stage > 3) {
+    // ステージ1-2まで有効（HTMLに存在する）
+    if (stage < 1 || stage > 2) {
       this.log('warn', '無効なステージ番号', { stage: stage });
       return;
     }
@@ -2083,6 +1654,11 @@ ${analysisInfo}
     
     // テキストを更新
     stageText.textContent = message;
+    
+    // 完了時にiマークを表示
+    if (status === 'completed') {
+      this.showStageInfoButton(stage);
+    }
     
     // デバッグパネルの更新
     this.updateDebugPanel();
@@ -2236,40 +1812,7 @@ ${analysisInfo}
   }
 
   // ========== 段階別結果ボタン表示管理 ==========
-  showStageResultButtons() {
-    // 第1段階結果ボタン
-    if (this.processingManager.stage1Data) {
-      const showStage1Btn = document.getElementById('showStage1ResultBtn');
-      if (showStage1Btn) {
-        showStage1Btn.style.display = 'block';
-      }
-    }
-    
-    // 第2段階結果ボタン
-    if (this.processingManager.stage2Data) {
-      const showStage2Btn = document.getElementById('showStage2ResultBtn');
-      if (showStage2Btn) {
-        showStage2Btn.style.display = 'block';
-      }
-    }
-    
-    // 第3段階結果ボタン
-    if (this.processingManager.stage3Data) {
-      const showStage3Btn = document.getElementById('showStage3ResultBtn');
-      if (showStage3Btn) {
-        showStage3Btn.style.display = 'block';
-      }
-    }
-    
 
-    
-    this.log('debug', '段階別結果ボタンの表示状態を更新しました', {
-      stage1: !!this.processingManager.stage1Data,
-      stage2: !!this.processingManager.stage2Data,
-      stage3: !!this.processingManager.stage3Data,
-      stage2InputPrompt: !!this.processingManager.stage2Data
-    });
-  }
 
   // ========== 再生成セクション表示管理 ==========
   showRegenerationSection() {
@@ -2277,8 +1820,7 @@ ${analysisInfo}
     const modelDisplayed = this.currentObjData && 
                           this.sceneManager && 
                           this.sceneManager.isInitialized &&
-                          this.processingManager.stage2Data &&
-                          this.processingManager.stage3Data;
+                          this.processingManager.stage2Data;
     
     const regenerationSection = document.getElementById('regenerationSection');
     if (regenerationSection && modelDisplayed) {
@@ -2289,8 +1831,7 @@ ${analysisInfo}
         hasObjData: !!this.currentObjData,
         hasSceneManager: !!this.sceneManager,
         sceneInitialized: this.sceneManager?.isInitialized,
-        hasStage2Data: !!this.processingManager.stage2Data,
-        hasStage3Data: !!this.processingManager.stage3Data
+        hasStage2Data: !!this.processingManager.stage2Data
       });
     }
   }
@@ -2459,7 +2000,6 @@ ${analysisInfo}
       this.showThreeStageProgress(true);
       this.updateStageProgress(1, 'completed', '第1段階データを使用');
       this.updateStageProgress(2, 'pending', '待機中');
-      this.updateStageProgress(3, 'pending', '待機中');
       
       this.showLoading(true, '修正版3Dモデルを生成中...');
       
@@ -2477,12 +2017,14 @@ ${analysisInfo}
         combinedPrompt, 
         this.processingManager.stage1Data
       );
-      this.updateStageProgress(2, 'completed', '修正版3Dモデル生成完了');
+      // 第2段階の生出力データを保存（再生成時）
+      if (this.processingManager.stage2Data && this.processingManager.stage2Data.rawOutput) {
+        this.saveStageRawData(2, this.processingManager.stage2Data.rawOutput);
+        // iマークを表示
+        setTimeout(() => this.showStageInfoButton(2), 50);
+      }
       
-      // 第3段階: 品質検証
-      this.updateStageProgress(3, 'active', '品質評価中...');
-      const qualityCheckResult = await this.processingManager.performFinalQualityCheck(objData);
-      this.updateStageProgress(3, 'completed', '品質評価完了');
+      this.updateStageProgress(2, 'completed', '修正版3Dモデル生成完了');
       
       // 現在のモデルデータを更新
       this.currentObjData = objData;
@@ -2502,10 +2044,9 @@ ${analysisInfo}
       
       // UI表示を更新
       this.processingManager.storeModelGenerationResults(objData, this.processingManager.stage1Data);
-      this.processingManager.storeQualityCheckResults(qualityCheckResult, objData);
       
       // プロジェクトを更新保存
-      this.saveCurrentProject(combinedPrompt, objData, qualityCheckResult, this.processingManager.stage1Data);
+      this.saveCurrentProject(combinedPrompt, objData, null, this.processingManager.stage1Data);
       
       // 成功メッセージ
       this.showLoading(false);
@@ -2521,7 +2062,6 @@ ${analysisInfo}
       
       // エラー時の進行状況更新
       this.updateStageProgress(2, 'error', 'エラー発生');
-      this.updateStageProgress(3, 'error', 'エラー発生');
       
       this.showLoading(false);
       this.showError(`修正版3Dモデル生成エラー: ${error.message}`);
@@ -2565,54 +2105,5 @@ ${regenerationComment}
     this.showInfo('修正指示をクリアしました。');
   }
 
-  updateDownloadPreview() {
-    // ダウンロード設定の表示更新
-    const downloadMethodSelect = document.getElementById('downloadMethod');
-    const customFilenameInput = document.getElementById('customFilename');
-    const filenamePreview = document.getElementById('filenamePreview');
-    const downloadSizePreview = document.getElementById('downloadSizePreview');
-    
-    if (!downloadMethodSelect || !customFilenameInput || !filenamePreview) return;
-    
-    const selectedMethod = downloadMethodSelect.value;
-    const customFilename = customFilenameInput.value.trim();
-    
-    // ファイル名の生成
-    let filename;
-    if (customFilename) {
-      // カスタムファイル名から無効な文字を除去
-      const sanitizedFilename = customFilename.replace(/[<>:"/\\|?*]/g, '_');
-      filename = `${sanitizedFilename}.obj`;
-    } else {
-      // デフォルトのファイル名生成
-      const date = new Date();
-      filename = `furniture_${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}.obj`;
-    }
-    
-    // プレビュー更新
-    filenamePreview.textContent = filename;
-    
-    // ファイルサイズの表示
-    if (this.currentObjData && downloadSizePreview) {
-      const blob = new Blob([this.currentObjData], { type: 'application/octet-stream' });
-      downloadSizePreview.textContent = this.formatFileSize(blob.size);
-    }
-    
-    // ダウンロードボタンのテキスト更新
-    const downloadBtn = document.getElementById('downloadObjBtn');
-    if (downloadBtn) {
-      const icon = '<i class="fas fa-download"></i>';
-      switch (selectedMethod) {
-        case 'save-as':
-          downloadBtn.innerHTML = `${icon} 名前を付けて保存`;
-          break;
-        case 'clipboard':
-          downloadBtn.innerHTML = `${icon} クリップボードにコピー`;
-          break;
-        default:
-          downloadBtn.innerHTML = `${icon} OBJダウンロード`;
-          break;
-      }
-    }
-  }
+
 }

@@ -1,0 +1,1740 @@
+プロジェクトを詳しく分析しました。報告いただいたバグに加えて、いくつかの重要な問題を発見しました。段階的に修正方法を提案します。
+
+## 追加で発見したバグ
+
+1. **ノードドラッグのオフセット問題**
+   - `handleDragStart`でドラッグオフセットが未設定（常に0,0）
+   - パレットからドラッグ時に正しい位置に配置されない
+
+2. **接続ポートのイベントバブリング**
+   - ポートクリック時にノード選択も発火してしまう
+
+3. **メモリリーク**
+   - ノード削除機能がないため、不要なノードが蓄積
+
+## 修正方法（優先度順）
+
+### 1. ノードID重複の修正
+
+**問題**: `Date.now()`だけでは同時生成時に重複の可能性
+
+```javascript
+// main.js - addNode メソッドを修正
+addNode(nodeType, position) {
+    const newNode = {
+        // UUIDライクな一意性の高いID生成
+        id: `node_${nodeType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${this.workflow.nodes.length}`,
+        type: nodeType,
+        position: position,
+        data: this.getDefaultNodeData(nodeType)
+    };
+    // ...
+}
+```
+
+### 2. ノード間接続の修正
+
+**問題**: 接続線の描画はあるが、実際の接続作成ができない
+
+```javascript
+// main.js - handlePortClick を修正
+handlePortClick(e, nodeId, portType) {
+    e.stopPropagation();
+    e.preventDefault(); // 追加：親要素へのイベント伝播を完全に防ぐ
+    
+    if (portType === 'output') {
+        // 既存の接続をキャンセル
+        if (this.dragState.connecting && this.dragState.connecting.fromNodeId === nodeId) {
+            this.dragState.connecting = null;
+        } else {
+            this.dragState.connecting = { fromNodeId: nodeId, fromPort: 'output' };
+        }
+    } else if (portType === 'input' && this.dragState.connecting) {
+        // 自己接続を防ぐ
+        if (this.dragState.connecting.fromNodeId !== nodeId) {
+            this.connectNodes(this.dragState.connecting.fromNodeId, nodeId);
+        }
+        this.dragState.connecting = null;
+    }
+    this.renderConnections();
+}
+```
+
+### 3. Input Nodeの入力フィールド追加
+
+```javascript
+// main.js - getNodeSpecificFields に追加
+case 'input':
+    return `
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+                Input Type
+            </label>
+            <select id="node-input-type" class="form-select">
+                <option value="text" ${node.data.inputType === 'text' ? 'selected' : ''}>Text</option>
+                <option value="number" ${node.data.inputType === 'number' ? 'selected' : ''}>Number</option>
+            </select>
+        </div>
+        <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+                Default Value
+            </label>
+            <input
+                type="${node.data.inputType || 'text'}"
+                id="node-default-value"
+                value="${node.data.defaultValue || ''}"
+                class="form-input"
+                placeholder="Enter default value..."
+            />
+        </div>
+        <div class="mt-4 p-3 bg-gray-700 rounded">
+            <label class="block text-sm font-medium text-white mb-2">Test Input</label>
+            <input
+                type="${node.data.inputType || 'text'}"
+                id="node-test-input"
+                class="form-input"
+                placeholder="Enter test value..."
+            />
+        </div>
+    `;
+```
+
+### 4. オートセーブ機能の実装
+
+```javascript
+// main.js - 新しいメソッドを追加
+saveToLocalStorage() {
+    const saveData = {
+        workflow: this.workflow,
+        timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('llm-workflow-autosave', JSON.stringify(saveData));
+}
+
+loadFromLocalStorage() {
+    const saved = localStorage.getItem('llm-workflow-autosave');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            this.workflow = data.workflow;
+            this.renderNodes();
+            this.updateWelcomeMessage();
+            return true;
+        } catch (e) {
+            console.error('Failed to load autosave:', e);
+        }
+    }
+    return false;
+}
+
+// init メソッドに追加
+init() {
+    this.setupEventListeners();
+    this.renderNodePalette();
+    this.loadFromLocalStorage(); // 追加
+    this.updateUI();
+    
+    // オートセーブを5秒ごとに実行
+    setInterval(() => this.saveToLocalStorage(), 5000);
+}
+```
+
+### 5. 新しいノードタイプの追加
+
+```javascript
+// constructor内のnodeTypesに追加
+{
+    type: 'supervisor',
+    label: 'Supervisor',
+    description: 'Manages and orchestrates LLM processes',
+    color: 'icon-supervisor',
+    icon: this.getIcon('supervisor')
+},
+{
+    type: 'planner',
+    label: 'Planner',
+    description: 'Updates prompts based on outputs',
+    color: 'icon-planner',
+    icon: this.getIcon('planner')
+}
+
+// getIcon メソッドに追加
+supervisor: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>',
+planner: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>'
+```
+
+### 6. ノード実行の可視化
+
+```javascript
+// executeNode メソッドの前後に追加
+async executeNode(node, previousResults) {
+    // ノードをハイライト
+    const nodeElement = document.querySelector(`[data-node-id="${node.id}"]`);
+    if (nodeElement) {
+        nodeElement.classList.add('executing');
+        // 接続線もハイライト
+        this.highlightNodeConnections(node.id);
+    }
+    
+    try {
+        // 既存の実行ロジック
+        switch (node.type) {
+            // ...
+        }
+    } finally {
+        // ハイライトを削除
+        if (nodeElement) {
+            nodeElement.classList.remove('executing');
+        }
+        this.unhighlightConnections();
+    }
+}
+```
+
+### 7. ノード配置の改善
+
+```javascript
+// addNode メソッドを修正
+addNode(nodeType, position) {
+    // 重なりを防ぐためにグリッドスナップ
+    const gridSize = 40;
+    const snappedPosition = {
+        x: Math.round(position.x / gridSize) * gridSize,
+        y: Math.round(position.y / gridSize) * gridSize
+    };
+    
+    // 既存ノードとの重なりチェック
+    let finalPosition = this.findNonOverlappingPosition(snappedPosition);
+    
+    const newNode = {
+        // ... 既存のコード
+        position: finalPosition,
+        // ...
+    };
+}
+
+findNonOverlappingPosition(position) {
+    const nodeWidth = 200;
+    const nodeHeight = 100;
+    const padding = 20;
+    
+    let testPos = { ...position };
+    let attempts = 0;
+    
+    while (attempts < 10) {
+        let overlapping = false;
+        
+        for (const node of this.workflow.nodes) {
+            if (Math.abs(node.position.x - testPos.x) < nodeWidth + padding &&
+                Math.abs(node.position.y - testPos.y) < nodeHeight + padding) {
+                overlapping = true;
+                break;
+            }
+        }
+        
+        if (!overlapping) return testPos;
+        
+        // 少しずらして再試行
+        testPos.x += nodeWidth + padding;
+        if (testPos.x > 800) {
+            testPos.x = position.x;
+            testPos.y += nodeHeight + padding;
+        }
+        attempts++;
+    }
+    
+    return testPos;
+}
+```
+
+### 8. UI/UXの改善
+
+```javascript
+// index.html のツールバーボタンにツールチップを追加
+<button id="execute-btn" 
+    class="..." 
+    title="Run the workflow from start to finish">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <span>Run Workflow</span>
+</button>
+```
+
+これらの修正により、主要なバグが解決され、要望された機能が実装されます。特に重要なのは、ノードID生成の改善、接続機能の修正、オートセーブの実装です。各修正は独立して適用できるため、優先度に応じて段階的に実装することをお勧めします。
+
+
+
+
+
+
+プロジェクトを深く分析して、さらなる改善点と実装例をご提案させていただきます。実装の優先度と実現可能性を考慮しながら、段階的に説明していきます。
+
+## 1. ワークフロー実行の可視化強化
+
+現在の実装では、どのノードが実行中かが分かりにくいという問題があります。これを解決するために、実行フローを視覚的に追跡できる仕組みを提案します。
+
+### 実行パスのアニメーション表示
+
+```javascript
+// main.js に追加するメソッド
+animateExecutionPath(fromNodeId, toNodeId) {
+    const connection = this.workflow.connections.find(
+        c => c.from === fromNodeId && c.to === toNodeId
+    );
+    
+    if (connection) {
+        const svg = document.getElementById('connections-svg');
+        const path = svg.querySelector(`[data-connection-id="${connection.id}"]`);
+        
+        if (path) {
+            // データフローを示すアニメーション
+            const animatedDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            animatedDot.setAttribute('r', '4');
+            animatedDot.setAttribute('fill', '#ff7e5f');
+            
+            const animateMotion = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
+            animateMotion.setAttribute('dur', '1s');
+            animateMotion.setAttribute('repeatCount', '1');
+            
+            const mpath = document.createElementNS('http://www.w3.org/2000/svg', 'mpath');
+            mpath.setAttributeNS('http://www.w3.org/1999/xlink', 'href', `#path-${connection.id}`);
+            
+            animateMotion.appendChild(mpath);
+            animatedDot.appendChild(animateMotion);
+            svg.appendChild(animatedDot);
+            
+            // アニメーション終了後に削除
+            setTimeout(() => animatedDot.remove(), 1000);
+        }
+    }
+}
+```
+
+### 実行ログパネルの追加
+
+ユーザーが実行プロセスを理解しやすくするために、リアルタイムログを表示するパネルを追加します。
+
+```javascript
+// 新しいUIコンポーネント（index.htmlに追加）
+<div id="execution-log" class="fixed bottom-4 right-4 w-96 max-h-64 bg-white rounded-lg shadow-lg border overflow-hidden" style="display: none;">
+    <div class="p-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+        <h3 class="font-semibold flex items-center">
+            <svg class="w-4 h-4 mr-2 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            Execution Log
+        </h3>
+    </div>
+    <div id="log-content" class="p-3 max-h-48 overflow-y-auto font-mono text-sm">
+        <!-- ログエントリーがここに追加される -->
+    </div>
+</div>
+```
+
+## 2. ノード間のデータフロー可視化
+
+データがどのように流れているかを理解しやすくするため、接続線上にデータプレビューを表示する機能を提案します。
+
+```javascript
+// データプレビューコンポーネント
+showDataPreview(connectionId, data) {
+    const svg = document.getElementById('connections-svg');
+    const connection = this.workflow.connections.find(c => c.id === connectionId);
+    
+    if (connection) {
+        const fromNode = this.workflow.nodes.find(n => n.id === connection.from);
+        const toNode = this.workflow.nodes.find(n => n.id === connection.to);
+        
+        // 接続線の中点を計算
+        const midX = (fromNode.position.x + toNode.position.x) / 2 + 100;
+        const midY = (fromNode.position.y + toNode.position.y) / 2 + 40;
+        
+        // プレビューバブルを作成
+        const preview = document.createElement('div');
+        preview.className = 'data-preview-bubble';
+        preview.style.position = 'absolute';
+        preview.style.left = `${midX}px`;
+        preview.style.top = `${midY}px`;
+        preview.innerHTML = `
+            <div class="bg-white rounded-lg shadow-lg p-2 border border-blue-300 max-w-xs">
+                <div class="text-xs font-semibold text-blue-600 mb-1">Data Flow</div>
+                <div class="text-xs text-gray-600 truncate">
+                    ${this.formatDataPreview(data)}
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('canvas').appendChild(preview);
+        
+        // 3秒後にフェードアウト
+        setTimeout(() => {
+            preview.style.opacity = '0';
+            setTimeout(() => preview.remove(), 300);
+        }, 3000);
+    }
+}
+```
+
+## 3. スマートな接続サジェスト機能
+
+ユーザーがノードを接続する際に、論理的に妥当な接続先を提案する機能です。
+
+```javascript
+// 接続可能なノードをハイライト
+suggestConnections(sourceNodeId) {
+    const sourceNode = this.workflow.nodes.find(n => n.id === sourceNodeId);
+    if (!sourceNode) return;
+    
+    const compatibilityRules = {
+        'input': ['llm', 'branch', 'loop', 'planner'],
+        'llm': ['output', 'branch', 'merge', 'supervisor', 'planner'],
+        'branch': ['llm', 'merge', 'output'],
+        'merge': ['llm', 'output', 'supervisor'],
+        'loop': ['merge', 'output'],
+        'supervisor': ['llm', 'branch', 'output'],
+        'planner': ['llm', 'supervisor'],
+        'output': []  // 出力ノードは他に接続しない
+    };
+    
+    const compatibleTypes = compatibilityRules[sourceNode.type] || [];
+    
+    this.workflow.nodes.forEach(node => {
+        if (node.id !== sourceNodeId && compatibleTypes.includes(node.type)) {
+            const nodeElement = document.querySelector(`[data-node-id="${node.id}"]`);
+            if (nodeElement) {
+                nodeElement.classList.add('suggested-connection');
+            }
+        }
+    });
+}
+```
+
+## 4. ワークフローのエクスポート機能
+
+要望にあった JavaScript コードとしてのエクスポート機能の実装例です。
+
+```javascript
+// ワークフローをJavaScriptコードとして生成
+exportToJavaScript() {
+    const sortedNodes = this.topologicalSort();
+    let code = `// Auto-generated LLM Workflow
+// Generated at: ${new Date().toISOString()}
+
+class GeneratedWorkflow {
+    constructor() {
+        this.results = {};
+    }
+    
+    async execute() {
+        console.log('Starting workflow execution...');
+        
+`;
+    
+    sortedNodes.forEach((node, index) => {
+        const inputConnections = this.workflow.connections
+            .filter(c => c.to === node.id)
+            .map(c => `this.results['${c.from}']`);
+        
+        switch (node.type) {
+            case 'input':
+                code += `        // Input Node: ${node.data.label}
+        this.results['${node.id}'] = '${node.data.defaultValue || 'input_value'}';
+        console.log('Input:', this.results['${node.id}']);
+        
+`;
+                break;
+                
+            case 'llm':
+                code += `        // LLM Process: ${node.data.label}
+        const input_${index} = ${inputConnections[0] || "''"};
+        this.results['${node.id}'] = await this.callLLM({
+            prompt: \`${node.data.prompt}\`,
+            input: input_${index},
+            model: '${node.data.model}',
+            temperature: ${node.data.temperature}
+        });
+        console.log('LLM Output:', this.results['${node.id}']);
+        
+`;
+                break;
+                
+            case 'output':
+                code += `        // Output Node: ${node.data.label}
+        const finalOutput = ${inputConnections[0] || "''"};
+        console.log('Final Output:', finalOutput);
+        return finalOutput;
+`;
+                break;
+        }
+    });
+    
+    code += `    }
+    
+    async callLLM(config) {
+        // LLM API呼び出しの実装
+        // この部分は実際のAPIに合わせて実装してください
+        return await callLLMAPI([
+            { role: 'user', content: config.prompt + '\\n' + config.input }
+        ], {
+            model: config.model,
+            temperature: config.temperature
+        });
+    }
+}
+
+// 使用例
+const workflow = new GeneratedWorkflow();
+workflow.execute().then(result => {
+    console.log('Workflow completed:', result);
+});`;
+    
+    return code;
+}
+```
+
+## 5. ワークフローの検証機能
+
+実行前にワークフローの妥当性をチェックする機能です。
+
+```javascript
+validateWorkflow() {
+    const errors = [];
+    const warnings = [];
+    
+    // 入力ノードの存在チェック
+    const inputNodes = this.workflow.nodes.filter(n => n.type === 'input');
+    if (inputNodes.length === 0) {
+        errors.push('ワークフローには少なくとも1つの入力ノードが必要です');
+    }
+    
+    // 出力ノードの存在チェック
+    const outputNodes = this.workflow.nodes.filter(n => n.type === 'output');
+    if (outputNodes.length === 0) {
+        errors.push('ワークフローには少なくとも1つの出力ノードが必要です');
+    }
+    
+    // 孤立したノードのチェック
+    this.workflow.nodes.forEach(node => {
+        const hasIncoming = this.workflow.connections.some(c => c.to === node.id);
+        const hasOutgoing = this.workflow.connections.some(c => c.from === node.id);
+        
+        if (!hasIncoming && node.type !== 'input') {
+            warnings.push(`"${node.data.label}" には入力接続がありません`);
+        }
+        if (!hasOutgoing && node.type !== 'output') {
+            warnings.push(`"${node.data.label}" には出力接続がありません`);
+        }
+    });
+    
+    // 循環参照のチェック
+    if (this.hasCircularDependency()) {
+        errors.push('ワークフローに循環参照が含まれています');
+    }
+    
+    return { errors, warnings, isValid: errors.length === 0 };
+}
+```
+
+## 6. キーボードショートカットの実装
+
+作業効率を向上させるショートカット機能です。
+
+```javascript
+setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Ctrl/Cmd + S: 保存
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            this.saveToLocalStorage();
+            this.showNotification('ワークフローを保存しました', 'success');
+        }
+        
+        // Delete: 選択中のノードを削除
+        if (e.key === 'Delete' && this.selectedNode) {
+            this.deleteNode(this.selectedNode.id);
+        }
+        
+        // Ctrl/Cmd + Z: 元に戻す
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault();
+            this.undo();
+        }
+        
+        // Space: 実行/停止
+        if (e.key === ' ' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            if (this.isExecuting) {
+                this.stopExecution();
+            } else {
+                this.executeWorkflow();
+            }
+        }
+    });
+}
+```
+
+## 7. ドラッグ&ドロップの改善
+
+より直感的な操作を実現するための改善案です。
+
+```javascript
+// 複数ノード選択とグループ移動
+enableMultiSelect() {
+    let isSelecting = false;
+    let selectionBox = null;
+    let startPoint = { x: 0, y: 0 };
+    
+    const canvas = document.getElementById('canvas');
+    
+    canvas.addEventListener('mousedown', (e) => {
+        if (e.shiftKey && e.target === canvas) {
+            isSelecting = true;
+            startPoint = { x: e.offsetX, y: e.offsetY };
+            
+            selectionBox = document.createElement('div');
+            selectionBox.className = 'selection-box';
+            selectionBox.style.position = 'absolute';
+            selectionBox.style.border = '2px dashed #3b82f6';
+            selectionBox.style.background = 'rgba(59, 130, 246, 0.1)';
+            selectionBox.style.pointerEvents = 'none';
+            canvas.appendChild(selectionBox);
+        }
+    });
+    
+    // 選択ボックスの更新とノード選択ロジック
+}
+```
+
+これらの機能追加により、ユーザビリティが大幅に向上し、より実用的なワークフローエディターになります。特に重要なのは、実行フローの可視化、データプレビュー、そしてワークフローの検証機能です。これらにより、ユーザーは自分が作成したワークフローの動作を直感的に理解し、問題を早期に発見できるようになります。
+
+
+
+
+
+このプロジェクトの問題点を詳しく分析させていただきました。まず、報告いただいたバグの根本原因を理解した上で、システム全体の設計から見直すアプローチで段階的な修正方法をご提案します。
+
+## フェーズ1: 基盤となる問題の修正
+
+最初に取り組むべきは、システムの基盤部分にある問題です。これらは他の機能に影響を与える重要な部分なので、優先的に修正する必要があります。
+
+### 1.1 ノードID生成システムの根本的な改善
+
+現在の問題は、単に`Date.now()`を使用しているだけでなく、ID生成のロジック自体に構造的な欠陥があることです。
+
+```javascript
+// WorkflowEditorクラスに新しいメソッドを追加
+generateUniqueNodeId(nodeType) {
+    // カウンターを内部で管理することで、確実にユニークなIDを生成
+    if (!this.nodeCounters) {
+        this.nodeCounters = {};
+    }
+    
+    if (!this.nodeCounters[nodeType]) {
+        this.nodeCounters[nodeType] = 0;
+    }
+    
+    this.nodeCounters[nodeType]++;
+    
+    // タイムスタンプ、ノードタイプ、カウンター、ランダム値を組み合わせる
+    const timestamp = Date.now();
+    const counter = this.nodeCounters[nodeType];
+    const random = Math.random().toString(36).substr(2, 5);
+    
+    return `node_${nodeType}_${timestamp}_${counter}_${random}`;
+}
+
+// addNodeメソッドを修正
+addNode(nodeType, position) {
+    const newNode = {
+        id: this.generateUniqueNodeId(nodeType), // 新しいID生成メソッドを使用
+        type: nodeType,
+        position: this.adjustNodePosition(position), // 位置調整も追加
+        data: this.getDefaultNodeData(nodeType)
+    };
+    
+    this.workflow.nodes.push(newNode);
+    this.workflow.metadata.updatedAt = new Date();
+    
+    // 変更を即座に保存
+    this.saveToLocalStorage();
+    
+    this.renderNodes();
+    this.updateWelcomeMessage();
+    
+    return newNode; // デバッグやテストのためにノードを返す
+}
+```
+
+### 1.2 ノード間接続の基本メカニズムの修正
+
+接続機能が動作しない根本原因は、イベントハンドリングの設計に問題があるためです。
+
+```javascript
+// 接続状態を管理する新しい構造を追加
+initializeConnectionState() {
+    this.connectionState = {
+        isConnecting: false,
+        sourceNode: null,
+        sourcePort: null,
+        targetCandidates: new Set(),
+        previewPath: null
+    };
+}
+
+// ポートクリックハンドラーを完全に書き直す
+handlePortClick(e, nodeId, portType) {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const node = this.workflow.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    if (portType === 'output') {
+        this.startConnection(node);
+    } else if (portType === 'input' && this.connectionState.isConnecting) {
+        this.completeConnection(node);
+    }
+}
+
+// 接続開始の処理を明確に分離
+startConnection(sourceNode) {
+    // 既存の接続状態をクリア
+    this.clearConnectionState();
+    
+    this.connectionState.isConnecting = true;
+    this.connectionState.sourceNode = sourceNode;
+    this.connectionState.sourcePort = 'output';
+    
+    // 接続可能なノードをハイライト
+    this.highlightValidTargets(sourceNode);
+    
+    // ビジュアルフィードバックを提供
+    this.showConnectionFeedback(sourceNode);
+}
+
+// 接続完了の処理
+completeConnection(targetNode) {
+    const sourceNode = this.connectionState.sourceNode;
+    
+    // 接続の妥当性を検証
+    if (!this.canConnect(sourceNode, targetNode)) {
+        this.showConnectionError('この接続は許可されていません');
+        this.clearConnectionState();
+        return;
+    }
+    
+    // 重複接続のチェック
+    const existingConnection = this.workflow.connections.find(
+        c => c.from === sourceNode.id && c.to === targetNode.id
+    );
+    
+    if (existingConnection) {
+        this.showConnectionError('既に接続されています');
+        this.clearConnectionState();
+        return;
+    }
+    
+    // 新しい接続を作成
+    const newConnection = {
+        id: `conn_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        from: sourceNode.id,
+        to: targetNode.id,
+        metadata: {
+            createdAt: new Date()
+        }
+    };
+    
+    this.workflow.connections.push(newConnection);
+    this.clearConnectionState();
+    this.renderConnections();
+    this.saveToLocalStorage();
+}
+```
+
+## フェーズ2: データ入力と表示の改善
+
+### 2.1 Input Nodeの完全な実装
+
+Input Nodeには実際の入力フィールドが必要です。現在のコードでは設定はあっても、実際の入力UIがありません。
+
+```javascript
+// getNodeContentメソッドを拡張
+getNodeContent(node) {
+    switch (node.type) {
+        case 'input':
+            return `
+                <div class="node-input-content">
+                    <div class="mb-2">
+                        <label class="text-xs font-medium text-gray-500">
+                            Input Type: ${node.data.inputType || 'text'}
+                        </label>
+                    </div>
+                    <div class="input-value-display">
+                        <input
+                            type="${node.data.inputType || 'text'}"
+                            class="node-inline-input"
+                            value="${node.data.currentValue || node.data.defaultValue || ''}"
+                            placeholder="Enter value..."
+                            data-node-id="${node.id}"
+                            data-field="currentValue"
+                        />
+                    </div>
+                    ${node.data.currentValue ? `
+                        <div class="mt-1 text-xs text-green-600">
+                            ✓ Value set
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+        case 'llm':
+            return this.getLLMNodeContent(node);
+            
+        case 'output':
+            return this.getOutputNodeContent(node);
+            
+        // 他のノードタイプも同様に実装
+    }
+}
+
+// ノード内の入力フィールドに対するイベントハンドラー
+setupNodeInlineInputs() {
+    document.addEventListener('input', (e) => {
+        if (e.target.classList.contains('node-inline-input')) {
+            const nodeId = e.target.dataset.nodeId;
+            const field = e.target.dataset.field;
+            const value = e.target.value;
+            
+            this.updateNodeData(nodeId, field, value);
+            
+            // 入力値の即時バリデーション
+            this.validateNodeInput(nodeId, field, value);
+        }
+    });
+}
+```
+
+### 2.2 LLM Processノードの入出力表示
+
+LLMノードでは処理の前後でデータがどう変化するかを確認できるようにします。
+
+```javascript
+getLLMNodeContent(node) {
+    const hasInput = this.getNodeInputData(node.id);
+    const hasOutput = node.data.lastOutput;
+    
+    return `
+        <div class="llm-node-content">
+            <!-- モデル情報 -->
+            <div class="text-xs text-gray-600 mb-2">
+                <span class="inline-flex items-center">
+                    <span class="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
+                    Llama 4 (io.net)
+                </span>
+            </div>
+            
+            <!-- プロンプトプレビュー -->
+            <div class="text-xs text-gray-500 mb-2">
+                ${node.data.prompt ? 
+                    `"${this.truncateText(node.data.prompt, 40)}..."` : 
+                    '<span class="text-red-400">No prompt set</span>'
+                }
+            </div>
+            
+            <!-- 入出力プレビュー -->
+            <div class="io-preview">
+                ${hasInput ? `
+                    <div class="input-preview mb-1">
+                        <span class="text-xs font-medium text-blue-600">Input:</span>
+                        <span class="text-xs text-gray-600">
+                            ${this.truncateText(hasInput, 30)}
+                        </span>
+                    </div>
+                ` : ''}
+                
+                ${hasOutput ? `
+                    <div class="output-preview">
+                        <span class="text-xs font-medium text-green-600">Output:</span>
+                        <span class="text-xs text-gray-600">
+                            ${this.truncateText(hasOutput, 30)}
+                        </span>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <!-- エラー表示 -->
+            ${node.data.error ? `
+                <div class="error-display mt-1">
+                    <span class="text-xs text-red-500">⚠ ${node.data.error}</span>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+```
+
+## フェーズ3: 新しいノードタイプの実装
+
+### 3.1 Supervisor Nodeの詳細実装
+
+Supervisorノードは複数のLLMプロセスを管理する重要なノードです。
+
+```javascript
+// getDefaultNodeDataメソッドに追加
+supervisor: {
+    label: 'Supervisor Node',
+    managedNodes: [], // 管理対象のLLMノードID
+    routingStrategy: 'sequential', // sequential, parallel, conditional
+    routingRules: [],
+    maxConcurrent: 3,
+    errorHandling: 'continue', // continue, stop, retry
+    aggregationMethod: 'merge' // merge, select-best, vote
+}
+
+// Supervisorノードの実行ロジック
+async executeSupervisorNode(node, inputs) {
+    const supervisorData = node.data;
+    const managedNodes = this.workflow.nodes.filter(
+        n => supervisorData.managedNodes.includes(n.id)
+    );
+    
+    console.log(`Supervisor ${node.id} managing ${managedNodes.length} nodes`);
+    
+    let results = {};
+    
+    switch (supervisorData.routingStrategy) {
+        case 'sequential':
+            // 順次実行
+            for (const managedNode of managedNodes) {
+                results[managedNode.id] = await this.executeNode(managedNode, inputs);
+            }
+            break;
+            
+        case 'parallel':
+            // 並列実行（最大同時実行数を考慮）
+            const chunks = this.chunkArray(managedNodes, supervisorData.maxConcurrent);
+            for (const chunk of chunks) {
+                const promises = chunk.map(n => this.executeNode(n, inputs));
+                const chunkResults = await Promise.all(promises);
+                chunk.forEach((node, index) => {
+                    results[node.id] = chunkResults[index];
+                });
+            }
+            break;
+            
+        case 'conditional':
+            // 条件付きルーティング
+            for (const rule of supervisorData.routingRules) {
+                if (this.evaluateRoutingRule(rule, inputs)) {
+                    const targetNode = managedNodes.find(n => n.id === rule.targetNodeId);
+                    if (targetNode) {
+                        results[targetNode.id] = await this.executeNode(targetNode, inputs);
+                    }
+                }
+            }
+            break;
+    }
+    
+    // 結果の集約
+    return this.aggregateResults(results, supervisorData.aggregationMethod);
+}
+```
+
+### 3.2 Planner Nodeの実装
+
+Plannerノードは動的にプロンプトを更新する機能を持ちます。
+
+```javascript
+// getDefaultNodeDataメソッドに追加
+planner: {
+    label: 'Planner Node',
+    planningStrategy: 'adaptive', // adaptive, template, rule-based
+    targetNodes: [], // プロンプトを更新する対象ノード
+    evaluationCriteria: {
+        successKeywords: [],
+        failureKeywords: [],
+        confidenceThreshold: 0.7
+    },
+    promptTemplates: {
+        improvement: 'Based on the previous output: {output}, improve the prompt to be more specific.',
+        clarification: 'The previous attempt was unclear. Add these details: {missing_details}',
+        refinement: 'Refine the approach based on this feedback: {feedback}'
+    }
+}
+
+// Plannerノードの実行ロジック
+async executePlannerNode(node, inputs) {
+    const plannerData = node.data;
+    const previousOutput = inputs.previousOutput || '';
+    
+    // 出力を評価
+    const evaluation = this.evaluateOutput(previousOutput, plannerData.evaluationCriteria);
+    
+    // 評価に基づいて新しいプロンプトを生成
+    let newPrompt = '';
+    if (evaluation.confidence < plannerData.evaluationCriteria.confidenceThreshold) {
+        // プロンプトの改善が必要
+        const template = plannerData.promptTemplates[evaluation.suggestionType];
+        newPrompt = this.fillTemplate(template, {
+            output: previousOutput,
+            missing_details: evaluation.missingDetails,
+            feedback: evaluation.feedback
+        });
+    }
+    
+    // 対象ノードのプロンプトを更新
+    for (const targetNodeId of plannerData.targetNodes) {
+        const targetNode = this.workflow.nodes.find(n => n.id === targetNodeId);
+        if (targetNode && targetNode.type === 'llm') {
+            targetNode.data.prompt = newPrompt || targetNode.data.prompt;
+            console.log(`Planner updated prompt for node ${targetNodeId}`);
+        }
+    }
+    
+    return {
+        evaluation: evaluation,
+        updatedPrompt: newPrompt,
+        targetNodes: plannerData.targetNodes
+    };
+}
+```
+
+## フェーズ4: 実行フローの改善
+
+### 4.1 非同期実行とBranchノードの実装
+
+Branchノードでは条件に基づいて処理を分岐させ、各分岐を非同期で実行します。
+
+```javascript
+// Branchノードの詳細実装
+async executeBranchNode(node, inputs) {
+    const branchData = node.data;
+    const condition = branchData.condition;
+    const inputValue = inputs.value || '';
+    
+    // 条件を評価
+    const evaluationResult = await this.evaluateCondition(condition, inputValue);
+    
+    // 分岐先のノードを取得
+    const connections = this.workflow.connections.filter(c => c.from === node.id);
+    const trueBranch = connections.find(c => c.label === 'true');
+    const falseBranch = connections.find(c => c.label === 'false');
+    
+    // 非同期実行のためのPromise配列
+    const executionPromises = [];
+    
+    if (evaluationResult && trueBranch) {
+        const trueNode = this.workflow.nodes.find(n => n.id === trueBranch.to);
+        if (trueNode) {
+            executionPromises.push(
+                this.executeNode(trueNode, inputs)
+                    .then(result => ({ branch: 'true', result }))
+            );
+        }
+    }
+    
+    if (!evaluationResult && falseBranch) {
+        const falseNode = this.workflow.nodes.find(n => n.id === falseBranch.to);
+        if (falseNode) {
+            executionPromises.push(
+                this.executeNode(falseNode, inputs)
+                    .then(result => ({ branch: 'false', result }))
+            );
+        }
+    }
+    
+    // 非同期実行
+    const results = await Promise.all(executionPromises);
+    
+    return {
+        condition: condition,
+        evaluationResult: evaluationResult,
+        executedBranches: results
+    };
+}
+
+// 条件評価のヘルパーメソッド
+async evaluateCondition(condition, inputValue) {
+    // シンプルな条件評価から始める
+    if (condition.includes('contains')) {
+        const searchTerm = condition.match(/contains\s*"([^"]+)"/)?.[1];
+        return inputValue.includes(searchTerm);
+    }
+    
+    if (condition.includes('>') || condition.includes('<')) {
+        // 数値比較
+        const match = condition.match(/(\w+)\s*([><=]+)\s*(\d+)/);
+        if (match) {
+            const value = parseFloat(inputValue);
+            const threshold = parseFloat(match[3]);
+            const operator = match[2];
+            
+            switch (operator) {
+                case '>': return value > threshold;
+                case '<': return value < threshold;
+                case '>=': return value >= threshold;
+                case '<=': return value <= threshold;
+                case '=': return value === threshold;
+            }
+        }
+    }
+    
+    // より複雑な条件はJavaScriptとして評価（セキュリティに注意）
+    try {
+        const func = new Function('input', `return ${condition}`);
+        return func(inputValue);
+    } catch (e) {
+        console.error('条件評価エラー:', e);
+        return false;
+    }
+}
+```
+
+### 4.2 Merge Nodeの同期機能
+
+Mergeノードは非同期処理の結果を待ち合わせる重要な役割を持ちます。
+
+```javascript
+// Mergeノードの実装
+async executeMergeNode(node, inputs) {
+    const mergeData = node.data;
+    
+    // このノードへの全ての入力接続を取得
+    const incomingConnections = this.workflow.connections.filter(c => c.to === node.id);
+    
+    // 全ての入力が揃うまで待機
+    const pendingInputs = new Map();
+    
+    for (const connection of incomingConnections) {
+        const sourceNodeId = connection.from;
+        
+        // 既に実行結果がある場合
+        if (this.executionResults[sourceNodeId]) {
+            pendingInputs.set(sourceNodeId, this.executionResults[sourceNodeId]);
+        } else {
+            // まだ実行されていない場合は待機
+            console.log(`Merge node ${node.id} waiting for input from ${sourceNodeId}`);
+            
+            // タイムアウト付きで待機
+            const timeout = 30000; // 30秒
+            const startTime = Date.now();
+            
+            while (!this.executionResults[sourceNodeId] && (Date.now() - startTime < timeout)) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            if (this.executionResults[sourceNodeId]) {
+                pendingInputs.set(sourceNodeId, this.executionResults[sourceNodeId]);
+            } else {
+                console.error(`Timeout waiting for input from ${sourceNodeId}`);
+            }
+        }
+    }
+    
+    // 入力をマージ
+    const mergedResult = this.performMerge(
+        Array.from(pendingInputs.values()),
+        mergeData.mergeStrategy,
+        mergeData.separator
+    );
+    
+    return {
+        mergedData: mergedResult,
+        inputCount: pendingInputs.size,
+        sources: Array.from(pendingInputs.keys())
+    };
+}
+
+// マージ戦略の実装
+performMerge(inputs, strategy, separator = '\n') {
+    switch (strategy) {
+        case 'concat':
+            // 単純な連結
+            return inputs.map(input => 
+                typeof input === 'string' ? input : JSON.stringify(input)
+            ).join(separator);
+            
+        case 'array':
+            // 配列として結合
+            return inputs;
+            
+        case 'object':
+            // オブジェクトとして結合
+            return inputs.reduce((acc, input, index) => {
+                acc[`input_${index}`] = input;
+                return acc;
+            }, {});
+            
+        case 'smart':
+            // コンテンツタイプに基づいて自動判定
+            if (inputs.every(input => typeof input === 'string')) {
+                return inputs.join(separator);
+            } else if (inputs.every(input => typeof input === 'object')) {
+                return Object.assign({}, ...inputs);
+            } else {
+                return inputs;
+            }
+            
+        default:
+            return inputs.join(separator);
+    }
+}
+```
+
+## フェーズ5: データ永続化とオートセーブ
+
+### 5.1 堅牢なオートセーブシステム
+
+データロスを防ぐため、多層的な保存戦略を実装します。
+
+```javascript
+// 改善されたオートセーブシステム
+class AutoSaveManager {
+    constructor(editor) {
+        this.editor = editor;
+        this.saveInterval = 5000; // 5秒
+        this.lastSaveTime = null;
+        this.pendingChanges = false;
+        this.saveHistory = [];
+        this.maxHistorySize = 10;
+        
+        this.initializeAutoSave();
+    }
+    
+    initializeAutoSave() {
+        // 定期保存
+        this.intervalId = setInterval(() => {
+            if (this.pendingChanges) {
+                this.performSave();
+            }
+        }, this.saveInterval);
+        
+        // 重要な変更時の即時保存
+        this.setupImmediateSaveTriggers();
+        
+        // ページ離脱時の保存
+        window.addEventListener('beforeunload', (e) => {
+            if (this.pendingChanges) {
+                this.performSave();
+                e.preventDefault();
+                e.returnValue = '保存されていない変更があります。';
+            }
+        });
+    }
+    
+    setupImmediateSaveTriggers() {
+        // ノード追加・削除時
+        ['nodeAdded', 'nodeRemoved', 'connectionAdded', 'connectionRemoved'].forEach(event => {
+            this.editor.on(event, () => {
+                this.markChanged();
+                this.performSave();
+            });
+        });
+        
+        // プロパティ変更時（デバウンス付き）
+        let propertyChangeTimeout;
+        this.editor.on('propertyChanged', () => {
+            this.markChanged();
+            clearTimeout(propertyChangeTimeout);
+            propertyChangeTimeout = setTimeout(() => {
+                this.performSave();
+            }, 1000);
+        });
+    }
+    
+    performSave() {
+        try {
+            const saveData = {
+                workflow: this.editor.workflow,
+                metadata: {
+                    savedAt: new Date().toISOString(),
+                    version: '1.0.0',
+                    nodeCount: this.editor.workflow.nodes.length,
+                    connectionCount: this.editor.workflow.connections.length
+                }
+            };
+            
+            // メイン保存
+            localStorage.setItem('llm-workflow-current', JSON.stringify(saveData));
+            
+            // 履歴保存
+            this.saveToHistory(saveData);
+            
+            this.lastSaveTime = new Date();
+            this.pendingChanges = false;
+            
+            // 保存成功の通知
+            this.editor.showNotification('自動保存完了', 'success');
+            
+        } catch (error) {
+            console.error('保存エラー:', error);
+            
+            // localStorageが満杯の場合の対処
+            if (error.name === 'QuotaExceededError') {
+                this.clearOldHistory();
+                this.performSave(); // リトライ
+            }
+        }
+    }
+    
+    saveToHistory(saveData) {
+        const historyKey = `llm-workflow-history-${Date.now()}`;
+        this.saveHistory.push(historyKey);
+        
+        // 古い履歴を削除
+        while (this.saveHistory.length > this.maxHistorySize) {
+            const oldKey = this.saveHistory.shift();
+            localStorage.removeItem(oldKey);
+        }
+        
+        localStorage.setItem(historyKey, JSON.stringify(saveData));
+    }
+    
+    markChanged() {
+        this.pendingChanges = true;
+    }
+}
+```
+
+これらの修正により、システムの基盤から段階的に改善され、より堅牢で使いやすいワークフローエディターになります。各フェーズは独立して実装可能ですが、順番に実装することで、より安定したシステムを構築できます。
+
+重要なのは、各機能が相互に依存しないように設計することです。これにより、一部の機能に問題があっても、システム全体は動作し続けることができます。
+
+
+優れたLLMワークフローエディターを完成させるために、まだ実装されていない重要な機能について、システム全体の視点から考えてみましょう。現在のコードを分析すると、基本的な構造は整っていますが、実際の運用で必要となる多くの機能が欠けています。
+
+## 1. 実行制御とモニタリング機能
+
+現在のシステムには、ワークフローの実行を細かく制御する機能が不足しています。実際の使用場面を想像してみてください。複雑なワークフローを実行中に、何か問題が発生したらどうしますか？
+
+### 1.1 ステップ実行とブレークポイント
+
+デバッグのために最も重要な機能の一つです：
+
+```javascript
+// ブレークポイント管理システム
+class DebugController {
+    constructor(workflowEditor) {
+        this.editor = workflowEditor;
+        this.breakpoints = new Set();
+        this.isPaused = false;
+        this.currentNode = null;
+        this.executionStack = [];
+    }
+    
+    toggleBreakpoint(nodeId) {
+        if (this.breakpoints.has(nodeId)) {
+            this.breakpoints.delete(nodeId);
+            this.updateBreakpointUI(nodeId, false);
+        } else {
+            this.breakpoints.add(nodeId);
+            this.updateBreakpointUI(nodeId, true);
+        }
+    }
+    
+    async executeWithDebug(node, inputs) {
+        // ブレークポイントチェック
+        if (this.breakpoints.has(node.id)) {
+            await this.pauseExecution(node, inputs);
+        }
+        
+        // 実行履歴に追加
+        this.executionStack.push({
+            nodeId: node.id,
+            inputs: JSON.parse(JSON.stringify(inputs)),
+            timestamp: new Date()
+        });
+        
+        // ノード実行
+        const result = await this.editor.executeNode(node, inputs);
+        
+        // 結果も履歴に記録
+        this.executionStack[this.executionStack.length - 1].output = result;
+        
+        return result;
+    }
+    
+    updateBreakpointUI(nodeId, hasBreakpoint) {
+        const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+        if (nodeElement) {
+            if (hasBreakpoint) {
+                // ブレークポイントインジケーターを追加
+                const indicator = document.createElement('div');
+                indicator.className = 'breakpoint-indicator';
+                indicator.innerHTML = '🔴';
+                nodeElement.appendChild(indicator);
+            } else {
+                // インジケーターを削除
+                const indicator = nodeElement.querySelector('.breakpoint-indicator');
+                if (indicator) indicator.remove();
+            }
+        }
+    }
+}
+```
+
+### 1.2 実行速度制御とステップモード
+
+ユーザーが実行の流れを理解できるように、速度を調整できる機能が必要です：
+
+```javascript
+// 実行速度制御パネル（UIに追加）
+<div id="execution-control-panel" class="fixed bottom-4 left-4 bg-white rounded-lg shadow-lg p-4">
+    <h3 class="text-sm font-semibold mb-2">実行制御</h3>
+    
+    <div class="flex items-center space-x-2 mb-3">
+        <button id="step-button" class="px-3 py-1 bg-blue-500 text-white rounded">
+            ステップ実行
+        </button>
+        <button id="continue-button" class="px-3 py-1 bg-green-500 text-white rounded">
+            継続
+        </button>
+        <button id="pause-button" class="px-3 py-1 bg-yellow-500 text-white rounded">
+            一時停止
+        </button>
+    </div>
+    
+    <div class="mb-2">
+        <label class="text-xs font-medium">実行速度</label>
+        <input type="range" id="execution-speed" min="0" max="2000" value="500" 
+               class="w-full"/>
+        <div class="flex justify-between text-xs text-gray-500">
+            <span>高速</span>
+            <span>標準</span>
+            <span>低速</span>
+        </div>
+    </div>
+</div>
+```
+
+## 2. データ変換とマッピング機能
+
+現在のシステムでは、ノード間でデータを受け渡す際の変換機能が不足しています。実際のワークフローでは、あるノードの出力形式が次のノードの入力形式と一致しないことがよくあります。
+
+### 2.1 Transform Node（データ変換ノード）
+
+```javascript
+// 新しいノードタイプとして追加
+{
+    type: 'transform',
+    label: 'Transform',
+    description: 'Transform data between nodes',
+    color: 'icon-transform',
+    icon: '<path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>'
+}
+
+// デフォルトデータ構造
+transform: {
+    label: 'Data Transformer',
+    transformType: 'json', // json, text, extract, template
+    transformRules: [
+        {
+            source: 'input.text',
+            target: 'output.content',
+            operation: 'copy'
+        }
+    ],
+    jsonPath: '',
+    textPattern: '',
+    template: '{{input}}'
+}
+```
+
+### 2.2 視覚的なデータマッピングUI
+
+ノード間のデータフローを視覚的にマッピングできるインターフェースが必要です：
+
+```javascript
+// データマッピングモーダル
+class DataMappingModal {
+    constructor(sourceNode, targetNode) {
+        this.sourceNode = sourceNode;
+        this.targetNode = targetNode;
+        this.mappings = [];
+    }
+    
+    render() {
+        return `
+            <div class="data-mapping-modal">
+                <div class="mapping-container">
+                    <div class="source-fields">
+                        <h4>出力フィールド (${this.sourceNode.data.label})</h4>
+                        <div class="field-list">
+                            ${this.renderFields(this.getOutputSchema(this.sourceNode))}
+                        </div>
+                    </div>
+                    
+                    <div class="mapping-lines">
+                        <svg id="mapping-svg" width="100" height="300">
+                            <!-- マッピング線がここに描画される -->
+                        </svg>
+                    </div>
+                    
+                    <div class="target-fields">
+                        <h4>入力フィールド (${this.targetNode.data.label})</h4>
+                        <div class="field-list">
+                            ${this.renderFields(this.getInputSchema(this.targetNode))}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="transform-options">
+                    <h4>変換オプション</h4>
+                    <select id="transform-type">
+                        <option value="direct">直接マッピング</option>
+                        <option value="template">テンプレート変換</option>
+                        <option value="function">カスタム関数</option>
+                    </select>
+                </div>
+            </div>
+        `;
+    }
+}
+```
+
+## 3. バージョン管理と履歴機能
+
+ワークフローの変更履歴を追跡し、必要に応じて以前のバージョンに戻せる機能は、実運用では必須です。
+
+### 3.1 ワークフローバージョニング
+
+```javascript
+class VersionManager {
+    constructor(workflowEditor) {
+        this.editor = workflowEditor;
+        this.versions = [];
+        this.currentVersion = 0;
+        this.maxVersions = 50;
+    }
+    
+    createSnapshot(description = '') {
+        const snapshot = {
+            id: `v${Date.now()}`,
+            timestamp: new Date(),
+            description: description,
+            workflow: JSON.parse(JSON.stringify(this.editor.workflow)),
+            nodeCount: this.editor.workflow.nodes.length,
+            connectionCount: this.editor.workflow.connections.length
+        };
+        
+        this.versions.push(snapshot);
+        this.currentVersion = this.versions.length - 1;
+        
+        // 古いバージョンを削除
+        if (this.versions.length > this.maxVersions) {
+            this.versions.shift();
+            this.currentVersion--;
+        }
+        
+        this.saveVersionsToStorage();
+        this.updateVersionUI();
+    }
+    
+    restoreVersion(versionIndex) {
+        if (versionIndex >= 0 && versionIndex < this.versions.length) {
+            const version = this.versions[versionIndex];
+            
+            // 現在の状態を保存
+            this.createSnapshot('復元前の自動保存');
+            
+            // バージョンを復元
+            this.editor.workflow = JSON.parse(JSON.stringify(version.workflow));
+            this.editor.renderNodes();
+            this.currentVersion = versionIndex;
+            
+            this.editor.showNotification(
+                `バージョン "${version.description}" を復元しました`, 
+                'success'
+            );
+        }
+    }
+}
+```
+
+### 3.2 変更差分の可視化
+
+どこが変更されたかを視覚的に確認できる機能：
+
+```javascript
+// 差分表示UI
+<div id="version-diff-panel" class="version-diff-container">
+    <div class="diff-header">
+        <h3>変更履歴</h3>
+        <select id="version-selector">
+            <!-- バージョンリスト -->
+        </select>
+    </div>
+    
+    <div class="diff-content">
+        <div class="added-items">
+            <h4>✅ 追加された要素</h4>
+            <ul id="added-list"></ul>
+        </div>
+        
+        <div class="modified-items">
+            <h4>✏️ 変更された要素</h4>
+            <ul id="modified-list"></ul>
+        </div>
+        
+        <div class="removed-items">
+            <h4>❌ 削除された要素</h4>
+            <ul id="removed-list"></ul>
+        </div>
+    </div>
+</div>
+```
+
+## 4. テストとバリデーション機能
+
+ワークフローが正しく動作することを保証するためのテスト機能が必要です。
+
+### 4.1 テストケース管理
+
+```javascript
+class TestCaseManager {
+    constructor(workflowEditor) {
+        this.editor = workflowEditor;
+        this.testCases = [];
+    }
+    
+    createTestCase(name, inputs, expectedOutputs) {
+        const testCase = {
+            id: `test_${Date.now()}`,
+            name: name,
+            inputs: inputs, // ノードIDと入力値のマップ
+            expectedOutputs: expectedOutputs, // ノードIDと期待される出力のマップ
+            lastRun: null,
+            status: 'not_run'
+        };
+        
+        this.testCases.push(testCase);
+        return testCase;
+    }
+    
+    async runTestCase(testCaseId) {
+        const testCase = this.testCases.find(tc => tc.id === testCaseId);
+        if (!testCase) return;
+        
+        // テスト実行の準備
+        const originalInputs = this.backupInputValues();
+        
+        try {
+            // テスト入力を設定
+            this.applyTestInputs(testCase.inputs);
+            
+            // ワークフローを実行
+            await this.editor.executeWorkflow();
+            
+            // 結果を検証
+            const results = this.validateOutputs(testCase.expectedOutputs);
+            
+            testCase.lastRun = new Date();
+            testCase.status = results.passed ? 'passed' : 'failed';
+            testCase.results = results;
+            
+            return results;
+            
+        } finally {
+            // 元の入力値を復元
+            this.restoreInputValues(originalInputs);
+        }
+    }
+}
+```
+
+### 4.2 パフォーマンスプロファイリング
+
+各ノードの実行時間を測定し、ボトルネックを特定する機能：
+
+```javascript
+// パフォーマンスモニター
+class PerformanceMonitor {
+    constructor() {
+        this.metrics = new Map();
+    }
+    
+    startMeasurement(nodeId) {
+        this.metrics.set(nodeId, {
+            startTime: performance.now(),
+            memoryBefore: performance.memory ? performance.memory.usedJSHeapSize : 0
+        });
+    }
+    
+    endMeasurement(nodeId) {
+        const metric = this.metrics.get(nodeId);
+        if (metric) {
+            metric.endTime = performance.now();
+            metric.duration = metric.endTime - metric.startTime;
+            metric.memoryAfter = performance.memory ? performance.memory.usedJSHeapSize : 0;
+            metric.memoryDelta = metric.memoryAfter - metric.memoryBefore;
+        }
+        return metric;
+    }
+    
+    generateReport() {
+        const report = Array.from(this.metrics.entries())
+            .map(([nodeId, metric]) => ({
+                nodeId,
+                duration: metric.duration,
+                memoryUsage: metric.memoryDelta
+            }))
+            .sort((a, b) => b.duration - a.duration);
+            
+        return report;
+    }
+}
+```
+
+## 5. コラボレーション機能
+
+チームでワークフローを開発する場合に必要な機能です。
+
+### 5.1 コメントとアノテーション
+
+```javascript
+// ノードへのコメント機能
+class CommentSystem {
+    constructor() {
+        this.comments = new Map();
+    }
+    
+    addComment(nodeId, comment) {
+        if (!this.comments.has(nodeId)) {
+            this.comments.set(nodeId, []);
+        }
+        
+        const commentData = {
+            id: `comment_${Date.now()}`,
+            text: comment,
+            author: this.getCurrentUser(),
+            timestamp: new Date(),
+            resolved: false
+        };
+        
+        this.comments.get(nodeId).push(commentData);
+        this.renderCommentIndicator(nodeId);
+        
+        return commentData;
+    }
+    
+    renderCommentIndicator(nodeId) {
+        const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+        if (nodeElement) {
+            const indicator = document.createElement('div');
+            indicator.className = 'comment-indicator';
+            indicator.innerHTML = `
+                <span class="comment-count">
+                    💬 ${this.comments.get(nodeId).length}
+                </span>
+            `;
+            nodeElement.appendChild(indicator);
+        }
+    }
+}
+```
+
+これらの機能を実装することで、LLMワークフローエディターは単なるプロトタイプから、実際の業務で使用できる本格的なツールへと進化します。各機能は独立しているため、優先順位をつけて段階的に実装することができます。
+
+特に重要なのは、ユーザーがワークフローの動作を理解し、問題を素早く特定できるようにすることです。デバッグ機能やテスト機能は、そのための基盤となります。
