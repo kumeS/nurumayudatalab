@@ -788,6 +788,44 @@
         padding: 0.8rem 0.5rem;
         font-size: 0.9rem;
       }
+
+      /* スマホでの画像表示を1:1に統一 */
+      .plant-image-container {
+        aspect-ratio: 1 / 1;
+        height: auto; /* heightを削除してaspect-ratioを優先 */
+        max-width: 100%;
+        margin: 0 auto 1rem auto;
+      }
+
+      .plant-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+      }
+
+      .collection-image, .saved-image {
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        object-position: center;
+      }
+
+      .modal-plant-image {
+        width: 250px;
+        height: 250px;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        object-position: center;
+      }
+
+      /* 保存画像履歴のグリッド調整 */
+      .saved-images-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      }
+
+      .collection-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      }
     }
 
     @media (max-width: 480px) {
@@ -795,12 +833,29 @@
         font-size: 1.7rem;
       }
 
-      .plant-image-container {
-        height: 150px;
-      }
-
       .plant-actions {
         justify-content: center;
+      }
+
+      /* より小さいスマホでの画像表示調整 */
+      .plant-image-container {
+        aspect-ratio: 1 / 1;
+        height: auto;
+        max-width: 100%;
+      }
+
+      .modal-plant-image {
+        width: 200px;
+        height: 200px;
+        aspect-ratio: 1 / 1;
+      }
+
+      .collection-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      }
+
+      .saved-images-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       }
     }
 

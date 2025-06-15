@@ -788,6 +788,20 @@
         padding: 0.8rem 0.5rem;
         font-size: 0.9rem;
       }
+
+      /* スマホでもすべての画像を1:1に統一 */
+      .yokai-image-container {
+        aspect-ratio: 1 / 1;
+      }
+
+      .collection-image, .saved-image {
+        aspect-ratio: 1 / 1;
+      }
+
+      .modal-yokai-image {
+        width: 180px; /* スマホではやや小さく */
+        aspect-ratio: 1 / 1;
+      }
     }
 
     @media (max-width: 480px) {
@@ -796,7 +810,8 @@
       }
 
       .yokai-image-container {
-        height: 150px;
+        /* 1:1のアスペクト比を優先し、高さ固定を削除 */
+        aspect-ratio: 1 / 1;
       }
 
       .yokai-actions {
@@ -1304,8 +1319,9 @@
 
     .modal-yokai-image {
       width: 200px;
-      height: 200px;
-      object-fit: cover;
+      aspect-ratio: 1 / 1; /* 1:1の比率を強制 */
+      object-fit: cover; /* アスペクト比を保持しながらコンテナにフィット */
+      object-position: center; /* 画像の中央部分を表示 */
       border-radius: 12px;
       margin: 0 auto 1rem auto;
       display: block;
@@ -1448,8 +1464,9 @@
 
     .saved-image {
       width: 100%;
-      height: 200px;
-      object-fit: cover;
+      aspect-ratio: 1 / 1; /* 1:1の比率を強制 */
+      object-fit: cover; /* アスペクト比を保持しながらコンテナにフィット */
+      object-position: center; /* 画像の中央部分を表示 */
       border-radius: 8px;
       background: #f5f5f5;
     }
@@ -1867,7 +1884,21 @@
               <input type="radio" name="model-setting" value="minimax">
               <div class="settings-option-content">
                 <div class="settings-option-label">Minimax Image-01</div>
-                <div class="settings-option-desc">高品質・詳細描写モデル</div>
+                <div class="settings-option-desc">高品質・詳細描写モデルだが、画像生成に1分間ほどかかります。注意！</div>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="model-setting" value="recraft-v3">
+              <div class="settings-option-content">
+                <div class="settings-option-label">Recraft v3</div>
+                <div class="settings-option-desc">高品質デザイン特化モデル（1回のみ）</div>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="model-setting" value="imagen-4-fast">
+              <div class="settings-option-content">
+                <div class="settings-option-label">Google Imagen 4 Fast</div>
+                <div class="settings-option-desc">Google最新高速生成モデル、妖怪画の出力に適する</div>
               </div>
             </label>
           </div>
@@ -2431,8 +2462,13 @@
             this.showMessage('Minimax Image-01は1回のみの生成です。再生成はできません。', 'warning');
             return;
           }
+        } else if (this.selectedModel === 'recraft-v3') {
+          if (this.getRegenerationCount(index) >= 1) {
+            this.showMessage('Recraft v3は1回のみの生成です。再生成はできません。', 'warning');
+            return;
+          }
         } else {
-          // SDXL Lightningの場合は3回制限
+          // SDXL Lightning と Imagen 4 Fast は3回制限
           if (!this.canRegenerate(index)) {
             this.showMessage('画像の再生成回数上限（3回）に達しました', 'warning');
             return;
@@ -2496,8 +2532,14 @@
                           background: rgba(255,255,255,0.9); border-radius: 6px; color: #666;">
                 Minimax (1回のみ)
               </div>`;
+            } else if (this.selectedModel === 'recraft-v3') {
+              // Recraft v3は1回のみ、再生成ボタンは表示しない
+              regenButtonHtml = `<div style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; 
+                          background: rgba(255,255,255,0.9); border-radius: 6px; color: #666;">
+                Recraft v3 (1回のみ)
+              </div>`;
             } else {
-              // SDXL Lightningは3回まで再生成可能
+              // SDXL Lightning と Imagen 4 Fast は3回まで再生成可能
               const canStillRegenerate = this.canRegenerate(index);
               regenButtonHtml = canStillRegenerate ? 
                 `<button class="image-generate-btn" data-index="${index}" 
@@ -3637,12 +3679,12 @@
       canRegenerate(index) {
         const currentCount = this.getRegenerationCount(index);
         
-        // Minimax Image-01の場合は1回のみ
-        if (this.selectedModel === 'minimax') {
+        // Minimax Image-01とRecraft v3の場合は1回のみ
+        if (this.selectedModel === 'minimax' || this.selectedModel === 'recraft-v3') {
           return currentCount < 1;
         }
         
-        // SDXL Lightningの場合は3回まで
+        // SDXL LightningとImagen 4 Fastの場合は3回まで
         return currentCount < 3;
       }
 
@@ -3697,12 +3739,15 @@
           if (regenBtn && regenCount) {
             const currentCount = this.getRegenerationCount(index);
             
-            // Minimax Image-01の場合は1回制限
+            // モデル別の制限を適用
             if (this.selectedModel === 'minimax') {
               regenCount.textContent = `(${currentCount}/1)`;
               regenBtn.disabled = currentCount >= 1;
+            } else if (this.selectedModel === 'recraft-v3') {
+              regenCount.textContent = `(${currentCount}/1)`;
+              regenBtn.disabled = currentCount >= 1;
             } else {
-              // SDXL Lightningの場合は3回制限
+              // SDXL Lightning と Imagen 4 Fast の場合は3回制限
               regenCount.textContent = `(${currentCount}/3)`;
               regenBtn.disabled = !this.canRegenerate(index);
             }
@@ -3962,8 +4007,12 @@
         const modelNames = {
           'bytedance/sdxl-lightning-4step': 'SDXL Lightning',
           'minimax/image-01': 'Minimax Image-01',
+          'recraft-ai/recraft-v3': 'Recraft v3',
+          'google/imagen-4-fast': 'Google Imagen 4 Fast',
           'sdxl-lightning': 'SDXL Lightning',
-          'minimax': 'Minimax Image-01'
+          'minimax': 'Minimax Image-01',
+          'recraft-v3': 'Recraft v3',
+          'imagen-4-fast': 'Google Imagen 4 Fast'
         };
         const modelName = modelNames[imageData.model] || imageData.model;
         

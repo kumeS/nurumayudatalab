@@ -48,6 +48,32 @@ class ReplicateImageClient {
     return this.callReplicateAPI(apiUrl, payload);
   }
 
+  // Recraft v3 による高品質画像生成（1回のみ制限）
+  async generateImageRecraft(prompt, options = {}) {
+    const apiUrl = 'https://api.replicate.com/v1/models/recraft-ai/recraft-v3/predictions';
+    const payload = {
+      input: {
+        prompt: prompt,
+        size: options.size || "1024x1024"
+      }
+    };
+
+    return this.callReplicateAPI(apiUrl, payload);
+  }
+
+  // Google Imagen 4 Fast による高速画像生成（3回制限）
+  async generateImageImagen(prompt, options = {}) {
+    const apiUrl = 'https://api.replicate.com/v1/models/google/imagen-4-fast/predictions';
+    const payload = {
+      input: {
+        prompt: prompt,
+        aspect_ratio: options.aspectRatio || "1:1"
+      }
+    };
+
+    return this.callReplicateAPI(apiUrl, payload);
+  }
+
   // 汎用Replicate API呼び出し
   async callReplicateAPI(apiUrl, payload) {
     const requestId = Math.random().toString(36).substring(2);
@@ -58,9 +84,19 @@ class ReplicateImageClient {
       payload: payload
     };
 
-    // Minimax Image-01の場合は120秒、その他は60秒のタイムアウトを設定
+    // モデル別のタイムアウト設定
     const isMinimaxModel = apiUrl.includes('minimax/image-01');
-    const timeoutMs = isMinimaxModel ? 120000 : 60000; // 120秒 vs 60秒
+    const isRecraftModel = apiUrl.includes('recraft-ai/recraft-v3');
+    const isImagenModel = apiUrl.includes('google/imagen-4-fast');
+    
+    let timeoutMs = 60000; // デフォルト60秒
+    if (isMinimaxModel) {
+      timeoutMs = 120000; // Minimax: 120秒
+    } else if (isRecraftModel) {
+      timeoutMs = 90000; // Recraft: 90秒
+    } else if (isImagenModel) {
+      timeoutMs = 60000; // Imagen: 60秒
+    }
     
     // AbortControllerでタイムアウトを実装
     const controller = new AbortController();
@@ -114,7 +150,14 @@ class ReplicateImageClient {
       // タイムアウトエラーの場合、分かりやすいメッセージに変換
       if (error.name === 'AbortError') {
         const timeoutSeconds = Math.round(timeoutMs / 1000);
-        const modelName = isMinimaxModel ? 'Minimax Image-01' : 'SDXL Lightning';
+        let modelName = 'SDXL Lightning';
+        if (isMinimaxModel) {
+          modelName = 'Minimax Image-01';
+        } else if (isRecraftModel) {
+          modelName = 'Recraft v3';
+        } else if (isImagenModel) {
+          modelName = 'Google Imagen 4 Fast';
+        }
         throw new Error(`画像生成がタイムアウトしました（${timeoutSeconds}秒経過）。${modelName}は時間がかかる場合があります。Cloudflare Workersの制限も原因の可能性があります。`);
       }
 
@@ -520,7 +563,97 @@ async function generateYokaiImage(yokaiInfo, style = 'traditional', workerUrl, m
         } else {
         throw new Error('画像URLが返されませんでした');
       }
-  } else {
+  } else if (model === 'recraft-v3') {
+      // Recraft v3使用 - サイズ指定可能
+      const recraftOptions = {
+        size: imageOptions.size || "1024x1024",
+        seed: imageOptions.seed
+      };
+      result = await client.generateImageRecraft(optimizedPrompt, recraftOptions);
+      
+      if (result.output && Array.isArray(result.output) && result.output.length > 0) {
+        const imageResult = {
+          success: true,
+          imageUrl: result.output[0],
+          prompt: optimizedPrompt,
+          draftPrompt: draftPrompt,
+          wasActuallyOptimized: wasActuallyOptimized,
+          hasJapanese: hasJapanese,
+          styleStrength: styleStrength.percentage,
+          model: 'recraft-ai/recraft-v3',
+          options: recraftOptions
+        };
+        
+        // 自動保存
+        await saveImageToStorage(imageResult, yokaiInfo, style);
+        
+        return imageResult;
+      } else if (result.output) {
+        const imageResult = {
+          success: true,
+          imageUrl: result.output,
+          prompt: optimizedPrompt,
+          draftPrompt: draftPrompt,
+          wasActuallyOptimized: wasActuallyOptimized,
+          hasJapanese: hasJapanese,
+          styleStrength: styleStrength.percentage,
+          model: 'recraft-ai/recraft-v3',
+          options: recraftOptions
+        };
+        
+        // 自動保存
+        await saveImageToStorage(imageResult, yokaiInfo, style);
+        
+        return imageResult;
+      } else {
+        throw new Error('画像URLが返されませんでした');
+      }
+    } else if (model === 'imagen-4-fast') {
+      // Google Imagen 4 Fast使用 - アスペクト比指定可能
+      const imagenOptions = {
+        aspectRatio: imageOptions.aspectRatio || "1:1",
+        seed: imageOptions.seed
+      };
+      result = await client.generateImageImagen(optimizedPrompt, imagenOptions);
+      
+      if (result.output && Array.isArray(result.output) && result.output.length > 0) {
+        const imageResult = {
+          success: true,
+          imageUrl: result.output[0],
+          prompt: optimizedPrompt,
+          draftPrompt: draftPrompt,
+          wasActuallyOptimized: wasActuallyOptimized,
+          hasJapanese: hasJapanese,
+          styleStrength: styleStrength.percentage,
+          model: 'google/imagen-4-fast',
+          options: imagenOptions
+        };
+        
+        // 自動保存
+        await saveImageToStorage(imageResult, yokaiInfo, style);
+        
+        return imageResult;
+      } else if (result.output) {
+        const imageResult = {
+          success: true,
+          imageUrl: result.output,
+          prompt: optimizedPrompt,
+          draftPrompt: draftPrompt,
+          wasActuallyOptimized: wasActuallyOptimized,
+          hasJapanese: hasJapanese,
+          styleStrength: styleStrength.percentage,
+          model: 'google/imagen-4-fast',
+          options: imagenOptions
+        };
+        
+        // 自動保存
+        await saveImageToStorage(imageResult, yokaiInfo, style);
+        
+        return imageResult;
+      } else {
+        throw new Error('画像URLが返されませんでした');
+      }
+    } else {
       // Minimax使用（デフォルト）- アスペクト比指定可能
       const minimaxOptions = {
         aspectRatio: imageOptions.aspectRatio || "1:1",
