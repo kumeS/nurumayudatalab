@@ -1,0 +1,3258 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 Universal Method Inspector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .config-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .config-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .config-item label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+        
+        .config-item input, .config-item select {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .config-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #117a8b;
+        }
+        
+        .stats-panel {
+            background: white;
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            text-align: center;
+        }
+        
+        .stat-item {
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        .main-content {
+            padding: 30px;
+        }
+        
+        .filter-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .section-title {
+            font-size: 1.5em;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 20px;
+            border: 4px solid #e9ecef;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .category-section {
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .category-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .category-count {
+            background: #6c757d;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        
+        .method-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .method-item {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .method-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .method-item.success {
+            border-left: 4px solid #28a745;
+        }
+        
+        .method-item.error {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .method-item.warning {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .method-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .method-name {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #2c3e50;
+        }
+        
+        .method-status {
+            font-size: 1.2em;
+        }
+        
+        .method-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        
+        .method-class {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        .method-category {
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+        
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+        
+        .duplicate-mode-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .mode-button {
+            padding: 12px 20px;
+            border: 2px solid #dee2e6;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .mode-button.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+            transform: translateY(-1px);
+        }
+        
+        .mode-button:hover {
+            background: #f8f9fa;
+            border-color: #007bff;
+            transform: translateY(-1px);
+        }
+        
+        .mode-button.active:hover {
+            background: #0056b3;
+            border-color: #0056b3;
+        }
+        
+        
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast.info {
+            background: #17a2b8;
+        }
+        
+        .toast.success {
+            background: #28a745;
+        }
+        
+        .toast.warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .toast.error {
+            background: #dc3545;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .method-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🤖 Universal Method Inspector</h1>
+            <p>JavaScript Class Method Detection & Analysis Tool (Integrated Version)</p>
+        </div>
+        
+        <!-- Action Panel -->
+        <div class="config-panel">
+            <div class="config-actions">
+                <button class="btn btn-success" onclick="manualScan()">🔍 Scan Methods</button>
+                <button class="btn btn-warning" onclick="clearData()">🗑️ Clear Data</button>
+                <button class="btn btn-info" onclick="exportData()">📤 Export Results</button>
+            </div>
+        </div>
+        
+        <!-- Statistics Panel -->
+        <div class="stats-panel">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalMethods">0</div>
+                    <div class="stat-label">Total Methods</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="lastScanTime">Never</div>
+                    <div class="stat-label">Last Scan</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="filter-panel">
+                <div class="filter-grid">
+                    <div class="config-item">
+                        <label for="searchMethod">Search Methods</label>
+                        <input type="text" id="searchMethod" placeholder="Type method name..." oninput="applyFilters()">
+                    </div>
+                    <div class="config-item" id="similarityFilter" style="display: none;">
+                        <label for="similarityThreshold">類似度しきい値 (%)</label>
+                        <input type="range" id="similarityThreshold" min="0" max="100" value="0" oninput="updateSimilarityFilter(this.value)">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8em; color: #6c757d; margin-top: 2px;">
+                            <span>0%</span>
+                            <span id="similarityValue">0%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Mode Toggle -->
+            <div class="duplicate-mode-toggle">
+                <button class="mode-button active" id="methodMode" onclick="switchMode('methods')">
+                    📋 Method Detection
+                </button>
+                <button class="mode-button" id="duplicateMode" onclick="switchMode('duplicates')">
+                    🔍 Duplicate Analysis
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <div class="section-header">
+                <div class="section-title" id="sectionTitle">🔍 Detected Methods</div>
+                <button class="btn btn-primary" onclick="refreshDisplay()">🔄 Refresh Display</button>
+            </div>
+            
+            <div id="resultsContainer">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div>Initializing Universal Method Inspector...</div>
+                    <div style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">
+                        Click "Scan Methods" to detect JavaScript methods in your project
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+    </div>
+
+    <!-- **修正**: Load all actual project JavaScript files for real method detection -->
+    <script src="debug-monitor.js"></script>
+    <script src="llm.js"></script>
+    <script src="node-manager.js"></script>
+    <script src="connection-manager.js"></script>
+    <script src="event-handlers.js"></script>
+    <script src="ui-manager.js"></script>
+    <script src="workflow-executor.js"></script>
+    <script src="workflow-editor.js"></script>
+    <script src="universal-method-inspector.js"></script>
+    
+    <!-- **修正**: 必要なオブジェクトインスタンスを作成 -->
+    <script>
+        // **重要**: テスト環境でオブジェクトインスタンスを作成
+        console.log('🔧 Creating object instances for testing...');
+        
+        try {
+            // DebugMonitorインスタンスを作成
+            if (typeof DebugMonitor !== 'undefined') {
+                window.debugMonitor = new DebugMonitor();
+                console.log('✅ debugMonitor instance created');
+            }
+            
+            // WorkflowEditorインスタンスを作成（エラーが発生する可能性があるため try-catch で囲む）
+            if (typeof WorkflowEditor !== 'undefined') {
+                // **修正**: WorkflowEditorに必要な完全なDOM構造を作成
+                const requiredElements = [
+                    { id: 'canvas', tag: 'div', styles: { display: 'none', position: 'relative', width: '100px', height: '100px' } },
+                    { id: 'connections-svg', tag: 'svg', styles: { display: 'none', position: 'absolute', top: '0', left: '0', width: '100px', height: '100px' } },
+                    { id: 'node-palette', tag: 'div', styles: { display: 'none' } },
+                    { id: 'property-panel', tag: 'div', styles: { display: 'none' } },
+                    { id: 'welcome-message', tag: 'div', styles: { display: 'none' } },
+                    { id: 'connection-status', tag: 'div', styles: { display: 'none' } },
+                    { id: 'workflow-controls', tag: 'div', styles: { display: 'none' } }
+                ];
+                
+                requiredElements.forEach(({ id, tag, styles }) => {
+                    if (!document.getElementById(id)) {
+                        const element = tag === 'svg' 
+                            ? document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+                            : document.createElement(tag);
+                        element.id = id;
+                        
+                        // スタイルを適用
+                        Object.assign(element.style, styles);
+                        
+                        document.body.appendChild(element);
+                        console.log(`✅ Created DOM element: ${id}`);
+                    }
+                });
+                
+                // **追加**: WorkflowEditor初期化前にグローバル変数を設定
+                window.workflowEditor = null; // 初期化
+                
+                try {
+                    window.workflowEditor = new WorkflowEditor();
+                    console.log('✅ workflowEditor instance created successfully');
+                    
+                    // **追加**: サブオブジェクトの確認
+                    if (window.workflowEditor.connectionManager) {
+                        console.log('✅ connectionManager sub-object available');
+                    }
+                    if (window.workflowEditor.nodeManager) {
+                        console.log('✅ nodeManager sub-object available');
+                    }
+                    if (window.workflowEditor.uiManager) {
+                        console.log('✅ uiManager sub-object available');
+                    }
+                    if (window.workflowEditor.eventHandlers) {
+                        console.log('✅ eventHandlers sub-object available');
+                    }
+                    if (window.workflowEditor.workflowExecutor) {
+                        console.log('✅ workflowExecutor sub-object available');
+                    }
+                    
+                } catch (initError) {
+                    console.error('❌ WorkflowEditor initialization failed:', initError.message);
+                    console.error('Stack trace:', initError.stack);
+                    
+                    // **フォールバック**: 最小限のモックオブジェクトを作成
+                    window.workflowEditor = {
+                        getIcon: (type) => `<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>`,
+                        nodeTypes: [],
+                        workflow: { nodes: [], connections: [] },
+                        connectionManager: null,
+                        nodeManager: null,
+                        uiManager: null,
+                        eventHandlers: null,
+                        workflowExecutor: null
+                    };
+                    console.log('⚠️ Created fallback workflowEditor mock object');
+                }
+            }
+            
+        } catch (error) {
+            console.warn('⚠️ Some object instances could not be created:', error.message);
+            // エラーが発生してもテストは続行
+        }
+        
+        console.log('🔧 Object instance creation completed');
+    </script>
+    
+    <script>
+        // Universal Method Inspector - Integrated Version
+        class UniversalMethodInspector {
+            constructor() {
+                this.discoveredMethods = new Map();
+                this.targetObjects = new Set();
+                this.excludePrivate = true;
+                
+                console.log('UniversalMethodInspector instance created (integrated)');
+            }
+
+            autoDetectGlobalObjects() {
+                this.targetObjects.clear();
+                
+                const commonPatterns = [
+                    'workflowEditor', 'editor', 'manager', 'controller', 'handler', 
+                    'service', 'processor', 'engine', 'app', 'main', 'system',
+                    'uiManager', 'connectionManager', 'nodeManager', 'eventHandler',
+                    'workflowExecutor', 'debugMonitor'
+                ];
+                
+                for (const key in window) {
+                    try {
+                        const obj = window[key];
+                        if (obj && typeof obj === 'object' && obj.constructor && obj.constructor.name) {
+                            const className = obj.constructor.name;
+                            
+                            if (!this.isBuiltInObject(className) && this.hasCustomMethods(obj)) {
+                                this.targetObjects.add(key);
+                            }
+                        }
+                        
+                        if (commonPatterns.some(pattern => 
+                            key.toLowerCase().includes(pattern.toLowerCase()) ||
+                            pattern.toLowerCase().includes(key.toLowerCase())
+                        )) {
+                            if (obj && typeof obj === 'object') {
+                                this.targetObjects.add(key);
+                            }
+                        }
+                    } catch (e) {
+                        // アクセスできないプロパティをスキップ
+                    }
+                }
+                
+                console.log(`🔍 検出されたグローバルオブジェクト:`, Array.from(this.targetObjects));
+            }
+
+            isBuiltInObject(className) {
+                const builtInTypes = [
+                    'Object', 'Array', 'String', 'Number', 'Boolean', 'Function',
+                    'Date', 'RegExp', 'Error', 'Promise', 'Map', 'Set', 'WeakMap', 'WeakSet',
+                    'HTMLElement', 'HTMLDocument', 'Window', 'XMLHttpRequest',
+                    'Event', 'MouseEvent', 'KeyboardEvent', 'Node', 'Element',
+                    'HTMLDivElement', 'HTMLScriptElement', 'HTMLButtonElement',
+                    'HTMLInputElement', 'HTMLTextAreaElement', 'HTMLSelectElement',
+                    'CSSStyleDeclaration', 'Location', 'History', 'Navigator',
+                    'Screen', 'Storage', 'Console', 'Performance'
+                ];
+                return builtInTypes.includes(className);
+            }
+
+            hasCustomMethods(obj) {
+                try {
+                    const proto = Object.getPrototypeOf(obj);
+                    if (!proto) return false;
+                    
+                    const methods = Object.getOwnPropertyNames(proto)
+                        .filter(name => typeof obj[name] === 'function' && name !== 'constructor');
+                    
+                    return methods.length > 0;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            async scanForMethods() {
+                console.log('🔍 Starting comprehensive method scan...');
+                this.discoveredMethods.clear();
+
+                try {
+                    // **強化**: より包括的なスキャン手順
+                    
+                    // 1. 実際のJavaScriptファイルとグローバルオブジェクトをスキャン
+                    await this.scanJavaScriptFiles();
+                    
+                    // 2. 追加で全グローバル関数をスキャン
+                    this.scanGlobalFunctions();
+                    
+                    // 3. inspectorメソッド（このHTMLファイル）を追加
+                    if (window.inspector) {
+                        console.log(`🔍 スキャン中: inspector (this file)`);
+                        const methods = this.discoverMethods(window.inspector, 'inspector');
+                        methods.forEach(method => {
+                            const key = `${method.className}.${method.name}`;
+                            // 優先度を考慮して追加（ファイル分析が優先）
+                            if (!this.discoveredMethods.has(key)) {
+                                this.discoveredMethods.set(key, method);
+                            }
+                        });
+                    }
+
+                    // 4. **追加**: 見つからない場合のフォールバック
+                    if (this.discoveredMethods.size < 10) {
+                        console.log('⚠️ Few methods found, running fallback comprehensive scan...');
+                        this.scanAllAvailableObjects();
+                    }
+
+                    // **修正**: ソースコード抽出エラーの検出と報告
+                    const methodsWithoutSource = Array.from(this.discoveredMethods.values())
+                        .filter(method => !method.sourceCode || !method.sourceCode.available);
+                    
+                    if (methodsWithoutSource.length > 0) {
+                        console.log(`⚠️ ${methodsWithoutSource.length} methods without source code:`, 
+                            methodsWithoutSource.map(m => `${m.className}.${m.name}`));
+                    }
+
+                    this.generateDisplay();
+                    this.updateStatistics();
+
+                    const fileCount = new Set(Array.from(this.discoveredMethods.values()).map(m => m.filename)).size;
+                    console.log(`🔍 Final scan results: ${this.discoveredMethods.size} methods from ${fileCount} files`);
+                    
+                    if (this.discoveredMethods.size === 0) {
+                        this.showToast('No methods found. Check console for debugging info.', 'warning');
+                } else {
+                        this.showToast(`Scan completed. ${this.discoveredMethods.size} methods found from ${fileCount} files`, 'success');
+                    }
+
+                } catch (error) {
+                    console.error('Error during method scanning:', error);
+                    this.showToast('Error during scanning: ' + error.message, 'error');
+                }
+            }
+
+            scanGlobalFunctions() {
+                console.log('🔍 Scanning global functions...');
+                
+                for (const key in window) {
+                    try {
+                        if (typeof window[key] === 'function' && 
+                            !key.startsWith('_') && 
+                            !key.includes('$') &&
+                            !this.isBuiltInFunction(key)) {
+                            
+                            const method = {
+                                name: key,
+                                className: 'GlobalFunctions',
+                                fullPath: `window.${key}`,
+                                filename: 'global-functions',
+                                discovered: Date.now(),
+                                source: 'global-function'
+                            };
+                            
+                            const methodKey = `${method.className}.${method.name}`;
+                            this.discoveredMethods.set(methodKey, method);
+                        }
+                    } catch (e) {
+                        // Skip inaccessible functions
+                    }
+                }
+            }
+
+            scanAllAvailableObjects() {
+                console.log('🔍 Running fallback: scanning ALL available objects...');
+                
+                for (const key in window) {
+                    try {
+                        const obj = window[key];
+                        if (obj && typeof obj === 'object' && obj.constructor) {
+                            const className = obj.constructor.name;
+                            
+                            // より緩い条件でオブジェクトを受け入れ
+                            if (!this.isBuiltInObject(className) && 
+                                typeof obj === 'object' && 
+                                !key.startsWith('_') && 
+                                !key.includes('$')) {
+                                
+                                const methods = this.discoverMethods(obj, key);
+                                if (methods.length > 0) {
+                                    methods.forEach(method => {
+                                        method.filename = this.guessFilename(key) || 'unknown-source';
+                                        method.source = 'fallback-scan';
+                                        
+                                        const methodKey = `${method.className}.${method.name}`;
+                                        if (!this.discoveredMethods.has(methodKey)) {
+                                            this.discoveredMethods.set(methodKey, method);
+                                        }
+                                    });
+                                    
+                                    console.log(`✅ Fallback found ${methods.length} methods in: ${key} (${className})`);
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // Skip inaccessible properties
+                    }
+                }
+            }
+
+            isBuiltInFunction(functionName) {
+                const builtInFunctions = [
+                    'alert', 'confirm', 'prompt', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval',
+                    'fetch', 'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'encodeURIComponent', 'decodeURIComponent',
+                    'open', 'close', 'focus', 'blur', 'print', 'stop', 'addEventListener', 'removeEventListener',
+                    'requestAnimationFrame', 'cancelAnimationFrame'
+                ];
+                return builtInFunctions.includes(functionName);
+            }
+
+            getLimitedWindowMethods() {
+                // Return only essential browser APIs for demo purposes
+                const essentialAPIs = ['localStorage', 'sessionStorage', 'console'];
+                const methods = [];
+                
+                essentialAPIs.forEach(apiName => {
+                    if (window[apiName]) {
+                        const apiMethods = this.discoverMethods(window[apiName], apiName);
+                        methods.push(...apiMethods.slice(0, 3)); // Limit to 3 methods per API
+                    }
+                });
+                
+                return methods;
+            }
+
+            async scanJavaScriptFiles() {
+                console.log('📁 Scanning loaded JavaScript files and global objects...');
+                
+                // 実際にロードされているスクリプトファイルを検出
+                const loadedScripts = this.detectLoadedScripts();
+                console.log('🔍 Detected loaded scripts:', loadedScripts);
+                
+                // グローバルオブジェクトから実際の関数を抽出
+                this.extractFromGlobalObjects();
+                
+                // ロードされたスクリプトがある場合は、そこからも抽出を試行
+                for (const scriptInfo of loadedScripts) {
+                    this.extractFunctionsFromGlobalScope(scriptInfo.filename, scriptInfo.src);
+                }
+            }
+
+            detectLoadedScripts() {
+                console.log('🔍 Detecting loaded JavaScript files...');
+                const scripts = [];
+                
+                // document.scripts から実際にロードされているスクリプトを取得
+                Array.from(document.scripts).forEach(script => {
+                    if (script.src) {
+                        const filename = script.src.split('/').pop();
+                        if (filename.endsWith('.js')) {
+                            scripts.push({
+                                filename: filename,
+                                src: script.src,
+                                element: script
+                            });
+                        }
+                    }
+                });
+                
+                return scripts;
+            }
+
+            extractFromGlobalObjects() {
+                console.log('🔍 Extracting functions from global objects...');
+                
+                // **強化**: より包括的なプロジェクトオブジェクトパターン
+                const projectPatterns = [
+                    'workflowEditor', 'WorkflowEditor',
+                    'uiManager', 'UIManager', 
+                    'connectionManager', 'ConnectionManager',
+                    'nodeManager', 'NodeManager',
+                    'eventHandler', 'EventHandler', 'eventHandlers', 'EventHandlers',
+                    'debugMonitor', 'DebugMonitor',
+                    'workflowExecutor', 'WorkflowExecutor',
+                    'llm', 'LLM',
+                    'inspector', // inspector オブジェクトも含める
+                    'UniversalMethodInspector' // クラスコンストラクタも含める
+                ];
+
+                // **追加**: クラスコンストラクタからもメソッドを抽出
+                this.extractFromClassConstructors();
+                
+                // グローバルオブジェクトをスキャン（プロジェクト関連のみ）
+                let foundObjects = 0;
+                for (const key in window) {
+                    try {
+                        const obj = window[key];
+                        if (obj && typeof obj === 'object' && obj.constructor) {
+                            const className = obj.constructor.name;
+                            
+                            // プロジェクト関連のオブジェクトかチェック
+                            const isProjectObject = projectPatterns.some(pattern => 
+                                key.toLowerCase().includes(pattern.toLowerCase()) ||
+                                className.toLowerCase().includes(pattern.toLowerCase())
+                            );
+                            
+                            // **改善**: より厳密でない条件も追加
+                            const hasCustomMethods = this.hasCustomMethods(obj);
+                            const isLikelyProjectObject = 
+                                isProjectObject || 
+                                (hasCustomMethods && !this.isBuiltInObject(className) && 
+                                 !key.startsWith('_') && !key.includes('$') && 
+                                 className !== 'Object' && className !== 'Function');
+                            
+                            // プロジェクト関連のオブジェクトのみ処理
+                            if (isLikelyProjectObject) {
+                                const methods = this.discoverMethods(obj, key);
+                                methods.forEach(method => {
+                                    // ファイル名を推測して設定
+                                    method.filename = this.guessFilename(key);
+                                    method.source = 'global-object';
+                                    
+                                    const methodKey = `${method.className}.${method.name}`;
+                                    this.discoveredMethods.set(methodKey, method);
+                                });
+                                
+                                if (methods.length > 0) {
+                                    console.log(`✅ Found ${methods.length} methods in global object: ${key} (${className})`);
+                                    foundObjects++;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // アクセスできないプロパティをスキップ
+                    }
+                }
+                
+                console.log(`🔍 Total project objects found: ${foundObjects}`);
+            }
+
+            extractFromClassConstructors() {
+                console.log('🔍 Extracting methods from class constructors...');
+                
+                // **新機能**: グローバルクラスコンストラクタからプロトタイプメソッドを抽出
+                const knownClasses = [
+                    'WorkflowEditor', 'NodeManager', 'ConnectionManager', 
+                    'EventHandlers', 'UIManager', 'WorkflowExecutor',
+                    'DebugMonitor', 'UniversalMethodInspector'
+                ];
+                
+                knownClasses.forEach(className => {
+                    if (window[className] && typeof window[className] === 'function') {
+                        const classConstructor = window[className];
+                        const prototype = classConstructor.prototype;
+                        
+                        if (prototype) {
+                            const methods = this.discoverMethods(prototype, className);
+                            methods.forEach(method => {
+                                method.filename = this.guessFilename(className);
+                                method.source = 'class-prototype';
+                                method.className = className; // Ensure correct class name
+                                
+                                const methodKey = `${method.className}.${method.name}`;
+                                this.discoveredMethods.set(methodKey, method);
+                            });
+                            
+                            if (methods.length > 0) {
+                                console.log(`✅ Found ${methods.length} prototype methods in class: ${className}`);
+                            }
+                        }
+                    }
+                });
+            }
+
+            extractFunctionsFromGlobalScope(filename, src) {
+                console.log(`🔍 Analyzing global scope for ${filename}...`);
+                
+                // ファイル名からクラス名を推測
+                const baseName = filename.replace('.js', '');
+                const className = this.fileNameToClassName(baseName);
+                
+                // そのクラス名に対応するグローバルオブジェクトを探す
+                const possibleNames = [
+                    className,
+                    baseName,
+                    baseName.replace(/-/g, ''),
+                    this.kebabToCamel(baseName)
+                ];
+                
+                for (const name of possibleNames) {
+                    if (window[name] && typeof window[name] === 'object') {
+                        const methods = this.discoverMethods(window[name], name);
+                        methods.forEach(method => {
+                            method.filename = filename;
+                            method.source = 'script-analysis';
+                            
+                            const key = `${method.className}.${method.name}`;
+                            this.discoveredMethods.set(key, method);
+                        });
+                        
+                        if (methods.length > 0) {
+                            console.log(`✅ Found ${methods.length} methods from ${filename} via global object ${name}`);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            fileNameToClassName(filename) {
+                // workflow-editor -> WorkflowEditor
+                return filename.split('-')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join('');
+            }
+
+            kebabToCamel(str) {
+                // workflow-editor -> workflowEditor
+                return str.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
+            }
+
+            discoverMethods(obj, className) {
+                if (!obj || typeof obj !== 'object') return [];
+                
+                const methods = [];
+                
+                // **強化**: より多くの標準メソッドを除外
+                const excludedMethods = new Set([
+                    'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable',
+                    'toString', 'valueOf', 'toLocaleString', 'constructor',
+                    'then', 'catch', 'finally', // Promise関連
+                    'addEventListener', 'removeEventListener', 'dispatchEvent' // Event関連
+                ]);
+                
+                // **追加**: 実際のプロジェクトクラスかどうかを判定
+                const isRealProjectClass = ['WorkflowEditor', 'UIManager', 'ConnectionManager', 
+                                          'NodeManager', 'EventHandlers', 'WorkflowExecutor', 
+                                          'DebugMonitor'].includes(obj.constructor?.name);
+                
+                // 直接定義されたメソッドのみを取得（プロトタイプチェーンは除外）
+                const directMethods = Object.getOwnPropertyNames(obj)
+                    .filter(name => {
+                        try {
+                            return typeof obj[name] === 'function' &&
+                                   !excludedMethods.has(name) &&
+                                   (!this.excludePrivate || !name.startsWith('_'));
+                        } catch (e) {
+                            return false;
+                        }
+                    });
+
+                // **改善**: プロトタイプから継承されたカスタムメソッドも取得（特に実際のクラスの場合）
+                const proto = Object.getPrototypeOf(obj);
+                if (proto && proto !== Object.prototype) {
+                    const protoMethods = Object.getOwnPropertyNames(proto)
+                        .filter(name => {
+                            try {
+                                return typeof proto[name] === 'function' && 
+                                       !excludedMethods.has(name) &&
+                                       (!this.excludePrivate || !name.startsWith('_'));
+                            } catch (e) {
+                                return false;
+                            }
+                        });
+                    directMethods.push(...protoMethods);
+                }
+
+                const allMethods = [...new Set(directMethods)];
+                
+                allMethods.forEach(methodName => {
+                    // **修正**: ソースコード抽出を安全に実行
+                    let sourceCodeInfo;
+                    try {
+                        sourceCodeInfo = this.extractMethodSourceCode(obj, methodName, className);
+                    } catch (error) {
+                        console.warn(`Failed to extract source code for ${className}.${methodName}:`, error);
+                        sourceCodeInfo = {
+                            raw: '',
+                            cleaned: '',
+                            length: 0,
+                            lines: 0,
+                            signature: '',
+                            available: false
+                        };
+                    }
+                    
+                    // **修正**: sourceCodeInfoがundefinedの場合のフォールバック
+                    if (!sourceCodeInfo) {
+                        sourceCodeInfo = {
+                            raw: '',
+                            cleaned: '',
+                            length: 0,
+                            lines: 0,
+                            signature: '',
+                            available: false
+                        };
+                    }
+
+                    const methodInfo = {
+                        name: methodName,
+                        className: className,
+                        fullPath: `${className}.${methodName}`,
+                        filename: this.guessFilename(className),
+                        discovered: Date.now(),
+                        isRealProject: isRealProjectClass, // **追加**: 実際のプロジェクトメソッドかフラグ
+                        source: isRealProjectClass ? 'real-project' : 'test-object',
+                        sourceCode: sourceCodeInfo // **修正**: 安全に抽出されたソースコード情報
+                    };
+                    methods.push(methodInfo);
+                });
+
+                // **デバッグ**: 発見されたメソッドの詳細ログ
+                if (methods.length > 0) {
+                    const sourceType = isRealProjectClass ? 'REAL PROJECT' : 'test object';
+                    console.log(`🔍 Discovered ${methods.length} methods from ${sourceType}: ${className}`);
+                    if (isRealProjectClass) {
+                        console.log(`  📋 Real methods: ${methods.map(m => m.name).join(', ')}`);
+                    }
+                }
+
+                return methods;
+            }
+
+            // **新機能**: メソッドのソースコード抽出
+            extractMethodSourceCode(obj, methodName, className) {
+                try {
+                    let method = null;
+                    
+                    // 直接プロパティから取得を試行
+                    if (obj[methodName] && typeof obj[methodName] === 'function') {
+                        method = obj[methodName];
+                    }
+                    
+                    // プロトタイプから取得を試行
+                    if (!method) {
+                        const proto = Object.getPrototypeOf(obj);
+                        if (proto && proto[methodName] && typeof proto[methodName] === 'function') {
+                            method = proto[methodName];
+                        }
+                    }
+                    
+                    if (method && typeof method === 'function') {
+                        try {
+                            const sourceCode = method.toString();
+                            
+                            // 基本的なソースコードクリーニング
+                            const cleanedCode = sourceCode
+                                .replace(/^\s+/gm, '') // 行頭の空白を削除
+                                .replace(/\s+$/gm, '') // 行末の空白を削除
+                                .replace(/\n{2,}/g, '\n') // 複数の改行を1つに
+                                .trim();
+                            
+                            return {
+                                raw: sourceCode,
+                                cleaned: cleanedCode,
+                                length: sourceCode.length,
+                                lines: sourceCode.split('\n').length,
+                                signature: this.extractFunctionSignature(sourceCode),
+                                available: true
+                            };
+                        } catch (toStringError) {
+                            console.warn(`Failed to convert method to string for ${className}.${methodName}:`, toStringError);
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Failed to extract source code for ${className}.${methodName}:`, error);
+                }
+                
+                return {
+                    raw: '',
+                    cleaned: '',
+                    length: 0,
+                    lines: 0,
+                    signature: '',
+                    available: false
+                };
+            }
+
+            // **新機能**: 関数シグネチャの抽出
+            extractFunctionSignature(sourceCode) {
+                try {
+                    // 関数宣言またはアロー関数のシグネチャを抽出
+                    const signatureMatch = sourceCode.match(/^(?:async\s+)?(?:function\s*)?(\w*)\s*\(([^)]*)\)/);
+                    if (signatureMatch) {
+                        const functionName = signatureMatch[1] || 'anonymous';
+                        const parameters = signatureMatch[2].trim();
+                        return `${functionName}(${parameters})`;
+                    }
+                    
+                    // アロー関数の場合
+                    const arrowMatch = sourceCode.match(/^\s*\(([^)]*)\)\s*=>/);
+                    if (arrowMatch) {
+                        const parameters = arrowMatch[1].trim();
+                        return `(${parameters}) =>`;
+                    }
+                    
+                    return 'unknown signature';
+                } catch (error) {
+                    return 'extraction failed';
+                }
+            }
+
+            // **新機能**: コード類似度分析エンジン
+            analyzeCodeSimilarity(method1, method2) {
+                // **修正**: sourceCodeの安全性チェックを強化
+                const sourceCode1 = method1.sourceCode || { available: false };
+                const sourceCode2 = method2.sourceCode || { available: false };
+                
+                if (!sourceCode1.available || !sourceCode2.available) {
+                    return {
+                        textSimilarity: 0,
+                        structuralSimilarity: 0,
+                        signatureSimilarity: 0,
+                        overallSimilarity: 0,
+                        analysisDetails: {
+                            reason: 'source_code_unavailable',
+                            method1Available: sourceCode1.available,
+                            method2Available: sourceCode2.available
+                        }
+                    };
+                }
+
+                // テキスト類似度（レーベンシュタイン距離ベース）
+                const textSimilarity = this.calculateTextSimilarity(
+                    sourceCode1.cleaned, 
+                    sourceCode2.cleaned
+                );
+
+                // 構造的類似度（行数、長さなどの構造的特徴）
+                const structuralSimilarity = this.calculateStructuralSimilarity(
+                    sourceCode1,
+                    sourceCode2
+                );
+
+                // シグネチャ類似度
+                const signatureSimilarity = this.calculateSignatureSimilarity(
+                    sourceCode1.signature,
+                    sourceCode2.signature
+                );
+
+                // 総合類似度（重み付け平均）
+                const overallSimilarity = Math.round(
+                    (textSimilarity * 0.5) + 
+                    (structuralSimilarity * 0.3) + 
+                    (signatureSimilarity * 0.2)
+                );
+
+                return {
+                    textSimilarity: Math.round(textSimilarity),
+                    structuralSimilarity: Math.round(structuralSimilarity),
+                    signatureSimilarity: Math.round(signatureSimilarity),
+                    overallSimilarity,
+                    analysisDetails: {
+                        method1Length: sourceCode1.length,
+                        method2Length: sourceCode2.length,
+                        method1Lines: sourceCode1.lines,
+                        method2Lines: sourceCode2.lines,
+                        method1Signature: sourceCode1.signature,
+                        method2Signature: sourceCode2.signature
+                    }
+                };
+            }
+
+            // **新機能**: テキスト類似度計算（簡略化されたレーベンシュタイン距離）
+            calculateTextSimilarity(text1, text2) {
+                if (text1 === text2) return 100;
+                if (!text1 || !text2) return 0;
+
+                // 短い方に合わせて正規化
+                const maxLength = Math.max(text1.length, text2.length);
+                if (maxLength === 0) return 100;
+
+                // 簡単な文字列類似度計算（効率的な近似）
+                const distance = this.levenshteinDistance(text1, text2);
+                const similarity = Math.max(0, (maxLength - distance) / maxLength * 100);
+                
+                return similarity;
+            }
+
+            // **新機能**: 構造的類似度計算
+            calculateStructuralSimilarity(source1, source2) {
+                const lengthSimilarity = this.compareLengths(source1.length, source2.length);
+                const linesSimilarity = this.compareLengths(source1.lines, source2.lines);
+                
+                // 構造的特徴の類似度
+                return (lengthSimilarity + linesSimilarity) / 2;
+            }
+
+            // **新機能**: シグネチャ類似度計算
+            calculateSignatureSimilarity(signature1, signature2) {
+                if (signature1 === signature2) return 100;
+                if (!signature1 || !signature2) return 0;
+
+                // パラメータ数の比較
+                const params1 = this.extractParameters(signature1);
+                const params2 = this.extractParameters(signature2);
+                
+                if (params1.length === params2.length) {
+                    if (params1.length === 0) return 100; // 両方ともパラメータなし
+                    
+                    // パラメータ名の類似度
+                    let paramSimilarity = 0;
+                    for (let i = 0; i < params1.length; i++) {
+                        if (params1[i] === params2[i]) {
+                            paramSimilarity += 100;
+                        } else if (params1[i] && params2[i]) {
+                            // 部分的な類似度
+                            paramSimilarity += this.calculateTextSimilarity(params1[i], params2[i]) * 0.5;
+                        }
+                    }
+                    return paramSimilarity / params1.length;
+                }
+                
+                // パラメータ数が異なる場合は低い類似度
+                return Math.max(0, 50 - Math.abs(params1.length - params2.length) * 10);
+            }
+
+            // **補助関数**: 数値の類似度比較
+            compareLengths(len1, len2) {
+                if (len1 === len2) return 100;
+                const maxLen = Math.max(len1, len2);
+                const minLen = Math.min(len1, len2);
+                if (maxLen === 0) return 100;
+                return (minLen / maxLen) * 100;
+            }
+
+            // **補助関数**: パラメータ抽出
+            extractParameters(signature) {
+                try {
+                    const paramMatch = signature.match(/\(([^)]*)\)/);
+                    if (paramMatch && paramMatch[1]) {
+                        return paramMatch[1]
+                            .split(',')
+                            .map(param => param.trim())
+                            .filter(param => param.length > 0);
+                    }
+                    return [];
+                } catch {
+                    return [];
+                }
+            }
+
+            // **補助関数**: 簡略化されたレーベンシュタイン距離
+            levenshteinDistance(str1, str2) {
+                // 効率化のため、長い文字列は切り詰め
+                const maxLength = 1000;
+                const s1 = str1.substring(0, maxLength);
+                const s2 = str2.substring(0, maxLength);
+                
+                const matrix = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
+
+                for (let i = 0; i <= s1.length; i++) matrix[0][i] = i;
+                for (let j = 0; j <= s2.length; j++) matrix[j][0] = j;
+
+                for (let j = 1; j <= s2.length; j++) {
+                    for (let i = 1; i <= s1.length; i++) {
+                        const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
+                        matrix[j][i] = Math.min(
+                            matrix[j][i - 1] + 1,     // deletion
+                            matrix[j - 1][i] + 1,     // insertion
+                            matrix[j - 1][i - 1] + indicator   // substitution
+                        );
+                    }
+                }
+
+                return matrix[s2.length][s1.length];
+            }
+
+            // **新機能**: 類似度レベルの判定
+            getSimilarityLevel(similarity) {
+                if (similarity >= 90) return { level: 'high', icon: '🔴', label: '高い類似度', color: '#dc3545' };
+                if (similarity >= 70) return { level: 'medium', icon: '🟡', label: '中程度の類似度', color: '#ffc107' };
+                if (similarity >= 50) return { level: 'low', icon: '🟢', label: '低い類似度', color: '#28a745' };
+                return { level: 'minimal', icon: '⚪', label: '最小限の類似度', color: '#6c757d' };
+            }
+
+            // **補助関数**: HTMLエスケープ
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            guessFilename(className) {
+                // オブジェクト名からファイル名を推測（実際に存在するファイルのみ）
+                if (className === 'Window') {
+                    return 'browser-builtin';
+                }
+                
+                // inspector は統合版のHTMLファイル内で定義
+                if (className === 'inspector' || className === 'UniversalMethodInspector') {
+                    return 'universal-debug-test.html';
+                }
+                
+                // 実際に存在するファイルとのマッピング
+                const fileMapping = {
+                    'workflowEditor': 'workflow-editor.js',
+                    'WorkflowEditor': 'workflow-editor.js',
+                    'uiManager': 'ui-manager.js',
+                    'UIManager': 'ui-manager.js',
+                    'connectionManager': 'connection-manager.js',
+                    'ConnectionManager': 'connection-manager.js',
+                    'nodeManager': 'node-manager.js',
+                    'NodeManager': 'node-manager.js',
+                    'eventHandler': 'event-handlers.js',
+                    'EventHandler': 'event-handlers.js',
+                    'eventHandlers': 'event-handlers.js',
+                    'debugMonitor': 'debug-monitor.js',
+                    'DebugMonitor': 'debug-monitor.js',
+                    'workflowExecutor': 'workflow-executor.js',
+                    'WorkflowExecutor': 'workflow-executor.js',
+                    'llm': 'llm.js',
+                    'LLM': 'llm.js'
+                };
+                
+                // 直接マッピングがある場合
+                if (fileMapping[className]) {
+                    return fileMapping[className];
+                }
+                
+                // **更新**: プロジェクト内の実際のJSファイル（現在のディレクトリ構造に基づく）
+                const existingFiles = [
+                    'workflow-editor.js',
+                    'event-handlers.js', 
+                    'ui-manager.js',
+                    'connection-manager.js',
+                    'node-manager.js',
+                    'debug-monitor.js',
+                    'workflow-executor.js',
+                    'llm.js',
+                    'universal-method-inspector.js',
+                    'universal-debug-test.html' // この統合HTMLファイル自体も含める
+                ];
+                
+                // キャメルケースをケバブケースに変換
+                const kebabCase = className
+                    .replace(/([a-z])([A-Z])/g, '$1-$2')
+                    .toLowerCase();
+                
+                const guessedFile = `${kebabCase}.js`;
+                
+                // 推測されたファイルが実際に存在するかチェック
+                if (existingFiles.includes(guessedFile)) {
+                    return guessedFile;
+                }
+                
+                // 存在しない場合は null を返す（除外対象）
+                return null;
+            }
+
+            scanWindowObject(methodsArray) {
+                const windowMethods = [];
+                for (const key in window) {
+                    try {
+                        if (typeof window[key] === 'function' && 
+                            !key.startsWith('webkit') && 
+                            !key.startsWith('chrome') &&
+                            (!this.excludePrivate || !key.startsWith('_'))) {
+                            windowMethods.push({
+                                name: key,
+                                className: 'Window',
+                                fullPath: `window.${key}`,
+                                filename: 'browser-builtin',
+                                discovered: Date.now()
+                            });
+                        }
+                    } catch (e) {
+                        // アクセスできないプロパティをスキップ
+                    }
+                }
+                
+                // 上位50個までに制限
+                methodsArray.push(...windowMethods.slice(0, 50));
+            }
+
+            generateDisplay() {
+                console.log('🔍 generateDisplay called - Current mode:', window.currentMode || 'methods');
+                
+                if (window.currentMode === 'duplicates') {
+                    this.generateDuplicateAnalysisDisplay();
+                } else {
+                    this.generateMethodDisplay();
+                }
+            }
+
+            generateMethodDisplay() {
+                console.log('📋 Generating Method Detection display');
+                const resultsContainer = document.getElementById('resultsContainer');
+                if (!resultsContainer) return;
+
+                if (this.discoveredMethods.size === 0) {
+                    resultsContainer.innerHTML = this.getEmptyStateHTML();
+                    return;
+                }
+
+                let html = '<div style="margin-bottom: 15px; padding: 10px; background: #e7f3ff; border-radius: 6px; border-left: 4px solid #007bff;">';
+                html += '<strong>📋 Method Detection Mode:</strong> Showing all detected methods grouped by file.';
+                html += '</div>';
+
+                // ファイル名でメソッドをグループ化（.jsと.htmlファイルのみ）
+                const methodsByFile = new Map();
+                this.discoveredMethods.forEach(method => {
+                    // **修正**: nullの場合の安全な処理
+                    let filename = method.filename;
+                    if (!filename || filename === null) {
+                        filename = 'unknown-source';
+                    }
+                    
+                    // **新機能**: .jsと.htmlファイルのみをフィルタリング
+                    if (!this.isValidFileExtension(filename)) {
+                        return; // .js/.html以外のファイルをスキップ
+                    }
+                    
+                    if (!methodsByFile.has(filename)) {
+                        methodsByFile.set(filename, []);
+                    }
+                    methodsByFile.get(filename).push(method);
+                });
+
+                // ファイル名でソート（プロジェクトファイルのみ）
+                const sortedFiles = Array.from(methodsByFile.keys()).sort((a, b) => {
+                    // universal-debug-test.html を最後に表示
+                    if (a.includes('universal-debug-test.html')) return 1;
+                    if (b.includes('universal-debug-test.html')) return -1;
+                    return a.localeCompare(b);
+                });
+
+                // ファイルごとにセクション表示
+                sortedFiles.forEach(filename => {
+                    const methods = methodsByFile.get(filename);
+                    // **修正**: filenameの安全な処理
+                    const safeFilename = filename || 'unknown-source';
+                    const fileIcon = this.getFileIcon(safeFilename);
+                    const fileColor = this.getFileColor(safeFilename);
+                    
+                    html += `
+                        <div style="margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden;">
+                            <div style="background: ${fileColor}; color: white; padding: 12px 20px; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center;">
+                                    <span style="margin-right: 8px; font-size: 1.2em;">${fileIcon}</span>
+                                    <span>${safeFilename}</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 12px; font-size: 0.9em;">
+                                        ${methods.length} methods
+                                    </span>
+                                    <!-- **新機能**: ファイル単位テストボタン -->
+                                    <button onclick="testFileExecution('${safeFilename}')" 
+                                            style="background: rgba(255,255,255,0.3); color: white; border: 1px solid rgba(255,255,255,0.5); padding: 4px 12px; border-radius: 4px; font-size: 0.8em; cursor: pointer; font-weight: bold;">
+                                        🧪 ファイル一括テスト
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="padding: 15px; background: #f8f9fa;">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+                    `;
+
+                    methods.forEach(method => {
+                        html += `
+                            <div style="background: white; border: 1px solid #e9ecef; border-radius: 6px; padding: 12px; border-left: 3px solid #28a745;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <div style="font-weight: 600; font-size: 1.0em; color: #2c3e50;">${method.name}</div>
+                                    <div style="font-size: 1.1em; color: #28a745;">✓</div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; color: #6c757d;">
+                                    <div style="font-family: monospace; background: #f8f9fa; padding: 1px 5px; border-radius: 3px;">${method.className}</div>
+                                    <div>${new Date(method.discovered).toLocaleTimeString()}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += '</div></div></div>';
+                });
+                
+                resultsContainer.innerHTML = html;
+            }
+
+            getFileIcon(filename) {
+                // **修正**: nullチェックを追加
+                if (!filename || filename === null) return '❓';
+                if (filename === 'browser-builtin') return '🌐';
+                if (filename === 'unknown-source') return '❓';
+                if (filename.includes('workflow')) return '⚡';
+                if (filename.includes('ui')) return '🎨';
+                if (filename.includes('connection')) return '🔗';
+                if (filename.includes('node')) return '📦';
+                if (filename.includes('event')) return '🎯';
+                if (filename.includes('debug')) return '🐛';
+                if (filename.includes('llm')) return '🤖';
+                return '📄';
+            }
+
+            getFileColor(filename) {
+                // **修正**: nullチェックを追加
+                if (!filename || filename === null) return '#dc3545';
+                if (filename === 'browser-builtin') return '#6c757d';
+                if (filename === 'unknown-source') return '#dc3545';
+                if (filename.includes('workflow')) return '#007bff';
+                if (filename.includes('ui')) return '#28a745';
+                if (filename.includes('connection')) return '#17a2b8';
+                if (filename.includes('node')) return '#6f42c1';
+                if (filename.includes('event')) return '#fd7e14';
+                if (filename.includes('debug')) return '#e83e8c';
+                if (filename.includes('llm')) return '#20c997';
+                return '#495057';
+            }
+
+            // **新機能**: ファイル拡張子フィルタリング
+            isValidFileExtension(filename) {
+                if (!filename || filename === null) return false;
+                if (filename === 'browser-builtin' || filename === 'unknown-source') return false;
+                
+                // .jsと.htmlファイルのみを許可
+                return filename.endsWith('.js') || filename.endsWith('.html');
+            }
+
+            generateDuplicateAnalysisDisplay() {
+                console.log('🔍 Generating Duplicate Analysis display');
+                const resultsContainer = document.getElementById('resultsContainer');
+                if (!resultsContainer) return;
+
+                if (this.discoveredMethods.size === 0) {
+                    resultsContainer.innerHTML = this.getEmptyStateHTML();
+                    return;
+                }
+
+                // 重複分析を実行
+                const duplicateGroups = this.analyzeDuplicates();
+                
+                let html = '<div style="margin-bottom: 15px; padding: 10px; background: #fff3cd; border-radius: 6px; border-left: 4px solid #ffc107;">';
+                html += '<strong>🔍 Duplicate Analysis Mode:</strong> Showing methods with the same name across different objects.';
+                
+                // **新機能**: フィルター情報の表示
+                html += `<br><small style="color: #856404;">📁 ファイルフィルター: .js と .html ファイルのみ表示</small>`;
+                if (this.similarityThreshold && this.similarityThreshold > 0) {
+                    html += `<br><small style="color: #856404;">📊 類似度フィルター: ${this.similarityThreshold}% 以上のみ表示</small>`;
+                }
+                
+                html += '</div>';
+
+                if (duplicateGroups.length === 0) {
+                    html += `
+                        <div style="text-align: center; padding: 40px; color: #6c757d;">
+                            <div style="font-size: 3em; margin-bottom: 15px;">✨</div>
+                            <h3>No Duplicate Methods Found</h3>
+                            <p>All method names are unique across scanned .js and .html files.</p>
+                            <small style="color: #999; margin-top: 10px; display: block;">
+                                📁 Only .js and .html files are analyzed for duplicates
+                            </small>
+                        </div>
+                    `;
+                } else {
+                    html += '<div style="display: flex; flex-direction: column; gap: 20px;">';
+                    
+                    duplicateGroups.forEach(group => {
+                        const duplicateTypeColor = this.getDuplicateTypeColor(group.duplicateType);
+                        const duplicateTypeLabel = this.getDuplicateTypeLabel(group.duplicateType);
+                        
+                        // **新機能**: 類似度情報の取得
+                        const similarityInfo = group.similarityAnalysis || {};
+                        const similarityLevel = similarityInfo.level || { icon: '❓', label: '分析不可', color: '#6c757d' };
+                        const averageSimilarity = similarityInfo.averageSimilarity || 0;
+                        
+                        html += `
+                            <div style="background: white; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; border-left: 4px solid ${duplicateTypeColor};">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h4 style="color: ${duplicateTypeColor}; margin: 0;">🔄 ${group.methodName}</h4>
+                                    <div style="display: flex; gap: 8px; align-items: center;">
+                                        <span style="background: ${duplicateTypeColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">
+                                            ${duplicateTypeLabel}
+                                        </span>
+                                        <span style="background: ${similarityLevel.color}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">
+                                            ${similarityLevel.icon} ${averageSimilarity}% 類似度
+                                        </span>
+                                        <span style="background: #6c757d; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.9em;">
+                                            ${group.methods.length} duplicates
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <!-- **新機能**: 類似度サマリー表示 -->
+                                ${similarityInfo.summary ? `
+                                <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <span style="font-size: 1.2em;">${similarityLevel.icon}</span>
+                                        <strong style="color: ${similarityLevel.color};">${similarityLevel.label}</strong>
+                                    </div>
+                                    <div style="font-size: 0.9em; color: #495057;">${similarityInfo.summary}</div>
+                                    ${similarityInfo.pairCount > 0 ? `
+                                    <div style="margin-top: 8px; font-size: 0.8em; color: #6c757d;">
+                                        詳細: 最大 ${similarityInfo.maxSimilarity}% / 最小 ${similarityInfo.minSimilarity}% / ${similarityInfo.pairCount} ペア分析済み
+                                    </div>
+                                    ` : ''}
+                                </div>
+                                ` : ''}
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                        `;
+                        
+                        group.methods.forEach((method, index) => {
+                            // **修正**: filenameの安全な処理とフィルタリング
+                            const safeFilename = method.filename || 'unknown-source';
+                            
+                            // **追加フィルタリング**: .js/.html以外のメソッドをスキップ
+                            if (!this.isValidFileExtension(safeFilename)) {
+                                return; // .js/.html以外のファイルをスキップ
+                            }
+                            
+                            const fileIcon = this.getFileIcon(safeFilename);
+                            const fileColor = this.getFileColor(safeFilename);
+                            
+                            // **新機能**: 個別メソッド情報の表示
+                            const sourceInfo = method.sourceCode || { 
+                                available: false, 
+                                lines: 0, 
+                                length: 0, 
+                                signature: '', 
+                                raw: '' 
+                            };
+                            const hasSourceCode = sourceInfo.available;
+                            const methodId = `method_${group.methodName}_${method.className}_${index}`;
+                            
+                            html += `
+                                <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 12px; border-left: 3px solid ${fileColor};">
+                                    <div style="font-weight: 600; color: #495057; margin-bottom: 4px;">${method.className}</div>
+                                    <div style="font-size: 0.8em; color: #6c757d; font-family: monospace; margin-bottom: 6px; background: white; padding: 2px 6px; border-radius: 3px; border: 1px solid #e9ecef;">${method.fullPath}</div>
+                                    
+                                    <!-- **新機能**: ソースコード情報 -->
+                                    ${hasSourceCode ? `
+                                    <div style="margin: 6px 0; padding: 4px 6px; background: #e8f5e8; border-radius: 3px; font-size: 0.75em;">
+                                        📄 ${sourceInfo.lines} 行 / ${sourceInfo.length} 文字
+                                        ${sourceInfo.signature ? `<br><code style="color: #2d6e2d;">${sourceInfo.signature}</code>` : ''}
+                                    </div>
+                                    ` : `
+                                    <div style="margin: 6px 0; padding: 4px 6px; background: #fff3cd; border-radius: 3px; font-size: 0.75em; color: #856404;">
+                                        ⚠️ ソースコード取得不可
+                                    </div>
+                                    `}
+                                    
+                                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.75em; color: #6c757d;">
+                                        <div style="display: flex; align-items: center;">
+                                            <span style="margin-right: 4px; font-size: 1.1em;">${fileIcon}</span>
+                                            <span style="font-family: monospace; background: #e7f3ff; padding: 2px 6px; border-radius: 3px; color: #0066cc;">${safeFilename}</span>
+                                        </div>
+                                        <div style="display: flex; gap: 4px; align-items: center;">
+                                            ${hasSourceCode ? `
+                                            <button onclick="toggleCodeView('${methodId}')" style="padding: 2px 6px; background: #007bff; color: white; border: none; border-radius: 3px; font-size: 0.7em; cursor: pointer;">
+                                                📖 コード表示
+                                            </button>
+                                            ` : ''}
+                                            <span style="font-size: 0.7em; color: #999;">${new Date(method.discovered).toLocaleTimeString()}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- **新機能**: 隠されたコード表示エリア -->
+                                    ${hasSourceCode ? `
+                                    <div id="${methodId}" style="display: none; margin-top: 8px; padding: 8px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+                                        <div style="font-size: 0.8em; color: #495057; margin-bottom: 4px;">
+                                            <strong>${method.className}.${method.name}</strong> のソースコード:
+                                        </div>
+                                        <pre style="font-size: 0.7em; background: #ffffff; padding: 8px; border-radius: 3px; overflow-x: auto; max-height: 200px; margin: 0; white-space: pre-wrap; word-break: break-all;">${this.escapeHtml(sourceInfo.raw)}</pre>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            `;
+                        });
+                        
+                        html += '</div></div>';
+                    });
+                    
+                    html += '</div>';
+                }
+
+                resultsContainer.innerHTML = html;
+            }
+
+            analyzeDuplicates() {
+                console.log('🔍 Analyzing duplicates from', this.discoveredMethods.size, 'methods');
+                
+                // メソッド名でグループ化（.jsと.htmlファイルのみ）
+                const methodGroups = new Map();
+                let filteredMethodCount = 0;
+                let skippedMethodCount = 0;
+                
+                this.discoveredMethods.forEach(method => {
+                    // **新機能**: .jsと.htmlファイルのみをフィルタリング
+                    const filename = method.filename || 'unknown-source';
+                    if (!this.isValidFileExtension(filename)) {
+                        skippedMethodCount++;
+                        return; // .js/.html以外のファイルをスキップ
+                    }
+                    
+                    filteredMethodCount++;
+                    if (!methodGroups.has(method.name)) {
+                        methodGroups.set(method.name, []);
+                    }
+                    methodGroups.get(method.name).push(method);
+                });
+                
+                console.log(`🔍 File extension filter: ${filteredMethodCount} methods included, ${skippedMethodCount} methods skipped (.js/.html only)`);
+                console.log(`🔍 Grouped into ${methodGroups.size} unique method names`);
+
+                // **修正**: より柔軟な重複検出ロジック
+                const duplicates = [];
+                methodGroups.forEach((methods, methodName) => {
+                    if (methods.length > 1) {
+                        // **改善**: 以下のいずれかの条件で重複とみなす
+                        const uniqueClasses = new Set(methods.map(m => m.className));
+                        const uniqueFiles = new Set(methods.map(m => m.filename));
+                        const uniquePaths = new Set(methods.map(m => m.fullPath));
+                        
+                        // 重複条件: 異なるクラス、異なるファイル、または異なるフルパスを持つ
+                        const isDuplicate = 
+                            uniqueClasses.size > 1 ||  // 異なるクラス名
+                            uniqueFiles.size > 1 ||    // 異なるファイル
+                            uniquePaths.size > 1;      // 異なるフルパス
+                        
+                        if (isDuplicate) {
+                            // **新機能**: 類似度分析を実行
+                            const similarityAnalysis = this.analyzeSimilarityForGroup(methods);
+                            
+                            duplicates.push({
+                                methodName: methodName,
+                                methods: methods,
+                                count: methods.length,
+                                duplicateType: this.getDuplicateType(methods),
+                                similarityAnalysis: similarityAnalysis // **新機能**: 類似度情報追加
+                            });
+                        }
+                    }
+                });
+
+                // **修正**: 類似度の高い順にソート（同じ類似度の場合は重複数の多い順）
+                duplicates.sort((a, b) => {
+                    const similarityA = a.similarityAnalysis?.averageSimilarity || 0;
+                    const similarityB = b.similarityAnalysis?.averageSimilarity || 0;
+                    
+                    // 類似度が同じ場合は重複数で比較
+                    if (similarityA === similarityB) {
+                        return b.count - a.count;
+                    }
+                    
+                    // 類似度の高い順
+                    return similarityB - similarityA;
+                });
+                
+                // **新機能**: 類似度しきい値によるフィルタリング
+                let filteredDuplicates = duplicates;
+                if (this.similarityThreshold && this.similarityThreshold > 0) {
+                    filteredDuplicates = duplicates.filter(group => {
+                        const averageSimilarity = group.similarityAnalysis?.averageSimilarity || 0;
+                        return averageSimilarity >= this.similarityThreshold;
+                    });
+                    
+                    console.log(`🔍 Similarity filter applied: ${this.similarityThreshold}% threshold`);
+                    console.log(`🔍 Filtered from ${duplicates.length} to ${filteredDuplicates.length} groups`);
+                }
+                
+                console.log('🔍 Found', filteredDuplicates.length, 'duplicate method groups (sorted by similarity):');
+                filteredDuplicates.forEach((group, index) => {
+                    const similarity = group.similarityAnalysis?.averageSimilarity || 0;
+                    console.log(`  ${index + 1}. ${group.methodName}(${group.count}) - ${similarity}% similarity`);
+                });
+                
+                return filteredDuplicates;
+            }
+
+            // **新機能**: グループ内のメソッド間類似度分析
+            analyzeSimilarityForGroup(methods) {
+                console.log(`🔬 Analyzing similarity for ${methods.length} methods named "${methods[0].name}"`);
+                
+                const pairAnalyses = [];
+                let totalSimilarity = 0;
+                let maxSimilarity = 0;
+                let minSimilarity = 100;
+                let pairCount = 0;
+
+                // すべての可能なペアについて類似度を計算
+                for (let i = 0; i < methods.length; i++) {
+                    for (let j = i + 1; j < methods.length; j++) {
+                        const method1 = methods[i];
+                        const method2 = methods[j];
+                        
+                        const similarity = this.analyzeCodeSimilarity(method1, method2);
+                        
+                        pairAnalyses.push({
+                            method1: {
+                                className: method1.className,
+                                filename: method1.filename,
+                                fullPath: method1.fullPath
+                            },
+                            method2: {
+                                className: method2.className,
+                                filename: method2.filename,
+                                fullPath: method2.fullPath
+                            },
+                            similarity: similarity
+                        });
+
+                        if (similarity.overallSimilarity > 0) {
+                            totalSimilarity += similarity.overallSimilarity;
+                            maxSimilarity = Math.max(maxSimilarity, similarity.overallSimilarity);
+                            minSimilarity = Math.min(minSimilarity, similarity.overallSimilarity);
+                            pairCount++;
+                        }
+                    }
+                }
+
+                const averageSimilarity = pairCount > 0 ? Math.round(totalSimilarity / pairCount) : 0;
+                
+                // 最も類似度の高いペアを特定
+                const highestSimilarityPair = pairAnalyses.reduce((highest, current) => {
+                    return current.similarity.overallSimilarity > (highest?.similarity?.overallSimilarity || 0) 
+                        ? current : highest;
+                }, null);
+
+                const result = {
+                    averageSimilarity,
+                    maxSimilarity,
+                    minSimilarity,
+                    pairCount,
+                    highestSimilarityPair,
+                    allPairs: pairAnalyses,
+                    level: this.getSimilarityLevel(averageSimilarity),
+                    summary: this.generateSimilaritySummary(averageSimilarity, pairCount, methods.length)
+                };
+
+                console.log(`🔬 Similarity analysis for "${methods[0].name}":`, {
+                    average: averageSimilarity,
+                    max: maxSimilarity,
+                    min: minSimilarity,
+                    pairs: pairCount
+                });
+
+                return result;
+            }
+
+            // **新機能**: 類似度サマリー生成
+            generateSimilaritySummary(averageSimilarity, pairCount, methodCount) {
+                if (pairCount === 0) {
+                    return 'ソースコードの比較ができませんでした';
+                }
+
+                if (averageSimilarity >= 90) {
+                    return `${methodCount}個のメソッドは非常に類似しています (平均 ${averageSimilarity}%)`;
+                } else if (averageSimilarity >= 70) {
+                    return `${methodCount}個のメソッドは類似した実装です (平均 ${averageSimilarity}%)`;
+                } else if (averageSimilarity >= 50) {
+                    return `${methodCount}個のメソッドは部分的に類似しています (平均 ${averageSimilarity}%)`;
+                } else {
+                    return `${methodCount}個のメソッドは名前のみ同じで実装は異なります (平均 ${averageSimilarity}%)`;
+                }
+            }
+
+            getDuplicateType(methods) {
+                const uniqueClasses = new Set(methods.map(m => m.className));
+                const uniqueFiles = new Set(methods.map(m => m.filename));
+                
+                if (uniqueClasses.size > 1 && uniqueFiles.size > 1) {
+                    return 'cross-class-file';
+                } else if (uniqueClasses.size > 1) {
+                    return 'cross-class';
+                } else if (uniqueFiles.size > 1) {
+                    return 'cross-file';
+                } else {
+                    return 'same-object';
+                }
+            }
+
+            getDuplicateTypeColor(duplicateType) {
+                const colors = {
+                    'cross-class-file': '#dc3545',  // 赤: 最も深刻
+                    'cross-class': '#fd7e14',       // オレンジ: 重要
+                    'cross-file': '#ffc107',        // 黄: 注意
+                    'same-object': '#17a2b8'        // 青: 情報
+                };
+                return colors[duplicateType] || '#6c757d';
+            }
+
+            getDuplicateTypeLabel(duplicateType) {
+                const labels = {
+                    'cross-class-file': '異なるクラス・ファイル',
+                    'cross-class': '異なるクラス',
+                    'cross-file': '異なるファイル',
+                    'same-object': '同じオブジェクト'
+                };
+                return labels[duplicateType] || 'Unknown';
+            }
+
+            updateStatistics() {
+                const totalElement = document.getElementById('totalMethods');
+                const lastScanElement = document.getElementById('lastScanTime');
+
+                if (totalElement) totalElement.textContent = this.discoveredMethods.size;
+                if (lastScanElement) lastScanElement.textContent = new Date().toLocaleTimeString();
+            }
+
+            clearData() {
+                this.discoveredMethods.clear();
+                this.generateDisplay();
+                this.updateStatistics();
+                this.showToast('All data cleared', 'info');
+            }
+
+            showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+
+                setTimeout(() => toast.classList.add('show'), 100);
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => {
+                        if (document.body.contains(toast)) {
+                            document.body.removeChild(toast);
+                        }
+                    }, 300);
+                }, 3000);
+            }
+
+            getEmptyStateHTML() {
+                return `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <h3>No Methods Detected</h3>
+                        <p>Click "Scan" to detect methods in your JavaScript objects.</p>
+                        <button class="btn btn-primary" onclick="manualScan()" style="margin-top: 15px;">
+                            🔍 Start Scan
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // グローバルインスタンス
+        window.inspector = new UniversalMethodInspector();
+        console.log('UniversalMethodInspector instance created and attached to window (integrated)');
+
+        // 現在のモード
+        let currentMode = 'methods';
+
+
+
+        function switchMode(mode) {
+            console.log('🔄 switchMode called with mode:', mode, '(previous mode:', window.currentMode || 'undefined', ')');
+            console.log('🔍 Available methods:', window.inspector ? window.inspector.discoveredMethods.size : 'Inspector not available');
+            
+            // グローバル変数を更新
+            window.currentMode = mode;
+            currentMode = mode; // ローカル変数も更新
+            
+            // **新機能**: モードをlocalStorageに保存
+            try {
+                localStorage.setItem('universalMethodInspector_currentMode', mode);
+                console.log('💾 Mode saved to localStorage:', mode);
+            } catch (error) {
+                console.warn('⚠️ Failed to save mode to localStorage:', error);
+            }
+            
+            // ボタンの状態を更新
+            const methodBtn = document.getElementById('methodMode');
+            const duplicateBtn = document.getElementById('duplicateMode');
+            
+            if (methodBtn) {
+                methodBtn.classList.toggle('active', mode === 'methods');
+                console.log('📋 Method Detection button active:', mode === 'methods');
+            }
+            if (duplicateBtn) {
+                duplicateBtn.classList.toggle('active', mode === 'duplicates');
+                console.log('🔍 Duplicate Analysis button active:', mode === 'duplicates');
+            }
+            
+            // タイトルを更新
+            const sectionTitle = document.getElementById('sectionTitle');
+            if (sectionTitle) {
+                if (mode === 'methods') {
+                    sectionTitle.textContent = '📋 Method Detection Results';
+                    console.log('📋 Switching to Method Detection mode');
+                } else {
+                    sectionTitle.textContent = '🔍 Duplicate Analysis Results';
+                    console.log('🔍 Switching to Duplicate Analysis mode');
+                }
+            }
+            
+            // **新機能**: 類似度フィルターの表示/非表示切り替え
+            const similarityFilter = document.getElementById('similarityFilter');
+            if (similarityFilter) {
+                similarityFilter.style.display = mode === 'duplicates' ? 'block' : 'none';
+            }
+            
+            // **新機能**: 類似度しきい値の初期化
+            if (mode === 'duplicates' && window.inspector) {
+                if (!window.inspector.similarityThreshold) {
+                    window.inspector.similarityThreshold = 0; // デフォルト値
+                }
+            }
+            
+            // **強化デバッグ**: 重複分析の詳細ログ
+            if (mode === 'duplicates' && window.inspector) {
+                console.log('🔍 DEBUG: Starting duplicate analysis...');
+                console.log('🔍 Total methods available:', window.inspector.discoveredMethods.size);
+                
+                // 手動で重複分析をテスト
+                const duplicates = window.inspector.analyzeDuplicates();
+                console.log('🔍 Duplicate analysis result:', duplicates);
+                
+                if (duplicates.length === 0) {
+                    console.log('⚠️ No duplicates found. Method names:');
+                    const methodNames = Array.from(window.inspector.discoveredMethods.values()).map(m => m.name);
+                    console.log('🔍 Method names:', methodNames);
+                    
+                    // グループ化を手動確認
+                    const groups = new Map();
+                    window.inspector.discoveredMethods.forEach(method => {
+                        if (!groups.has(method.name)) {
+                            groups.set(method.name, []);
+                        }
+                        groups.get(method.name).push(method);
+                    });
+                    
+                    console.log('🔍 Method groups:', Array.from(groups.entries()).map(([name, methods]) => `${name}: ${methods.length} instances`));
+                }
+            }
+            
+            // 表示を更新
+            if (window.inspector && window.inspector.generateDisplay) {
+                console.log('🔄 Refreshing display for mode:', mode);
+                window.inspector.generateDisplay();
+                } else {
+                console.warn('⚠️ Inspector or generateDisplay not available');
+            }
+        }
+
+        // グローバル関数
+
+        async function manualScan() {
+            if (window.inspector) {
+                await window.inspector.scanForMethods();
+            }
+        }
+
+        function clearData() {
+            if (confirm('Are you sure you want to clear all detected data?')) {
+                if (window.inspector) {
+                    window.inspector.clearData();
+                    }
+                }
+            }
+
+        function exportData() {
+            try {
+                if (!window.inspector) {
+                    alert('Inspector not available');
+                    return;
+                }
+
+                const methods = Array.from(window.inspector.discoveredMethods.values());
+                const data = {
+                    timestamp: new Date().toISOString(),
+                    totalMethods: window.inspector.discoveredMethods.size,
+                    targetObjects: Array.from(window.inspector.targetObjects),
+                    methods: methods.map(method => ({
+                        name: method.name,
+                        className: method.className,
+                        fullPath: method.fullPath,
+                        filename: method.filename || 'unknown',
+                        discovered: new Date(method.discovered).toISOString()
+                    }))
+                };
+                
+                const jsonString = JSON.stringify(data, null, 2);
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `method-inspection-results-${timestamp}.json`;
+                
+                // 複数の方法でダウンロードを試行
+                if (downloadViaDataURI(jsonString, filename)) {
+                    window.inspector.showToast(`Exported ${data.methods.length} methods to ${filename}`, 'success');
+                } else if (downloadViaBlob(jsonString, filename)) {
+                    window.inspector.showToast(`Exported ${data.methods.length} methods to ${filename}`, 'success');
+                } else {
+                    // フォールバック: テキストエリアに表示
+                    showDataInTextArea(jsonString, filename);
+                    window.inspector.showToast('Download failed. Data displayed in text area for manual copy.', 'warning');
+                }
+                
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Export failed: ' + error.message);
+            }
+        }
+
+        function downloadViaDataURI(content, filename) {
+            try {
+                const dataURI = 'data:application/json;charset=utf-8,' + encodeURIComponent(content);
+                const link = document.createElement('a');
+                link.href = dataURI;
+                link.download = filename;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                return true;
+            } catch (error) {
+                console.warn('Data URI download failed:', error);
+                return false;
+            }
+        }
+
+        function downloadViaBlob(content, filename) {
+            try {
+                const blob = new Blob([content], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // URLを少し遅れて解放
+                        setTimeout(() => {
+                    try {
+                        URL.revokeObjectURL(url);
+                    } catch (e) {
+                        console.warn('Failed to revoke URL:', e);
+                    }
+                }, 1000);
+                
+                return true;
+            } catch (error) {
+                console.warn('Blob download failed:', error);
+                return false;
+            }
+        }
+
+        function showDataInTextArea(content, filename) {
+            // 既存のテキストエリアがあれば削除
+            const existingTextArea = document.getElementById('exportTextArea');
+            if (existingTextArea) {
+                existingTextArea.remove();
+            }
+
+            // テキストエリアを作成
+            const textArea = document.createElement('textarea');
+            textArea.id = 'exportTextArea';
+            textArea.value = content;
+            textArea.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 80%;
+                height: 60%;
+                z-index: 10000;
+                background: white;
+                border: 2px solid #007bff;
+                border-radius: 8px;
+                padding: 20px;
+                font-family: monospace;
+                font-size: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            `;
+            textArea.readOnly = true;
+
+            // 閉じるボタンを作成
+            const closeButton = document.createElement('button');
+            closeButton.textContent = '✕ Close';
+            closeButton.style.cssText = `
+                position: fixed;
+                top: calc(50% - 32%);
+                right: calc(50% - 42%);
+                z-index: 10001;
+                background: #dc3545;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+            `;
+            closeButton.onclick = () => {
+                textArea.remove();
+                closeButton.remove();
+                overlay.remove();
+            };
+
+            // オーバーレイを作成
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 9999;
+            `;
+            overlay.onclick = () => {
+                textArea.remove();
+                closeButton.remove();
+                overlay.remove();
+            };
+
+            // 要素を追加
+            document.body.appendChild(overlay);
+            document.body.appendChild(textArea);
+            document.body.appendChild(closeButton);
+
+            // テキストを選択
+            textArea.select();
+            textArea.focus();
+
+            // コピー用の説明を表示
+            const instruction = document.createElement('div');
+            instruction.style.cssText = `
+                position: fixed;
+                top: calc(50% - 35%);
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 10002;
+                background: #28a745;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+                text-align: center;
+            `;
+            instruction.textContent = `📋 ${filename} - Press Ctrl+A then Ctrl+C to copy all data`;
+            document.body.appendChild(instruction);
+
+            // 5秒後に説明を削除
+            setTimeout(() => {
+                if (instruction.parentNode) {
+                    instruction.remove();
+                }
+            }, 5000);
+        }
+
+        function applyFilters() {
+            // 検索フィルタ機能
+            const searchTerm = document.getElementById('searchMethod')?.value.toLowerCase() || '';
+            
+            if (!searchTerm) {
+                // 検索クリア時は全て表示
+                if (window.inspector && window.inspector.generateDisplay) {
+                    window.inspector.generateDisplay();
+                            }
+                return;
+                }
+                
+            // 検索結果をフィルタ表示
+            const resultsContainer = document.getElementById('resultsContainer');
+            if (resultsContainer) {
+                // メソッドアイテムを検索
+                const methodDivs = resultsContainer.querySelectorAll('div[style*="background: white"][style*="border: 1px solid"]');
+                methodDivs.forEach(div => {
+                    // メソッド名を取得（font-weight: 600のdiv）
+                    const methodNameEl = div.querySelector('div[style*="font-weight: 600"]');
+                    if (methodNameEl) {
+                        const methodName = methodNameEl.textContent.toLowerCase();
+                        if (methodName.includes(searchTerm)) {
+                            div.style.display = '';
+                            // ハイライト表示
+                            methodNameEl.innerHTML = methodNameEl.textContent.replace(
+                                new RegExp(`(${searchTerm})`, 'gi'),
+                                '<mark style="background: yellow; padding: 1px 2px; border-radius: 2px;">$1</mark>'
+                            );
+            } else {
+                            div.style.display = 'none';
+                        }
+                    }
+                });
+            }
+        }
+
+        function refreshDisplay() {
+            if (window.inspector) {
+                window.inspector.generateDisplay();
+                window.inspector.showToast('Display refreshed', 'info');
+            }
+        }
+
+        // **新機能**: コード表示トグル関数
+        function toggleCodeView(methodId) {
+            const codeElement = document.getElementById(methodId);
+            if (codeElement) {
+                const isVisible = codeElement.style.display !== 'none';
+                codeElement.style.display = isVisible ? 'none' : 'block';
+                
+                // ボタンテキストの更新
+                const button = codeElement.previousElementSibling.querySelector('button[onclick*="' + methodId + '"]');
+                if (button) {
+                    button.textContent = isVisible ? '📖 コード表示' : '🔒 コード非表示';
+                }
+            }
+        }
+
+        // **新機能**: 類似度フィルター更新
+        function updateSimilarityFilter(value) {
+            document.getElementById('similarityValue').textContent = value + '%';
+            
+            // フィルター適用（重複分析モードの場合のみ）
+            if (window.currentMode === 'duplicates' && window.inspector) {
+                window.inspector.similarityThreshold = parseInt(value);
+                window.inspector.generateDisplay();
+            }
+        }
+
+        // **新機能**: ファイル単位での一括テスト実行
+        function testFileExecution(filename) {
+            console.log(`🧪 Testing all methods in file: ${filename}`);
+            
+            if (!window.inspector || !window.inspector.discoveredMethods) {
+                alert('Inspector not available');
+                return;
+            }
+            
+            // ファイルに属するメソッドを取得
+            const fileMethods = Array.from(window.inspector.discoveredMethods.values())
+                .filter(method => (method.filename || 'unknown-source') === filename);
+            
+            if (fileMethods.length === 0) {
+                alert(`No methods found in ${filename}`);
+                return;
+            }
+            
+            // テスト結果を表示するモーダルを作成
+            const modal = createTestResultModal(filename, fileMethods.length);
+            
+            let successCount = 0;
+            let errorCount = 0;
+            let skipCount = 0;
+            let testResults = [];
+            
+            // 各メソッドを順次テスト
+            fileMethods.forEach((method, index) => {
+                setTimeout(() => {
+                    const result = testSingleMethod(method.className, method.name);
+                    testResults.push({
+                        method: method.name,
+                        className: method.className,
+                        result: result
+                    });
+                    
+                    // **修正**: スキップ判定を追加
+                    if (result.success) {
+                        if (result.message.includes('⏭️') || result.message.includes('[スキップ]')) {
+                            skipCount++;
+                        } else {
+                            successCount++;
+                        }
+                    } else {
+                        errorCount++;
+                    }
+                    
+                    // モーダルの進捗を更新
+                    updateTestProgress(modal, index + 1, fileMethods.length, successCount, errorCount, skipCount, testResults);
+                    
+                }, index * 100); // 100ms間隔で実行
+            });
+        }
+
+        // **新機能**: テスト結果モーダル作成
+        function createTestResultModal(filename, totalMethods) {
+            // 既存のモーダルがあれば削除
+            const existingModal = document.getElementById('testResultModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // オーバーレイ
+            const overlay = document.createElement('div');
+            overlay.id = 'testResultModal';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.7);
+                z-index: 10000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            `;
+            
+            // モーダル本体
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                padding: 24px;
+                max-width: 80%;
+                max-height: 80%;
+                overflow-y: auto;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+                min-width: 600px;
+            `;
+            
+            modal.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e9ecef; padding-bottom: 15px;">
+                    <h3 style="margin: 0; color: #2c3e50;">🧪 ${filename} - 一括テスト実行</h3>
+                    <button onclick="document.getElementById('testResultModal').remove()" 
+                            style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                        ✕ 閉じる
+                    </button>
+                </div>
+                
+                <div id="testProgress" style="margin-bottom: 20px;">
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; text-align: center;">
+                        <div style="font-size: 1.2em; margin-bottom: 10px;">📊 テスト進捗</div>
+                        <div style="background: #e9ecef; border-radius: 10px; height: 20px; overflow: hidden; margin-bottom: 10px;">
+                            <div id="progressBar" style="background: linear-gradient(90deg, #28a745, #20c997); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                        </div>
+                        <div id="progressText">0 / ${totalMethods} メソッド完了</div>
+                    </div>
+                </div>
+                
+                <div id="testResults" style="max-height: 400px; overflow-y: auto;">
+                    <div style="text-align: center; color: #6c757d; padding: 20px;">
+                        テスト実行中...
+                    </div>
+                </div>
+                
+                <!-- **新機能**: コピペ用結果表示セクション -->
+                <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: #333;">📋 コピペ用テスト結果</h4>
+                        <div>
+                            <button id="copyResultsBtn" style="
+                                background: #007bff; 
+                                color: white; 
+                                border: none; 
+                                padding: 5px 12px; 
+                                border-radius: 4px; 
+                                cursor: pointer; 
+                                font-size: 12px;
+                                margin-right: 5px;
+                            ">📋 コピー</button>
+                            <button id="copyErrorsOnlyBtn" style="
+                                background: #dc3545; 
+                                color: white; 
+                                border: none; 
+                                padding: 5px 12px; 
+                                border-radius: 4px; 
+                                cursor: pointer; 
+                                font-size: 12px;
+                            ">❌ エラーのみコピー</button>
+                        </div>
+                    </div>
+                    <textarea id="copyableResults" readonly style="
+                        width: 100%; 
+                        height: 150px; 
+                        font-family: 'Courier New', monospace; 
+                        font-size: 12px; 
+                        border: 1px solid #ddd; 
+                        border-radius: 4px; 
+                        padding: 10px; 
+                        background: #f8f9fa; 
+                        resize: vertical;
+                        white-space: pre;
+                    " placeholder="テスト結果がここに表示されます..."></textarea>
+                </div>
+                    `;
+            
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            // **新機能**: コピーボタンのイベントリスナー追加
+            const copyResultsBtn = modal.querySelector('#copyResultsBtn');
+            const copyErrorsOnlyBtn = modal.querySelector('#copyErrorsOnlyBtn');
+            const copyableResults = modal.querySelector('#copyableResults');
+            
+            if (copyResultsBtn && copyableResults) {
+                copyResultsBtn.addEventListener('click', () => {
+                    copyableResults.select();
+                    document.execCommand('copy');
+                    
+                    // フィードバック表示
+                    const originalText = copyResultsBtn.textContent;
+                    copyResultsBtn.textContent = '✅ コピー完了';
+                    copyResultsBtn.style.background = '#28a745';
+                    
+                    setTimeout(() => {
+                        copyResultsBtn.textContent = originalText;
+                        copyResultsBtn.style.background = '#007bff';
+                    }, 2000);
+                });
+            }
+            
+            if (copyErrorsOnlyBtn && copyableResults) {
+                copyErrorsOnlyBtn.addEventListener('click', () => {
+                    // エラーのみを抽出（修正版）
+                    const allText = copyableResults.value;
+                    const lines = allText.split('\n');
+                    let errorOnlyText = `=== エラー結果のみ ===\n`;
+                    errorOnlyText += `実行日時: ${new Date().toLocaleString()}\n\n`;
+                    
+                    let errorCount = 0;
+                    let i = 0;
+                    
+                    while (i < lines.length) {
+                        const line = lines[i];
+                        
+                        // エラー行を発見した場合（メソッド名を含む❌行のみカウント）
+                        // パターン: "❌ className.methodName (時間)" または "❌ methodName"
+                        if (line.includes('❌') && (line.match(/❌\s+\w+\.\w+\s+\(/) || line.match(/❌\s+[\w-]+\.\w+\s+\(/))) {
+                            errorCount++;
+                            errorOnlyText += line + '\n';
+                            
+                            // 次の行もエラーメッセージの一部かチェック
+                            let j = i + 1;
+                            while (j < lines.length) {
+                                const nextLine = lines[j];
+                                
+                                // 次のメソッド結果（✅、❌、⏭️で始まる）または空行に到達したら終了
+                                if ((nextLine.includes('✅') || nextLine.includes('❌') || nextLine.includes('⏭️')) && 
+                                    (nextLine.match(/[✅❌⏭️]\s+\w+/) || nextLine.match(/[✅❌⏭️]\s+[\w-]+/)) ||
+                                    nextLine.trim() === '' || nextLine.startsWith('===')) {
+                                    break;
+                                }
+                                
+                                // エラーメッセージの続きを追加
+                                if (nextLine.trim()) {
+                                    errorOnlyText += nextLine + '\n';
+                                }
+                                j++;
+                            }
+                            
+                            errorOnlyText += '\n'; // エラー間の区切り
+                            i = j - 1; // 処理済みの行をスキップ
+                        }
+                        i++;
+                    }
+                    
+                    if (errorCount === 0) {
+                        errorOnlyText += 'エラーは発生していません。\n';
+                    }
+                    
+                    // 一時的にテキストエリアの値を変更してコピー
+                    const originalValue = copyableResults.value;
+                    copyableResults.value = errorOnlyText;
+                    copyableResults.select();
+                    document.execCommand('copy');
+                    copyableResults.value = originalValue;
+                    
+                    // フィードバック表示
+                    const originalText = copyErrorsOnlyBtn.textContent;
+                    if (errorCount > 0) {
+                        copyErrorsOnlyBtn.textContent = `✅ ${errorCount}件エラーコピー完了`;
+                        copyErrorsOnlyBtn.style.background = '#28a745';
+                    } else {
+                        copyErrorsOnlyBtn.textContent = '✅ エラーなし';
+                        copyErrorsOnlyBtn.style.background = '#17a2b8'; // 情報色（青）
+                    }
+                    
+                    setTimeout(() => {
+                        copyErrorsOnlyBtn.textContent = originalText;
+                        copyErrorsOnlyBtn.style.background = '#dc3545';
+                    }, 2000);
+                });
+            }
+            
+            return modal;
+        }
+
+        // **新機能**: テスト進捗更新
+        function updateTestProgress(modal, completed, total, successCount, errorCount, skipCount, results) {
+            const progressBar = modal.querySelector('#progressBar');
+            const progressText = modal.querySelector('#progressText');
+            const resultsContainer = modal.querySelector('#testResults');
+            const copyableResults = modal.querySelector('#copyableResults');
+            
+            // 進捗バー更新
+            const percentage = (completed / total) * 100;
+            progressBar.style.width = percentage + '%';
+            progressText.textContent = `${completed} / ${total} メソッド完了 (✅ ${successCount} 成功, ❌ ${errorCount} エラー, ⏭️ ${skipCount} スキップ)`;
+            
+            // 結果一覧更新
+            let resultsHtml = '';
+            let copyableText = `=== テスト結果 ===\n`;
+            copyableText += `実行日時: ${new Date().toLocaleString()}\n`;
+            copyableText += `進捗: ${completed} / ${total} メソッド完了\n`;
+            copyableText += `結果: ✅ ${successCount} 成功, ❌ ${errorCount} エラー, ⏭️ ${skipCount} スキップ\n\n`;
+            
+            results.forEach(result => {
+                // **修正**: スキップの場合のアイコンと色を追加
+                let statusIcon, statusColor;
+                if (result.result.success) {
+                    if (result.result.message.includes('⏭️') || result.result.message.includes('[スキップ]')) {
+                        statusIcon = '⏭️';
+                        statusColor = '#ffc107'; // 黄色（警告色）
+                    } else {
+                        statusIcon = '✅';
+                        statusColor = '#28a745'; // 緑色（成功色）
+                    }
+                } else {
+                    statusIcon = '❌';
+                    statusColor = '#dc3545'; // 赤色（エラー色）
+                }
+                
+                const executionTime = result.result.executionTime || 'N/A';
+                
+                resultsHtml += `
+                    <div style="border: 1px solid #e9ecef; border-radius: 6px; padding: 12px; margin-bottom: 8px; border-left: 4px solid ${statusColor};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="font-weight: 600;">${statusIcon} ${result.method}</div>
+                            <div style="font-size: 0.8em; color: #6c757d;">${result.className} (${executionTime})</div>
+                        </div>
+                        <div style="font-size: 0.85em; color: #495057; font-family: monospace; background: #f8f9fa; padding: 6px; border-radius: 4px;">
+                            ${result.result.message}
+                        </div>
+                    </div>
+                `;
+                
+                // コピペ用テキスト作成
+                copyableText += `${statusIcon} ${result.className}.${result.method} (${executionTime})\n`;
+                copyableText += `   ${result.result.message}\n\n`;
+            });
+            
+            resultsContainer.innerHTML = resultsHtml;
+            
+            // **新機能**: コピペ用テキストエリア更新
+            if (copyableResults) {
+                copyableResults.value = copyableText;
+            }
+        }
+
+        // **新機能**: 単一メソッドテスト（結果のみ返す）
+        function testSingleMethod(className, methodName) {
+            try {
+                const targetObject = findTargetObject(className);
+                
+                if (!targetObject) {
+                    return {
+                        success: false,
+                        message: `❌ オブジェクト ${className} が見つかりません`,
+                        executionTime: 'N/A'
+                    };
+                }
+                
+                if (typeof targetObject[methodName] !== 'function') {
+                    return {
+                        success: false,
+                        message: `❌ メソッド ${methodName} が見つかりません (type: ${typeof targetObject[methodName]})`,
+                        executionTime: 'N/A'
+                    };
+                }
+                
+                // メソッド実行
+                const startTime = performance.now();
+                const result = executeSafeMethod(targetObject, methodName);
+                const endTime = performance.now();
+                const executionTime = (endTime - startTime).toFixed(2) + 'ms';
+                
+                // スキップされた場合の処理
+                if (typeof result === 'string' && result.startsWith('[スキップ]')) {
+                    return {
+                        success: true,
+                        message: `⏭️ ${result}`,
+                        executionTime: executionTime
+                    };
+                }
+                
+                return {
+                    success: true,
+                    message: `✅ 実行成功 - 戻り値: ${formatResult(result)}`,
+                    executionTime: executionTime
+                };
+                
+            } catch (error) {
+                return {
+                    success: false,
+                    message: `❌ 実行エラー: ${error.message}`,
+                    executionTime: 'N/A'
+                };
+            }
+        }
+
+        // **修正**: オブジェクト検索の強化（デバッグ情報付き）
+        function findTargetObject(className) {
+            console.log(`🔍 Searching for object: ${className}`);
+            console.log(`  - window.debugMonitor exists:`, !!window.debugMonitor);
+            console.log(`  - window.debugMonitor type:`, typeof window.debugMonitor);
+            
+            // **最優先**: 直接的なオブジェクト存在確認
+            if (className === 'DebugMonitor' && window.debugMonitor) {
+                console.log(`✅ Found debugMonitor directly (priority check)`);
+                return window.debugMonitor;
+            }
+            
+            // 1. 直接的なインスタンスオブジェクトから検索
+            const directMappings = {
+                'WorkflowEditor': 'workflowEditor',
+                'UIManager': 'uiManager', 
+                'ConnectionManager': 'connectionManager',
+                'NodeManager': 'nodeManager',
+                'EventHandlers': 'eventHandlers',
+                'DebugMonitor': 'debugMonitor',
+                'WorkflowExecutor': 'workflowExecutor',
+                'inspector': 'inspector',
+                'UniversalMethodInspector': 'inspector'
+            };
+            
+            // **追加**: エディターのサブオブジェクトも検索対象に追加
+            const editorSubObjects = {
+                'ConnectionManager': 'workflowEditor.connectionManager',
+                'NodeManager': 'workflowEditor.nodeManager',
+                'UIManager': 'workflowEditor.uiManager',
+                'EventHandlers': 'workflowEditor.eventHandlers',
+                'WorkflowExecutor': 'workflowEditor.workflowExecutor'
+            };
+            
+            // インスタンスオブジェクトが存在する場合はそれを使用
+            const instanceName = directMappings[className];
+            if (instanceName && window[instanceName] && typeof window[instanceName] === 'object') {
+                console.log(`✅ Found instance object: ${instanceName}`);
+                return window[instanceName];
+            }
+            
+            // **追加**: エディターのサブオブジェクトを検索
+            const subObjectPath = editorSubObjects[className];
+            if (subObjectPath) {
+                try {
+                    const pathParts = subObjectPath.split('.');
+                    let obj = window;
+                    for (const part of pathParts) {
+                        obj = obj[part];
+                        if (!obj) break;
+                    }
+                    if (obj && typeof obj === 'object') {
+                        console.log(`✅ Found sub-object: ${subObjectPath}`);
+                        return obj;
+                    }
+                } catch (e) {
+                    console.log(`❌ Failed to access sub-object: ${subObjectPath}`);
+                }
+            }
+            
+            // **修正**: より確実な直接検索
+            const directSearchNames = [
+                className.toLowerCase(),
+                className,
+                directMappings[className]
+            ].filter(Boolean);
+            
+            for (const searchName of directSearchNames) {
+                if (window[searchName] && typeof window[searchName] === 'object') {
+                    console.log(`✅ Found object via direct search: ${searchName}`);
+                    return window[searchName];
+                }
+            }
+            
+            // **追加**: 特別なケース処理
+            if (className === 'DebugMonitor' && window.debugMonitor) {
+                console.log(`✅ Found debugMonitor via special case handling`);
+                return window.debugMonitor;
+            }
+            
+            // **修正**: より確実なクラス定義検索
+            console.log(`🔍 Checking for class definition: ${className}`);
+            console.log(`  - window[${className}] exists:`, typeof window[className]);
+            console.log(`  - is function:`, typeof window[className] === 'function');
+            
+            // 2. クラス定義が存在する場合、プロトタイプラッパーを作成
+            let ClassConstructor = null;
+            
+            // 直接的なクラス名検索
+            if (window[className] && typeof window[className] === 'function') {
+                ClassConstructor = window[className];
+                console.log(`✅ Found class definition directly: ${className}`);
+            }
+            
+            // **追加**: グローバル検索でクラス定義を探す
+            if (!ClassConstructor) {
+                console.log(`🔍 Searching globally for class: ${className}`);
+                for (const key in window) {
+                    try {
+                        const obj = window[key];
+                        if (typeof obj === 'function' && obj.name === className) {
+                            ClassConstructor = obj;
+                            console.log(`✅ Found class definition via global search: ${key} -> ${className}`);
+                            break;
+                        }
+                    } catch (e) {
+                        // Skip inaccessible properties
+                    }
+                }
+            }
+            
+            if (ClassConstructor) {
+                const prototype = ClassConstructor.prototype;
+                
+                if (!prototype) {
+                    console.log(`❌ No prototype found for ${className}`);
+                    return null;
+                }
+                
+                console.log(`🔧 Creating prototype wrapper for ${className}`);
+                console.log(`  - Prototype methods:`, Object.getOwnPropertyNames(prototype).filter(name => 
+                    name !== 'constructor' && typeof prototype[name] === 'function'
+                ));
+                
+                // プロトタイプメソッドを直接実行できるラッパーオブジェクトを作成
+                const prototypeWrapper = {};
+                
+                // プロトタイプのすべてのメソッドをラップ
+                Object.getOwnPropertyNames(prototype).forEach(methodName => {
+                    if (methodName !== 'constructor' && typeof prototype[methodName] === 'function') {
+                        prototypeWrapper[methodName] = function(...args) {
+                            console.log(`🧪 Executing prototype method: ${className}.${methodName}`);
+                            try {
+                                // **改善**: より充実したモックコンテキストを作成
+                                const mockContext = {
+                                    // 基本的なプロパティを設定
+                                    nodes: [],
+                                    connections: [],
+                                    canvas: document.getElementById('canvas') || document.createElement('div'),
+                                    svg: document.getElementById('connections-svg') || document.createElementNS('http://www.w3.org/2000/svg', 'svg'),
+                                    selectedNode: null,
+                                    isConnecting: false,
+                                    // DOM要素が必要な場合のダミー
+                                    container: document.createElement('div'),
+                                    // WorkflowEditorのモック（ConnectionManagerが必要とする）
+                                    editor: {
+                                        workflow: { nodes: [], connections: [] },
+                                        connectionState: { isConnecting: false }
+                                    },
+                                    // 基本的なメソッドのモック
+                                    log: () => {},
+                                    render: () => {},
+                                    update: () => {},
+                                    // ResizeObserverのモック
+                                    resizeObserver: null
+                                };
+                                
+                                // 引数なしで安全に実行できるメソッドのみ実行
+                                if (args.length === 0) {
+                                    const methodLower = methodName.toLowerCase();
+                                    const isSafeMethod = (
+                                        methodLower.includes('get') || 
+                                        methodLower.includes('render') || 
+                                        methodLower.includes('update') || 
+                                        methodLower.includes('show') ||
+                                        methodLower.includes('test') ||
+                                        methodLower.includes('check') ||
+                                        methodLower.includes('validate') ||
+                                        methodLower.includes('debug') ||
+                                        methodLower.includes('clear') ||
+                                        methodLower.includes('reset') ||
+                                        methodLower.includes('init') ||
+                                        methodLower.includes('setup') ||
+                                        methodLower.includes('handle') ||
+                                        methodLower.includes('create') ||
+                                        methodLower.includes('destroy')
+                                    );
+                                    
+                                    if (isSafeMethod) {
+                                        // プロトタイプメソッドをモックコンテキストで実行
+                                        const result = prototype[methodName].call(mockContext);
+                                        return result !== undefined ? result : `[実行完了] ${methodName}`;
+                                    } else {
+                                        return `[スキップ] ${methodName} - 安全でないメソッド`;
+                                    }
+                                } else {
+                                    return `[スキップ] ${methodName} - 引数が必要なメソッド`;
+                                }
+                            } catch (error) {
+                                return `[エラー] ${error.message}`;
+                            }
+                        };
+                    }
+                });
+                
+                console.log(`✅ Created prototype wrapper with ${Object.keys(prototypeWrapper).length} methods`);
+                return prototypeWrapper;
+            }
+            
+            // 3. グローバルオブジェクトから検索
+            console.log(`🔍 Searching global objects for ${className}`);
+            for (const key in window) {
+                try {
+                    const obj = window[key];
+                    if (obj && typeof obj === 'object' && obj.constructor && obj.constructor.name === className) {
+                        console.log(`✅ Found via constructor name: ${key}`);
+                        return obj;
+                    }
+                } catch (e) {
+                    // アクセスできないプロパティをスキップ
+                }
+            }
+            
+            console.log(`❌ Object not found: ${className}`);
+            return null;
+        }
+
+        // **新機能**: 安全なメソッド実行
+        function executeSafeMethod(targetObject, methodName) {
+            const methodStr = targetObject[methodName].toString();
+            const paramMatch = methodStr.match(/\\(([^)]*)\\)/);
+            const params = paramMatch ? paramMatch[1].split(',').map(p => p.trim()).filter(p => p) : [];
+            
+            // 引数なしのメソッドは常に実行
+            if (params.length === 0) {
+                return targetObject[methodName].apply(targetObject, []);
+            }
+            
+            // 安全なメソッドパターン（引数があっても実行可能）
+            const safePatterns = [
+                'get', 'show', 'render', 'display', 'draw', 'paint',
+                'update', 'refresh', 'reload', 'reset', 'clear',
+                'test', 'check', 'validate', 'verify', 'confirm',
+                'debug', 'log', 'print', 'output', 'dump',
+                'init', 'initialize', 'setup', 'start', 'begin',
+                'stop', 'end', 'finish', 'complete', 'close',
+                'count', 'size', 'length', 'empty', 'exists',
+                'is', 'has', 'can', 'should', 'will'
+            ];
+            
+            const methodLower = methodName.toLowerCase();
+            const isSafeMethod = safePatterns.some(pattern => methodLower.includes(pattern));
+            
+            if (isSafeMethod) {
+                // 安全なメソッドでも引数が必要な場合は基本的な引数を提供
+                const testArgs = params.map((param, index) => {
+                    if (param.includes('id') || param.includes('Id')) return 'test-id';
+                    if (param.includes('name') || param.includes('Name')) return 'test-name';
+                    if (param.includes('type') || param.includes('Type')) return 'test';
+                    if (param.includes('index') || param.includes('Index')) return 0;
+                    if (param.includes('count') || param.includes('Count')) return 1;
+                    if (param.includes('flag') || param.includes('Flag')) return true;
+                    return null; // デフォルト値
+                });
+                
+                return targetObject[methodName].apply(targetObject, testArgs);
+            }
+            
+            // その他のメソッドは実行をスキップ
+            return `[スキップ] 引数が必要なメソッドのため実行をスキップしました (引数数: ${params.length})`;
+        }
+
+        // **新機能**: 結果フォーマット
+        function formatResult(result) {
+            if (result === undefined) return 'undefined';
+            if (result === null) return 'null';
+            if (typeof result === 'string') return `"${result.substring(0, 100)}${result.length > 100 ? '...' : ''}"`;
+            if (typeof result === 'object') {
+                const str = JSON.stringify(result);
+                return str.substring(0, 100) + (str.length > 100 ? '...' : '');
+            }
+            return String(result).substring(0, 100);
+        }
+
+        
+
+        // **修正**: ダミーオブジェクトを削除し、実際のオブジェクトを保護
+        // ダミーオブジェクトの定義を削除！実際にロードされたオブジェクトを上書きしないように修正
+        
+        // **デバッグ**: 実際にロードされたオブジェクトの存在を確認する関数
+        function checkRealObjects() {
+            console.log('🔍 Checking for real loaded objects:');
+            
+            const objectsToCheck = [
+                'workflowEditor', 'uiManager', 'connectionManager', 
+                'nodeManager', 'eventHandlers', 'debugMonitor', 'workflowExecutor'
+            ];
+            
+            const classesToCheck = [
+                'WorkflowEditor', 'UIManager', 'ConnectionManager',
+                'NodeManager', 'EventHandlers', 'DebugMonitor', 'WorkflowExecutor'
+            ];
+            
+            objectsToCheck.forEach(name => {
+                if (window[name]) {
+                    const type = typeof window[name];
+                    const constructor = window[name].constructor?.name;
+                    const methodCount = Object.getOwnPropertyNames(window[name]).filter(prop => 
+                        typeof window[name][prop] === 'function'
+                    ).length;
+                    console.log(`✅ ${name}: ${type} (${constructor}) - ${methodCount} methods`);
+            } else {
+                    console.log(`❌ ${name}: not found`);
+                }
+            });
+            
+            classesToCheck.forEach(className => {
+                if (window[className]) {
+                    const type = typeof window[className];
+                    const prototypeMethodCount = window[className].prototype ? 
+                        Object.getOwnPropertyNames(window[className].prototype).filter(prop => 
+                            typeof window[className].prototype[prop] === 'function' && prop !== 'constructor'
+                        ).length : 0;
+                    console.log(`✅ ${className}: ${type} class - ${prototypeMethodCount} prototype methods`);
+            } else {
+                    console.log(`❌ ${className}: class not found`);
+                }
+            });
+        }
+        
+        // **新機能**: 実際のオブジェクトが存在しない場合のみミニマルテストオブジェクト作成
+        function createMinimalTestObjectsIfNeeded() {
+            // workflowEditorが存在しない場合のみ、最小限のテストオブジェクトを作成
+            if (!window.workflowEditor || typeof window.workflowEditor.addNode !== 'function') {
+                console.log('⚠️ Real workflowEditor not found, creating minimal test object');
+                window.workflowEditor = {
+                    addNode: function() { return 'test node added'; },
+                    deleteNode: function() { return 'test node deleted'; }
+                };
+            }
+            
+            // 他のオブジェクトも同様にチェック（実在しない場合のみ最小限作成）
+            if (!window.uiManager || typeof window.uiManager.updateUI !== 'function') {
+                console.log('⚠️ Real uiManager not found, creating minimal test object');
+                window.uiManager = {
+                    updateUI: function() { return 'test ui updated'; }
+                };
+            }
+        }
+
+        // **修正**: 初期化とデバッグ（実際のオブジェクト保護付き）
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🤖 DOMContentLoaded event fired (integrated version)');
+            console.log('Inspector available:', typeof window.inspector !== 'undefined');
+            
+            // **重要**: 実際のオブジェクトの存在確認
+            console.log('='.repeat(60));
+            console.log('🔍 REAL OBJECT VERIFICATION');
+            console.log('='.repeat(60));
+            checkRealObjects();
+            
+            // **デバッグ**: ロードされたスクリプトを確認
+            console.log('\n🔍 Loaded scripts:');
+            Array.from(document.scripts).forEach(script => {
+                if (script.src) {
+                    const filename = script.src.split('/').pop();
+                    console.log(`  - ${filename} (${script.src})`);
+                }
+            });
+            
+            // **修正**: ダミーオブジェクトの代わりにミニマル保護オブジェクト
+            createMinimalTestObjectsIfNeeded();
+            
+            if (window.inspector) {
+                // **新機能**: 保存されたモードを復元、なければデフォルトモードを設定
+                let savedMode = 'methods'; // デフォルト値
+                try {
+                    const storedMode = localStorage.getItem('universalMethodInspector_currentMode');
+                    if (storedMode && (storedMode === 'methods' || storedMode === 'duplicates')) {
+                        savedMode = storedMode;
+                        console.log('💾 Restored mode from localStorage:', savedMode);
+                    } else {
+                        console.log('🔄 No valid saved mode found, using default: methods');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to restore mode from localStorage:', error);
+                }
+                
+                window.currentMode = savedMode;
+                currentMode = savedMode;
+                console.log('🔄 Current mode set to:', savedMode);
+                
+                // 自動検出を実行
+                window.inspector.autoDetectGlobalObjects();
+                
+                // **新機能**: 復元されたモードに基づいてUIを初期化
+                setTimeout(() => {
+                    // ボタンの状態を復元されたモードに合わせて更新
+                    const methodBtn = document.getElementById('methodMode');
+                    const duplicateBtn = document.getElementById('duplicateMode');
+                    
+                    if (methodBtn) {
+                        methodBtn.classList.toggle('active', savedMode === 'methods');
+                    }
+                    if (duplicateBtn) {
+                        duplicateBtn.classList.toggle('active', savedMode === 'duplicates');
+                    }
+                    
+                    // タイトルを復元されたモードに合わせて更新
+                    const sectionTitle = document.getElementById('sectionTitle');
+                    if (sectionTitle) {
+                        if (savedMode === 'methods') {
+                            sectionTitle.textContent = '🔍 Detected Methods';
+                        } else {
+                            sectionTitle.textContent = '🔍 Duplicate Analysis Results';
+                        }
+                    }
+                    
+                    // 類似度フィルターの表示/非表示を設定
+                    const similarityFilter = document.getElementById('similarityFilter');
+                    if (similarityFilter) {
+                        similarityFilter.style.display = savedMode === 'duplicates' ? 'block' : 'none';
+                    }
+                    
+                    console.log('🎯 UI initialized for mode:', savedMode);
+                }, 100);
+                
+                // 初期表示を設定
+                window.inspector.generateDisplay();
+                
+                // **重要**: より長い待機時間で完全な初期化を待つ
+                setTimeout(async () => {
+                    console.log('\n' + '='.repeat(60));
+                    console.log('🔍 STARTING REAL METHOD SCAN');
+                    console.log('='.repeat(60));
+                    
+                    // 再度実際のオブジェクト確認
+                    checkRealObjects();
+                    
+                    console.log('\n🔍 Pre-scan verification of window objects:');
+                    let realObjectCount = 0;
+                    for (const key in window) {
+                        try {
+                            const obj = window[key];
+                            if (obj && typeof obj === 'object' && obj.constructor) {
+                                const className = obj.constructor.name;
+                                // 実際のプロジェクトクラスかチェック
+                                if (['WorkflowEditor', 'UIManager', 'ConnectionManager', 'NodeManager', 'EventHandlers', 'WorkflowExecutor'].includes(className)) {
+                                    const methodCount = Object.getOwnPropertyNames(obj).filter(prop => 
+                                        typeof obj[prop] === 'function'
+                                    ).length;
+                                    console.log(`  ✅ REAL: ${key} (${className}) - ${methodCount} methods`);
+                                    realObjectCount++;
+                                }
+                            }
+                        } catch (e) {
+                            // Skip inaccessible properties
+                        }
+                    }
+                    
+                    console.log(`\n🎯 Found ${realObjectCount} real project objects`);
+                    
+                    if (realObjectCount === 0) {
+                        console.log('⚠️ WARNING: No real project objects found! Script loading may have failed.');
+                        console.log('🔍 Will proceed with available objects (may include test objects)');
+                    }
+                    
+                    console.log('\n🚀 Starting method scan...');
+                    await window.inspector.scanForMethods();
+                }, 3000); // さらに長い待機時間（3秒）
+                
+                window.inspector.showToast('Universal Method Inspector ready - Real object protection enabled', 'success');
+            }
+        });
+    </script>
+</body>
+</html>

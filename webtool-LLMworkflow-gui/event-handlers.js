@@ -4,40 +4,277 @@
 class EventHandlers {
     constructor(workflowEditor) {
         this.editor = workflowEditor;
+        this.dragConnection = null;
     }
 
     setupEventListeners() {
+        window.debugMonitor?.logEvent('Setting up event listeners...');
+        
+        // Setup event delegation for dynamic elements
+        this.setupEventDelegation();
+        
+        // Setup static event listeners
         // Toolbar events
-        document.getElementById('execute-btn').addEventListener('click', () => this.editor.executeWorkflow());
-        document.getElementById('toggle-palette').addEventListener('click', () => this.editor.togglePalette());
-        document.getElementById('toggle-properties').addEventListener('click', () => this.editor.toggleProperties());
-        document.getElementById('close-properties').addEventListener('click', () => this.editor.closeProperties());
+        window.debugMonitor?.logEvent('Setting up toolbar events...');
+        document.getElementById('execute-workflow').addEventListener('click', () => {
+            window.debugMonitor?.logEvent('Execute button clicked');
+            this.editor.executeWorkflow();
+        });
+        document.getElementById('toggle-palette').addEventListener('click', () => {
+            window.debugMonitor?.logEvent('Toggle palette button clicked');
+            this.editor.togglePalette();
+        });
+        document.getElementById('toggle-properties').addEventListener('click', () => {
+            window.debugMonitor?.logEvent('Toggle properties button clicked');
+            this.editor.toggleProperties();
+        });
+        document.getElementById('close-properties').addEventListener('click', () => {
+            window.debugMonitor?.logEvent('Close properties button clicked');
+            this.editor.closeProperties();
+        });
+        
+        // Save, Copy, Load and Clear workflow buttons
+        document.getElementById('save-workflow').addEventListener('click', () => {
+            window.debugMonitor?.logEvent('Save workflow button clicked');
+            this.editor.manualSave();
+        });
+        document.getElementById('copy-workflow').addEventListener('click', () => {
+            window.debugMonitor?.logEvent('Copy workflow button clicked');
+            this.editor.copyWorkflowToClipboard();
+        });
+        document.getElementById('load-workflow').addEventListener('click', () => {
+            window.debugMonitor?.logEvent('Load workflow button clicked');
+            this.editor.loadFromJSONFile();
+        });
+        document.getElementById('clear-workflow').addEventListener('click', () => {
+            window.debugMonitor?.logEvent('Clear workflow button clicked');
+            if (confirm('Are you sure you want to clear the entire workflow? This action cannot be undone.')) {
+                this.editor.clearWorkflowStorage();
+                this.editor.workflow.nodes = [];
+                this.editor.workflow.connections = [];
+                this.editor.nodeManager.renderNodes();
+                this.editor.connectionManager.renderConnections();
+                this.editor.uiManager.updateWelcomeMessage();
+                this.editor.showNotification('Workflow cleared successfully!', 'success');
+            }
+        });
         
         // Canvas events
+        window.debugMonitor?.logEvent('Setting up canvas events...');
         const canvas = document.getElementById('canvas');
-        canvas.addEventListener('drop', (e) => this.handleDrop(e));
-        canvas.addEventListener('dragover', (e) => this.handleDragOver(e));
-        canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
-        canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        canvas.addEventListener('contextmenu', (e) => this.handleCanvasContextMenu(e));
+        if (!canvas) {
+            window.debugMonitor?.logError('Canvas element not found!');
+            return;
+        }
+        
+        canvas.addEventListener('drop', (e) => {
+            window.debugMonitor?.logEvent('Drop event triggered on canvas');
+            this.handleDrop(e);
+        });
+        canvas.addEventListener('dragover', (e) => {
+            // Reduced logging to avoid spam
+            this.handleDragOver(e);
+        });
+        canvas.addEventListener('click', (e) => {
+            window.debugMonitor?.logEvent('Canvas click', { x: e.clientX, y: e.clientY });
+            this.handleCanvasClick(e);
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            // Only log significant mouse moves to avoid spam
+            if (this.editor.dragState.isDragging) {
+                window.debugMonitor?.logEvent('Mouse move during drag', { x: e.clientX, y: e.clientY });
+            }
+            this.handleMouseMove(e);
+        });
+        canvas.addEventListener('contextmenu', (e) => {
+            window.debugMonitor?.logEvent('Context menu triggered on canvas');
+            this.handleCanvasContextMenu(e);
+        });
         
         // Global mouse events for dragging and connecting
+        window.debugMonitor?.logEvent('Setting up global mouse events...');
         document.addEventListener('mousemove', (e) => this.handleGlobalMouseMove(e));
-        document.addEventListener('mouseup', (e) => this.handleGlobalMouseUp(e));
-        document.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        document.addEventListener('mouseup', (e) => {
+            window.debugMonitor?.logEvent('Global mouse up', { x: e.clientX, y: e.clientY });
+            this.handleGlobalMouseUp(e);
+        });
+        document.addEventListener('keydown', (e) => {
+            window.debugMonitor?.logEvent('Key pressed', { key: e.key, code: e.code });
+            this.handleKeyDown(e);
+        });
         document.addEventListener('click', (e) => this.handleGlobalClick(e));
         
         // Canvas zoom and pan events
-        canvas.addEventListener('wheel', (e) => this.handleCanvasWheel(e));
-        canvas.addEventListener('mousedown', (e) => this.handleCanvasMouseDown(e));
+        window.debugMonitor?.logEvent('Setting up zoom and pan events...');
+        canvas.addEventListener('wheel', (e) => {
+            window.debugMonitor?.logEvent('Wheel event', { deltaY: e.deltaY });
+            this.handleCanvasWheel(e);
+        });
+        canvas.addEventListener('mousedown', (e) => {
+            window.debugMonitor?.logEvent('Canvas mouse down', { x: e.clientX, y: e.clientY });
+            this.handleCanvasMouseDown(e);
+        });
         
         // Context menu events
         this.setupContextMenuEvents();
+        
+        window.debugMonitor?.logSuccess('All event listeners set up successfully');
+    }
+
+    setupEventDelegation() {
+        // Use delegation to handle dynamically created elements
+        const canvas = document.getElementById('canvas');
+        
+        // Check if canvas exists before adding event listeners
+        if (!canvas) {
+            window.debugMonitor?.logError('Canvas element not found in setupEventDelegation!');
+            return;
+        }
+        
+        // Port click handling with delegation
+        canvas.addEventListener('mousedown', (e) => {
+            const port = e.target.closest('.connection-port');
+            if (port) {
+                this.handlePortMouseDown(e, port);
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (this.dragConnection) {
+                this.handleConnectionDrag(e);
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (this.dragConnection) {
+                this.handleConnectionEnd(e);
+            }
+        });
+    }
+
+    handlePortMouseDown(event, portElement) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const nodeId = portElement.dataset.nodeId;
+        const portType = portElement.dataset.port;
+        
+        // Get port world position
+        const portRect = portElement.getBoundingClientRect();
+        const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+        
+        const startPos = {
+            x: portRect.left + portRect.width / 2 - canvasRect.left,
+            y: portRect.top + portRect.height / 2 - canvasRect.top
+        };
+
+        this.dragConnection = {
+            startPort: { nodeId, type: portType },
+            startPos,
+            currentPos: startPos
+        };
+
+        // Create preview connection line
+        this.createPreviewConnection();
+        
+        // Also trigger the existing port click handler
+        this.handlePortClick(event, nodeId, portType);
+    }
+
+    handleConnectionDrag(event) {
+        if (!this.dragConnection) return;
+        
+        const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+        
+        this.dragConnection.currentPos = {
+            x: event.clientX - canvasRect.left,
+            y: event.clientY - canvasRect.top
+        };
+        
+        this.updatePreviewConnection();
+    }
+
+    handleConnectionEnd(event) {
+        if (!this.dragConnection) return;
+        
+        // Check if we're over a valid target port
+        const targetPort = event.target.closest('.connection-port');
+        if (targetPort && targetPort.dataset.nodeId !== this.dragConnection.startPort.nodeId) {
+            const targetNodeId = targetPort.dataset.nodeId;
+            const targetPortType = targetPort.dataset.port;
+            
+            // Complete the connection
+            this.editor.completeConnection(targetNodeId, targetPortType);
+        } else {
+            // Cancel the connection
+            this.editor.cancelConnection();
+        }
+        
+        // Clean up preview connection
+        this.removePreviewConnection();
+        this.dragConnection = null;
+    }
+
+    createPreviewConnection() {
+        const svg = document.getElementById('connections-svg');
+        if (!svg) return;
+        
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        
+        path.setAttribute("stroke", "#00ff00");
+        path.setAttribute("stroke-width", "2");
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke-dasharray", "5,5");
+        path.setAttribute("opacity", "0.8");
+        path.id = "preview-connection";
+        
+        svg.appendChild(path);
+        this.updatePreviewConnection();
+    }
+
+    updatePreviewConnection() {
+        const previewPath = document.getElementById("preview-connection");
+        if (!previewPath || !this.dragConnection) return;
+
+        const pathData = this.generateBezierPath(
+            this.dragConnection.startPos,
+            this.dragConnection.currentPos
+        );
+        
+        previewPath.setAttribute("d", pathData);
+    }
+
+    generateBezierPath(startPos, endPos) {
+        const dx = endPos.x - startPos.x;
+        const offsetX = Math.abs(dx) * 0.5;
+        const cp1x = startPos.x + offsetX;
+        const cp1y = startPos.y;
+        const cp2x = endPos.x - offsetX;
+        const cp2y = endPos.y;
+        
+        return `M ${startPos.x} ${startPos.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endPos.x} ${endPos.y}`;
+    }
+
+    removePreviewConnection() {
+        const previewPath = document.getElementById("preview-connection");
+        if (previewPath) {
+            previewPath.remove();
+        }
     }
 
     handleDragStart(e, nodeType) {
+        if (this.editor.connectionState.isConnecting) {
+            window.debugMonitor?.logEvent('Canceling connection due to palette drag start', {
+                nodeType,
+                previousConnectionState: this.editor.connectionState
+            });
+            this.editor.connectionManager.cancelConnection();
+        }
+        
         e.dataTransfer.setData('nodeType', nodeType);
         e.dataTransfer.effectAllowed = 'copy';
+        
+        window.debugMonitor?.logEvent('Drag start initiated', { nodeType });
     }
     
     handleDrop(e) {
@@ -60,6 +297,14 @@ class EventHandlers {
     
     handleCanvasClick(e) {
         if (e.target.id === 'canvas') {
+            if (this.editor.connectionState.isConnecting) {
+                window.debugMonitor?.logEvent('Canceling connection due to canvas click', {
+                    clickTarget: e.target.id,
+                    previousConnectionState: this.editor.connectionState
+                });
+                this.editor.connectionManager.cancelConnection();
+            }
+            
             this.editor.selectNode(null);
             this.editor.dragState.connecting = null;
             this.editor.renderConnections();

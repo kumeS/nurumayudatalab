@@ -1,362 +1,361 @@
-# LLM Workflow Editor
+# LLMワークフローエディタ
 
-> Visual AI workflow creation tool - Build complex AI pipelines without programming knowledge
+> ビジュアルAIワークフロー作成ツール - プログラミング知識なしで複雑なAIパイプラインを構築
 
-## 📌 Project Overview
+## 📌 プロジェクト概要
 
-This is a visual LLM workflow editor built with vanilla HTML, CSS, and JavaScript. It allows users to create complex AI workflows using a node-based GUI system without programming knowledge. The application supports multi-stage processing, branching, merging, and automatic code generation.
+これは、バニラHTML、CSS、JavaScriptで構築されたビジュアルLLMワークフローエディタです。プログラミング知識を必要とせず、ノードベースのGUIシステムを使用して複雑なAIワークフローを作成できます。マルチステージ処理、ノード接続、ワークフロー実行をサポートするモジュラーES6アーキテクチャを特徴としています。
 
-## 🏗️ Current Architecture (Modular Design)
+**現在のステータス**: v0.3.x - 接続レンダリング改善を含む重要なバグ修正フェーズ
 
-### Core Modules
+## 🏗️ 現在のアーキテクチャ（モジュラー設計）
 
-The application follows a **modular ES6 class-based architecture** (refactored from single-file):
+### コアモジュール
+
+アプリケーションは**モジュラーES6クラスベースアーキテクチャ**に従います：
 
 ```
 webtool-LLMworkflow-gui/
-├── index.html              # Main HTML file with UI structure
-├── styles.css              # Tailwind CSS-based styling
-├── workflow-editor.js      # Main coordinator class
-├── node-manager.js         # Node creation and management
-├── connection-manager.js   # Connection rendering and logic
-├── event-handlers.js       # DOM event handling
-├── ui-manager.js          # UI panels and property management
-├── workflow-executor.js   # Workflow execution engine
-├── llm.js                 # LLM API integration (mocked)
-└── CLAUDE.md              # Project documentation for AI assistants
+├── index.html              # 3パネルレイアウトのメインHTMLファイル
+├── styles.css              # Tailwind CSSベースのスタイリング
+├── workflow-editor.js      # メインオーケストレータークラス
+├── node-manager.js         # ノード作成と管理
+├── connection-manager.js   # 接続レンダリングとロジック
+├── event-handlers.js       # DOMイベント処理
+├── ui-manager.js          # UIパネルとプロパティ管理
+├── workflow-executor.js   # ワークフロー実行エンジン
+├── llm.js                 # LLM API統合（モック）
+├── debug-monitor.js       # デバッグインフラストラクチャ
+└── CLAUDE.md              # AIアシスタント用プロジェクトドキュメント
 ```
 
-### Module Responsibilities
+### モジュール責任
 
 #### 1. **WorkflowEditor** (workflow-editor.js)
-- Main coordinator class that initializes and manages all modules
-- Maintains workflow state (nodes, connections, metadata)
-- Provides delegation methods to sub-modules
-- Handles canvas state (zoom, pan, transformations)
+- 全モジュールを初期化・管理するメインコーディネータークラス
+- ワークフロー状態の維持（ノード、接続、メタデータ）
+- サブモジュールへの委譲メソッド提供
+- キャンバス状態の処理（ズーム、パン、変換）
 
 #### 2. **NodeManager** (node-manager.js)
-- Node creation, deletion, and position management
-- Node type definitions and default data structures
-- DOM element generation for different node types
-- Node selection and updates
+- ノードの作成、削除、位置管理
+- ノードタイプ定義とデフォルトデータ構造
+- 異なるノードタイプ用のDOM要素生成
+- ノードの選択と更新
 
 #### 3. **ConnectionManager** (connection-manager.js)
-- SVG-based connection line rendering
-- Connection creation and deletion logic
-- Port position calculations with canvas transformations
-- Connection validation and state management
+- SVGベースの接続線レンダリング
+- 接続の作成と削除ロジック
+- キャンバス変換を含むポート位置計算
+- 接続の検証と状態管理
 
 #### 4. **EventHandlers** (event-handlers.js)
-- Mouse and keyboard event processing
-- Drag and drop functionality for nodes and palette items
-- Canvas interaction handling
-- Connection creation through port clicks
+- マウスとキーボードイベント処理
+- ノードとパレットアイテムのドラッグ&ドロップ機能
+- キャンバスインタラクション処理
+- ポートクリックによる接続作成
 
 #### 5. **UIManager** (ui-manager.js)
-- Property panel generation and updates
-- Node palette rendering
-- Modal dialogs and UI state management
-- Node-specific configuration forms
+- プロパティパネル生成と更新
+- ノードパレットレンダリング
+- モーダルダイアログとUI状態管理
+- ノード固有の設定フォーム
 
 #### 6. **WorkflowExecutor** (workflow-executor.js)
-- Topological sorting for execution order
-- Node execution with data flow
-- Mock LLM API calls (currently simulated)
-- Execution state management
+- 実行順序決定のためのトポロジカルソート
+- データフローを含むノード実行
+- モックLLM API呼び出し（現在シミュレート）
+- 実行状態管理
 
-### ✅ Working Features
-- Visual node editor with drag-and-drop functionality
-- Node connection system (internal logic working)
-- Property panel for node configuration  
-- Basic workflow execution with topological sorting
-- Modular architecture with clear separation of concerns
-- Node creation from palette
-- Node selection and property editing
-- Event handling system
+### ✅ 完全に動作する機能
+- **ビジュアルノードエディタ** パレットからのドラッグ&ドロップ
+- **モジュラーES6アーキテクチャ** 明確な関心の分離
+- **ノード管理システム** （8つのノードタイプ：input、llm、branch、merge、filter、loop、custom、output）
+- **プロパティパネルシステム** ノード設定と編集用
+- **ワークフロー実行エンジン** トポロジカルソートあり
+- **イベント処理システム** ユーザーインタラクション用
+- **デバッグ監視システム** 包括的ログ記録
+- **ワークフローエクスポート/インポート機能** （プログラマティック）
+- **ノード選択とハイライト**
+- **無効な接続のクリーンアップ** 自動検証あり
 
-### 🔄 Partially Working Features
-- Connection creation (works internally but lines not visible)
-- Property panel updates (timing issues)
-- Node dragging (works but some offset issues)
+### 🔄 部分的に動作する機能
+- **接続システム**: 内部ロジックは動作、データ構造は正しいが、ビジュアルSVGレンダリングが不安定
+- **プロパティパネル更新**: 動作するが、タイミング同期の問題あり
+- **ノードドラッグ**: 基本機能は動作、軽微な位置オフセット問題あり
+- **キャンバス変換**: スケールと移動状態は追跡されているが、全コンポーネントに完全適用されていない
 
-### ❌ Missing/Broken Features
-- **Visual connection lines rendering** (Critical)
-- **Canvas pan functionality** (Critical)
-- Data persistence (save/load)
-- Real LLM API integration
-- Advanced node types implementation
+### ❌ 修正が必要な重要問題
+- **🔴 接続線が表示されない**: SVGパスは作成されるが座標計算が失敗
+- **🔴 キャンバスパンが不足**: 大きなワークフローをナビゲートするためにキャンバスをドラッグできない  
+- **🟡 入力ノードの色**: オレンジ色スキームでノードが見にくい
+- **🟡 プロパティパネルタイミング**: 接続数が即座に更新されない
+- **🟡 複数出力ポート**: ノードあたり単一出力ポートに制限
 
-## 🎯 Supported Node Types
+### ❌ 未実装
+- データ永続化（localStorage/ファイル保存/読み込み）
+- 実際のLLM API統合（現在モック）
+- アンドゥ/リドゥ機能
+- ワークフローテンプレートとサブワークフロー
 
-| Node Type | Description | Implementation Status |
-|-----------|-------------|----------------------|
-| **Input** | Data entry points with configurable input types | ✅ Complete |
-| **LLM Process** | AI language model processing with prompts | 🔄 Mock Implementation |
-| **Branch** | Conditional logic branching | 🔄 Mock Implementation |
-| **Merge** | Multiple input aggregation | 🔄 Mock Implementation |
-| **Filter** | Data filtering and transformation | 🔄 Mock Implementation |
-| **Loop** | Iterative operations | 🔄 Mock Implementation |
-| **Custom** | Custom JavaScript code execution | 🔄 Mock Implementation |
-| **Output** | Final output destinations | ✅ Complete |
+## 🎯 サポートされるノードタイプ
 
-## 🐛 Critical Bugs Identified (Dev_02.txt Requirements)
+| ノードタイプ | 説明 | UI状態 | ロジック状態 | 実行状態 |
+|-------------|-----|--------|-------------|----------|
+| **Input** | 設定可能な入力を持つデータエントリポイント | ✅ 完了 | ✅ 完了 | ✅ 動作 |
+| **LLM Process** | プロンプト付きAI言語モデル処理 | ✅ 完了 | ✅ 完了 | 🔄 モック/シミュレート |
+| **Branch** | 条件ロジック分岐 | ✅ 完了 | ✅ 完了 | 🔄 モック/シミュレート |
+| **Merge** | 複数入力の集約 | ✅ 完了 | ✅ 完了 | 🔄 モック/シミュレート |
+| **Filter** | データフィルタリングと変換 | ✅ 完了 | ✅ 完了 | 🔄 モック/シミュレート |
+| **Loop** | 反復操作 | ✅ 完了 | ✅ 完了 | 🔄 モック/シミュレート |
+| **Custom** | カスタムJavaScriptコード実行 | ✅ 完了 | ✅ 完了 | 🔄 モック/シミュレート |
+| **Output** | 最終出力先 | ✅ 完了 | ✅ 完了 | ✅ 動作 |
 
-Based on comprehensive testing and analysis, the following critical bugs have been identified:
+## 🐛 現在の開発状況とバグ修正
 
-### 🔴 **CRITICAL BUG #1: Connection Lines Not Visible**
-- **Issue**: Internal connections are created successfully (console shows "Total connections: 1"), but visual connection lines do not render on canvas
-- **Evidence**: Property panel shows correct connection counts, but no visual lines appear in SVG
-- **Impact**: High - Users cannot see their workflow connections
-- **Root Cause**: SVG coordinate calculation and rendering timing issues
-- **Files to Fix**: `connection-manager.js`, `styles.css`
+最近の開発とテスト（v0.3.xコミット）に基づいた現在の状況：
 
-### 🔴 **CRITICAL BUG #2: Canvas Pan Functionality Missing** 
-- **Issue**: Canvas cannot be panned/moved by dragging empty areas
-- **User Request**: "バレット画面の左右上下移動が実装されていない" (Canvas left/right/up/down movement not implemented)
-- **Impact**: High - Users cannot navigate large workflows  
-- **Files to Fix**: `event-handlers.js`, `workflow-editor.js`
+### 🔧 **最近実装された改善**
+- **デバッグ監視システム**: 包括的ログ記録とエラー追跡の追加
+- **接続管理**: エラーハンドリングを改善したSVGレンダリングの強化
+- **ワークフロー検証**: 無効な接続の自動クリーンアップ
+- **エクスポート/インポート機能**: プログラマティックワークフロー状態管理
+- **グローバルデバッグメソッド**: `debugWorkflow()`、`validateWorkflow()`、`cleanupWorkflow()`、`rerenderWorkflow()`
 
-### 🟡 **BUG #3: Input Node Color Issues**
-- **Issue**: "Input Nodeの色合いが良くない。オレンジがInput Nodeの色に加わると見にくい" (Input node colors are bad, orange makes them hard to see)
-- **Impact**: Medium - Affects visual clarity
-- **Files to Fix**: `styles.css`
+### 🔴 **高優先度 - 修正が必要**
 
-### 🟡 **BUG #4: Connection Port Positioning**
-- **Issue**: "Connect nodeは、Nodeの左右の中央にあるべきです" (Connection ports should be centered on left/right sides)
-- **Requirement**: "Connect nodeは出力は最大で3つまで増やせるようにしたい" (Want to support up to 3 output ports)
-- **Files to Fix**: `connection-manager.js`, `styles.css`, `node-manager.js`
+#### バグ #1: 接続線の可視性
+- **状態**: 部分的に改善されたが、まだ不安定
+- **問題**: 一部のキャンバス変換状態でSVG座標計算が失敗
+- **証拠**: コンソールは接続作成成功を表示するが、ビジュアルレンダリングが断続的
+- **ファイル**: `connection-manager.js`（208-257行、getPortPositionメソッド）
 
-### 🟡 **BUG #5: Property Panel Update Timing**
-- **Issue**: "プロパティパネルの接続数表示が正しく更新されない。updatePropertyPanel()の呼び出しタイミングの問題" (Property panel connection counts don't update correctly due to updatePropertyPanel() timing issues)
-- **Impact**: Medium - Confusing but doesn't break functionality
-- **Files to Fix**: `ui-manager.js`, `connection-manager.js`
+#### バグ #2: キャンバスパン実装
+- **状態**: 未実装
+- **問題**: キャンバスナビゲーションが不足（"バレット画面の左右上下移動が実装されていない"）
+- **影響**: 大きなワークフローをナビゲートできない
+- **ファイル**: `event-handlers.js`、キャンバスパンイベント処理が必要
 
-## 🔧 Required Bug Fixes (Implementation Plan)
+### 🟡 **中優先度 - 注意が必要**
 
-### Fix 1: Connection Line Visibility
+#### バグ #3: 入力ノードスタイリング
+- **状態**: デザイン改善が必要
+- **問題**: オレンジ色スキームで読みやすさが低下
+- **ファイル**: `styles.css`（node-inputクラス）
 
-**File: `connection-manager.js`**
+#### バグ #4: プロパティパネル同期
+- **状態**: キューシステムで部分的に改善
+- **問題**: UI更新にまだタイミング遅延あり
+- **ファイル**: `ui-manager.js`（queuePropertyPanelUpdateメソッド）
+
+#### バグ #5: 複数出力ポートサポート
+- **状態**: 未実装
+- **要件**: ノードあたり最大3つの出力ポートをサポート
+- **ファイル**: `connection-manager.js`、`node-manager.js`
+
+## 🔧 実装進捗と次のステップ
+
+### 🎯 **緊急のアクションアイテム**
+
+#### 1. **接続線可視性修正**
+- **現在の進捗**: 強化されたSVG作成と座標系実装
+- **残る問題**: getPortPosition()メソッドでのキャンバス変換統合
+- **次のステップ**: キャンバススケール/移動状態での座標計算をデバッグ
+
+#### 2. **キャンバスパン実装**
+- **現在の進捗**: workflow-editor.jsでキャンバスパン状態追跡実装
+- **残る問題**: キャンバスドラッグ用イベントハンドラーが未接続
+- **次のステップ**: event-handlers.jsでマウスイベント処理実装
+
+#### 3. **UI/UX調整**
+- **入力ノード色スキーム**: より良い可視性のためオレンジからティールに変更
+- **プロパティパネルタイミング**: 既存のキューシステムをより効果的に使用
+- **複数出力ポート**: connection-manager.jsポート位置ロジックの拡張
+
+### 🚀 **最近の開発成果**
+
 ```javascript
-// Fix SVG coordinate calculation issues
-getPortPosition(node, portType) {
-    // Enhanced coordinate calculation with proper canvas transform handling
-    // Ensure DOM elements are ready before calculation
-    // Add retry mechanism for timing issues
-}
-
-renderConnections() {
-    // Force multiple render attempts with proper timing
-    // Add debugging logs to track rendering issues
-    // Ensure SVG z-index and visibility
-}
+// ブラウザコンソールで利用可能な新しいデバッグユーティリティ：
+window.debugWorkflow()     // 包括的状態検査
+window.validateWorkflow()  // 接続検証
+window.cleanupWorkflow()   // 無効な接続を削除
+window.rerenderWorkflow()  // 完全な再レンダリングを強制
 ```
 
-**File: `styles.css`**
-```css
-/* Ensure connection lines are visible */
-#connections-svg {
-    z-index: 15; /* Increase from current value */
-    pointer-events: auto;
-}
+**強化されたエラーハンドリング**: 包括的try-catchブロックとユーザーフレンドリーエラーメッセージ
+**モジュラーアーキテクチャ**: UI、ロジック、レンダリング層間の明確な分離
+**デバッグインフラストラクチャ**: リアルタイム監視とログシステム
 
-#connections-svg path {
-    stroke: #dc2626 !important;
-    stroke-width: 3px !important;
-    opacity: 1 !important;
-}
-```
+### アプリケーションの実行
 
-### Fix 2: Canvas Pan Implementation
-
-**File: `event-handlers.js`**
-```javascript
-// Add canvas panning functionality
-setupCanvasPanEvents() {
-    const canvas = document.getElementById('canvas');
-    
-    // Mouse down on empty canvas starts panning
-    canvas.addEventListener('mousedown', (e) => {
-        if (e.target === canvas) {
-            this.editor.canvasPanState.isPanning = true;
-            this.editor.canvasPanState.startX = e.clientX;
-            this.editor.canvasPanState.startY = e.clientY;
-            this.editor.canvasPanState.startTranslateX = this.editor.canvasState.translateX;
-            this.editor.canvasPanState.startTranslateY = this.editor.canvasState.translateY;
-        }
-    });
-    
-    // Mouse move updates pan position
-    // Mouse up ends panning
-}
-```
-
-### Fix 3: Input Node Color Correction
-
-**File: `styles.css`**
-```css
-/* Change Input node from orange to teal/cyan */
-.node-input { 
-    border-color: #17a2b8; /* Teal instead of orange */
-    background: linear-gradient(145deg, #ffffff 0%, #f0fdff 100%);
-}
-
-.icon-input { 
-    background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
-}
-```
-
-### Fix 4: Multiple Output Port Support
-
-**File: `connection-manager.js`**
-```javascript
-// Support multiple output ports
-getPortPosition(node, portType, portIndex = 0) {
-    // For output ports, calculate position based on portIndex
-    // Distribute up to 3 output ports evenly on right side
-    // Center single input port on left side
-}
-```
-
-### Fix 5: Property Panel Update Timing
-
-**File: `ui-manager.js`**
-```javascript
-// Fix update timing with proper async handling
-updatePropertyPanel() {
-    // Use requestAnimationFrame for proper DOM timing
-    requestAnimationFrame(() => {
-        // Update connection counts
-        // Refresh property forms
-        this.setupPropertyPanelEvents();
-    });
-}
-```
-
-### Running the Application
-
-1. **Direct Browser Opening**:
+1. **直接ブラウザオープン**（macOS）:
    ```bash
    open index.html
    ```
 
-2. **Local Server (Recommended)**:
+2. **ローカルサーバー**（開発推奨）:
    ```bash
    # Python 3
    python -m http.server 8000
+   # その後 http://localhost:8000 にアクセス
    
-   # Node.js
-   npx http-server
+   # 代替サーバー
+   python3 -m http.server 8000    # Python 3明示的
+   npx http-server                 # Node.js利用可能な場合
    ```
 
-### Technology Stack
-- **Frontend**: Vanilla HTML5, CSS3, JavaScript (ES6+)
-- **UI Framework**: Custom Tailwind-like CSS utilities
-- **Build**: None (static files)
-- **Dependencies**: None (no CDN usage)
+3. **開発デバッグ**:
+   ```javascript
+   // ブラウザコンソールで利用可能：
+   window.workflowEditor           // メインエディタインスタンス
+   window.debugWorkflow()          // 状態検査
+   window.validateWorkflow()       // 接続検証
+   window.cleanupWorkflow()        // 無効な接続クリーンアップ
+   window.rerenderWorkflow()       // 強制再レンダリング
+   ```
 
-### Architecture Patterns
-- **Modular Design**: Concerns separated into distinct ES6 classes
-- **Direct DOM Manipulation**: Framework-free lightweight implementation
-- **SVG-Based Drawing**: Connection lines rendered with SVG
-- **Event-Driven**: Responsive to user interactions
-- **Delegation Pattern**: Main class delegates to specialized modules
+### 技術スタック
+- **フロントエンド**: バニラHTML5、CSS3、JavaScript（ES6+）
+- **UIフレームワーク**: カスタムTailwindライクなCSSユーティリティ
+- **ビルド**: なし（静的ファイル）
+- **依存関係**: なし（CDN使用なし）
 
-## 📖 Usage Guide
+### アーキテクチャパターン
+- **モジュラー設計**: 異なるES6クラスに分離された関心事
+- **直接DOM操作**: フレームワークフリーの軽量実装
+- **SVGベース描画**: SVGで描画される接続線
+- **イベント駆動**: ユーザーインタラクションに応答
+- **委譲パターン**: メインクラスが専門モジュールに委譲
 
-### Basic Operations
+## 📖 使用ガイド
 
-1. **Adding Nodes**: Drag from left palette or click to add to canvas
-2. **Node Connections**: Use property panel dropdown or drag between ports  
-3. **Property Editing**: Select node to open right property panel
-4. **Workflow Execution**: Click "Execute Workflow" button in toolbar
-5. **File Operations**: Currently not implemented (save/load missing)
+### 基本操作
 
-### Debugging
+1. **ノード追加**: 左パレットからドラッグまたはクリックでキャンバスに追加
+2. **ノード接続**: プロパティパネルドロップダウンまたはポート間ドラッグ  
+3. **プロパティ編集**: ノード選択で右プロパティパネルを開く
+4. **ワークフロー実行**: ツールバーの「Execute Workflow」ボタンをクリック
+5. **ファイル操作**: 保存・読み込み機能（自動保存システム実装済み）
 
-Available in browser developer console:
+### デバッグ
+
+ブラウザデベロッパーコンソールで利用可能：
 
 ```javascript
-// Access main editor instance
+// メインエディタインスタンスにアクセス
 window.workflowEditor
 
-// Inspect workflow data
-window.workflowEditor.workflow.nodes        // All nodes  
-window.workflowEditor.workflow.connections  // All connections
-window.workflowEditor.executionResults      // Execution results
+// ワークフローデータを検査
+window.workflowEditor.workflow.nodes        // 全ノード  
+window.workflowEditor.workflow.connections  // 全接続
+window.workflowEditor.executionResults      // 実行結果
 
-// Debug specific modules
+// 特定モジュールをデバッグ
 window.workflowEditor.connectionManager.renderConnections()
 window.workflowEditor.nodeManager.renderNodes()
 ```
 
-## 🎯 Development Roadmap
+## 🎯 開発ロードマップ
 
-### Phase 1: Critical Bug Fixes (1 week)
-1. **Fix connection line visibility** - SVG rendering and coordinate calculation
-2. **Implement canvas pan functionality** - Mouse drag navigation  
-3. **Correct Input node colors** - Change from orange to teal
-4. **Fix property panel timing** - Connection count updates
-5. **Add multiple output port support** - Up to 3 ports per node
+### フェーズ1: 重要なバグ修正（1週間）
+1. **接続線可視性修正** - SVGレンダリングと座標計算
+2. **キャンバスパン機能実装** - マウスドラッグナビゲーション  
+3. **入力ノード色修正** - オレンジからティールに変更
+4. **プロパティパネルタイミング修正** - 接続数更新
+5. **複数出力ポートサポート追加** - ノードあたり最大3ポート
 
-### Phase 2: Core Features (2-3 weeks)
-1. **Real LLM API integration** - Replace mock implementations
-2. **Data persistence** - localStorage and file save/load
-3. **Advanced connection management** - Visual port connections
-4. **Workflow validation** - Structure and data flow validation
+### フェーズ2: コア機能（2-3週間）
+1. **実際のLLM API統合** - モック実装の置き換え
+2. **データ永続化** - localStorageとファイル保存/読み込み
+3. **高度な接続管理** - ビジュアルポート接続
+4. **ワークフロー検証** - 構造とデータフロー検証
 
-### Phase 3: Advanced Features (1-2 months)
-1. **Import/export functionality** - JSON, code generation
-2. **Version control and history** - Undo/redo, change tracking
-3. **Performance optimizations** - Large workflow handling
-4. **Collaborative editing** - Multi-user support
+### フェーズ3: 高度な機能（1-2ヶ月）
+1. **インポート/エクスポート機能** - JSON、コード生成
+2. **バージョン管理と履歴** - アンドゥ/リドゥ、変更追跡
+3. **パフォーマンス最適化** - 大規模ワークフロー処理
+4. **協調編集** - マルチユーザーサポート
 
-## 🤝 Contributing
+## 🤝 貢献
 
-### Code Style Guidelines
-1. **ES6+ Standards**: Use modern JavaScript with class-based architecture
-2. **Modular Design**: Keep concerns separated in appropriate modules
-3. **Clear Naming**: Use descriptive variable and method names
-4. **Documentation**: Update CLAUDE.md for AI assistant guidance
+### コードスタイルガイドライン
+1. **ES6+標準**: クラスベースアーキテクチャを用いた現代的JavaScript
+2. **モジュラー設計**: 適切なモジュールで関心事を分離
+3. **明確な命名**: 説明的な変数とメソッド名を使用
+4. **ドキュメンテーション**: AIアシスタントガイダンス用CLAUDE.mdを更新
 
-### Testing
-- **UI Testing**: Use Playwright for visual and interaction testing
-- **Manual Testing**: Test in multiple browsers (Chrome, Firefox, Safari)
-- **Console Testing**: Use browser console debugging utilities
+### テスト
+- **UIテスト**: ビジュアルとインタラクションテスト用Playwright
+- **手動テスト**: 複数ブラウザでテスト（Chrome、Firefox、Safari）
+- **コンソールテスト**: ブラウザコンソールデバッグユーティリティを使用
 
-### Adding New Node Types
-1. Add definition to `nodeTypes` array in `workflow-editor.js`
-2. Add icon SVG in `getIcon()` method
-3. Define default data in `getDefaultNodeData()` method in `node-manager.js`
-4. Add property form in `getNodeSpecificFields()` method in `ui-manager.js`
-5. Implement execution logic in `executeNode()` method in `workflow-executor.js`
+### 新しいノードタイプの追加
+1. `workflow-editor.js`の`nodeTypes`配列に定義を追加
+2. `getIcon()`メソッドにアイコンSVGを追加
+3. `node-manager.js`の`getDefaultNodeData()`メソッドでデフォルトデータを定義
+4. `ui-manager.js`の`getNodeSpecificFields()`メソッドにプロパティフォームを追加
+5. `workflow-executor.js`の`executeNode()`メソッドで実行ロジックを実装
 
-## 📄 File Structure Summary
+## 📄 ファイル構造概要
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `workflow-editor.js` | ~380 | Main coordinator and delegation |
-| `ui-manager.js` | ~750 | Property panels and UI management |
-| `connection-manager.js` | ~370 | Connection logic and SVG rendering |
-| `event-handlers.js` | ~300 | Mouse/keyboard event processing |
-| `node-manager.js` | ~200 | Node creation and management |
-| `workflow-executor.js` | ~150 | Workflow execution engine |
-| `llm.js` | ~100 | LLM API integration (mocked) |
-| `styles.css` | ~850 | Tailwind-based styling |
-| `index.html` | ~250 | Single-page application layout |
-
-## 📊 Current Status
-
-**Project Version**: v0.3.x  
-**Architecture**: Modular ES6 Classes  
-**Last Updated**: June 2025  
-**Development Status**: Active - Critical bug fixing phase
-
-### Key Metrics
-- **Total Code**: ~3,400 lines across 9 files
-- **Working Features**: 70% (Node creation, basic connections, property editing)
-- **Critical Bugs**: 5 identified (2 high priority, 3 medium priority)
-- **Test Coverage**: Manual testing with Playwright automation
+| ファイル | 行数 | 目的 |
+|---------|------|------|
+| `workflow-editor.js` | ~1000 | メインコーディネーターと委譲、自動保存システム |
+| `ui-manager.js` | ~1000+ | プロパティパネルとUI管理、保存・クリア機能 |
+| `connection-manager.js` | ~490 | 接続ロジックとSVGレンダリング、レイアウト検知 |
+| `event-handlers.js` | ~400 | マウス/キーボードイベント処理 |
+| `node-manager.js` | ~740 | ノード作成と管理、ポート設定 |
+| `workflow-executor.js` | ~150 | ワークフロー実行エンジン |
+| `debug-monitor.js` | ~340 | デバッグインフラストラクチャ |
+| `llm.js` | ~100 | LLM API統合（モック） |
+| `styles.css` | ~850 | Tailwindベーススタイリング |
+| `index.html` | ~325 | シングルページアプリケーションレイアウト |
 
 ---
 
-**For detailed AI assistant guidance, see [CLAUDE.md](./CLAUDE.md)**
+## 🔍 デバッグと開発
+
+### ブラウザコンソールコマンド
+```javascript
+// リアルタイムワークフロー検査
+window.workflowEditor.workflow.nodes         // 全ノード
+window.workflowEditor.workflow.connections   // 全接続  
+window.workflowEditor.executionResults       // 最後の実行結果
+
+// デバッグユーティリティ
+window.debugWorkflow()     // 完全な状態ダンプ
+window.validateWorkflow()  // 接続検証
+window.cleanupWorkflow()   // 無効な接続削除
+window.rerenderWorkflow()  // 完全な再レンダリング強制
+```
+
+### モジュール構造
+- `workflow-editor.js`（~1000行） - デバッグユーティリティ付きメインオーケストレーター
+- `connection-manager.js`（~490行） - 強化されたSVGレンダリングシステム
+- `ui-manager.js`（~1000+行） - プロパティパネルとUI管理
+- `event-handlers.js`（~400行） - ユーザーインタラクション処理
+- `node-manager.js`（~740行） - ノードライフサイクル管理
+- `workflow-executor.js`（~150行） - 実行エンジン
+- `debug-monitor.js`（~340行） - デバッグインフラストラクチャ
+
+## 📊 現在のステータス
+
+**プロジェクトバージョン**: v0.3.x  
+**アーキテクチャ**: デバッグインフラストラクチャ付きモジュラーES6クラス  
+**最終更新**: 2024年12月  
+**開発ステータス**: アクティブ - 接続レンダリングとUX改善
+
+### 主要指標
+- **総コード**: 9つのコアファイルで4,000+行
+- **動作機能**: 80%（全UIコンポーネント、ワークフローロジック、デバッグツール）
+- **重要問題**: 2つの高優先度（接続可視性、キャンバスパン）
+- **中程度問題**: 3つ（スタイリング、タイミング、マルチポートサポート）
+- **テストカバレッジ**: 包括的デバッグユーティリティによる手動テスト
+
+### 開発フォーカス
+- **第1週**: 接続線レンダリングとキャンバスナビゲーション修正
+- **第2週**: UI/UX改善と複数出力ポートサポート
+- **第3週**: 実際のLLM API統合とデータ永続化
+- **第4週**: パフォーマンス最適化と高度な機能
+
+**詳細なAIアシスタントガイダンスについては、[CLAUDE.md](./CLAUDE.md)を参照**

@@ -2556,7 +2556,10 @@
             } else if (errorMsg.includes('replicate')) {
               errorMessage = 'Replicate APIエラー';
               isServerError = true;
-            } else if (errorMsg.includes('timeout')) {
+            } else if (errorMsg.includes('画像生成がタイムアウトしました')) {
+              errorMessage = 'タイムアウト（120秒経過）';
+              isServerError = true;
+            } else if (errorMsg.includes('timeout') || errorMsg.includes('タイムアウト')) {
               errorMessage = 'タイムアウト';
               isServerError = true;
             } else if (errorMsg.includes('network')) {
@@ -2601,7 +2604,8 @@
                 <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
                 <div style="font-weight: 600; margin-bottom: 0.5rem;">画像生成に失敗</div>
                 <div style="font-size: 0.9rem; color: #666;">${errorMessage}</div>
-                ${isServerError ? '<div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">サーバーエラーのため再実行できます</div>' : ''}
+                ${isServerError && errorMessage.includes('タイムアウト') ? '<div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">Minimax Image-01は最大120秒かかることがあります</div>' : ''}
+                ${isServerError && !errorMessage.includes('タイムアウト') ? '<div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">サーバーエラーのため再実行できます</div>' : ''}
               </div>
               ${retryButtonHtml}
             </div>

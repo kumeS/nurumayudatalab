@@ -24,14 +24,57 @@
                     
                     <div class="h-6 w-px" style="background-color: rgba(255,255,255,0.3);"></div>
                     
-                    <div class="flex items-center space-x-2">
-                        <button id="execute-btn" class="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors" style="background: var(--secondary-gradient); color: white;">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m-6 4h1m4 0h1M9 6h1m4 0h1"/>
-                            </svg>
-                            <span>Execute</span>
-                        </button>
-                    </div>
+                                          <div class="flex items-center space-x-2">
+                          <button id="execute-workflow" class="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors" style="background: var(--primary); color: white;">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M15 14h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                              </svg>
+                              <span>Execute</span>
+                          </button>
+                          
+                          <!-- **新機能**: 保存・クリア機能 -->
+                          <button id="save-workflow" class="flex items-center space-x-2 px-3 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors" title="Save Workflow as JSON" style="background: #10B981; color: white;">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                              </svg>
+                              <span>Save</span>
+                          </button>
+                          
+                          <button id="copy-workflow" class="flex items-center space-x-2 px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors" title="Copy Workflow JSON to Clipboard" style="background: #6B7280; color: white;">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                              </svg>
+                              <span>Copy</span>
+                          </button>
+                          
+                          <button id="load-workflow" class="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors" title="Load Workflow from JSON" style="background: #3B82F6; color: white;">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                              </svg>
+                              <span>Load</span>
+                          </button>
+                          
+                          <button id="clear-workflow" class="flex items-center space-x-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors" title="Clear Workflow" style="background: #EF4444; color: white;">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                              </svg>
+                              <span>Clear</span>
+                          </button>
+
+                          <button id="toggle-palette" class="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors" title="Toggle Node Palette" style="background: rgba(255,255,255,0.2); color: white;">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                              </svg>
+                          </button>
+
+                          <button id="toggle-properties" class="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors" title="Toggle Properties Panel" style="background: rgba(255,255,255,0.2); color: white;">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                              </svg>
+                          </button>
+                          
+                      </div>
                 </div>
 
                 <!-- Center section - Removed file operations -->
@@ -102,13 +145,13 @@
                         <rect width="100%" height="100%" fill="url(#grid)"/>
                     </svg>
 
-                    <!-- Nodes will be added here dynamically -->
-                    <div id="nodes-container"></div>
-
-                    <!-- Connections SVG -->
-                    <svg id="connections-svg" class="absolute inset-0 w-full h-full" style="pointer-events: auto; z-index: 10;">
+                    <!-- Connections SVG (behind nodes) -->
+                    <svg id="connections-svg" class="absolute inset-0 w-full h-full" style="pointer-events: none; z-index: 1;">
                         <!-- Connections will be drawn here -->
                     </svg>
+
+                    <!-- Nodes will be added here dynamically (in front of connections) -->
+                    <div id="nodes-container" style="position: relative; z-index: 2;"></div>
 
                     <!-- Welcome message -->
                     <div id="welcome-message" class="absolute inset-0 flex items-center justify-center">
@@ -237,7 +280,10 @@
         </div>
     </div>
 
-    <!-- Load LLM API module first -->
+    <!-- Load Debug Monitor first -->
+    <script src="debug-monitor.js"></script>
+    
+    <!-- Load LLM API module -->
     <script src="llm.js"></script>
     
     <!-- Load workflow editor modules in dependency order -->
@@ -249,5 +295,73 @@
     
     <!-- Load main workflow editor last -->
     <script src="workflow-editor.js"></script>
+    
+    <!-- Initialize the application -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                console.log('🚀 Starting LLM Workflow Editor initialization...');
+                
+                // Initialize debug monitor
+                if (window.debugMonitor) {
+                    window.debugMonitor.logInit('DOM loaded, starting WorkflowEditor initialization');
+                }
+                
+                // Create the workflow editor instance
+                window.editor = new WorkflowEditor();
+                
+                console.log('✅ LLM Workflow Editor initialized successfully');
+                
+                // Hide initialization error if it exists
+                const errorDiv = document.querySelector('.initialization-error');
+                if (errorDiv) {
+                    errorDiv.style.display = 'none';
+                }
+                
+            } catch (error) {
+                console.error('❌ Failed to initialize LLM Workflow Editor:', error);
+                
+                // Show initialization error
+                const errorDiv = document.querySelector('.initialization-error');
+                if (errorDiv) {
+                    errorDiv.style.display = 'block';
+                }
+                
+                // Create error display if it doesn't exist
+                if (!errorDiv) {
+                    const errorContainer = document.createElement('div');
+                    errorContainer.className = 'initialization-error';
+                    errorContainer.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #fee;
+                        border: 1px solid #fcc;
+                        border-radius: 8px;
+                        padding: 16px;
+                        max-width: 400px;
+                        z-index: 9999;
+                        font-family: system-ui, -apple-system, sans-serif;
+                    `;
+                    errorContainer.innerHTML = `
+                        <div style="color: #c53030; font-weight: bold; margin-bottom: 8px;">
+                            ⚠️ Initialization Error
+                        </div>
+                        <div style="color: #744210; margin-bottom: 8px;">
+                            Failed to start the Workflow Editor. Please refresh the page.
+                        </div>
+                        <div style="color: #744210; font-size: 12px;">
+                            Check console for details.
+                        </div>
+                    `;
+                    document.body.appendChild(errorContainer);
+                }
+                
+                if (window.debugMonitor) {
+                    window.debugMonitor.logError('WorkflowEditor initialization failed: ' + error.message);
+                }
+            }
+        });
+    </script>
 </body>
 </html>

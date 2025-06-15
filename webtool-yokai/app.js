@@ -58,7 +58,15 @@ class ReplicateImageClient {
       payload: payload
     };
 
-
+    // Minimax Image-01の場合は120秒、その他は60秒のタイムアウトを設定
+    const isMinimaxModel = apiUrl.includes('minimax/image-01');
+    const timeoutMs = isMinimaxModel ? 120000 : 60000; // 120秒 vs 60秒
+    
+    // AbortControllerでタイムアウトを実装
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
 
     try {
       const response = await fetch(this.workerUrl, {
@@ -66,8 +74,12 @@ class ReplicateImageClient {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(requestData)
+        body: JSON.stringify(requestData),
+        signal: controller.signal
       });
+
+      // タイムアウトをクリア（成功時）
+      clearTimeout(timeoutId);
 
       const duration = Math.round(performance.now() - startTime);
       
@@ -94,8 +106,17 @@ class ReplicateImageClient {
       
       return data;
     } catch (error) {
+      // タイムアウトをクリア（エラー時）
+      clearTimeout(timeoutId);
+
       const duration = Math.round(performance.now() - startTime);
       
+      // タイムアウトエラーの場合、分かりやすいメッセージに変換
+      if (error.name === 'AbortError') {
+        const timeoutSeconds = Math.round(timeoutMs / 1000);
+        const modelName = isMinimaxModel ? 'Minimax Image-01' : 'SDXL Lightning';
+        throw new Error(`画像生成がタイムアウトしました（${timeoutSeconds}秒経過）。${modelName}は時間がかかる場合があります。Cloudflare Workersの制限も原因の可能性があります。`);
+      }
 
       
       throw error;
@@ -557,7 +578,13 @@ async function generateYokaiImage(yokaiInfo, style = 'traditional', workerUrl, m
       shortErrorMessage = 'API接続エラー';
     } else if (errorMsg.includes('replicate api エラー')) {
       shortErrorMessage = 'Replicate APIエラー';
-    } else if (errorMsg.includes('timeout')) {
+    } else if (errorMsg.includes('画像生成がタイムアウトしました')) {
+      if (errorMsg.includes('cloudflare workers')) {
+        shortErrorMessage = 'タイムアウト（Cloudflare制限）';
+      } else {
+        shortErrorMessage = 'タイムアウト（120秒経過）';
+      }
+    } else if (errorMsg.includes('timeout') || errorMsg.includes('タイムアウト')) {
       shortErrorMessage = 'タイムアウト';
     } else if (errorMsg.includes('network')) {
       shortErrorMessage = 'ネットワークエラー';

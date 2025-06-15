@@ -170,24 +170,39 @@ body {
 /* Custom Styles for Workflow Editor */
 
 /* SVG Connection Styles */
+/* This section is now handled above in the Connection Layer section */
+
+#connections-svg path {
+  pointer-events: auto; /* Enable interaction with connection paths */
+}
+
+#connections-svg g.connection {
+  pointer-events: auto; /* Enable interaction with connection groups */
+}
+
+/* Workflow Editor - Create new stacking context */
+#canvas {
+  position: relative;
+  isolation: isolate; /* Create new stacking context */
+}
+
+/* Connection Layer */
 #connections-svg {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: auto;
-  z-index: 15;
-}
-
-#connections-svg path {
-  pointer-events: auto;
+  pointer-events: none; /* Allow clicks through to nodes by default */
+  z-index: 1; /* Behind nodes */
+  /* Ensure proper viewport handling */
+  overflow: visible;
 }
 
 /* Node Styles */
 #nodes-container {
   position: relative;
-  z-index: 20;
+  z-index: 2; /* Above connections */
   width: 100%;
   height: 100%;
 }
@@ -305,18 +320,20 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 20;
+  z-index: 15; /* Above everything */
   border-radius: 50%;
 }
 
 .connection-port.input-port {
-  left: -12px;
+  left: -8px; /* Center on left edge */
   top: 50%;
   transform: translateY(-50%);
 }
 
 .connection-port.output-port {
-  right: -12px;
+  right: -8px; /* Center on right edge */
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 /* Legacy support for .input and .output classes */
@@ -335,10 +352,10 @@ body {
 .connection-port::before {
   content: '';
   position: absolute;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   background-color: #ffffff;
-  border: 3px solid var(--primary);
+  border: 2px solid #333;
   border-radius: 50%;
   transition: all 0.3s ease;
   box-shadow: 0 2px 6px rgba(255, 126, 95, 0.3);

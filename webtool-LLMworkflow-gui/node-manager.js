@@ -15,22 +15,45 @@ class NodeManager {
         return `node_${nodeType}_${uniqueId}`;
     }
     
-    addNode(nodeType, position) {
+    async addNode(nodeType, position) {
+        // **修正**: 新しいノード追加時に接続モードを解除
+        if (this.editor.connectionState.isConnecting) {
+            window.debugMonitor?.logNode('Canceling connection due to new node creation', {
+                nodeType,
+                previousConnectionState: this.editor.connectionState
+            });
+            this.editor.connectionManager.cancelConnection();
+        }
+        
         // Auto-adjust position to prevent overlapping if position is default
         const adjustedPosition = this.getNextAvailablePosition(position);
         
-        const newNode = {
-            id: this.generateNodeId(nodeType),
+        // Use enhanced node creation with proper port positioning
+        const newNode = await this.createNodeWithPorts({
             type: nodeType,
-            position: adjustedPosition,
-            data: this.getDefaultNodeData(nodeType)
-        };
+            position: adjustedPosition
+        });
         
         this.editor.workflow.nodes.push(newNode);
         this.editor.workflow.metadata.updatedAt = new Date();
         
-        this.renderNodes();
+        // **新機能**: 自動保存をトリガー
+        this.editor.markAsChanged();
+        
+        // Auto-select the new node
+        this.editor.selectNode(newNode);
         this.editor.updateWelcomeMessage();
+        
+        // Render connections after port positions are calculated
+        setTimeout(() => {
+            this.editor.renderConnections();
+        }, 50);
+        
+        window.debugMonitor?.logNode(`Added ${nodeType} node`, {
+            nodeId: newNode.id,
+            position: adjustedPosition,
+            wasConnecting: this.editor.connectionState.isConnecting
+        });
         
         return newNode;
     }
@@ -198,33 +221,46 @@ class NodeManager {
             element.classList.add('selected');
         }
         
-        // Determine number of output ports (max 3)
-        const outputPortCount = Math.min(node.data.outputPorts || 1, 3);
-        let outputPortsHtml = '';
+        // **修正**: ノードタイプに応じたポート配置の決定
+        const nodePortConfig = this.getNodePortConfiguration(node.type);
         
-        for (let i = 0; i < outputPortCount; i++) {
-            const portTop = outputPortCount === 1 ? '50%' : 
-                           outputPortCount === 2 ? (i === 0 ? '33%' : '67%') :
-                           (i === 0 ? '25%' : i === 1 ? '50%' : '75%');
-            
-            outputPortsHtml += `
-                <div class="connection-port output-port" 
+        // Input portのHTML生成（必要な場合のみ）
+        let inputPortHtml = '';
+        if (nodePortConfig.hasInput) {
+            inputPortHtml = `
+                <div class="connection-port input-port" 
                      data-node-id="${node.id}" 
-                     data-port="output"
-                     data-port-index="${i}"
-                     style="top: ${portTop}; transform: translateY(-50%);"
-                     title="Output port ${i + 1} - click to connect">
+                     data-port="input"
+                     title="Input port - click to connect">
                 </div>
             `;
         }
         
+        // Output portsのHTML生成（必要な場合のみ）
+        let outputPortsHtml = '';
+        if (nodePortConfig.hasOutput) {
+            const outputPortCount = Math.min(node.data.outputPorts || 1, 3);
+            
+            for (let i = 0; i < outputPortCount; i++) {
+                const portTop = outputPortCount === 1 ? '50%' : 
+                               outputPortCount === 2 ? (i === 0 ? '33%' : '67%') :
+                               (i === 0 ? '25%' : i === 1 ? '50%' : '75%');
+                
+                outputPortsHtml += `
+                    <div class="connection-port output-port" 
+                         data-node-id="${node.id}" 
+                         data-port="output"
+                         data-port-index="${i}"
+                         style="top: ${portTop}; transform: translateY(-50%);"
+                         title="Output port ${i + 1} - click to connect">
+                    </div>
+                `;
+            }
+        }
+        
         element.innerHTML = `
-            <!-- Input Connection Port -->
-            <div class="connection-port input-port" 
-                 data-node-id="${node.id}" 
-                 data-port="input"
-                 title="Input port - click to connect">
-            </div>
+            <!-- Input Connection Port (条件付き表示) -->
+            ${inputPortHtml}
             
             <!-- Node Header -->
             <div class="node-header">
@@ -248,7 +284,7 @@ class NodeManager {
                 ${this.getNodeContent(node)}
             </div>
             
-            <!-- Output Connection Ports -->
+            <!-- Output Connection Ports (条件付き表示) -->
             ${outputPortsHtml}
         `;
         
@@ -284,6 +320,13 @@ class NodeManager {
                 const portType = port.dataset.port;
                 this.editor.handlePortHover(e, nodeId, portType, false);
             });
+        });
+        
+        window.debugMonitor?.logNode(`Created ${node.type} node with ports`, {
+            nodeId: node.id,
+            hasInput: nodePortConfig.hasInput,
+            hasOutput: nodePortConfig.hasOutput,
+            outputPorts: nodePortConfig.hasOutput ? (node.data.outputPorts || 1) : 0
         });
         
         return element;
@@ -442,6 +485,84 @@ class NodeManager {
         }
     }
     
+    // Enhanced port position calculation with timing fixes
+    calculatePortPositions(node) {
+        return new Promise((resolve) => {
+            // Wait for DOM layout to complete
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const nodeElement = document.querySelector(`[data-node-id="${node.id}"]`);
+                    if (!nodeElement) {
+                        resolve({ inputs: [], outputs: [] });
+                        return;
+                    }
+
+                    const rect = nodeElement.getBoundingClientRect();
+                    const canvas = document.getElementById('canvas');
+                    const containerRect = canvas ? canvas.getBoundingClientRect() : rect;
+                    
+                    // Calculate relative positions for proper SVG coordinates
+                    const nodeX = rect.left - containerRect.left;
+                    const nodeY = rect.top - containerRect.top;
+                    const nodeWidth = rect.width;
+                    const nodeHeight = rect.height;
+
+                    // Input ports (left side, centered)
+                    const inputPorts = [{
+                        id: `${node.id}-input-0`,
+                        x: nodeX, // Left edge
+                        y: nodeY + nodeHeight / 2,
+                        type: 'input',
+                        dataType: 'any'
+                    }];
+
+                    // Output ports (right side, up to 3 ports)
+                    const outputCount = Math.min(3, node.data.outputPorts || 1);
+                    const outputPorts = [];
+                    
+                    for (let index = 0; index < outputCount; index++) {
+                        const yOffset = outputCount === 1 ? 
+                            nodeHeight / 2 : 
+                            (nodeHeight / (outputCount + 1)) * (index + 1);
+                        
+                        outputPorts.push({
+                            id: `${node.id}-output-${index}`,
+                            x: nodeX + nodeWidth, // Right edge
+                            y: nodeY + yOffset,
+                            type: 'output',
+                            dataType: 'any'
+                        });
+                    }
+
+                    resolve({ inputs: inputPorts, outputs: outputPorts });
+                });
+            });
+        });
+    }
+    
+    // Enhanced node creation with proper port positioning
+    async createNodeWithPorts(nodeData) {
+        const node = {
+            id: this.generateNodeId(nodeData.type),
+            type: nodeData.type,
+            position: nodeData.position || { x: 100, y: 100 },
+            data: this.getDefaultNodeData(nodeData.type)
+        };
+
+        // Create DOM element first
+        const nodeElement = this.createNodeElement(node);
+        const nodesContainer = document.getElementById('nodes-container');
+        if (nodesContainer) {
+            nodesContainer.appendChild(nodeElement);
+        }
+
+        // Wait for layout and calculate port positions
+        const ports = await this.calculatePortPositions(node);
+        node.ports = ports;
+
+        return node;
+    }
+    
     updateNodePosition(nodeId, position) {
         const node = this.editor.workflow.nodes.find(n => n.id === nodeId);
         if (node) {
@@ -509,6 +630,10 @@ class NodeManager {
         
         // Update UI
         this.editor.workflow.metadata.updatedAt = new Date();
+        
+        // **新機能**: 自動保存をトリガー
+        this.editor.markAsChanged();
+        
         this.editor.renderConnections();
         this.editor.updatePropertyPanel();
         this.editor.updateWelcomeMessage();
@@ -521,6 +646,10 @@ class NodeManager {
         if (node) {
             node.data[field] = value;
             this.editor.workflow.metadata.updatedAt = new Date();
+            
+            // **新機能**: 自動保存をトリガー
+            this.editor.markAsChanged();
+            
             this.updateSingleNode(nodeId);
         }
     }
@@ -578,6 +707,73 @@ class NodeManager {
         console.log(`✅ Node "${newNode.data.label}" duplicated from "${node.data.label || node.type}"`);
         
         return newNode;
+    }
+    
+    // **新機能**: ノードタイプに応じたポート設定を返す
+    getNodePortConfiguration(nodeType) {
+        const portConfigurations = {
+            // Input node: 出力のみ（右側のみ）
+            'input': {
+                hasInput: false,
+                hasOutput: true,
+                description: 'データを生成し、他のノードに送信'
+            },
+            
+            // LLM node: 入力と出力（左右両方）
+            'llm': {
+                hasInput: true,
+                hasOutput: true,
+                description: 'データを受信し、処理して出力'
+            },
+            
+            // Branch node: 入力と複数出力（左側と右側）
+            'branch': {
+                hasInput: true,
+                hasOutput: true,
+                description: '条件に基づいて分岐'
+            },
+            
+            // Merge node: 複数入力と出力（左側と右側）
+            'merge': {
+                hasInput: true,
+                hasOutput: true,
+                description: '複数の入力をマージして出力'
+            },
+            
+            // Filter node: 入力と出力（左右両方）
+            'filter': {
+                hasInput: true,
+                hasOutput: true,
+                description: 'データをフィルタリングして出力'
+            },
+            
+            // Loop node: 入力と出力（左右両方）
+            'loop': {
+                hasInput: true,
+                hasOutput: true,
+                description: 'ループ処理を実行'
+            },
+            
+            // Custom node: 入力と出力（左右両方）
+            'custom': {
+                hasInput: true,
+                hasOutput: true,
+                description: 'カスタムロジックを実行'
+            },
+            
+            // Output node: 入力のみ（左側のみ）
+            'output': {
+                hasInput: true,
+                hasOutput: false,
+                description: '最終結果を受信'
+            }
+        };
+        
+        return portConfigurations[nodeType] || {
+            hasInput: true,
+            hasOutput: true,
+            description: 'デフォルト設定'
+        };
     }
 }
 

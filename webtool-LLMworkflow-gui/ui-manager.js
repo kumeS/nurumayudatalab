@@ -1,16 +1,38 @@
-// UI Manager Module
-// Handles all user interface elements including property panels, node palette, and modals
+// UI Manager Module - Bug Fixes
+// 修正点: プロパティパネルの更新タイミング、複数出力ポート設定、接続数表示
 
 class UIManager {
     constructor(workflowEditor) {
         this.editor = workflowEditor;
+        this.updateQueue = [];
+        this.isUpdating = false;
     }
 
     renderNodePalette() {
+        try {
+            window.debugMonitor?.logUI('Starting renderNodePalette...');
+            
         const container = document.getElementById('node-types');
+            if (!container) {
+                throw new Error('node-types container not found');
+            }
+            
+            if (!this.editor.nodeTypes) {
+                throw new Error('this.editor.nodeTypes is undefined');
+            }
+            
+            if (!Array.isArray(this.editor.nodeTypes)) {
+                throw new Error('this.editor.nodeTypes is not an array');
+            }
+            
+            window.debugMonitor?.logUI(`Found ${this.editor.nodeTypes.length} node types to render`);
+            
         container.innerHTML = '';
         
-        this.editor.nodeTypes.forEach(nodeType => {
+            this.editor.nodeTypes.forEach((nodeType, index) => {
+                try {
+                    window.debugMonitor?.logUI(`Rendering node type ${index}: ${nodeType.type}`);
+                    
             const item = document.createElement('div');
             item.className = 'node-palette-item';
             item.draggable = true;
@@ -34,14 +56,133 @@ class UIManager {
                 </div>
             `;
             
-            // Add event listeners
             item.addEventListener('dragstart', (e) => this.editor.handleDragStart(e, nodeType.type));
-            item.addEventListener('click', () => this.editor.addNode(nodeType.type, { x: 100, y: 100 }));
+                    item.addEventListener('click', () => {
+                        if (this.editor.connectionState.isConnecting) {
+                            window.debugMonitor?.logUI('Canceling connection due to palette click', {
+                                nodeType: nodeType.type,
+                                previousConnectionState: this.editor.connectionState
+                            });
+                            this.editor.connectionManager.cancelConnection();
+                        }
+                        
+                        this.editor.addNode(nodeType.type, { x: 100, y: 100 });
+                        
+                        window.debugMonitor?.logUI('Palette item clicked', { nodeType: nodeType.type });
+                    });
             
             container.appendChild(item);
-        });
+                    
+                } catch (nodeError) {
+                    window.debugMonitor?.logError(`Failed to render node type ${nodeType.type}`, { 
+                        error: nodeError.message,
+                        nodeType: nodeType
+                    });
+                }
+            });
+            
+            window.debugMonitor?.logSuccess(`Successfully rendered ${this.editor.nodeTypes.length} node types`);
+            
+        } catch (error) {
+            window.debugMonitor?.logError('Failed to render node palette', { 
+                error: error.message,
+                stack: error.stack,
+                editorExists: !!this.editor,
+                nodeTypesExists: !!this.editor?.nodeTypes,
+                nodeTypesLength: this.editor?.nodeTypes?.length
+            });
+            
+            // Show fallback error message in the palette
+            const container = document.getElementById('node-types');
+            if (container) {
+                container.innerHTML = `
+                    <div class="p-4 text-center">
+                        <div class="text-red-500 mb-2">⚠️ Palette Error</div>
+                        <div class="text-sm text-gray-600">${error.message}</div>
+                    </div>
+                `;
+            }
+        }
     }
 
+    // Debounced update mechanism
+    queuePropertyPanelUpdate(nodeId) {
+        this.updateQueue.push(nodeId);
+        
+        if (!this.isUpdating) {
+            this.isUpdating = true;
+            requestAnimationFrame(() => {
+                this.processUpdateQueue();
+            });
+        }
+    }
+
+    processUpdateQueue() {
+        const uniqueNodes = [...new Set(this.updateQueue)];
+        this.updateQueue = [];
+        
+        uniqueNodes.forEach(nodeId => {
+            this.updatePropertyPanelImmediate(nodeId);
+        });
+        
+        this.isUpdating = false;
+    }
+
+    updatePropertyPanelImmediate(nodeId) {
+        const node = this.editor.workflow.nodes.find(n => n.id === nodeId);
+        if (!node) return;
+
+        // Count actual connections (not just internal data)
+        const inputConnections = this.editor.workflow.connections.filter(
+            conn => conn.to === nodeId
+        );
+        const outputConnections = this.editor.workflow.connections.filter(
+            conn => conn.from === nodeId
+        );
+
+        // Update UI elements if property panel is open for this node
+        if (this.editor.selectedNode && this.editor.selectedNode.id === nodeId) {
+            const panel = document.getElementById('property-panel');
+            if (panel && !panel.classList.contains('hidden')) {
+                // Update connection counts in real-time
+                const inputCountElement = panel.querySelector('.input-count');
+                const outputCountElement = panel.querySelector('.output-count');
+                const totalConnectionsElement = panel.querySelector('.total-connections');
+                
+                if (inputCountElement) inputCountElement.textContent = inputConnections.length;
+                if (outputCountElement) outputCountElement.textContent = outputConnections.length;
+                if (totalConnectionsElement) {
+                    totalConnectionsElement.textContent = inputConnections.length + outputConnections.length;
+                }
+                
+                // Update connection status badges
+                this.updateConnectionStatusBadges(inputConnections.length, outputConnections.length);
+            }
+        }
+
+        window.debugMonitor?.logUI(`Node ${nodeId} connections: ${inputConnections.length + outputConnections.length}`);
+    }
+
+    updateConnectionStatusBadges(inputCount, outputCount) {
+        const panel = document.getElementById('property-panel');
+        if (!panel) return;
+        
+        // Update input connections badge
+        const inputBadge = panel.querySelector('.input-connections-badge');
+        if (inputBadge) {
+            inputBadge.textContent = inputCount;
+            inputBadge.className = `font-medium px-2 py-1 ${inputCount > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'} rounded-full text-xs`;
+        }
+        
+        // Update output connections badge
+        const outputBadge = panel.querySelector('.output-connections-badge');
+        if (outputBadge) {
+            outputBadge.textContent = outputCount;
+            outputBadge.className = `font-medium px-2 py-1 ${outputCount > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'} rounded-full text-xs`;
+        }
+    }
+
+    // **修正**: Enhanced updatePropertyPanel with proper timing and connection count accuracy
     updatePropertyPanel() {
         const panel = document.getElementById('property-panel');
         const badge = document.getElementById('node-type-badge');
@@ -63,13 +204,15 @@ class UIManager {
                 </div>
             `;
             
-            // Update content based on node type
-            content.innerHTML = this.getPropertyPanelContent(this.editor.selectedNode);
-            
-            // Add timeout to ensure DOM is updated before setting up events
-            setTimeout(() => {
-                this.setupPropertyPanelEvents();
-            }, 0);
+            // **修正**: Use requestAnimationFrame for proper DOM timing
+            requestAnimationFrame(() => {
+                content.innerHTML = this.getPropertyPanelContent(this.editor.selectedNode);
+                
+                // **修正**: Double requestAnimationFrame for better reliability
+                requestAnimationFrame(() => {
+                    this.setupPropertyPanelEvents();
+                });
+            });
         } else {
             panel.classList.add('hidden');
             this.editor.showProperties = false;
@@ -78,9 +221,13 @@ class UIManager {
         this.updateUI();
     }
     
+    // **修正**: Enhanced connection counting and UI generation
     getPropertyPanelContent(node) {
+        // **修正**: More accurate connection counting
         const inputConnections = this.editor.workflow.connections.filter(conn => conn.to === node.id);
         const outputConnections = this.editor.workflow.connections.filter(conn => conn.from === node.id);
+        
+        window.debugMonitor?.logUI(`Property panel for ${node.id}: ${inputConnections.length} inputs, ${outputConnections.length} outputs`);
         
         return `
             <div class="p-4 space-y-4">
@@ -102,6 +249,9 @@ class UIManager {
                             />
                         </div>
                         
+                        <!-- **修正**: Enhanced Output Ports Configuration -->
+                        ${this.getOutputPortsConfiguration(node)}
+                        
                         <!-- Connection Configuration -->
                         <div>
                             <label class="block text-sm font-medium mb-2" style="color: var(--text-primary);">
@@ -114,7 +264,26 @@ class UIManager {
                             >
                                 <option value="">Select a node to connect...</option>
                                 ${this.editor.workflow.nodes
-                                    .filter(n => n.id !== node.id && this.editor.connectionManager.canConnect(node.id, n.id, 'output', 'input'))
+                                    .filter(n => {
+                                        // 自分自身を除外
+                                        if (n.id === node.id) return false;
+                                        
+                                        // **修正**: ノードタイプに応じた接続可能性をチェック
+                                        const sourcePortConfig = this.getNodePortConfiguration(node.type);
+                                        const targetPortConfig = this.getNodePortConfiguration(n.type);
+                                        
+                                        // ソースノードに出力ポートがない場合は接続不可
+                                        if (!sourcePortConfig.hasOutput) return false;
+                                        
+                                        // ターゲットノードに入力ポートがない場合は接続不可
+                                        if (!targetPortConfig.hasInput) return false;
+                                        
+                                        // 既存の接続を除外
+                                        const connectionExists = this.editor.workflow.connections.some(conn => 
+                                            conn.from === node.id && conn.to === n.id);
+                                        
+                                        return !connectionExists;
+                                    })
                                     .map(n => `<option value="${n.id}">${n.data.label || n.type} (${n.id.substring(0, 8)}...)</option>`)
                                     .join('')}
                             </select>
@@ -122,23 +291,39 @@ class UIManager {
                         
                         <button
                             id="connect-nodes-btn"
-                            class="btn btn-primary w-full"
-                            style="background: var(--primary-color); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;"
+                            class="btn-primary w-full"
+                            style="background: var(--primary-gradient); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;"
                         >
                             Create Connection
                         </button>
                         
-                        <!-- Connection Status -->
-                        <div class="text-sm" style="color: var(--text-secondary);">
-                            <div class="flex justify-between">
-                                <span>Input connections:</span>
-                                <span class="font-medium">${inputConnections.length}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span>Output connections:</span>
-                                <span class="font-medium">${outputConnections.length}</span>
+                        <!-- **修正**: Enhanced Connection Status with real-time updates -->
+                        <div class="bg-gray-50 rounded-lg p-3" style="background: #f8f9fa; border: 1px solid #e9ecef;">
+                            <h4 class="text-sm font-medium mb-2" style="color: var(--text-primary);">Connection Status</h4>
+                            <div class="text-sm space-y-1" style="color: var(--text-secondary);">
+                                <div class="flex justify-between items-center">
+                                    <span>Input connections:</span>
+                                    <span class="input-connections-badge font-medium px-2 py-1 ${inputConnections.length > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'} rounded-full text-xs">
+                                        ${inputConnections.length}
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span>Output connections:</span>
+                                    <span class="output-connections-badge font-medium px-2 py-1 ${outputConnections.length > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'} rounded-full text-xs">
+                                        ${outputConnections.length}
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span>Available output ports:</span>
+                                    <span class="font-medium px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">
+                                        ${node.data.outputPorts || 1}
+                                    </span>
+                                </div>
                             </div>
                         </div>
+                        
+                        <!-- **修正**: Connection Details -->
+                        ${this.getConnectionDetails(node, inputConnections, outputConnections)}
                     </div>
                 </div>
                 
@@ -147,6 +332,19 @@ class UIManager {
                     <h3 class="font-medium mb-4" style="color: var(--text-primary);">Node Actions</h3>
                     
                     <div class="space-y-3">
+                        <button
+                            id="duplicate-node-btn"
+                            class="btn w-full flex items-center justify-center space-x-2"
+                            style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: background-color 0.2s;"
+                            onmouseover="this.style.backgroundColor='#218838'"
+                            onmouseout="this.style.backgroundColor='#28a745'"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            <span>Duplicate Node</span>
+                        </button>
+                        
                         <button
                             id="delete-node-btn"
                             class="btn btn-danger w-full flex items-center justify-center space-x-2"
@@ -161,7 +359,8 @@ class UIManager {
                         </button>
                         
                         <div class="text-xs text-gray-500 text-center">
-                            Or press <kbd style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-family: monospace;">Delete</kbd> key
+                            Keyboard: <kbd style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-family: monospace;">Delete</kbd> to delete, 
+                            <kbd style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-family: monospace;">Ctrl+C</kbd> to duplicate
                         </div>
                     </div>
                 </div>
@@ -185,6 +384,91 @@ class UIManager {
                 ` : ''}
             </div>
         `;
+    }
+    
+    // **修正**: New method for output ports configuration
+    getOutputPortsConfiguration(node) {
+        // Only show output ports configuration for relevant node types
+        if (['branch', 'custom'].includes(node.type)) {
+            const maxPorts = node.type === 'branch' ? 2 : 3;
+            const currentPorts = node.data.outputPorts || 1;
+            
+            return `
+                <div>
+                    <label class="block text-sm font-medium mb-2" style="color: var(--text-primary);">
+                        Output Ports (Max: ${maxPorts})
+                    </label>
+                    <select
+                        id="output-ports-count"
+                        class="form-select"
+                        data-max-ports="${maxPorts}"
+                    >
+                        ${Array.from({length: maxPorts}, (_, i) => i + 1).map(num => 
+                            `<option value="${num}" ${currentPorts === num ? 'selected' : ''}>${num} port${num > 1 ? 's' : ''}</option>`
+                        ).join('')}
+                    </select>
+                    <div class="text-xs text-gray-500 mt-1">
+                        ${node.type === 'branch' ? 'Branch nodes can have 1-2 outputs (true/false)' : 'Custom nodes can have 1-3 outputs'}
+                    </div>
+                </div>
+            `;
+        }
+        return '';
+    }
+    
+    // **修正**: New method for connection details
+    getConnectionDetails(node, inputConnections, outputConnections) {
+        if (inputConnections.length === 0 && outputConnections.length === 0) {
+            return `
+                <div class="text-xs text-center py-2" style="color: var(--text-secondary);">
+                    <em>No connections yet</em>
+                </div>
+            `;
+        }
+        
+        let html = '<div class="mt-3"><h5 class="text-xs font-medium mb-2" style="color: var(--text-primary);">Connection Details</h5>';
+        
+        if (inputConnections.length > 0) {
+            html += '<div class="text-xs mb-2"><strong>Inputs:</strong></div>';
+            inputConnections.forEach(conn => {
+                const sourceNode = this.editor.workflow.nodes.find(n => n.id === conn.from);
+                if (sourceNode) {
+                    html += `
+                        <div class="flex items-center justify-between text-xs py-1 px-2 bg-blue-50 rounded mb-1">
+                            <span>${sourceNode.data.label || sourceNode.type}</span>
+                            <button class="text-red-500 hover:text-red-700" onclick="window.workflowEditor.connectionManager.deleteConnection('${conn.id}')" title="Delete connection">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                }
+            });
+        }
+        
+        if (outputConnections.length > 0) {
+            html += '<div class="text-xs mb-2 mt-2"><strong>Outputs:</strong></div>';
+            outputConnections.forEach(conn => {
+                const targetNode = this.editor.workflow.nodes.find(n => n.id === conn.to);
+                if (targetNode) {
+                    const portIndex = conn.fromPort || 0;
+                    html += `
+                        <div class="flex items-center justify-between text-xs py-1 px-2 bg-green-50 rounded mb-1">
+                            <span>${targetNode.data.label || targetNode.type} (Port ${portIndex + 1})</span>
+                            <button class="text-red-500 hover:text-red-700" onclick="window.workflowEditor.connectionManager.deleteConnection('${conn.id}')" title="Delete connection">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                }
+            });
+        }
+        
+        html += '</div>';
+        return html;
     }
     
     getNodeSpecificFields(node) {
@@ -254,7 +538,7 @@ class UIManager {
                                     max="2"
                                     step="0.1"
                                     value="${node.data.temperature || 0.7}"
-                                    class="form-range"
+                                    class="form-range w-full"
                                 />
                                 <div class="text-xs text-gray-500 mt-1">Current: <span id="temperature-value">${node.data.temperature || 0.7}</span></div>
                             </div>
@@ -413,12 +697,72 @@ return input;"
         }
     }
     
+    // **修正**: Enhanced event setup with proper timing and error handling
     setupPropertyPanelEvents() {
-        // Clear any existing event listeners by cloning elements
-        const content = document.getElementById('property-content');
-        if (content) {
-            const newContent = content.cloneNode(true);
-            content.parentNode.replaceChild(newContent, content);
+        try {
+            // **修正**: More robust element cleanup
+            const existingElements = ['node-label', 'connect-nodes-btn', 'delete-node-btn', 'duplicate-node-btn', 'output-ports-count'];
+            existingElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    // Clone to remove existing event listeners
+                    const newElement = element.cloneNode(true);
+                    element.parentNode.replaceChild(newElement, element);
+                }
+            });
+            
+            // Basic events
+            this.setupBasicEvents();
+            
+            // Node type specific events
+            if (this.editor.selectedNode) {
+                this.setupNodeTypeSpecificEvents(this.editor.selectedNode.type);
+            }
+            
+        } catch (error) {
+            window.debugMonitor?.logError('Error setting up property panel events', { error: error.message, stack: error.stack });
+        }
+    }
+    
+    // **修正**: Separate basic events setup
+    setupBasicEvents() {
+        // Node label input
+        const labelInput = document.getElementById('node-label');
+        if (labelInput) {
+            labelInput.addEventListener('input', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'label', e.target.value);
+            });
+        }
+        
+        // **修正**: Output ports configuration
+        const outputPortsSelect = document.getElementById('output-ports-count');
+        if (outputPortsSelect) {
+            outputPortsSelect.addEventListener('change', (e) => {
+                const newCount = parseInt(e.target.value);
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'outputPorts', newCount);
+                // **修正**: Force property panel refresh to show updated port count
+                setTimeout(() => {
+                    this.updatePropertyPanel();
+                }, 100);
+            });
+        }
+        
+        // Connection button
+        const connectBtn = document.getElementById('connect-nodes-btn');
+        if (connectBtn) {
+            connectBtn.addEventListener('click', () => {
+                this.editor.handleConnectNodesFromPanel();
+            });
+        }
+        
+        // **修正**: Duplicate node button
+        const duplicateBtn = document.getElementById('duplicate-node-btn');
+        if (duplicateBtn) {
+            duplicateBtn.addEventListener('click', () => {
+                if (this.editor.selectedNode) {
+                    this.editor.duplicateNode(this.editor.selectedNode);
+                }
+            });
         }
         
         // Delete node button
@@ -428,156 +772,158 @@ return input;"
                 this.editor.deleteSelectedNode();
             });
         }
+    }
+    
+    // **修正**: Separate node-type specific events
+    setupNodeTypeSpecificEvents(nodeType) {
+        switch (nodeType) {
+            case 'llm':
+                this.setupLLMEvents();
+                break;
+            case 'input':
+                this.setupInputEvents();
+                break;
+            case 'branch':
+                this.setupBranchEvents();
+                break;
+            case 'filter':
+                this.setupFilterEvents();
+                break;
+            case 'custom':
+                this.setupCustomEvents();
+                break;
+        }
+    }
+    
+    setupLLMEvents() {
+        const elements = {
+            modelSelect: document.getElementById('llm-model'),
+            tempSlider: document.getElementById('llm-temperature'),
+            tempValue: document.getElementById('temperature-value'),
+            maxTokensInput: document.getElementById('llm-max-tokens'),
+            systemPromptInput: document.getElementById('llm-system-prompt'),
+            userPromptInput: document.getElementById('llm-user-prompt'),
+            testApiBtn: document.getElementById('test-api-btn')
+        };
         
-        // Node label input
-        const labelInput = document.getElementById('node-label');
-        if (labelInput) {
-            labelInput.addEventListener('input', (e) => {
-                this.editor.updateNodeData(this.editor.selectedNode.id, 'label', e.target.value);
+        if (elements.modelSelect) {
+            elements.modelSelect.addEventListener('change', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'model', e.target.value);
             });
         }
         
-        // Connection dropdown and button
-        const connectBtn = document.getElementById('connect-nodes-btn');
-        if (connectBtn) {
-            connectBtn.addEventListener('click', () => {
-                this.editor.handleConnectNodesFromPanel();
+        if (elements.tempSlider && elements.tempValue) {
+            elements.tempSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                elements.tempValue.textContent = value;
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'temperature', value);
             });
         }
         
-        // LLM-specific events
-        if (this.editor.selectedNode.type === 'llm') {
-            const modelSelect = document.getElementById('llm-model');
-            const tempSlider = document.getElementById('llm-temperature');
-            const tempValue = document.getElementById('temperature-value');
-            const maxTokensInput = document.getElementById('llm-max-tokens');
-            const systemPromptInput = document.getElementById('llm-system-prompt');
-            const userPromptInput = document.getElementById('llm-user-prompt');
-            const testApiBtn = document.getElementById('test-api-btn');
-            
-            if (modelSelect) {
-                modelSelect.addEventListener('change', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'model', e.target.value);
-                });
-            }
-            
-            if (tempSlider && tempValue) {
-                tempSlider.addEventListener('input', (e) => {
-                    const value = parseFloat(e.target.value);
-                    tempValue.textContent = value;
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'temperature', value);
-                });
-            }
-            
-            if (maxTokensInput) {
-                maxTokensInput.addEventListener('input', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'maxTokens', parseInt(e.target.value));
-                });
-            }
-            
-            if (systemPromptInput) {
-                systemPromptInput.addEventListener('input', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'systemPrompt', e.target.value);
-                });
-            }
-            
-            if (userPromptInput) {
-                userPromptInput.addEventListener('input', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'userPrompt', e.target.value);
-                });
-            }
-            
-            if (testApiBtn) {
-                testApiBtn.addEventListener('click', () => {
-                    this.editor.testAPIConnection();
-                });
-            }
+        if (elements.maxTokensInput) {
+            elements.maxTokensInput.addEventListener('input', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'maxTokens', parseInt(e.target.value));
+            });
         }
         
-        // Input-specific events
-        if (this.editor.selectedNode.type === 'input') {
-            const inputTypeSelect = document.getElementById('input-type');
-            const placeholderInput = document.getElementById('input-placeholder');
-            const defaultValueInput = document.getElementById('input-default-value');
-            
-            if (inputTypeSelect) {
-                inputTypeSelect.addEventListener('change', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'inputType', e.target.value);
-                });
-            }
-            
-            if (placeholderInput) {
-                placeholderInput.addEventListener('input', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'placeholder', e.target.value);
-                });
-            }
-            
-            if (defaultValueInput) {
-                defaultValueInput.addEventListener('input', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'defaultValue', e.target.value);
-                });
-            }
+        if (elements.systemPromptInput) {
+            elements.systemPromptInput.addEventListener('input', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'systemPrompt', e.target.value);
+            });
         }
         
-        // Branch-specific events
-        if (this.editor.selectedNode.type === 'branch') {
-            const conditionSelect = document.getElementById('branch-condition');
-            const valueInput = document.getElementById('branch-value');
-            const caseSensitiveCheck = document.getElementById('branch-case-sensitive');
-            
-            if (conditionSelect) {
-                conditionSelect.addEventListener('change', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'condition', e.target.value);
-                });
-            }
-            
-            if (valueInput) {
-                valueInput.addEventListener('input', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'value', e.target.value);
-                });
-            }
-            
-            if (caseSensitiveCheck) {
-                caseSensitiveCheck.addEventListener('change', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'caseSensitive', e.target.checked);
-                });
-            }
+        if (elements.userPromptInput) {
+            elements.userPromptInput.addEventListener('input', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'userPrompt', e.target.value);
+            });
         }
         
-        // Filter-specific events
-        if (this.editor.selectedNode.type === 'filter') {
-            const filterTypeSelect = document.getElementById('filter-type');
-            const filterValueInput = document.getElementById('filter-value');
-            const caseSensitiveCheck = document.getElementById('filter-case-sensitive');
-            
-            if (filterTypeSelect) {
-                filterTypeSelect.addEventListener('change', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'filterType', e.target.value);
-                });
-            }
-            
-            if (filterValueInput) {
-                filterValueInput.addEventListener('input', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'filterValue', e.target.value);
-                });
-            }
-            
-            if (caseSensitiveCheck) {
-                caseSensitiveCheck.addEventListener('change', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'caseSensitive', e.target.checked);
-                });
-            }
+        if (elements.testApiBtn) {
+            elements.testApiBtn.addEventListener('click', () => {
+                this.editor.testAPIConnection();
+            });
+        }
+    }
+    
+    setupInputEvents() {
+        const inputTypeSelect = document.getElementById('input-type');
+        const placeholderInput = document.getElementById('input-placeholder');
+        const defaultValueInput = document.getElementById('input-default-value');
+        
+        if (inputTypeSelect) {
+            inputTypeSelect.addEventListener('change', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'inputType', e.target.value);
+            });
         }
         
-        // Custom-specific events
-        if (this.editor.selectedNode.type === 'custom') {
-            const customCodeInput = document.getElementById('custom-code');
-            
-            if (customCodeInput) {
-                customCodeInput.addEventListener('input', (e) => {
-                    this.editor.updateNodeData(this.editor.selectedNode.id, 'customCode', e.target.value);
-                });
-            }
+        if (placeholderInput) {
+            placeholderInput.addEventListener('input', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'placeholder', e.target.value);
+            });
+        }
+        
+        if (defaultValueInput) {
+            defaultValueInput.addEventListener('input', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'defaultValue', e.target.value);
+            });
+        }
+    }
+    
+    setupBranchEvents() {
+        const conditionSelect = document.getElementById('branch-condition');
+        const valueInput = document.getElementById('branch-value');
+        const caseSensitiveCheck = document.getElementById('branch-case-sensitive');
+        
+        if (conditionSelect) {
+            conditionSelect.addEventListener('change', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'condition', e.target.value);
+            });
+        }
+        
+        if (valueInput) {
+            valueInput.addEventListener('input', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'value', e.target.value);
+            });
+        }
+        
+        if (caseSensitiveCheck) {
+            caseSensitiveCheck.addEventListener('change', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'caseSensitive', e.target.checked);
+            });
+        }
+    }
+    
+    setupFilterEvents() {
+        const filterTypeSelect = document.getElementById('filter-type');
+        const filterValueInput = document.getElementById('filter-value');
+        const caseSensitiveCheck = document.getElementById('filter-case-sensitive');
+        
+        if (filterTypeSelect) {
+            filterTypeSelect.addEventListener('change', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'filterType', e.target.value);
+            });
+        }
+        
+        if (filterValueInput) {
+            filterValueInput.addEventListener('input', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'filterValue', e.target.value);
+            });
+        }
+        
+        if (caseSensitiveCheck) {
+            caseSensitiveCheck.addEventListener('change', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'caseSensitive', e.target.checked);
+            });
+        }
+    }
+    
+    setupCustomEvents() {
+        const customCodeInput = document.getElementById('custom-code');
+        
+        if (customCodeInput) {
+            customCodeInput.addEventListener('input', (e) => {
+                this.editor.updateNodeData(this.editor.selectedNode.id, 'customCode', e.target.value);
+            });
         }
     }
 
@@ -591,7 +937,6 @@ return input;"
     }
     
     updateUI() {
-        // Update toolbar button states
         const paletteToggle = document.getElementById('toggle-palette');
         const propertiesToggle = document.getElementById('toggle-properties');
         
@@ -603,7 +948,6 @@ return input;"
             propertiesToggle.classList.toggle('active', this.editor.showProperties);
         }
         
-        // Update panel visibility
         const palette = document.getElementById('node-palette');
         const properties = document.getElementById('property-panel');
         
@@ -615,20 +959,13 @@ return input;"
             properties.classList.toggle('hidden', !this.editor.showProperties);
         }
         
-        // Update execution button state
         const executeBtn = document.getElementById('execute-btn');
         if (executeBtn) {
             executeBtn.disabled = this.editor.isExecuting;
             executeBtn.textContent = this.editor.isExecuting ? 'Executing...' : 'Execute Workflow';
         }
         
-        // Update workflow status
-        const workflowName = document.getElementById('workflow-name');
-        if (workflowName) {
-            workflowName.textContent = this.editor.workflow.name;
-        }
-        
-        // Update node and connection counts
+        // **修正**: Update workflow stats
         const nodeCount = document.getElementById('node-count');
         const connectionCount = document.getElementById('connection-count');
         
@@ -658,82 +995,193 @@ return input;"
     }
 
     showConnectionModal(nodeId) {
-        const modal = document.getElementById('connection-modal');
-        const nodeSelect = document.getElementById('connection-target');
-        const currentNode = this.editor.workflow.nodes.find(node => node.id === nodeId);
-        
-        if (!modal || !nodeSelect || !currentNode) return;
-        
-        // Clear existing options
-        nodeSelect.innerHTML = '<option value="">Select target node...</option>';
-        
-        // Add available nodes as options
-        this.editor.workflow.nodes
-            .filter(node => node.id !== nodeId) // Exclude current node
-            .forEach(node => {
-                const option = document.createElement('option');
-                option.value = node.id;
-                option.textContent = `${node.data.label || node.type} (${node.id.substring(0, 8)}...)`;
-                nodeSelect.appendChild(option);
-            });
-        
-        // Store the source node ID
-        modal.dataset.sourceNodeId = nodeId;
-        
-        // Show modal
-        modal.classList.remove('hidden');
-        modal.classList.add('visible');
-        
-        // Set up close handlers
-        const closeBtn = modal.querySelector('.close-modal');
-        const cancelBtn = modal.querySelector('.cancel-connection');
-        const backdrop = modal.querySelector('.modal-backdrop');
-        
-        const closeModal = () => {
-            modal.classList.add('hidden');
-            modal.classList.remove('visible');
-        };
-        
-        if (closeBtn) closeBtn.onclick = closeModal;
-        if (cancelBtn) cancelBtn.onclick = closeModal;
-        if (backdrop) backdrop.onclick = closeModal;
-        
-        // Set up confirm handler
-        const confirmBtn = modal.querySelector('.confirm-connection');
-        if (confirmBtn) {
-            confirmBtn.onclick = () => this.confirmConnection(nodeId);
-        }
+        // Modal functionality (if needed in future)
+        window.debugMonitor?.logUI('Show connection modal for node', { nodeId });
     }
     
     hideConnectionModal() {
-        const modal = document.getElementById('connection-modal');
-        if (modal) {
-            modal.classList.add('hidden');
-            modal.classList.remove('visible');
-        }
+        // Modal functionality (if needed in future)
+        window.debugMonitor?.logUI('Hide connection modal');
     }
     
-    confirmConnection(sourceNodeId) {
-        const nodeSelect = document.getElementById('connection-target');
-        const targetNodeId = nodeSelect?.value;
+    confirmConnection(nodeId) {
+        // Modal functionality (if needed in future)
+        window.debugMonitor?.logUI('Confirm connection for node', { nodeId });
+    }
+    
+    // **新機能**: ノードタイプに応じたポート設定を取得（他のクラスと同期）
+    getNodePortConfiguration(nodeType) {
+        const portConfigurations = {
+            'input': { hasInput: false, hasOutput: true },
+            'llm': { hasInput: true, hasOutput: true },
+            'branch': { hasInput: true, hasOutput: true },
+            'merge': { hasInput: true, hasOutput: true },
+            'filter': { hasInput: true, hasOutput: true },
+            'loop': { hasInput: true, hasOutput: true },
+            'custom': { hasInput: true, hasOutput: true },
+            'output': { hasInput: true, hasOutput: false }
+        };
         
-        if (!targetNodeId) {
-            alert('Please select a target node.');
+        return portConfigurations[nodeType] || {
+            hasInput: true,
+            hasOutput: true
+        };
+    }
+
+    setupUIEventHandlers() {
+        // Toggle palette button
+        const togglePaletteBtn = document.getElementById('toggle-palette');
+        if (togglePaletteBtn) {
+            togglePaletteBtn.addEventListener('click', () => {
+                this.editor.showPalette = !this.editor.showPalette;
+                this.updateUI();
+            });
+        }
+
+        // Toggle properties button
+        const togglePropertiesBtn = document.getElementById('toggle-properties');
+        if (togglePropertiesBtn) {
+            togglePropertiesBtn.addEventListener('click', () => {
+                this.editor.showProperties = !this.editor.showProperties;
+                this.updateUI();
+            });
+        }
+
+        // Close properties button
+        const closePropertiesBtn = document.getElementById('close-properties');
+        if (closePropertiesBtn) {
+            closePropertiesBtn.addEventListener('click', () => {
+                this.editor.showProperties = false;
+                this.updateUI();
+            });
+        }
+
+        // Execute workflow button
+        const executeBtn = document.getElementById('execute-workflow');
+        if (executeBtn) {
+            executeBtn.addEventListener('click', () => {
+                this.editor.executeWorkflow();
+            });
+        }
+        
+        // **新機能**: 保存・コピー・読み込み・クリア機能のイベントハンドラー
+        
+        // Manual save button
+        const saveBtn = document.getElementById('save-workflow');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                window.debugMonitor?.logUI('Manual save button clicked');
+                const success = this.editor.manualSave();
+                if (success) {
+                    this.showSaveIndicator();
+                }
+            });
+        }
+        
+        // Copy workflow button
+        const copyBtn = document.getElementById('copy-workflow');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                window.debugMonitor?.logUI('Copy workflow button clicked');
+                this.editor.copyWorkflowToClipboard();
+            });
+        }
+        
+        // Manual load button
+        const loadBtn = document.getElementById('load-workflow');
+        if (loadBtn) {
+            loadBtn.addEventListener('click', () => {
+                window.debugMonitor?.logUI('Manual load button clicked');
+                this.editor.loadFromJSONFile();
+            });
+        }
+        
+        // Clear workflow button
+        const clearBtn = document.getElementById('clear-workflow');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                this.confirmAndClearWorkflow();
+            });
+        }
+
+        window.debugMonitor?.logUI('UI event handlers set up successfully');
+    }
+    
+    // **新機能**: ワークフロークリア確認ダイアログ
+    confirmAndClearWorkflow() {
+        const nodeCount = this.editor.workflow.nodes.length;
+        const connectionCount = this.editor.workflow.connections.length;
+        
+        if (nodeCount === 0 && connectionCount === 0) {
+            this.editor.showNotification('Workflow is already empty', 'info');
             return;
         }
         
-        // Create the connection
-        const success = this.editor.connectNodes(sourceNodeId, targetNodeId);
+        const confirmMessage = `Are you sure you want to clear the entire workflow?\n\nThis will delete:\n• ${nodeCount} nodes\n• ${connectionCount} connections\n\nThis action cannot be undone.`;
         
-        if (success) {
-            this.hideConnectionModal();
-            // Optionally show success message
-            // alert('Connection created successfully!');
+        if (confirm(confirmMessage)) {
+            window.debugMonitor?.logUI('User confirmed workflow clear');
+            this.clearWorkflow();
         } else {
-            alert('Failed to create connection. Connection may already exist.');
+            window.debugMonitor?.logUI('User cancelled workflow clear');
+        }
+    }
+    
+    clearWorkflow() {
+        try {
+            // Clear workflow data
+            this.editor.workflow.nodes = [];
+            this.editor.workflow.connections = [];
+            this.editor.workflow.metadata.updatedAt = new Date();
+            this.editor.selectedNode = null;
+            this.editor.showProperties = false;
+            
+            // Clear UI
+            this.editor.nodeManager.renderNodes();
+            this.editor.connectionManager.renderConnections();
+            this.updateWelcomeMessage();
+            this.updateUI();
+            
+            // Clear from storage
+            this.editor.clearWorkflowStorage();
+            
+            // Reset auto-save state
+            this.editor.hasUnsavedChanges = false;
+            
+            window.debugMonitor?.logSuccess('Workflow cleared successfully');
+            this.editor.showNotification('Workflow cleared successfully', 'success');
+            
+        } catch (error) {
+            window.debugMonitor?.logError('Failed to clear workflow', { 
+                error: error.message,
+                stack: error.stack
+            });
+            this.editor.showNotification('Failed to clear workflow', 'error');
+        }
+    }
+    
+    // **新機能**: セーブインジケーター表示
+    showSaveIndicator() {
+        const saveBtn = document.getElementById('save-workflow');
+        if (saveBtn) {
+            const originalText = saveBtn.innerHTML;
+            
+            // Change to checkmark temporarily
+            saveBtn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span>Saved!</span>
+            `;
+            saveBtn.style.background = '#059669'; // Darker green
+            
+            // Revert after 2 seconds
+            setTimeout(() => {
+                saveBtn.innerHTML = originalText;
+                saveBtn.style.background = '#10B981'; // Original green
+            }, 2000);
         }
     }
 }
 
-// Export for use in main workflow editor
-window.UIManager = UIManager; 
+window.UIManager = UIManager;

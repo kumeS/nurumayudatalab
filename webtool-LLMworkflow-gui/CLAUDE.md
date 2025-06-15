@@ -76,12 +76,28 @@ All node types are fully implemented with real execution capabilities.
 
 ### Running the Application
 ```bash
-# Open directly in browser
+# Open directly in browser (macOS)
 open index.html
 
-# Or serve locally (recommended for development)
+# Serve locally (recommended for development)
 python -m http.server 8000
 # Then visit http://localhost:8000
+
+# Alternative servers
+python3 -m http.server 8000    # Python 3 explicitly
+npx http-server                 # Node.js (if available)
+```
+
+### Git Status Commands
+```bash
+# Check git status for modified files
+git status
+
+# View current changes
+git diff
+
+# View recent commits
+git log --oneline -10
 ```
 
 ### Module Loading Order
@@ -184,3 +200,30 @@ class WorkflowEditor {
 - **Limited Error Recovery**: Basic error handling, no retry mechanisms for failed nodes
 - **No Offline Support**: Requires internet connection for LLM API calls
 - **Browser Compatibility**: Uses modern ES6+ features, may not work in older browsers
+
+## Critical Issues to Address
+
+### High Priority Bugs
+1. **Connection Lines Not Visible**: SVG rendering fails, connections exist internally but don't display
+2. **Canvas Pan Missing**: Cannot drag canvas to navigate large workflows
+3. **Node ID Duplication**: System stability issues with duplicate node IDs
+
+### Files Requiring Fixes
+- `connection-manager.js`: SVG coordinate calculation and rendering timing
+- `event-handlers.js`: Canvas pan functionality implementation
+- `ui-manager.js`: Property panel update timing issues
+- `styles.css`: Input node color improvements and connection line visibility
+
+## Configuration Notes
+
+### Project Structure
+- **No package.json**: Pure vanilla JavaScript, no npm dependencies
+- **No build process**: Direct browser execution
+- **No test framework**: Manual testing with planned Playwright integration
+- **Git repository**: Active development with recent commits focused on v0.3.x
+
+### Japanese Documentation
+The `/Dev/` directory contains extensive Japanese development documentation:
+- `dev.txt`: Architecture patterns and implementation details
+- `memo.txt`: Bug reports and fix requirements
+- Various implementation notes and development plans
