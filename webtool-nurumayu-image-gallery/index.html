@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtVault - AI Image Gallery</title>
+    <link rel="stylesheet" href="src/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>ArtVault</h1>
+                    <span>AI Gallery</span>
+                </div>
+                <nav class="nav">
+                    <button class="nav-btn active" data-filter="all">All</button>
+                    <button class="nav-btn" data-filter="popular">Popular</button>
+                    <button class="nav-btn" data-filter="recent">Recent</button>
+                    <button class="upload-btn" id="uploadBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7,10 12,15 17,10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Upload
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Search Bar -->
+    <section class="search-section">
+        <div class="container">
+            <div class="search-bar">
+                <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search artworks..." />
+            </div>
+        </div>
+    </section>
+
+    <!-- Gallery -->
+    <main class="gallery-section">
+        <div class="container">
+            <div class="gallery-grid" id="galleryGrid">
+                <!-- Images will be loaded here -->
+            </div>
+            <div class="loading" id="loading">
+                <div class="loading-spinner"></div>
+                <p>Loading artworks...</p>
+            </div>
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21,15 16,10 5,21"/>
+                </svg>
+                <h3>No artworks found</h3>
+                <p>Try adjusting your search or upload some beautiful images!</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Upload Modal -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Upload Artwork</h2>
+                <button class="close-btn" id="closeUploadModal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="upload-area" id="uploadArea">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17,8 12,3 7,8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <h3>Drop your image here</h3>
+                <p>or <span class="upload-link">browse files</span></p>
+                <input type="file" id="fileInput" accept="image/*" multiple hidden>
+            </div>
+            <form class="upload-form" id="uploadForm" style="display: none;">
+                <div class="form-group">
+                    <label for="imageTitle">Title</label>
+                    <input type="text" id="imageTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="imageDescription">Description</label>
+                    <textarea id="imageDescription" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="imageTags">Tags (comma separated)</label>
+                    <input type="text" id="imageTags" placeholder="ai, art, digital, fantasy">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelUpload">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Upload Image</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Image Detail Modal -->
+    <div class="modal" id="imageModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <div class="image-info">
+                    <h2 id="modalTitle">Image Title</h2>
+                    <div class="image-stats">
+                        <span class="stat">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                            </svg>
+                            <span id="modalLikes">0</span>
+                        </span>
+                        <span class="stat">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            <span id="modalComments">0</span>
+                        </span>
+                        <span class="stat">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <span id="modalViews">0</span>
+                        </span>
+                    </div>
+                </div>
+                <button class="close-btn" id="closeImageModal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="image-container">
+                    <img id="modalImage" src="" alt="">
+                    <div class="image-actions">
+                        <button class="action-btn like-btn" id="likeBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                            </svg>
+                        </button>
+                        <button class="action-btn share-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="18" cy="5" r="3"/>
+                                <circle cx="6" cy="12" r="3"/>
+                                <circle cx="18" cy="19" r="3"/>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="details-panel">
+                    <div class="image-details">
+                        <p id="modalDescription"></p>
+                        <div class="tags" id="modalTags"></div>
+                        <div class="upload-date">
+                            <small>Uploaded on <span id="modalDate"></span></small>
+                        </div>
+                    </div>
+                    <div class="comments-section">
+                        <h3>Comments</h3>
+                        <div class="comment-form">
+                            <input type="text" id="commentInput" placeholder="Add a comment...">
+                            <button id="addCommentBtn">Post</button>
+                        </div>
+                        <div class="comments-list" id="commentsList">
+                            <!-- Comments will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/gallery.js"></script>
+    <script src="src/upload.js"></script>
+    <script src="src/comments.js"></script>
+    <script src="src/app.js"></script>
+</body>
+</html>
