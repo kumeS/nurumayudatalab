@@ -1,0 +1,162 @@
+v -60 75 -30
+v -60 75 30
+v 60 75 30
+v 60 75 -30
+v -60 72 -30
+v -60 72 30
+v 60 72 30
+v 60 72 -30
+# Leg 1 (Front Left)
+v -54 72 -24
+v -54 72 -30
+v -60 72 -30
+v -60 72 -24
+v -54 0 -24
+v -54 0 -30
+v -60 0 -30
+v -60 0 -24
+# Leg 2 (Front Right)
+v 54 72 -24
+v 54 72 -30
+v 60 72 -30
+v 60 72 -24
+v 54 0 -24
+v 54 0 -30
+v 60 0 -30
+v 60 0 -24
+# Leg 3 (Back Left)
+v -54 72 24
+v -54 72 30
+v -60 72 30
+v -60 72 24
+v -54 0 24
+v -54 0 30
+v -60 0 30
+v -60 0 24
+# Leg 4 (Back Right)
+v 54 72 24
+v 54 72 30
+v 60 72 30
+v 60 72 24
+v 54 0 24
+v 54 0 30
+v 60 0 30
+v 60 0 24
+# Front Reinforcement
+v -54 15 -27
+v 54 15 -27
+v 54 15 -33
+v -54 15 -33
+v -54 11 -27
+v 54 11 -27
+v 54 11 -33
+v -54 11 -33
+# Back Reinforcement
+v -54 15 27
+v 54 15 27
+v 54 15 33
+v -54 15 33
+v -54 11 27
+v 54 11 27
+v 54 11 33
+v -54 11 33
+# Left Reinforcement
+v -57 15 -24
+v -57 15 24
+v -63 15 24
+v -63 15 -24
+v -57 11 -24
+v -57 11 24
+v -63 11 24
+v -63 11 -24
+# Right Reinforcement
+v 57 15 -24
+v 57 15 24
+v 63 15 24
+v 63 15 -24
+v 57 11 -24
+v 57 11 24
+v 63 11 24
+v 63 11 -24
+# Faces
+# Tabletop Top
+f 1 2 3 4
+# Tabletop Bottom
+f 8 7 6 5
+# Tabletop Sides
+f 1 5 6 2
+f 2 6 7 3
+f 3 7 8 4
+f 4 8 5 1
+# Leg 1 Top
+f 9 10 11 12
+# Leg 1 Bottom
+f 16 15 14 13
+# Leg 1 Sides
+f 9 13 14 10
+f 10 14 15 11
+f 11 15 16 12
+f 12 16 13 9
+# Leg 2 Top
+f 17 18 19 20
+# Leg 2 Bottom
+f 24 23 22 21
+# Leg 2 Sides
+f 17 21 22 18
+f 18 22 23 19
+f 19 23 24 20
+f 20 24 21 17
+# Leg 3 Top
+f 25 26 27 28
+# Leg 3 Bottom
+f 32 31 30 29
+# Leg 3 Sides
+f 25 29 30 26
+f 26 30 31 27
+f 27 31 32 28
+f 28 32 29 25
+# Leg 4 Top
+f 33 34 35 36
+# Leg 4 Bottom
+f 40 39 38 37
+# Leg 4 Sides
+f 33 37 38 34
+f 34 38 39 35
+f 35 39 40 36
+f 36 40 37 33
+# Front Reinforcement Top
+f 41 42 43 44
+# Front Reinforcement Bottom
+f 48 47 46 45
+# Front Reinforcement Sides
+f 41 45 46 42
+f 42 46 47 43
+f 43 47 48 44
+f 44 48 45 41
+# Back Reinforcement Top
+f 49 50 51 52
+# Back Reinforcement Bottom
+f 56 55 54 53
+# Back Reinforcement Sides
+f 49 53 54 50
+f 50 54 55 51
+f 51 55 56 52
+f 52 56 53 49
+# Left Reinforcement Top
+f 57 58 59 60
+# Left Reinforcement Bottom
+f 64 63 62 61
+# Left Reinforcement Sides
+f 57 61 62 58
+f 58 62 63 59
+f 59 63 64 60
+f 60 64 61 57
+# Right Reinforcement Top
+f 65 66 67 68
+# Right Reinforcement Bottom
+f 72 71 70 69
+# Right Reinforcement Sides
+f 65 69 70 66
+f 66 70 71 67
+f 67 71 72 68
+f 68 72 69 65
