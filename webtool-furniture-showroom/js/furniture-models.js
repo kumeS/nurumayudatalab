@@ -318,90 +318,70 @@ class FurnitureModels {
     }
 
     async createGLBFurniture(furnitureType, position) {
-        console.log(`🔧 Creating GLB furniture: ${furnitureType.name}`);
+        console.log('🔧 Creating GLB furniture:', furnitureType.name);
         
-        // キャッシュされたモデルがあるかチェック
-        if (this.loadedModels.has(furnitureType.id)) {
-            console.log(`📦 Using cached model: ${furnitureType.id}`);
-            const cachedModel = this.loadedModels.get(furnitureType.id);
-            const instance = cachedModel.createInstance(`${furnitureType.id}_${Date.now()}`);
-            instance.position = new BABYLON.Vector3(position.x, position.y, position.z);
-            return instance;
-        }
-
-        // GLBファイルを読み込み
-        console.log(`📁 Loading GLB file: ${furnitureType.modelFile}`);
-        const result = await BABYLON.SceneLoader.ImportMeshAsync("", "", furnitureType.modelFile, this.scene);
-        
-        if (result.meshes && result.meshes.length > 0) {
-            const rootMesh = result.meshes[0];
-            rootMesh.name = `${furnitureType.id}_${Date.now()}`;
-            rootMesh.position = new BABYLON.Vector3(position.x, position.y, position.z);
+        try {
+            const filePath = this.furnitureFolder + furnitureType.file;
+            console.log('📁 Loading GLB file:', filePath);
             
-            // バウンディングボックスを計算して実際のサイズを取得
-            let minVector = null;
-            let maxVector = null;
+            // Babylon.jsでGLBファイルを読み込み
+            const result = await BABYLON.SceneLoader.ImportMeshAsync(
+                "",
+                this.furnitureFolder,
+                furnitureType.file,
+                this.scene
+            );
             
+            // メッシュグループを作成
+            const furnitureGroup = new BABYLON.TransformNode(furnitureType.id + "_" + Date.now(), this.scene);
+            
+            // 読み込んだメッシュをグループに追加
             result.meshes.forEach(mesh => {
-                if (mesh.getBoundingInfo) {
-                    const boundingInfo = mesh.getBoundingInfo();
-                    if (boundingInfo && boundingInfo.boundingBox) {
-                        const meshMin = boundingInfo.boundingBox.minimumWorld;
-                        const meshMax = boundingInfo.boundingBox.maximumWorld;
-                        
-                        if (!minVector) {
-                            minVector = meshMin.clone();
-                            maxVector = meshMax.clone();
-                        } else {
-                            minVector = BABYLON.Vector3.Minimize(minVector, meshMin);
-                            maxVector = BABYLON.Vector3.Maximize(maxVector, meshMax);
-                        }
-                    }
+                if (mesh.name !== "__root__") {
+                    mesh.parent = furnitureGroup;
                 }
             });
             
-            // スケール調整（Babylon.jsの単位とcm単位を一致させる）
-            if (minVector && maxVector) {
-                const currentSize = maxVector.subtract(minVector);
-                const targetDimensions = furnitureType.dimensions;
-                
-                // 各軸のスケール計算（1 Babylon unit = 1 cm）
-                const scaleX = targetDimensions.width / Math.abs(currentSize.x);
-                const scaleY = targetDimensions.height / Math.abs(currentSize.y);
-                const scaleZ = targetDimensions.depth / Math.abs(currentSize.z);
-                
-                // 均等スケーリング（最小値を使用して全体的なバランスを保つ）
-                const uniformScale = Math.min(scaleX, scaleY, scaleZ);
-                
-                console.log(`📐 Applying scale: ${uniformScale.toFixed(3)} (target: ${targetDimensions.width}x${targetDimensions.height}x${targetDimensions.depth}cm)`);
-                
-                rootMesh.scaling = new BABYLON.Vector3(uniformScale, uniformScale, uniformScale);
-                
-                // メッシュの子要素にも同じスケールを適用
-                result.meshes.forEach(mesh => {
-                    if (mesh !== rootMesh) {
-                        mesh.scaling = new BABYLON.Vector3(uniformScale, uniformScale, uniformScale);
-                    }
-                });
-            }
-
-            // 影を受け取る設定
-            if (result.meshes) {
-                result.meshes.forEach(mesh => {
-                    mesh.receiveShadows = true;
-                    if (window.furnitureApp && window.furnitureApp.shadowGenerator) {
-                        window.furnitureApp.shadowGenerator.addShadowCaster(mesh);
-                    }
-                });
-            }
-
-            // キャッシュに保存
-            this.loadedModels.set(furnitureType.id, rootMesh);
+            // 位置設定
+            furnitureGroup.position = new BABYLON.Vector3(position.x, position.y, position.z);
             
-            console.log(`✅ GLB furniture created successfully: ${furnitureType.name}`);
-            return rootMesh;
-        } else {
-            throw new Error('GLBファイルからメッシュを読み込めませんでした');
+            // サイズ調整
+            this.adjustModelScale(furnitureGroup, furnitureType);
+            
+            // 影の有効化
+            if (this.scene.shadowGenerator) {
+                this.enableShadows(furnitureGroup, this.scene.shadowGenerator);
+            }
+            
+            console.log('✅ GLB furniture created successfully:', furnitureType.name);
+            return furnitureGroup;
+            
+        } catch (error) {
+            console.error('家具作成エラー:', furnitureType.id, error);
+            
+            // CORSエラーやファイル読み込みエラーの場合、プリミティブ形状でフォールバック
+            if (error.message.includes('CORS') || 
+                error.message.includes('Unable to load') || 
+                error.message.includes('LoadFileError')) {
+                
+                console.log('🔄 GLB loading failed, creating primitive fallback for:', furnitureType.name);
+                
+                // プリミティブ版の設定を作成
+                const primitiveType = {
+                    id: furnitureType.id.replace('_glb', ''),
+                    name: furnitureType.name.replace(' (3D Model)', ''),
+                    icon: furnitureType.icon,
+                    category: furnitureType.category || this.getCategoryForFurniture(furnitureType.name),
+                    dimensions: furnitureType.dimensions,
+                    color: this.protectAgainstRedColor('#8B4513') // 安全な茶色
+                };
+                
+                // プリミティブ形状で家具を作成
+                return this.createPrimitiveFurniture(primitiveType, position);
+            }
+            
+            console.log('🚫 GLB/Custom loading failed for', furnitureType.name, '- not creating fallback');
+            throw error;
         }
     }
 
