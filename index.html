@@ -565,6 +565,14 @@
         </h3>
         <div id="specializedToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       </div>
+
+      <!-- 3D Model Systems Category -->
+      <div class="category-section mb-12">
+        <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-cyan-300 pb-2">
+          <i class="fas fa-cube mr-3 text-cyan-500"></i>3Dモデルシステム
+        </h3>
+        <div id="modelSystemsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      </div>
       
       <!-- No Results Message -->
       <div id="noResults" class="hidden py-16 text-center">
@@ -753,6 +761,14 @@
           "url": "./webtool-dangerous-creature/index.html",
           "icon": "fa-skull-crossbones"
         }
+      ],
+      modelSystems: [
+        {
+          "title": "AIKW 3D Viewer",
+          "desc": "GLB/GLTFファイルに対応した高機能3Dモデルビューア。ドラッグ&ドロップで簡単読み込み、カメラ操作、照明調整、スクリーンショット機能を搭載。",
+          "url": "./webtool-aikw-glb-3D-viewer/index.html",
+          "icon": "fa-cube"
+        }
       ]
     };
 
@@ -781,6 +797,7 @@
       const educationalGrid = document.getElementById('educationalToolsGrid');
       const ecommerceGrid = document.getElementById('ecommerceToolsGrid');
       const specializedGrid = document.getElementById('specializedToolsGrid');
+      const modelSystemsGrid = document.getElementById('modelSystemsGrid');
       
       // 各カテゴリーをレンダリング
       renderCategoryTools(generalGrid, toolCategories.general);
@@ -788,6 +805,7 @@
       renderCategoryTools(educationalGrid, toolCategories.educational);
       renderCategoryTools(ecommerceGrid, toolCategories.ecommerce);
       renderCategoryTools(specializedGrid, toolCategories.specialized);
+      renderCategoryTools(modelSystemsGrid, toolCategories.modelSystems);
       
       // ローディング表示を非表示にする
       loadingIndicator.style.display = 'none';
