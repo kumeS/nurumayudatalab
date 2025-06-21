@@ -95,6 +95,43 @@ class FurnitureModels {
         
         return color;
     }
+    
+    // 🆕 GLB読み込みテスト用デバッグ関数
+    async testGLBLoading(filename = 'sofa.glb') {
+        const fullPath = this.furnitureFolder + filename;
+        console.log(`🧪 Testing GLB loading for: ${fullPath}`);
+        
+        try {
+            // ファイル存在チェック
+            const exists = await this.checkFileExists(fullPath);
+            console.log(`📋 File existence check: ${exists}`);
+            
+            if (!exists) {
+                console.error(`❌ File does not exist: ${fullPath}`);
+                return false;
+            }
+            
+            // 直接読み込みテスト
+            console.log('🔄 Attempting direct GLB load test...');
+            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "", fullPath, this.scene);
+            
+            console.log('✅ GLB load test successful:', {
+                meshes: result.meshes?.length || 0,
+                particleSystems: result.particleSystems?.length || 0,
+                skeletons: result.skeletons?.length || 0
+            });
+            
+            // テスト用メッシュを削除
+            if (result.meshes) {
+                result.meshes.forEach(mesh => mesh.dispose());
+            }
+            
+            return true;
+        } catch (error) {
+            console.error(`❌ GLB load test failed for ${fullPath}:`, error);
+            return false;
+        }
+    }
 
     async init() {
         // 3d-furnitureフォルダ内の.glbファイルを自動的にスキャン
@@ -121,14 +158,23 @@ class FurnitureModels {
                 model.available = exists;
                 
                 if (exists) {
-                    console.log(`✅ GLB file found: ${model.name} (${model.file})`);
+                    console.log(`✅ GLB file found: ${model.name} (${model.file}) - 登録されました`);
                 } else {
-                    console.log(`⚠️ GLB file not found: ${model.name} (${model.file})`);
+                    console.log(`⚠️ GLB file not found: ${model.name} (${model.file}) - プリミティブフォールバックになります`);
                 }
             } catch (error) {
                 console.warn(`❌ Error checking GLB file ${model.file}:`, error);
                 model.available = false;
             }
+        }
+        
+        // 🆕 スキャン結果のサマリー表示
+        const availableCount = this.availableModels.filter(m => m.available).length;
+        const totalCount = this.availableModels.length;
+        console.log(`📊 GLBファイルスキャン完了: ${availableCount}/${totalCount} 個のファイルが利用可能`);
+        
+        if (availableCount === 0) {
+            console.warn('⚠️ 利用可能なGLBファイルが見つかりませんでした。全ての家具がプリミティブ形状で表示されます。');
         }
     }
 
@@ -208,30 +254,50 @@ class FurnitureModels {
                     // 直接ファイルにアクセスして存在確認
                     const response = await fetch(path);
                     const exists = response.ok || response.status === 0;
-                    console.log(`✅ File protocol check result for ${path}: ${exists}`);
+                    console.log(`✅ File protocol check result for ${path}: ${exists} (status: ${response.status})`);
                     return exists;
                 } catch (fileError) {
                     console.log(`❌ File protocol access failed for ${path}:`, fileError.message);
                     // フォールバック：ファイルが存在すると仮定して読み込みを試行
+                    console.log('🔄 Assuming file exists for later validation during GLB loading');
                     return true; // GLB読み込み時に実際のエラーハンドリングを行う
                 }
             }
             
             // HTTPプロトコルの場合
-            const response = await fetch(path, { 
-                method: 'HEAD',
-                mode: 'no-cors'
-            });
-            
-            console.log(`✅ HTTP check completed for: ${path}`);
-            return true;
+            try {
+                const response = await fetch(path, { 
+                    method: 'HEAD',
+                    mode: 'no-cors'
+                });
+                
+                console.log(`✅ HTTP check completed for: ${path} (status: ${response.status})`);
+                return response.ok;
+            } catch (httpError) {
+                console.log(`⚠️ HTTP HEAD request failed for ${path}, trying GET:`, httpError.message);
+                
+                // HEADリクエストが失敗した場合、GETを試行
+                try {
+                    const getResponse = await fetch(path);
+                    const exists = getResponse.ok;
+                    console.log(`📊 HTTP GET check result for ${path}: ${exists} (status: ${getResponse.status})`);
+                    return exists;
+                } catch (getError) {
+                    console.log(`❌ HTTP GET also failed for ${path}:`, getError.message);
+                    return false;
+                }
+            }
             
         } catch (error) {
-            console.log(`❌ File check failed for ${path}:`, error.message);
+            console.error(`❌ File existence check failed for ${path}:`, {
+                error: error.message,
+                protocol: window.location.protocol,
+                path: path
+            });
             
             // エラーが発生した場合でも、実際の読み込み時にエラーハンドリングを行うため
-            // ファイル存在として扱う
-            return true;
+            // ファイル存在として扱う（ただしHTTPの場合は false を返す）
+            return window.location.protocol === 'file:';
         }
     }
 
@@ -338,12 +404,40 @@ class FurnitureModels {
              // Babylon.jsでGLBファイルを読み込み - modelFileを直接使用
              console.log('🔄 Attempting direct GLB load:', filePath);
              
-             const result = await BABYLON.SceneLoader.ImportMeshAsync(
-                 "",
-                 "",
-                 filePath,
-                 this.scene
-             );
+             // 🆕 詳細なGLB読み込みログ
+             console.log('🎯 About to load GLB with ImportMeshAsync:', {
+                 filePath: filePath,
+                 scene: !!this.scene,
+                 babylonVersion: BABYLON.Engine?.Version || 'unknown',
+                 protocol: window.location.protocol
+             });
+             
+             let result;
+             try {
+                 result = await BABYLON.SceneLoader.ImportMeshAsync(
+                     "",
+                     "",
+                     filePath,
+                     this.scene
+                 );
+             } catch (glbError) {
+                 console.error(`❌ 家具作成エラー: ${furnitureType.id}`, glbError);
+                 
+                 // CORSエラーの場合、プリミティブフォールバックを作成
+                 if (glbError.message && (glbError.message.includes('CORS') || glbError.message.includes('LoadFileError'))) {
+                     console.log('🔄 GLB loading failed, creating primitive fallback for:', furnitureType.name);
+                     return this.createPrimitiveFurniture(furnitureType, position);
+                 }
+                 
+                 throw glbError; // その他のエラーは再スロー
+             }
+             
+             console.log('📦 GLB ImportMeshAsync result:', {
+                 meshes: result.meshes?.length || 0,
+                 particleSystems: result.particleSystems?.length || 0,
+                 skeletons: result.skeletons?.length || 0,
+                 success: !!(result.meshes && result.meshes.length > 0)
+             });
             
             // メッシュグループを作成
             const furnitureGroup = new BABYLON.TransformNode(furnitureType.id + "_" + Date.now(), this.scene);
@@ -1234,4 +1328,90 @@ class FurnitureModels {
         console.log('✅ Custom GLB furniture created:', clonedMesh.name);
         return clonedMesh;
     }
+}
+
+// 🆕 グローバルGLBデバッグ関数（ブラウザコンソールからアクセス可能）
+if (typeof window !== 'undefined') {
+    window.glbDebug = {
+        testSofaLoading: async () => {
+            if (window.furnitureApp?.furnitureModels) {
+                console.log('🧪 Testing sofa.glb loading...');
+                const result = await window.furnitureApp.furnitureModels.testGLBLoading('sofa.glb');
+                console.log(`🎯 Sofa GLB test result: ${result ? 'SUCCESS' : 'FAILED'}`);
+                return result;
+            } else {
+                console.warn('⚠️ FurnitureModels not found');
+                return false;
+            }
+        },
+        showAvailableModels: () => {
+            if (window.furnitureApp?.furnitureModels) {
+                const models = window.furnitureApp.furnitureModels.availableModels;
+                console.table(models);
+                console.log('📊 Available models:', models);
+                return models;
+            } else {
+                console.warn('⚠️ FurnitureModels not found');
+                return [];
+            }
+        },
+        showFurnitureTypes: () => {
+            if (window.furnitureApp?.furnitureModels) {
+                const types = window.furnitureApp.furnitureModels.getFurnitureTypes();
+                console.table(types.map(t => ({
+                    id: t.id,
+                    name: t.name,
+                    type: t.type,
+                    modelFile: t.modelFile,
+                    available: t.available
+                })));
+                console.log('🏠 Furniture types:', types);
+                return types;
+            } else {
+                console.warn('⚠️ FurnitureModels not found');
+                return [];
+            }
+        },
+        testDirectGLBLoad: async (filename = 'sofa.glb') => {
+            if (window.furnitureApp?.scene) {
+                try {
+                    const path = `./3d-furniture/${filename}`;
+                    console.log(`🔄 Testing direct GLB load: ${path}`);
+                    const result = await BABYLON.SceneLoader.ImportMeshAsync("", "", path, window.furnitureApp.scene);
+                    console.log('✅ Direct GLB load successful:', result);
+                    
+                    // Clean up test meshes
+                    if (result.meshes) {
+                        result.meshes.forEach(mesh => mesh.dispose());
+                    }
+                    return true;
+                } catch (error) {
+                    console.error('❌ Direct GLB load failed:', error);
+                    return false;
+                }
+            } else {
+                console.warn('⚠️ Babylon scene not found');
+                return false;
+            }
+        },
+        help: () => {
+            console.log(`
+🔧 GLB読み込みデバッグコマンド:
+
+📋 情報表示:
+• glbDebug.showAvailableModels() - 利用可能GLBモデル表示
+• glbDebug.showFurnitureTypes()  - 家具タイプ一覧表示
+
+🧪 読み込みテスト:
+• glbDebug.testSofaLoading()     - sofa.glb読み込みテスト
+• glbDebug.testDirectGLBLoad()   - 直接GLB読み込みテスト
+
+💡 使用例:
+  glbDebug.testSofaLoading()      → ソファGLB読み込み確認
+  glbDebug.showFurnitureTypes()   → 家具タイプとモデルファイル確認
+            `);
+        }
+    };
+    
+    console.log('🔧 GLBデバッグ関数をグローバルに登録しました。コンソールで glbDebug.help() を実行してください。');
 }

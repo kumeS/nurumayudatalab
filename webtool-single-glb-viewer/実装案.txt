@@ -1,0 +1,84 @@
+## シングル GLB操作ビューア — 仕様書（静的 HTML＋JavaScript 実装） ### 1. 目的とユースケース
+Web ブラウザ上で 単一の GLB/glTF モデル を手早く確認・操作できる軽量ビューアを提供する。
+
+家具・キャラクターモデル等の 個別デバッグ／プレゼン
+モデルのポーズ調整やカメラアングル検証
+モデルを編集前に素早く確認したい 3D アーティスト／開発者向け
+--- ### 2. 技術スタック | モジュール | 採用技術・ライブラリ | | ---------- | --------------------------------------------- | | モデル読み込み | **`GLTFLoader`**（three.js） | | レンダリング/シーン | `Scene`, `PerspectiveCamera`, `WebGLRenderer` | | 環境光・背景 | `PMREMGenerator`（HDRI）／単色背景 | | モデル管理 | `Object3D` でラップ（1 件のみ保持） | | 操作 UI | `TransformControls`（移動・回転・拡大縮小） | | GUI パネル | **dat.GUI**（必要最低限の UI） | | 状態保存 | **localStorage**（JSON シリアライズ） | --- ### 3. 画面レイアウト（MVP）
+
+┌───────────────────────────────┐
+│          3D ビューポート        │
+│  (マウス: OrbitControls)       │
+└───────────┬────────────────────┘
+            │ 右サイドバー (dat.GUI)
+            │  ├ ファイル読込ボタン
+            │  ├ Transform モード切替 (T/R/S)
+            │  ├ Reset Transform
+            │  ├ 背景   : [色 / HDRI 選択]
+            │  ├ Save   : 状態を保存
+            │  └ Load   : 保存済み状態を復元
+--- ### 4. 機能要件 | 区分 | 要件 | 詳細 | | -------- | --------------------------------------------------- | -------------------------------------------- | | A. モデル読込 | ドラッグ＆ドロップ／ファイル選択 | 新しい GLB を読み込むと既存モデルは置き換え | | B. 変形操作 | `TransformControls` | **T**ranslate／**R**otate／**S**cale の 3 モード切替 | | C. 背景 | ① 単色カラーピッカー<br>② HDRI 環境テクスチャ（複数プリセット） | | | D. 保存 | シーン状態（位置・回転・スケール・背景設定）を JSON として `localStorage` に保存 | ボタン１つ | | E. 復元 | 保存済み JSON を読み込み、直前の状態を復元 | | | F. リセット | Transform を初期値 (0,0,0 / 1,1,1) へ戻す | | --- ### 5. 非機能要件
+静的ホスティングのみで稼働（GitHub Pages／Cloudflare Pages 等）
+主要ブラウザ（Chrome, Edge, Safari, Firefox）で 60 FPS 程度を維持
+モバイル対応：二本指パン・ピンチで OrbitControls を操作
+--- ### 6. データ構造（保存フォーマット例）
+
+{
+  "modelName": "chair.glb",
+  "transform": {
+    "position": [0, 0, 0],
+    "rotation": [0, 1.5708, 0],   // radians
+    "scale":    [1, 1, 1]
+  },
+  "background": {
+    "type": "color",
+    "value": "#ececec"
+  }
+}
+--- ### 7. 最小実装ステップ (MVP)
+基礎セットアップ
+
+three.js (CDN) と dat.GUI を読み込む
+Scene, PerspectiveCamera, WebGLRenderer, OrbitControls を構築
+GLB 読込
+
+input[type="file"] ＋ drag-over イベント → GLTFLoader.load()
+TransformControls
+
+読み込んだ scene ノードに controls.attach()
+GUI パネル
+
+モード切替 (T/R/S), Reset, 背景設定, Save/Load 実装
+状態保存／復元
+
+localStorage.setItem/getItem で JSON シリアライズ
+UI 微調整
+
+レスポンシブ CSS／タッチ操作対応
+--- ### 8. 拡張アイデア（将来）
+スクリーンショット生成（renderer→toDataURL）
+GLB 再エクスポート（three.js GLTFExporter）
+アニメーション UI（再生 / ポーズ / シークバー）
+WASM を用いた 形式変換 (GLB⇄OBJ) 追加
+環境プリセット の切替（屋外・スタジオ・夜景 ほか）
+--- ### 9. ディレクトリ構成例
+
+/public
+ ├ index.html
+ ├ main.js
+ ├ libs/
+ │   ├ three.min.js
+ │   ├ GLTFLoader.js
+ │   ├ TransformControls.js
+ │   ├ OrbitControls.js
+ │   └ dat.gui.min.js
+ └ assets/
+     └ hdr/
+         ├ studio.hdr
+         └ sunset.hdr
+--- ### 10. MVP 完了チェックリスト
+GLB 単体読み込みができる
+TransformControls で移動・回転・拡大縮小が機能
+背景色／HDRI の切替が反映
+状態保存／復元が正常動作
+PC／スマホの主要ブラウザで表示崩れなし

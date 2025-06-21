@@ -327,7 +327,11 @@ class CollisionDetector {
     calculateOverlap(bounds1, bounds2) {
         const overlapX = Math.min(bounds1.maxX, bounds2.maxX) - Math.max(bounds1.minX, bounds2.minX);
         const overlapZ = Math.min(bounds1.maxZ, bounds2.maxZ) - Math.max(bounds1.minZ, bounds2.minZ);
-        return Math.min(overlapX, overlapZ);
+        const actualOverlap = Math.min(overlapX, overlapZ);
+        
+        // 🔧 最小許容範囲（1cm）未満の場合は衝突なしとして扱う
+        const minTolerance = 1; // 1cm
+        return actualOverlap > minTolerance ? actualOverlap : 0;
     }
 
     // 有効な配置位置を提案

@@ -1,0 +1,4300 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI危険生物辞典 - 曖昧な言葉から危険生物を発見</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #D32F2F;
+      --secondary: #FF5722;
+      --accent: #FFC107;
+      --text-primary: #B71C1C;
+      --text-secondary: #424242;
+      --card-shadow: 0 4px 16px rgba(211, 47, 47, 0.15);
+      --transition-speed: 0.3s;
+      --success: #4CAF50;
+      --error: #D32F2F;
+      --warning: #FF9800;
+      --bg-gradient: linear-gradient(135deg, #1B1B1B 0%, #2C1810 25%, #3D2317 50%, #4A1C0A 75%, #5D1F0D 100%);
+      --danger-glow: 0 0 20px rgba(255, 87, 34, 0.3);
+      --warning-bg: linear-gradient(135deg, #FFEBEE 0%, #FFF3E0 100%);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      color: white;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    /* ヘッダー */
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 2rem 0;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+
+    .header .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+
+    .header .description {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 1rem;
+      border-radius: 12px;
+      margin: 0 auto;
+      max-width: 600px;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      box-shadow: var(--card-shadow);
+    }
+
+    .highlight {
+      background: linear-gradient(135deg, #FFEBEE, #FFF8E1);
+      color: var(--primary);
+      padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+      font-weight: 600;
+      display: inline-block;
+      margin: 0 0.1rem;
+    }
+
+    /* タブナビゲーション */
+    .tab-navigation {
+      display: flex;
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 1rem;
+      text-align: center;
+      background: #f8f9fa;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      border: none;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .tab:hover {
+      background: var(--secondary);
+      color: white;
+    }
+
+    .tab.active {
+      background: var(--primary);
+      color: white;
+      font-weight: 600;
+    }
+
+    /* 検索セクション */
+    .search-section {
+      background: white;
+      padding: 2rem;
+      border-radius: 16px;
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .search-label {
+      display: block;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .search-input-container {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 1rem 1rem 1rem 3rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      transition: all var(--transition-speed);
+      background: #fafafa;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--primary);
+      font-size: 1.2rem;
+    }
+
+    .search-examples {
+      margin-bottom: 1.5rem;
+    }
+
+    .search-examples-title {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .example-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .example-tag {
+      background: linear-gradient(135deg, #FF6F00, #FF8F00);
+      color: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      border: none;
+      box-shadow: 0 2px 6px rgba(255, 111, 0, 0.2);
+    }
+
+    .example-tag:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255, 111, 0, 0.4);
+      background: linear-gradient(135deg, #E65100, #FF6F00);
+    }
+
+    /* ボタングループ */
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--danger-glow);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      color: var(--text-secondary);
+    }
+
+    .btn-secondary:hover {
+      background: linear-gradient(135deg, #e9ecef, #dee2e6);
+    }
+
+    .btn:disabled {
+      background: #ccc;
+      color: #888;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ローディング */
+    .loading {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    .loading.active {
+      display: flex;
+    }
+
+    .loading-spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #e0e0e0;
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* 結果セクション */
+    .results-section {
+      display: none;
+    }
+
+    .results-section.active {
+      display: block;
+    }
+
+    .results-header {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .results-title {
+      font-size: 1.3rem;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .results-count {
+      color: var(--text-secondary);
+    }
+
+    /* 危険生物候補カード */
+    .dangerous-candidates {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      max-width: calc(400px * 3 + 1.5rem * 2); /* 3列分の最大幅を設定 */
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .dangerous-card {
+      background: white;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      transition: all var(--transition-speed);
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+
+    .dangerous-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--danger-glow);
+      border-color: var(--primary);
+      background: linear-gradient(135deg, #FFEBEE, #FFF8E1);
+    }
+
+    .dangerous-card.selected {
+      border-color: var(--primary);
+      background: var(--warning-bg);
+      box-shadow: var(--danger-glow);
+    }
+
+    .dangerous-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .dangerous-names {
+      flex: 1;
+    }
+
+    .dangerous-scientific-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.3rem;
+      font-style: italic;
+    }
+
+    .dangerous-common-name {
+      font-size: 1rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .dangerous-aliases {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: 0.2rem;
+    }
+
+    .confidence-badge {
+      background: linear-gradient(135deg, #FF6F00, #FF8F00);
+      color: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 2px 8px rgba(255, 111, 0, 0.3);
+    }
+
+    .confidence-info-btn {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 0.2rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      opacity: 0.8;
+      font-size: 0.7rem;
+    }
+
+    .confidence-info-btn:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.1);
+    }
+
+    /* 一致度判定グレード */
+    .evaluation-grade {
+      display: inline-block;
+      padding: 0.3rem 0.8rem;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-left: auto;
+      min-width: 40px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .grade-a {
+      background: linear-gradient(135deg, #4CAF50, #66BB6A);
+      color: white;
+    }
+
+    .grade-b {
+      background: linear-gradient(135deg, #8BC34A, #9CCC65);
+      color: white;
+    }
+
+    .grade-c {
+      background: linear-gradient(135deg, #FFC107, #FFD54F);
+      color: #333;
+    }
+
+    .grade-d {
+      background: linear-gradient(135deg, #FF9800, #FFB74D);
+      color: white;
+    }
+
+    .evaluation-description {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .evaluation-reason {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .confidence-factor-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+
+    /* 危険生物画像 */
+    .dangerous-image-container {
+      position: relative;
+      margin-bottom: 1rem;
+      border-radius: 12px;
+      overflow: hidden;
+      width: 100%;
+      aspect-ratio: 1 / 1; /* 1:1の比率を強制 */
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dangerous-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* アスペクト比を保持しながらコンテナにフィット */
+      object-position: center; /* 画像の中央部分を表示 */
+      transition: all var(--transition-speed);
+    }
+
+    .dangerous-image:hover {
+      transform: scale(1.05);
+    }
+
+    .image-placeholder {
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .image-generate-btn {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .image-generate-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(76, 175, 80, 0.5);
+      background: linear-gradient(135deg, #2E7D32, var(--primary));
+    }
+
+    .image-generate-btn:active {
+      transform: translateY(-1px);
+    }
+
+    /* 危険生物画像生成ローディング */
+    .dangerous-image-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: linear-gradient(135deg, #E8F5E8, #F1F8E9);
+      border-radius: 12px;
+      border: 2px dashed var(--primary);
+    }
+
+    .dangerous-loading-icon {
+      font-size: 3rem;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      animation: grow 2s ease-in-out infinite;
+    }
+
+    .dangerous-loading-text {
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .dangerous-loading-subtext {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .dangerous-loading-dots {
+      display: inline-block;
+      margin-left: 0.5rem;
+    }
+
+    .dangerous-loading-dots::after {
+      content: '';
+      animation: dots 2s steps(4, end) infinite;
+    }
+
+    @keyframes grow {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.2);
+      }
+    }
+
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+      100% { content: ''; }
+    }
+
+    /* 危険生物詳細情報 */
+    .dangerous-details {
+      display: none;
+    }
+
+    .dangerous-details.active {
+      display: block;
+    }
+
+    .dangerous-features {
+      margin-bottom: 1rem;
+    }
+
+    .features-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .features-content {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .wildlife-connection {
+      background: linear-gradient(135deg, #E3F2FD, #F1F8E9);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .culture-info {
+      background: linear-gradient(135deg, #FFF3E0, #FFF8E1);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    /* アクションボタン */
+    .dangerous-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .save-btn {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+    }
+
+    .save-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--danger-glow);
+    }
+
+    .save-btn.saved {
+      background: linear-gradient(135deg, #FF7043, #FF8A65);
+    }
+
+    /* マイ危険生物集セクション */
+    .my-collection-section {
+      display: none;
+    }
+
+    .my-collection-section.active {
+      display: block;
+    }
+
+    .collection-grid, .saved-images-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+
+    .collection-item, .saved-image-item {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: var(--card-shadow);
+      transition: all var(--transition-speed);
+    }
+
+    .collection-item:hover, .saved-image-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .collection-image, .saved-image {
+      width: 100%;
+      aspect-ratio: 1 / 1; /* 1:1の比率を強制 */
+      object-fit: cover; /* アスペクト比を保持しながらコンテナにフィット */
+      object-position: center; /* 画像の中央部分を表示 */
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+
+    .collection-name, .saved-image-name {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.3rem;
+    }
+
+    .collection-scientific, .saved-image-scientific {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-style: italic;
+      margin-bottom: 0.5rem;
+    }
+
+    .collection-actions, .saved-image-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .remove-btn {
+      background: linear-gradient(135deg, #ff7043, #ff8a65);
+      color: white;
+      padding: 0.3rem 0.6rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+    }
+
+    .remove-btn:hover {
+      background: linear-gradient(135deg, #d84315, #ff7043);
+    }
+
+    .saved-image-timestamp {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      opacity: 0.8;
+    }
+
+    .saved-image-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      background: #f5f5f5;
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    /* エラー・警告メッセージ */
+    .message {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+
+    .message.error {
+      background: linear-gradient(135deg, #ffebee, #ffcdd2);
+      color: #c62828;
+      border: 1px solid #ef5350;
+    }
+
+    .message.warning {
+      background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+      color: #e65100;
+      border: 1px solid #ff9800;
+    }
+
+    .message.success {
+      background: linear-gradient(135deg, #E8F5E8, #C8E6C9);
+      color: #2E7D32;
+      border: 1px solid var(--success);
+    }
+
+    /* レスポンシブデザイン */
+    @media (max-width: 768px) {
+      .container {
+        padding: 0.5rem;
+      }
+
+      .header h1 {
+        font-size: 2rem;
+      }
+
+      .search-section {
+        padding: 1.5rem;
+      }
+
+      .dangerous-candidates {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .dangerous-card {
+        padding: 1rem;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      .btn {
+        justify-content: center;
+        text-align: center;
+      }
+
+      .example-tags {
+        justify-content: center;
+      }
+
+      .tab {
+        padding: 0.8rem 0.5rem;
+        font-size: 0.9rem;
+      }
+
+      /* スマホでもすべての画像を1:1に統一 */
+      .dangerous-image-container {
+        aspect-ratio: 1 / 1;
+      }
+
+      .collection-image, .saved-image {
+        aspect-ratio: 1 / 1;
+      }
+
+      .modal-dangerous-image {
+        width: 180px; /* スマホではやや小さく */
+        aspect-ratio: 1 / 1;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .header h1 {
+        font-size: 1.7rem;
+      }
+
+      .dangerous-image-container {
+        /* 1:1のアスペクト比を優先し、高さ固定を削除 */
+        aspect-ratio: 1 / 1;
+      }
+
+      .dangerous-actions {
+        justify-content: center;
+      }
+    }
+
+    /* アニメーション */
+    .fade-in {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* スタイル選択 */
+    .style-selection {
+      margin-bottom: 1rem;
+    }
+
+    .style-options {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .style-option {
+      padding: 0.4rem 0.8rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 20px;
+      background: white;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-size: 0.85rem;
+    }
+
+    .style-option:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .style-option.selected {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* 時間帯選択 */
+    .time-selection {
+      margin-bottom: 1rem;
+    }
+
+    .time-options {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .time-option {
+      padding: 0.4rem 0.8rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 20px;
+      background: white;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      font-size: 0.85rem;
+    }
+
+    .time-option:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .time-option.selected {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    /* 設定セクション */
+    .settings-section {
+      display: none;
+    }
+
+    .settings-section.active {
+      display: block;
+    }
+
+    .settings-content {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .settings-group {
+      margin-bottom: 2rem;
+    }
+
+    .settings-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .settings-group-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .settings-options {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .settings-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      background: #fafafa;
+    }
+
+    .settings-option:hover {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, #FFEBEE, #FFF8E1);
+    }
+
+    .settings-option input[type="radio"] {
+      margin: 0;
+      width: 20px;
+      height: 20px;
+      accent-color: var(--primary);
+    }
+
+    .settings-option input[type="radio"]:checked + .settings-option-label {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .settings-option-label {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 0.3rem;
+    }
+
+    .settings-option-desc {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .settings-option-content {
+      flex: 1;
+    }
+
+    .settings-option:has(input[type="radio"]:checked) {
+      border-color: var(--primary);
+      background: var(--warning-bg);
+      box-shadow: var(--danger-glow);
+    }
+
+
+
+    /* プロンプト情報アイコン */
+    .prompt-info-icon {
+      margin-left: 0.5rem;
+      color: #999;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all var(--transition-speed);
+      opacity: 0.7;
+    }
+
+    .prompt-info-icon:hover {
+      color: var(--primary);
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    /* 画像上のプロンプト情報ボタン */
+    .image-prompt-info-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      border-radius: 50%;
+      color: #666;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .image-prompt-info-btn:hover {
+      background: rgba(255, 255, 255, 1);
+      color: var(--primary);
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* プロンプト表示モーダル */
+    .prompt-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1001;
+      padding: 1rem;
+    }
+
+    .prompt-modal.active {
+      display: flex;
+    }
+
+    .prompt-modal-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 700px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 一致度根拠表示モーダル */
+    .confidence-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1001;
+      padding: 1rem;
+    }
+
+    .confidence-modal.active {
+      display: flex;
+    }
+
+    .confidence-modal-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .confidence-modal-header {
+      background: linear-gradient(135deg, var(--accent), #FFB74D);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .confidence-modal-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .confidence-modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 50%;
+      transition: all var(--transition-speed);
+      opacity: 0.8;
+    }
+
+    .confidence-modal-close:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.1);
+    }
+
+    .confidence-modal-body {
+      padding: 1.5rem;
+    }
+
+    .confidence-level-display {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: linear-gradient(135deg, #F8F9FA, #E9ECEF);
+      border-radius: 12px;
+    }
+
+    .confidence-level-display .confidence-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .confidence-level-display .confidence-meaning {
+      font-size: 1rem;
+      color: var(--text-secondary);
+    }
+
+    .confidence-factor {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      border-left: 4px solid var(--primary);
+      background: #F8F9FA;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .confidence-factor-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .confidence-factor-content {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .confidence-note {
+      background: linear-gradient(135deg, #E3F2FD, #F1F8E9);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .prompt-modal-header {
+      background: linear-gradient(135deg, var(--primary), #8BC34A);
+      color: white;
+      padding: 1.5rem 2rem;
+      border-radius: 16px 16px 0 0;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .prompt-modal-header h3 {
+      margin: 0;
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+
+    .prompt-modal-header .modal-close-btn {
+      position: static;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      width: 36px;
+      height: 36px;
+      font-size: 1.2rem;
+    }
+
+    .prompt-modal-header .modal-close-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      color: white;
+    }
+
+    .prompt-modal-body {
+      padding: 2rem;
+    }
+
+    .prompt-content {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 1.5rem;
+      font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: #495057;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+
+    /* 詳細表示モーダル */
+    .dangerous-details-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+
+    .dangerous-details-modal.active {
+      display: flex;
+    }
+
+    .dangerous-details-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 2rem;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-close-btn {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-speed);
+    }
+
+    .modal-close-btn:hover {
+      background: #f5f5f5;
+      color: var(--primary);
+    }
+
+    .modal-dangerous-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .modal-dangerous-image {
+      width: 200px;
+      aspect-ratio: 1 / 1; /* 1:1の比率を強制 */
+      object-fit: cover; /* アスペクト比を保持しながらコンテナにフィット */
+      object-position: center; /* 画像の中央部分を表示 */
+      border-radius: 12px;
+      margin: 0 auto 1rem auto;
+      display: block;
+      box-shadow: var(--card-shadow);
+    }
+
+    .modal-dangerous-names {
+      margin-bottom: 1rem;
+    }
+
+    .modal-scientific-name {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--primary);
+      font-style: italic;
+      margin-bottom: 0.5rem;
+    }
+
+    .modal-common-name {
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .details-btn {
+      background: linear-gradient(135deg, #2196F3, #42A5F5);
+      color: white;
+      padding: 0.3rem 0.6rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      margin-right: 0.5rem;
+    }
+
+    .details-btn:hover {
+      background: linear-gradient(135deg, #1976D2, #2196F3);
+      transform: translateY(-1px);
+    }
+
+    /* ストレージ情報モーダル */
+    .storage-info-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1001;
+      padding: 1rem;
+    }
+
+    .storage-info-modal.active {
+      display: flex;
+    }
+
+    .storage-info-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .storage-info-header {
+      background: linear-gradient(135deg, #607D8B, #78909C);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .storage-info-body {
+      padding: 1.5rem;
+    }
+
+    .storage-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.8rem;
+      margin-bottom: 0.5rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid var(--primary);
+    }
+
+    .storage-stat-label {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .storage-stat-value {
+      color: var(--text-secondary);
+      font-family: monospace;
+    }
+
+    /* 保存画像履歴セクション */
+    .saved-images-section {
+      background: var(--background);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .saved-images-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .saved-image-item {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .saved-image-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .saved-image-container {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .saved-image {
+      width: 100%;
+      aspect-ratio: 1 / 1; /* 1:1の比率を強制 */
+      object-fit: cover; /* アスペクト比を保持しながらコンテナにフィット */
+      object-position: center; /* 画像の中央部分を表示 */
+      border-radius: 8px;
+      background: #f5f5f5;
+    }
+
+    .saved-image-delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(244, 67, 54, 0.9);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.8rem;
+      opacity: 0;
+    }
+
+    .saved-image-item:hover .saved-image-delete-btn {
+      opacity: 1;
+    }
+
+    .saved-image-delete-btn:hover {
+      background: rgba(244, 67, 54, 1);
+      transform: scale(1.1);
+    }
+
+    .saved-image-info {
+      font-size: 0.9rem;
+    }
+
+    .saved-image-meta {
+      margin: 0.5rem 0;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.3rem 0;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+
+    .meta-item i {
+      width: 12px;
+      color: var(--primary);
+    }
+
+    .saved-image-prompt {
+      margin-top: 1rem;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 1rem;
+    }
+
+    .prompt-toggle-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .prompt-toggle-btn:hover {
+      background: #1976D2;
+    }
+
+    .prompt-content {
+      margin-top: 0.5rem;
+      padding: 0.8rem;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border-left: 3px solid var(--primary);
+    }
+
+    .prompt-text {
+      font-size: 0.8rem;
+      line-height: 1.4;
+      color: #333;
+      white-space: pre-wrap;
+    }
+
+    /* ストレージ統計情報 */
+    .storage-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .storage-stat {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .stat-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .stat-info {
+      flex: 1;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.2rem;
+    }
+
+    .stat-value {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .storage-info-notes {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .storage-info-notes h4 {
+      margin-bottom: 1rem;
+      color: var(--primary);
+      font-size: 1rem;
+    }
+
+    .storage-info-notes ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .storage-info-notes li {
+      padding: 0.3rem 0;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      position: relative;
+      padding-left: 1.5rem;
+    }
+
+    .storage-info-notes li:before {
+      content: '•';
+      color: var(--primary);
+      position: absolute;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- ヘッダー -->
+    <header class="header">
+      <h1><i class="fas fa-exclamation-triangle"></i> AI危険生物辞典</h1>
+      <p class="subtitle">曖昧な言葉から危険生物を発見する楽しみ</p>
+      <div class="description">
+        <span class="highlight">俗名や特徴、見た目の印象</span>など、<span class="highlight">どんな曖昧な言葉でも大丈夫</span>。<span class="highlight">AIが該当する危険生物候補を提案</span>し、
+        それぞれの特徴や毒性、生息地を<span class="highlight">美しいイラスト</span>と共に解説します。
+      </div>
+    </header>
+
+    <!-- タブナビゲーション -->
+    <nav class="tab-navigation">
+      <button class="tab active" id="search-tab">
+        <i class="fas fa-search"></i> 危険生物を探す
+      </button>
+      <button class="tab" id="collection-tab">
+        <i class="fas fa-book"></i> マイ危険生物集
+      </button>
+      <button class="tab" id="settings-tab">
+        <i class="fas fa-cog"></i> 設定
+      </button>
+    </nav>
+
+    <!-- 検索セクション -->
+    <section class="search-section" id="search-section">
+      <label for="search-input" class="search-label">
+        <i class="fas fa-exclamation-triangle"></i> どんな危険生物をお探しですか？
+      </label>
+      
+      <div class="search-input-container">
+        <i class="fas fa-search search-icon"></i>
+        <input 
+          type="text" 
+          id="search-input" 
+          class="search-input" 
+                      placeholder="例：毒のある蜘蛛、黒い蛇、刺す虫、毒きのこ..."
+          autocomplete="off"
+        >
+      </div>
+
+      <div class="search-examples">
+        <div class="search-examples-title">よく検索されるキーワード：</div>
+                  <div class="example-tags">
+            <button class="example-tag" data-query="毒のある蜘蛛">毒のある蜘蛛</button>
+            <button class="example-tag" data-query="黒い蛇">黒い蛇</button>
+            <button class="example-tag" data-query="刺すハチ">刺すハチ</button>
+            <button class="example-tag" data-query="毒きのこ">毒きのこ</button>
+            <button class="example-tag" data-query="サソリ">サソリ</button>
+            <button class="example-tag" data-query="毒があるクラゲ">毒があるクラゲ</button>
+            <button class="example-tag" data-query="毒を持つカエル">毒を持つカエル</button>
+            <button class="example-tag" data-query="赤い虫">赤い虫</button>
+            <button class="example-tag" data-query="噛む虫">噛む虫</button>
+            <button class="example-tag" data-query="危険な植物">危険な植物</button>
+            <button class="example-tag" data-query="毒のある魚">毒のある魚</button>
+            <button class="example-tag" data-query="咬傷動物">咬傷動物</button>
+            <button class="example-tag" data-query="刺毒動物">刺毒動物</button>
+            <button class="example-tag" data-query="食中毒を起こす">食中毒を起こす</button>
+            <button class="example-tag" data-query="皮膚炎を起こす">皮膚炎を起こす</button>
+            <button class="example-tag" data-query="感染症の原因">感染症の原因</button>
+            <button class="example-tag" data-query="危険な細菌">危険な細菌</button>
+            <button class="example-tag" data-query="病原性微生物">病原性微生物</button>
+            <button class="example-tag" data-query="毒性化合物">毒性化合物</button>
+            <button class="example-tag" data-query="有毒植物">有毒植物</button>
+            <button class="example-tag" data-query="毒ガス発生">毒ガス発生</button>
+            <button class="example-tag" data-query="アレルギー反応">アレルギー反応</button>
+            <button class="example-tag" data-query="神経毒">神経毒</button>
+            <button class="example-tag" data-query="血液毒">血液毒</button>
+            <button class="example-tag" data-query="致命的な毒">致命的な毒</button>
+            <button class="example-tag" data-query="海の危険生物">海の危険生物</button>
+            <button class="example-tag" data-query="山の危険生物">山の危険生物</button>
+            <button class="example-tag" data-query="森の危険生物">森の危険生物</button>
+          </div>
+      </div>
+
+      <div class="button-group">
+        <button id="search-btn" class="btn btn-primary">
+          <i class="fas fa-search"></i> 検索
+        </button>
+        <button id="clear-btn" class="btn btn-secondary">
+          <i class="fas fa-eraser"></i> クリア
+        </button>
+        <div class="loading" id="search-loading">
+          <div class="loading-spinner"></div>
+          <span>危険生物を検索中...</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 検索結果セクション -->
+    <section class="results-section" id="results-section">
+      <div class="results-header">
+        <h2 class="results-title" id="results-title">検索結果</h2>
+        <p class="results-count" id="results-count"></p>
+      </div>
+
+      <div class="dangerous-candidates" id="dangerous-candidates">
+        <!-- 危険生物候補カードが動的に生成される -->
+      </div>
+    </section>
+
+    <!-- マイ危険生物集セクション -->
+    <section class="my-collection-section" id="my-collection-section">
+      <div class="results-header">
+        <h2 class="results-title">
+          <i class="fas fa-book"></i> マイ危険生物集
+        </h2>
+        <p class="results-count" id="collection-count">保存された危険生物はありません</p>
+        
+        <!-- エクスポート・インポートボタン -->
+        <div class="collection-actions" style="margin-top: 1rem;">
+          <button class="btn btn-secondary" id="export-btn" onclick="app.exportCollection()">
+            <i class="fas fa-download"></i> エクスポート
+          </button>
+          <label class="btn btn-secondary" for="import-file" style="cursor: pointer; margin-left: 0.5rem;">
+            <i class="fas fa-upload"></i> インポート
+            <input type="file" id="import-file" accept=".json" style="display: none;" onchange="app.importCollection(this)">
+          </label>
+          <button class="btn btn-secondary" onclick="app.clearAllCollection()" style="margin-left: 0.5rem; background: #ff7043;">
+            <i class="fas fa-trash"></i> 全削除
+          </button>
+          <button class="btn btn-secondary" onclick="app.showSavedImages()" style="margin-left: 0.5rem; background: #2196F3;">
+            <i class="fas fa-images"></i> 保存画像履歴
+          </button>
+        </div>
+      </div>
+
+      <div class="collection-grid" id="collection-grid">
+        <!-- 保存された危険生物が動的に生成される -->
+      </div>
+    </section>
+
+    <!-- 保存画像履歴セクション -->
+    <section class="saved-images-section" id="saved-images-section" style="display: none;">
+      <div class="results-header">
+        <h2 class="results-title">
+          <i class="fas fa-images"></i> 保存画像履歴
+        </h2>
+        <p class="results-count" id="saved-images-count">保存された画像はありません</p>
+        
+        <div class="collection-actions" style="margin-top: 1rem;">
+          <button class="btn btn-secondary" onclick="app.showMyCollection()" style="background: var(--primary);">
+            <i class="fas fa-arrow-left"></i> マイ危険生物集に戻る
+          </button>
+          <button class="btn btn-secondary" onclick="app.clearAllSavedImages()" style="margin-left: 0.5rem; background: #ff7043;">
+            <i class="fas fa-trash"></i> 全削除
+          </button>
+          <button class="btn btn-secondary" onclick="app.showStorageInfo()" style="margin-left: 0.5rem; background: #607D8B;">
+            <i class="fas fa-info-circle"></i> ストレージ情報
+          </button>
+        </div>
+      </div>
+
+      <div class="saved-images-grid" id="saved-images-grid">
+        <!-- 保存された画像が動的に生成される -->
+      </div>
+    </section>
+
+    <!-- 設定セクション -->
+    <section class="settings-section" id="settings-section">
+      <div class="settings-content">
+        <div class="settings-group">
+          <h3 class="settings-group-title">
+            <i class="fas fa-search"></i> 危険生物検索設定
+          </h3>
+          <div class="settings-options">
+            <label class="settings-option">
+              <input type="radio" name="region-setting" value="japan" checked>
+              <div class="settings-option-content">
+                <div class="settings-option-label">日本で見られる危険生物を優先</div>
+                <div class="settings-option-desc">日本国内で見つかりやすい危険生物を重視した検索</div>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="region-setting" value="southeast-asia">
+              <div class="settings-option-content">
+                <div class="settings-option-label">東南アジアで見られる危険生物を優先</div>
+                <div class="settings-option-desc">東南アジア地域の危険生物を重視した検索</div>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="region-setting" value="north-america">
+              <div class="settings-option-content">
+                <div class="settings-option-label">ヨーロッパ・北米大陸で見られる危険生物を優先</div>
+                <div class="settings-option-desc">ヨーロッパ・北米地域の危険生物を重視した検索</div>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="region-setting" value="fictional">
+              <div class="settings-option-content">
+                <div class="settings-option-label">架空の危険生物を創造</div>
+                <div class="settings-option-desc">実在しない創作上の危険生物を生成・検索</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3 class="settings-group-title">
+            <i class="fas fa-palette"></i> 画像スタイル設定
+          </h3>
+                     <div class="settings-options">
+             <label class="settings-option">
+               <input type="radio" name="style-setting" value="traditional" checked>
+               <div class="settings-option-content">
+                 <div class="settings-option-label">
+                   科学的イラスト画
+                   <i class="fas fa-info-circle prompt-info-icon" data-style="traditional" title="プロンプトを確認"></i>
+                 </div>
+                 <div class="settings-option-desc">博物学的・学術的な危険生物イラスト</div>
+               </div>
+             </label>
+             <label class="settings-option">
+               <input type="radio" name="style-setting" value="anime">
+               <div class="settings-option-content">
+                 <div class="settings-option-label">
+                   アニメ風イラスト
+                   <i class="fas fa-info-circle prompt-info-icon" data-style="anime" title="プロンプトを確認"></i>
+                 </div>
+                 <div class="settings-option-desc">アニメ・マンガ調の危険生物イラスト</div>
+               </div>
+             </label>
+             <label class="settings-option">
+               <input type="radio" name="style-setting" value="realistic">
+               <div class="settings-option-content">
+                 <div class="settings-option-label">
+                   リアル写真風
+                   <i class="fas fa-info-circle prompt-info-icon" data-style="realistic" title="プロンプトを確認"></i>
+                 </div>
+                 <div class="settings-option-desc">写真のようなリアルな危険生物描写</div>
+               </div>
+             </label>
+           </div>
+        </div>
+
+                 
+
+        <div class="settings-group">
+          <h3 class="settings-group-title">
+            <i class="fas fa-cogs"></i> 画像生成モデル
+          </h3>
+          <div class="settings-options">
+            <label class="settings-option">
+              <input type="radio" name="model-setting" value="sdxl-lightning" checked>
+              <div class="settings-option-content">
+                <div class="settings-option-label">SDXL Lightning 4-step</div>
+                <div class="settings-option-desc">高速生成・軽量モデル（推奨）</div>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="model-setting" value="minimax">
+              <div class="settings-option-content">
+                <div class="settings-option-label">Minimax Image-01</div>
+                <div class="settings-option-desc">高品質・詳細描写モデルだが、画像生成に1分間ほどかかります。注意！</div>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="model-setting" value="recraft-v3">
+              <div class="settings-option-content">
+                <div class="settings-option-label">Recraft v3</div>
+                <div class="settings-option-desc">高品質デザイン特化モデル（1回のみ）</div>
+              </div>
+            </label>
+                          <label class="settings-option">
+                <input type="radio" name="model-setting" value="imagen-4-fast">
+                <div class="settings-option-content">
+                  <div class="settings-option-label">Google Imagen 4 Fast</div>
+                  <div class="settings-option-desc">Google最新高速生成モデル、生物イラストの出力に適する</div>
+                </div>
+              </label>
+          </div>
+        </div>
+
+
+      </div>
+    </section>
+  </div>
+
+  <!-- プロンプト表示モーダル -->
+  <div class="prompt-modal" id="prompt-modal">
+    <div class="prompt-modal-content">
+      <div class="prompt-modal-header">
+        <h3 id="prompt-modal-title">プロンプト内容</h3>
+        <button class="modal-close-btn" onclick="app.closePromptModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="prompt-modal-body">
+        <div class="prompt-optimization-info" id="prompt-optimization-info" style="margin-bottom: 1rem; padding: 1rem; background: linear-gradient(135deg, #E3F2FD, #F1F8E9); border-radius: 8px; display: none;">
+          <div style="font-weight: 600; color: var(--primary); margin-bottom: 0.5rem;">
+            <i class="fas fa-robot"></i> LLM最適化済み
+          </div>
+          <div style="font-size: 0.9rem; color: var(--text-secondary);">
+            このプロンプトは画像生成AI用に最適化・英語化されています。
+          </div>
+        </div>
+        <div class="prompt-content" id="prompt-content"></div>
+        <div class="draft-prompt-section" id="draft-prompt-section" style="margin-top: 1rem; display: none;">
+          <div style="font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem; border-top: 1px solid #e0e0e0; padding-top: 1rem;">
+            <i class="fas fa-draft2digital"></i> 最適化前のドラフト
+          </div>
+          <div class="draft-prompt-content" id="draft-prompt-content" style="font-size: 0.85rem; color: #666; background: #f8f9fa; padding: 0.8rem; border-radius: 6px; white-space: pre-wrap; line-height: 1.4;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 危険生物詳細モーダル -->
+  <div class="dangerous-details-modal" id="dangerous-details-modal">
+    <div class="dangerous-details-content">
+      <button class="modal-close-btn" onclick="app.closeDetailsModal()">
+        <i class="fas fa-times"></i>
+      </button>
+      
+      <div class="modal-dangerous-header">
+        <img id="modal-dangerous-image" class="modal-dangerous-image" src="" alt="" style="display: none;">
+        <div class="modal-dangerous-names">
+          <div class="modal-scientific-name" id="modal-scientific-name"></div>
+          <div class="modal-common-name" id="modal-common-name"></div>
+          <div class="dangerous-aliases" id="modal-aliases"></div>
+        </div>
+      </div>
+
+      <div id="modal-dangerous-details">
+        <!-- 詳細情報がここに動的に挿入される -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ストレージ情報モーダル -->
+  <div class="storage-info-modal" id="storage-info-modal">
+    <div class="storage-info-content">
+      <div class="storage-info-header">
+        <h3><i class="fas fa-database"></i> ストレージ情報</h3>
+        <button class="modal-close-btn" onclick="app.closeStorageInfoModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="storage-info-body" id="storage-info-body">
+        <!-- ストレージ情報がここに動的に挿入される -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 全体のアプリケーション状態管理
+    class dangerousDictionaryApp {
+      constructor() {
+        this.currentTab = this.loadCurrentTab();
+        this.searchResults = this.loadSearchResults();
+        this.lastSearchQuery = this.loadLastSearchQuery();
+        this.myCollection = this.loadCollection();
+        
+        // 設定をロードし、なければデフォルト値を使用
+        this.loadSettingsValues();
+        
+        this.searchLLM = new dangerousSearchLLM();
+        this.imageGenerationAttempts = {}; // 画像生成試行回数を追跡
+        this.loadImageGenerationAttempts(); // 保存された再生成回数を読み込み
+        this.imageStorage = new dangerousImageStorage(); // 画像ストレージ管理
+        this.init();
+      }
+
+      // 設定値をロード（コンストラクタ用）
+      loadSettingsValues() {
+        const saved = localStorage.getItem('dangerousAppSettings');
+        if (saved) {
+          try {
+            const settings = JSON.parse(saved);
+            this.selectedStyle = settings.style || 'traditional';
+            this.selectedModel = settings.model || 'sdxl-lightning';
+            this.selectedRegion = settings.region || 'japan';
+          } catch (error) {
+            console.warn('設定の読み込みに失敗:', error);
+            this.setDefaultSettings();
+          }
+        } else {
+          this.setDefaultSettings();
+        }
+      }
+
+      // デフォルト設定を設定
+      setDefaultSettings() {
+        this.selectedStyle = 'traditional';
+        this.selectedModel = 'sdxl-lightning';
+        this.selectedRegion = 'japan';
+      }
+
+      // Replicate Worker URLを設定
+      setReplicateWorkerUrl(url) {
+        this.searchLLM.setReplicateWorkerUrl(url);
+      }
+
+      init() {
+        this.setupEventListeners();
+        this.updateCollectionDisplay();
+        this.restoreSearchState(); // この中で再生成ボタンの状態も更新される
+        this.applySettingsToUI(); // UIに設定を反映（値は既にロード済み）
+        this.restoreTabState(); // タブ状態を復元
+        // updateRegenerationButtons()は restoreSearchState() 内で呼ばれるため削除
+      }
+
+      setupEventListeners() {
+        // タブ切り替え
+        document.getElementById('search-tab').addEventListener('click', () => this.switchTab('search'));
+        document.getElementById('collection-tab').addEventListener('click', () => this.switchTab('collection'));
+        document.getElementById('settings-tab').addEventListener('click', () => this.switchTab('settings'));
+
+        // 検索関連
+        document.getElementById('search-btn').addEventListener('click', () => this.performSearch());
+        document.getElementById('clear-btn').addEventListener('click', () => this.clearSearch());
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') this.performSearch();
+        });
+
+        // 検索例タグ
+        document.querySelectorAll('.example-tag').forEach(tag => {
+          tag.addEventListener('click', (e) => {
+            document.getElementById('search-input').value = e.target.dataset.query;
+            // 検索ボタンにフォーカスを当てる
+            document.getElementById('search-btn').focus();
+          });
+        });
+
+
+
+        // モーダル関連
+        document.getElementById('dangerous-details-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'dangerous-details-modal') {
+            this.closeDetailsModal();
+          }
+        });
+
+        // プロンプトモーダル関連
+        document.getElementById('prompt-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'prompt-modal') {
+            this.closePromptModal();
+          }
+        });
+
+        // ストレージ情報モーダル関連
+        document.getElementById('storage-info-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'storage-info-modal') {
+            this.closeStorageInfoModal();
+          }
+        });
+
+        // ESCキーでモーダルを閉じる
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            this.closeDetailsModal();
+            this.closePromptModal();
+            this.closeStorageInfoModal();
+          }
+        });
+
+        // 設定関連のイベントリスナーを追加
+        this.setupSettingsEventListeners();
+      }
+
+      setupSettingsEventListeners() {
+        // 重複するイベントリスナーを防ぐため、一度だけ設定
+        if (this._settingsListenersSetup) return;
+        this._settingsListenersSetup = true;
+
+        // 設定の変更を監視して自動保存
+        document.querySelectorAll('input[name="style-setting"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (radio.checked) {
+              const previousStyle = this.selectedStyle;
+              this.selectedStyle = radio.value;
+              this.saveSettings();
+              
+              // 既存の生成済み画像がある場合、ユーザーに知らせる
+              const existingImages = this.searchResults.filter(r => r.generatedImageUrl).length;
+              if (existingImages > 0) {
+                this.showMessage(`画像スタイルを「${this.getStyleLabel(radio.value)}」に変更しました。既存の画像${existingImages}枚は「再生成」で新しいスタイルが適用されます。`, 'info', 5000);
+              } else {
+                this.showMessage(`画像スタイルを「${this.getStyleLabel(radio.value)}」に変更しました。`, 'success');
+              }
+            }
+          });
+        });
+
+        document.querySelectorAll('input[name="model-setting"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (radio.checked) {
+              const previousModel = this.selectedModel;
+              this.selectedModel = radio.value;
+              this.saveSettings();
+            }
+          });
+        });
+
+        document.querySelectorAll('input[name="region-setting"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (radio.checked) {
+              const previousRegion = this.selectedRegion;
+              this.selectedRegion = radio.value;
+              this.saveSettings();
+            }
+          });
+        });
+      }
+
+      // スタイルラベルを取得するヘルパー関数
+      getStyleLabel(style) {
+        const styleLabels = {
+          'traditional': '危険生物画',
+          'anime': 'アニメ風危険生物画',
+          'realistic': 'リアル危険生物写真'
+        };
+        return styleLabels[style] || style;
+      }
+
+      switchTab(tab) {
+        this.currentTab = tab;
+        this.saveCurrentTab(); // タブ状態を保存
+        
+        // タブボタンの状態更新
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(`${tab}-tab`).classList.add('active');
+
+        // セクションの表示切り替え
+        document.getElementById('search-section').style.display = tab === 'search' ? 'block' : 'none';
+        document.getElementById('results-section').classList.toggle('active', tab === 'search' && this.searchResults.length > 0);
+        document.getElementById('my-collection-section').classList.toggle('active', tab === 'collection');
+        document.getElementById('settings-section').classList.toggle('active', tab === 'settings');
+        
+        // 保存画像履歴セクションを常に非表示にする
+        document.getElementById('saved-images-section').style.display = 'none';
+
+        if (tab === 'collection') {
+          this.updateCollectionDisplay();
+        } else if (tab === 'settings') {
+          // 設定タブに切り替わった時はUIを更新するだけ（値は変更しない）
+          setTimeout(() => this.applySettingsToUI(), 50);
+        }
+      }
+
+      async performSearch() {
+        const query = document.getElementById('search-input').value.trim();
+        if (!query) {
+          this.showMessage('検索キーワードを入力してください', 'warning');
+          return;
+        }
+
+        this.showLoading(true);
+        this.hideMessage();
+
+        try {
+          const results = await this.searchdangerous(query);
+          this.searchResults = results;
+          this.lastSearchQuery = query;
+          this.saveSearchResults();
+          this.saveLastSearchQuery();
+          this.displaySearchResults(results, query, false); // isRestore = false（新しい検索）
+          
+          // 「危険生物を探す」タブでのみ検索結果を表示
+          if (this.currentTab === 'search') {
+            document.getElementById('results-section').classList.add('active');
+          }
+        } catch (error) {
+          console.error('検索エラー:', error);
+          this.showMessage('検索中にエラーが発生しました。もう一度お試しください。', 'error');
+        } finally {
+          this.showLoading(false);
+        }
+      }
+
+      async searchdangerous(query) {
+        // 新しいLLM処理システムを使用して危険生物候補を検索
+        const dangerous = await this.searchLLM.searchdangerous(query, this.selectedRegion);
+        
+        // データ形式を統一（confidence数値を文字列に変換）
+        return dangerous.map(dangerous => ({
+          ...dangerous,
+          confidence: dangerous.confidence > 0.8 ? '高い' : 
+                     dangerous.confidence > 0.5 ? '中程度' : '低い',
+          reason: dangerous.features // 理由として特徴を使用
+        }));
+      }
+
+
+
+
+
+      displaySearchResults(results, query, isRestore = false) {
+        const container = document.getElementById('dangerous-candidates');
+        const title = document.getElementById('results-title');
+        const count = document.getElementById('results-count');
+
+        title.textContent = `「${query}」の検索結果`;
+        count.textContent = `${results.length}件の候補が見つかりました`;
+
+        // 検索結果を保存
+        this.searchResults = results;
+
+        // 新しい検索の場合のみ画像生成回数をリセット（復元時はリセットしない）
+        if (!isRestore) {
+          this.resetImageGenerationAttempts();
+        }
+
+        container.innerHTML = '';
+
+        results.forEach((dangerous, index) => {
+          const dangerousCard = this.createdangerousCard(dangerous, index);
+          container.appendChild(dangerousCard);
+        });
+
+        // DOM要素作成後に再生成ボタンの状態を更新
+        if (isRestore) {
+          setTimeout(() => this.updateRegenerationButtons(), 50);
+        }
+      }
+
+      createdangerousCard(dangerous, index) {
+        const card = document.createElement('div');
+        card.className = 'dangerous-card fade-in';
+        card.style.animationDelay = `${index * 0.1}s`;
+
+        const aliases = dangerous.aliases && dangerous.aliases.length > 0 
+          ? `別名：${dangerous.aliases.join('、')}`
+          : '';
+
+        const confidenceColor = {
+          '高い': '#4CAF50',
+          '中程度': '#FF9800',
+          '低い': '#9E9E9E'
+        }[dangerous.confidence] || '#9E9E9E';
+
+        card.innerHTML = `
+          <div class="dangerous-header">
+            <div class="dangerous-names">
+              <div class="dangerous-scientific-name">${dangerous.scientificName}</div>
+              <div class="dangerous-common-name">${dangerous.commonName}</div>
+              ${aliases ? `<div class="dangerous-aliases">${aliases}</div>` : ''}
+            </div>
+            <div class="confidence-badge" style="background: ${confidenceColor}">
+              一致度：${dangerous.confidence}
+              <button class="confidence-info-btn" onclick="app.showConfidenceReason(${index})" title="一致度の根拠を表示">
+                <i class="fas fa-info-circle"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="dangerous-image-container" id="image-container-${index}">
+            ${dangerous.generatedImageUrl ? 
+              `<div style="position: relative;">
+                <img src="${dangerous.generatedImageUrl}" alt="${dangerous.commonName}" class="dangerous-image">
+                ${dangerous.generatedImagePrompt ? 
+                  `<button class="image-prompt-info-btn" onclick="app.showImagePrompt(${index})" title="使用されたプロンプトを表示">
+                    <i class="fas fa-info"></i>
+                  </button>` : ''}
+                <button class="image-generate-btn" data-index="${index}"
+                        style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; opacity: 0.8;"
+                        id="regen-btn-${index}" ${!this.canRegenerate(index) ? 'disabled' : ''}>
+                  <i class="fas fa-redo"></i> 再生成 
+                  <span class="regen-count" id="regen-count-${index}">(${this.getRegenerationCount(index)}/3)</span>
+                </button>
+              </div>` :
+              `<div class="image-placeholder">
+                <button class="image-generate-btn" data-index="${index}">
+                  <i class="fas fa-magic"></i> 画像を生成
+                </button>
+              </div>`
+            }
+          </div>
+
+          <div class="dangerous-details" id="details-${index}">
+            ${dangerous.features ? `
+              <div class="dangerous-features">
+                <div class="features-title">
+                  <i class="fas fa-ghost"></i> 総合的特徴
+                </div>
+                <div class="features-content">${dangerous.features}</div>
+              </div>
+            ` : ''}
+
+            ${dangerous.feature1 ? `
+              <div class="dangerous-features">
+                <div class="features-title">
+                  <i class="fas fa-eye"></i> 形態的特徴
+                </div>
+                <div class="features-content">${dangerous.feature1}</div>
+              </div>
+            ` : ''}
+
+            ${dangerous.feature2 ? `
+              <div class="dangerous-features">
+                <div class="features-title">
+                  <i class="fas fa-magic"></i> 能力的特徴
+                </div>
+                <div class="features-content">${dangerous.feature2}</div>
+              </div>
+            ` : ''}
+
+            ${dangerous.feature3 ? `
+              <div class="dangerous-features">
+                <div class="features-title">
+                  <i class="fas fa-search"></i> 識別特徴
+                </div>
+                <div class="features-content">${dangerous.feature3}</div>
+              </div>
+            ` : ''}
+
+            ${dangerous.morphology ? `
+              <div class="dangerous-features">
+                <div class="features-title">
+                  <i class="fas fa-mask"></i> 外見的特徴
+                </div>
+                <div class="features-content">${dangerous.morphology}</div>
+              </div>
+            ` : ''}
+
+            ${dangerous.physiology ? `
+              <div class="dangerous-features">
+                <div class="features-title">
+                  <i class="fas fa-dna"></i> 生理的特徴
+                </div>
+                <div class="features-content">${dangerous.physiology}</div>
+              </div>
+            ` : ''}
+
+            ${dangerous.taxonomy ? `
+              <div class="dangerous-features">
+                <div class="features-title">
+                  <i class="fas fa-tags"></i> 種族的特徴
+                </div>
+                <div class="features-content">${dangerous.taxonomy}</div>
+              </div>
+            ` : ''}
+
+            ${dangerous.habitat ? `
+              <div class="dangerous-features">
+                <div class="features-title">
+                  <i class="fas fa-map-marker-alt"></i> 生育環境・分布
+                </div>
+                <div class="features-content">${dangerous.habitat}</div>
+              </div>
+            ` : ''}
+
+            ${dangerous.season ? `
+              <div class="dangerous-features">
+                <div class="features-title">
+                  <i class="fas fa-calendar-alt"></i> 季節
+                </div>
+                <div class="features-content">${dangerous.season}</div>
+              </div>
+            ` : ''}
+
+            ${dangerous.humanConnection ? `
+              <div class="wildlife-connection">
+                <div class="features-title">
+                  <i class="fas fa-users"></i> 人間とのつながり
+                </div>
+                <div class="features-content">${dangerous.humanConnection}</div>
+              </div>
+            ` : ''}
+
+            ${dangerous.culturalInfo ? `
+              <div class="culture-info">
+                <div class="features-title">
+                  <i class="fas fa-users"></i> 文化・暮らしとの関わり
+                </div>
+                <div class="features-content">${dangerous.culturalInfo}</div>
+              </div>
+            ` : ''}
+
+            <div class="dangerous-actions">
+              <button class="action-btn save-btn" data-index="${index}">
+                <i class="fas fa-bookmark"></i> マイ危険生物集に保存
+              </button>
+            </div>
+          </div>
+        `;
+
+        // スタイル選択イベント
+        card.querySelectorAll('.style-option').forEach(option => {
+          option.addEventListener('click', (e) => {
+            card.querySelectorAll('.style-option').forEach(o => o.classList.remove('selected'));
+            e.target.classList.add('selected');
+          });
+        });
+
+        // 時間帯選択イベント
+        card.querySelectorAll('.time-option').forEach(option => {
+          option.addEventListener('click', (e) => {
+            card.querySelectorAll('.time-option').forEach(o => o.classList.remove('selected'));
+            e.target.classList.add('selected');
+          });
+        });
+
+        // 詳細を最初から表示
+        card.querySelector('.dangerous-details').classList.add('active');
+
+        // 画像生成ボタンのイベントリスナーを追加
+        const imageGenerateBtn = card.querySelector('.image-generate-btn');
+        if (imageGenerateBtn) {
+          imageGenerateBtn.addEventListener('click', (e) => {
+            const index = parseInt(e.target.closest('.image-generate-btn').dataset.index);
+            this.generatedangerousImage(index);
+          });
+        }
+
+        // 保存ボタンのイベントリスナーを追加
+        const saveBtn = card.querySelector('.save-btn');
+        if (saveBtn) {
+          saveBtn.addEventListener('click', (e) => {
+            const index = parseInt(e.target.closest('.save-btn').dataset.index);
+            this.toggleSaveToCollection(index);
+          });
+        }
+
+        return card;
+      }
+
+      async generatedangerousImage(index) {
+        const dangerous = this.searchResults[index];
+        const container = document.getElementById(`image-container-${index}`);
+        
+        // 設定から現在のスタイル、時間帯、モデルを取得
+        const selectedStyle = this.selectedStyle;
+
+
+        // Minimax Image-01の場合は再生成制限をチェック
+        if (this.selectedModel === 'minimax') {
+          if (this.getRegenerationCount(index) >= 1) {
+            this.showMessage('Minimax Image-01は1回のみの生成です。再生成はできません。', 'warning');
+            return;
+          }
+        } else if (this.selectedModel === 'recraft-v3') {
+          if (this.getRegenerationCount(index) >= 1) {
+            this.showMessage('Recraft v3は1回のみの生成です。再生成はできません。', 'warning');
+            return;
+          }
+        } else {
+          // SDXL Lightning と Imagen 4 Fast は3回制限
+          if (!this.canRegenerate(index)) {
+            this.showMessage('画像の再生成回数上限（3回）に達しました', 'warning');
+            return;
+          }
+        }
+
+        // 再生成試行回数を更新
+        const currentAttempt = this.updateRegenerationCount(index);
+
+        // プロンプト最適化中の表示
+        const styleLabels = {
+          'traditional': '危険生物画',
+          'anime': '日本の危険生物マンガ風',
+          'realistic': '写実的'
+        };
+        const styleLabel = styleLabels[selectedStyle] || selectedStyle;
+
+        // Phase 1: プロンプト最適化中
+        container.innerHTML = `
+                            <div class="dangerous-image-loading">
+                    <div class="dangerous-loading-icon" id="optimization-loading-icon">🧬</div>
+                    <div class="dangerous-loading-text">
+                      プロンプト最適化中<span class="dangerous-loading-dots"></span>
+                    </div>
+                    <div class="dangerous-loading-subtext">危険生物の特徴を分析しています...</div>
+                  </div>
+        `;
+
+        try {
+          // ランダムシードを生成して画像のバリエーションを作る
+          const randomSeed = this.generateRandomSeed();
+          
+          // 2段階の画像生成プロセス
+          const result = await this.generatedangerousImageWithProgress(dangerous, selectedStyle, this.selectedModel, {
+            seed: randomSeed,
+            width: 1024,
+            height: 1024
+          }, container, styleLabel);
+          
+          if (result.success) {
+            // 画像URLとプロンプトを検索結果に保存
+            this.searchResults[index].generatedImageUrl = result.imageUrl;
+            this.searchResults[index].generatedImagePrompt = result.prompt;
+            // スタイルとモデル情報も保存
+            this.searchResults[index].generatedImageStyle = selectedStyle;
+            this.searchResults[index].generatedImageModel = this.selectedModel;
+            // ドラフトプロンプトも保存（存在する場合）
+            if (result.draftPrompt) {
+              this.searchResults[index].generatedImageDraftPrompt = result.draftPrompt;
+            }
+            this.saveSearchResults();
+            
+            // 保存画像履歴に自動保存
+            await this.saveImageToHistory(result, dangerous, selectedStyle);
+            
+            // 再生成ボタンの状態を決定（モデル別）
+            let regenButtonHtml = '';
+            if (this.selectedModel === 'minimax') {
+              // Minimax Image-01は1回のみ、再生成ボタンは表示しない
+              regenButtonHtml = `<div style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; 
+                          background: rgba(255,255,255,0.9); border-radius: 6px; color: #666;">
+                Minimax (1回のみ)
+              </div>`;
+            } else if (this.selectedModel === 'recraft-v3') {
+              // Recraft v3は1回のみ、再生成ボタンは表示しない
+              regenButtonHtml = `<div style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; 
+                          background: rgba(255,255,255,0.9); border-radius: 6px; color: #666;">
+                Recraft v3 (1回のみ)
+              </div>`;
+            } else {
+              // SDXL Lightning と Imagen 4 Fast は3回まで再生成可能
+              const canStillRegenerate = this.canRegenerate(index);
+              regenButtonHtml = canStillRegenerate ? 
+                `<button class="image-generate-btn" data-index="${index}" 
+                        style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; opacity: 0.8;"
+                        id="regen-btn-${index}">
+                  <i class="fas fa-redo"></i> 再生成 
+                  <span class="regen-count" id="regen-count-${index}">(${currentAttempt}/3)</span>
+                </button>` :
+                `<div style="position: absolute; bottom: 10px; right: 10px; padding: 0.5rem; font-size: 0.8rem; 
+                            background: rgba(255,255,255,0.9); border-radius: 6px; color: #666;">
+                  再生成回数上限
+                </div>`;
+            }
+            
+            container.innerHTML = `
+              <div style="position: relative;">
+                <img src="${result.imageUrl}" alt="${dangerous.commonName}" class="dangerous-image">
+                <button class="image-prompt-info-btn" onclick="app.showImagePrompt(${index})" title="使用されたプロンプトを表示">
+                  <i class="fas fa-info"></i>
+                </button>
+                ${regenButtonHtml}
+              </div>
+            `;
+            
+            // 成功時の再生成ボタンにもイベントリスナーを追加
+            const successRegenBtn = container.querySelector('.image-generate-btn');
+            if (successRegenBtn) {
+              successRegenBtn.addEventListener('click', (e) => {
+                const index = parseInt(e.target.closest('.image-generate-btn').dataset.index);
+                this.generatedangerousImage(index);
+              });
+            }
+          } else {
+            // エラーオブジェクトを作成して詳細なエラー情報を保持
+            const errorObj = new Error('画像生成失敗');
+            errorObj.apiError = result.error;
+            errorObj.fullError = result.fullError;
+            throw errorObj;
+          }
+        } catch (error) {
+          console.error('画像生成エラー:', error);
+          
+          // エラーメッセージを取得してサーバーエラーかどうかを判定
+          let errorMessage = 'サーバーエラー';
+          let isServerError = false;
+          
+          // APIエラーの場合
+          if (error.apiError) {
+            errorMessage = error.apiError;
+          } else if (error.message) {
+            // 直接的なエラーメッセージを短縮
+            const errorMsg = error.message.toLowerCase();
+            if (errorMsg.includes('api接続エラー')) {
+              errorMessage = 'API接続エラー';
+              isServerError = true;
+            } else if (errorMsg.includes('replicate')) {
+              errorMessage = 'Replicate APIエラー';
+              isServerError = true;
+            } else if (errorMsg.includes('画像生成がタイムアウトしました')) {
+              errorMessage = 'タイムアウト（120秒経過）';
+              isServerError = true;
+            } else if (errorMsg.includes('timeout') || errorMsg.includes('タイムアウト')) {
+              errorMessage = 'タイムアウト';
+              isServerError = true;
+            } else if (errorMsg.includes('network')) {
+              errorMessage = 'ネットワークエラー';
+              isServerError = true;
+            } else if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
+              errorMessage = 'API制限に達しました';
+              isServerError = false; // 制限エラーは再試行回数にカウント
+            } else if (errorMsg.includes('画像生成失敗')) {
+              errorMessage = 'API処理エラー';
+              isServerError = true;
+            } else {
+              errorMessage = 'サーバーエラー';
+              isServerError = true;
+            }
+          }
+          
+                      // サーバーエラーの場合は試行回数をロールバック（再実行可能にする）
+            if (isServerError) {
+              const key = this.getdangerousKey(index);
+              this.imageGenerationAttempts[key] = Math.max(0, (this.imageGenerationAttempts[key] || 1) - 1);
+              this.saveImageGenerationAttempts(); // ロールバック後も保存
+            }
+          
+          // 再試行可能かチェック
+          const canRetry = this.canRegenerate(index) || isServerError;
+          
+          let retryButtonHtml;
+          if (canRetry) {
+            retryButtonHtml = `<button class="image-generate-btn" data-index="${index}" style="margin-top: 1rem;">
+              <i class="fas fa-redo"></i> ${isServerError ? '再実行' : '再生成'}
+            </button>`;
+          } else {
+            retryButtonHtml = `<div style="color: #666; font-size: 0.9rem; margin-top: 1rem;">
+              再生成回数上限に達しました
+            </div>`;
+          }
+          
+          container.innerHTML = `
+            <div class="image-placeholder">
+              <div style="text-align: center; padding: 1rem; color: #ff7043; margin-bottom: 0.5rem;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                <div style="font-weight: 600; margin-bottom: 0.5rem;">画像生成に失敗</div>
+                <div style="font-size: 0.9rem; color: #666;">${errorMessage}</div>
+                ${isServerError && errorMessage.includes('タイムアウト') ? '<div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">Minimax Image-01は最大120秒かかることがあります</div>' : ''}
+                ${isServerError && !errorMessage.includes('タイムアウト') ? '<div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">サーバーエラーのため再実行できます</div>' : ''}
+              </div>
+              ${retryButtonHtml}
+            </div>
+          `;
+          
+          // 再生成ボタンにイベントリスナーを追加
+          const retryBtn = container.querySelector('.image-generate-btn');
+          if (retryBtn) {
+            retryBtn.addEventListener('click', (e) => {
+              const index = parseInt(e.target.closest('.image-generate-btn').dataset.index);
+              this.generatedangerousImage(index);
+            });
+          }
+        }
+      }
+
+      // プログレス表示付きの画像生成関数
+      async generatedangerousImageWithProgress(dangerousInfo, style, model, imageOptions, container, styleLabel) {
+        try {
+          // Phase 1: プロンプト最適化開始
+          
+          // プロンプト最適化完了時のコールバックを設定
+          const optionsWithCallback = {
+            ...imageOptions,
+            onOptimizationComplete: (optimizedPrompt) => {
+              // Phase 2: プロンプト最適化完了後、画像生成フェーズに移行
+              if (container) {
+                container.innerHTML = `
+                  <div class="dangerous-image-loading">
+                    <div class="dangerous-loading-icon" id="generation-loading-icon">⚠️</div>
+                    <div class="dangerous-loading-text">
+                      ${styleLabel}の生成中<span class="dangerous-loading-dots"></span>
+                    </div>
+                    <div class="dangerous-loading-subtext">危険生物の姿を描画しています...</div>
+                  </div>
+                `;
+              }
+            }
+          };
+          
+          // 実際の画像生成処理
+          const result = await this.searchLLM.generatedangerousImage(dangerousInfo, style, model, optionsWithCallback);
+          
+          return result;
+        } catch (error) {
+          console.error('🔮 プログレス付き画像生成エラー:', error);
+          throw error;
+        }
+      }
+
+      toggleSaveToCollection(index) {
+        const dangerous = this.searchResults[index];
+        const saveBtn = document.querySelector(`#details-${index} .save-btn`);
+        
+        const isAlreadySaved = this.myCollection.some(item => 
+          item.scientificName === dangerous.scientificName
+        );
+
+        if (isAlreadySaved) {
+          // 削除
+          this.myCollection = this.myCollection.filter(item => 
+            item.scientificName !== dangerous.scientificName
+          );
+          saveBtn.innerHTML = '<i class="fas fa-bookmark"></i> マイ危険生物集に保存';
+          saveBtn.classList.remove('saved');
+          this.showMessage(`${dangerous.commonName}をマイ危険生物集から削除しました`, 'success');
+        } else {
+          // 保存
+          const saveData = {
+            ...dangerous,
+            savedAt: new Date().toISOString(),
+            imageUrl: null // 画像URLは別途保存
+          };
+          
+          // 生成された画像URLを取得
+          const imageContainer = document.getElementById(`image-container-${index}`);
+          const imageElement = imageContainer.querySelector('.dangerous-image');
+          if (imageElement) {
+            saveData.imageUrl = imageElement.src;
+            
+            // マイ危険生物集に保存する際、保存画像履歴にも追加
+            this.saveToImageHistory(saveData, dangerous);
+          }
+
+          this.myCollection.push(saveData);
+          saveBtn.innerHTML = '<i class="fas fa-bookmark-slash"></i> 保存済み';
+          saveBtn.classList.add('saved');
+          this.showMessage(`${dangerous.commonName}をマイ危険生物集に保存しました`, 'success');
+        }
+
+        this.saveCollection();
+        this.updateCollectionDisplay();
+      }
+
+      // 画像を保存画像履歴に追加する関数（画像生成成功時・マイ危険生物集保存時共通）
+      async saveImageToHistory(resultOrSaveData, dangerous, style = null) {
+        try {
+          const imageStorage = this.imageStorage;
+          let historyData;
+          
+          // 画像生成成功時の場合（result.success = true）
+          if (resultOrSaveData.success && resultOrSaveData.imageUrl) {
+            historyData = {
+              imageUrl: resultOrSaveData.imageUrl,
+              dangerousName: dangerous.commonName || dangerous.scientificName,
+              scientificName: dangerous.scientificName,
+              commonName: dangerous.commonName,
+              prompt: resultOrSaveData.prompt || null,
+              style: style || 'traditional',
+              model: resultOrSaveData.model || this.selectedModel || 'unknown',
+              confidence: dangerous.confidence || '中程度'
+            };
+          } 
+          // マイ危険生物集保存時の場合（saveData）
+          else {
+            historyData = {
+              imageUrl: resultOrSaveData.imageUrl,
+              dangerousName: dangerous.commonName || dangerous.scientificName,
+              scientificName: dangerous.scientificName,
+              commonName: dangerous.commonName,
+              prompt: dangerous.generatedImagePrompt || null,
+              style: dangerous.generatedImageStyle || style || 'traditional',
+              model: dangerous.generatedImageModel || 'unknown',
+              confidence: dangerous.confidence || '中程度'
+            };
+          }
+          
+          // 重複チェック: 同じ学名・画像URLの組み合わせが既に存在するかチェック
+          const existingImages = imageStorage.getSavedImages();
+          const isDuplicate = existingImages.some(img => 
+            img.scientificName === historyData.scientificName && 
+            img.base64Data === historyData.imageUrl
+          );
+          
+          if (!isDuplicate) {
+            const saved = await imageStorage.saveImage(historyData);
+            if (saved) {
+              this.updateSavedImagesDisplay(); // 保存画像履歴表示を更新
+            }
+          }
+        } catch (error) {
+          console.error('🚨 [SAVE_ERROR] Failed to save to image history:', error);
+        }
+      }
+      
+      // 後方互換性のためのエイリアス
+      async saveToImageHistory(saveData, dangerous) {
+        return await this.saveImageToHistory(saveData, dangerous);
+      }
+
+      saveCollection() {
+        localStorage.setItem('dangerousCollection', JSON.stringify(this.myCollection));
+      }
+
+      loadCollection() {
+        const saved = localStorage.getItem('dangerousCollection');
+        return saved ? JSON.parse(saved) : [];
+      }
+
+      // 検索結果の保存
+      saveSearchResults() {
+        localStorage.setItem('dangerousSearchResults', JSON.stringify(this.searchResults));
+      }
+
+      // 検索結果の読み込み
+      loadSearchResults() {
+        const saved = localStorage.getItem('dangerousSearchResults');
+        return saved ? JSON.parse(saved) : [];
+      }
+
+      // 最後の検索クエリの保存
+      saveLastSearchQuery() {
+        localStorage.setItem('lastSearchQuery', this.lastSearchQuery || '');
+      }
+
+      // 最後の検索クエリの読み込み
+      loadLastSearchQuery() {
+        return localStorage.getItem('lastSearchQuery') || '';
+      }
+
+      // 現在のタブの保存
+      saveCurrentTab() {
+        localStorage.setItem('currentTab', this.currentTab);
+      }
+
+      // 現在のタブの読み込み
+      loadCurrentTab() {
+        return localStorage.getItem('currentTab') || 'search';
+      }
+
+      // タブ状態の復元
+      restoreTabState() {
+        this.switchTab(this.currentTab);
+      }
+
+      // 検索状態の復元
+      restoreSearchState() {
+        if (this.lastSearchQuery) {
+          document.getElementById('search-input').value = this.lastSearchQuery;
+        }
+        
+        if (this.searchResults.length > 0) {
+          this.displaySearchResults(this.searchResults, this.lastSearchQuery, true); // isRestore = true
+          
+          // 「危険生物を探す」タブでのみ検索結果を表示
+          if (this.currentTab === 'search') {
+            document.getElementById('results-section').classList.add('active');
+          }
+          
+          // 検索結果表示後に再生成ボタンの状態を更新（displaySearchResults内でも呼ばれるが念のため）
+          setTimeout(() => {
+            this.updateRegenerationButtons();
+          }, 150);
+        }
+      }
+
+      updateCollectionDisplay() {
+        const grid = document.getElementById('collection-grid');
+        const count = document.getElementById('collection-count');
+        const exportBtn = document.getElementById('export-btn');
+
+        if (this.myCollection.length === 0) {
+          count.textContent = '保存された危険生物はありません';
+          if (exportBtn) exportBtn.disabled = true;
+          grid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-secondary);">
+              <i class="fas fa-eye" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+              <div>まだ危険生物が保存されていません</div>
+              <div style="margin-top: 0.5rem;">気になる危険生物を見つけたら「マイ危険生物集に保存」ボタンを押してください</div>
+            </div>
+          `;
+          return;
+        }
+
+        count.textContent = `${this.myCollection.length}件の危険生物が保存されています`;
+        if (exportBtn) exportBtn.disabled = false;
+        grid.innerHTML = '';
+
+        this.myCollection.forEach((dangerous, index) => {
+          const item = document.createElement('div');
+          item.className = 'collection-item fade-in';
+          item.style.animationDelay = `${index * 0.1}s`;
+
+          item.innerHTML = `
+            ${dangerous.imageUrl ? 
+              `<div style="position: relative;">
+                <img src="${dangerous.imageUrl}" alt="${dangerous.commonName}" class="collection-image">
+                ${dangerous.generatedImagePrompt ? 
+                  `<button class="image-prompt-info-btn" onclick="app.showCollectionImagePrompt(${index})" title="使用されたプロンプトを表示">
+                    <i class="fas fa-info"></i>
+                  </button>` : ''}
+              </div>` :
+              `<div class="collection-image" style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-eye" style="font-size: 2rem; color: var(--text-secondary);"></i>
+              </div>`
+            }
+            <div class="collection-name">${dangerous.commonName}</div>
+            <div class="collection-scientific">${dangerous.scientificName}</div>
+            <div class="collection-actions">
+              <button class="details-btn" onclick="app.showPlantDetails(${index})">
+                <i class="fas fa-info-circle"></i> 詳細
+              </button>
+              <button class="remove-btn" onclick="app.removeFromCollection(${index})">
+                <i class="fas fa-trash"></i> 削除
+              </button>
+            </div>
+          `;
+
+          grid.appendChild(item);
+        });
+      }
+
+      removeFromCollection(index) {
+        const dangerous = this.myCollection[index];
+        this.myCollection.splice(index, 1);
+        this.saveCollection();
+        this.updateCollectionDisplay();
+        this.showMessage(`${dangerous.commonName}をマイ危険生物集から削除しました`, 'success');
+      }
+
+      // 危険生物詳細をモーダルで表示
+      showPlantDetails(index) {
+        const dangerous = this.myCollection[index];
+        if (!dangerous) return;
+
+        // モーダルの内容を設定
+        document.getElementById('modal-scientific-name').textContent = dangerous.scientificName;
+        document.getElementById('modal-common-name').textContent = dangerous.commonName;
+        
+        // 別名の表示
+        const aliasesEl = document.getElementById('modal-aliases');
+        if (dangerous.aliases && dangerous.aliases.length > 0) {
+          aliasesEl.textContent = `別名：${dangerous.aliases.join('、')}`;
+          aliasesEl.style.display = 'block';
+        } else {
+          aliasesEl.style.display = 'none';
+        }
+
+        // 画像の表示
+        const imageEl = document.getElementById('modal-dangerous-image');
+        if (dangerous.imageUrl) {
+          imageEl.src = dangerous.imageUrl;
+          imageEl.alt = dangerous.commonName;
+          imageEl.style.display = 'block';
+        } else {
+          imageEl.style.display = 'none';
+        }
+
+        // 詳細情報の表示
+        const detailsEl = document.getElementById('modal-dangerous-details');
+        detailsEl.innerHTML = `
+          ${dangerous.features ? `
+            <div class="dangerous-features">
+              <div class="features-title">
+                <i class="fas fa-leaf"></i> 総合的特徴
+              </div>
+              <div class="features-content">${dangerous.features}</div>
+            </div>
+          ` : ''}
+
+          ${dangerous.feature1 ? `
+            <div class="dangerous-features">
+              <div class="features-title">
+                <i class="fas fa-eye"></i> 形態的特徴
+              </div>
+              <div class="features-content">${dangerous.feature1}</div>
+            </div>
+          ` : ''}
+
+          ${dangerous.feature2 ? `
+            <div class="dangerous-features">
+              <div class="features-title">
+                <i class="fas fa-globe-americas"></i> 生態的特徴
+              </div>
+              <div class="features-content">${dangerous.feature2}</div>
+            </div>
+          ` : ''}
+
+          ${dangerous.feature3 ? `
+            <div class="dangerous-features">
+              <div class="features-title">
+                <i class="fas fa-search"></i> 識別特徴
+              </div>
+              <div class="features-content">${dangerous.feature3}</div>
+            </div>
+          ` : ''}
+
+          ${dangerous.morphology ? `
+            <div class="dangerous-features">
+              <div class="features-title">
+                <i class="fas fa-mask"></i> 外見的特徴
+              </div>
+              <div class="features-content">${dangerous.morphology}</div>
+            </div>
+          ` : ''}
+
+          ${dangerous.physiology ? `
+            <div class="dangerous-features">
+              <div class="features-title">
+                <i class="fas fa-dna"></i> 生理的特徴
+              </div>
+              <div class="features-content">${dangerous.physiology}</div>
+            </div>
+          ` : ''}
+
+          ${dangerous.taxonomy ? `
+            <div class="dangerous-features">
+              <div class="features-title">
+                <i class="fas fa-tags"></i> 種族的特徴
+              </div>
+              <div class="features-content">${dangerous.taxonomy}</div>
+            </div>
+          ` : ''}
+
+          ${dangerous.habitat ? `
+            <div class="dangerous-features">
+              <div class="features-title">
+                <i class="fas fa-map-marker-alt"></i> 生育環境・分布
+              </div>
+              <div class="features-content">${dangerous.habitat}</div>
+            </div>
+          ` : ''}
+
+          ${dangerous.season ? `
+            <div class="dangerous-features">
+              <div class="features-title">
+                <i class="fas fa-calendar-alt"></i> 季節
+              </div>
+              <div class="features-content">${dangerous.season}</div>
+            </div>
+          ` : ''}
+
+          ${dangerous.humanConnection ? `
+            <div class="wildlife-connection">
+              <div class="features-title">
+                <i class="fas fa-paw"></i> 生き物とのつながり
+              </div>
+              <div class="features-content">${dangerous.humanConnection}</div>
+            </div>
+          ` : ''}
+
+          ${dangerous.culturalInfo ? `
+            <div class="culture-info">
+              <div class="features-title">
+                <i class="fas fa-users"></i> 文化・暮らしとの関わり
+              </div>
+              <div class="features-content">${dangerous.culturalInfo}</div>
+            </div>
+          ` : ''}
+
+          <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #f0f0f0; text-align: center; color: var(--text-secondary); font-size: 0.9rem;">
+            保存日時：${new Date(dangerous.savedAt).toLocaleString('ja-JP')}
+          </div>
+        `;
+
+        // モーダルを表示
+        document.getElementById('dangerous-details-modal').classList.add('active');
+      }
+
+      // モーダルを閉じる
+      closeDetailsModal() {
+        document.getElementById('dangerous-details-modal').classList.remove('active');
+      }
+
+      clearSearch() {
+        document.getElementById('search-input').value = '';
+        document.getElementById('results-section').classList.remove('active');
+        this.searchResults = [];
+        this.lastSearchQuery = '';
+        this.saveSearchResults();
+        this.saveLastSearchQuery();
+        this.hideMessage();
+      }
+
+      showLoading(show) {
+        const loading = document.getElementById('search-loading');
+        const searchBtn = document.getElementById('search-btn');
+        
+        if (show) {
+          loading.classList.add('active');
+          searchBtn.disabled = true;
+        } else {
+          loading.classList.remove('active');
+          searchBtn.disabled = false;
+        }
+      }
+
+      showMessage(text, type = 'info') {
+        this.hideMessage();
+        
+        const message = document.createElement('div');
+        message.className = `message ${type}`;
+        message.textContent = text;
+        message.id = 'app-message';
+
+        const searchSection = document.getElementById('search-section');
+        searchSection.insertBefore(message, searchSection.firstChild);
+
+        // 3秒後に自動削除
+        setTimeout(() => this.hideMessage(), 3000);
+      }
+
+      hideMessage() {
+        const existing = document.getElementById('app-message');
+        if (existing) {
+          existing.remove();
+        }
+      }
+
+      // 設定の保存（自動保存対応）
+      saveSettings() {
+        // ローカルストレージに保存
+        localStorage.setItem('dangerousAppSettings', JSON.stringify({
+          style: this.selectedStyle,
+          time: this.selectedTime,
+          model: this.selectedModel,
+          region: this.selectedRegion,
+          savedAt: new Date().toISOString()
+        }));
+        
+        // 再生成回数も同時に保存
+        this.saveImageGenerationAttempts();
+      }
+
+      // UIに設定を反映（設定値は既にロード済み）
+      applySettingsToUI() {
+        // UIに反映
+        const styleRadio = document.querySelector(`input[name="style-setting"][value="${this.selectedStyle}"]`);
+        const modelRadio = document.querySelector(`input[name="model-setting"][value="${this.selectedModel}"]`);
+        const regionRadio = document.querySelector(`input[name="region-setting"][value="${this.selectedRegion}"]`);
+        
+        if (styleRadio) {
+          styleRadio.checked = true;
+        }
+        if (modelRadio) {
+          modelRadio.checked = true;
+        }
+        if (regionRadio) {
+          regionRadio.checked = true;
+        }
+      }
+
+      // 設定の読み込み（設定タブで使用）
+      loadSettings() {
+        // 設定値を再読み込み
+        this.loadSettingsValues();
+        // UIに反映
+        this.applySettingsToUI();
+      }
+
+      // 設定をデフォルトに戻す
+      resetSettings() {
+        this.selectedStyle = 'traditional';
+        this.selectedModel = 'sdxl-lightning';
+        this.selectedRegion = 'japan';
+
+        // UIに反映
+        const styleRadio = document.querySelector('input[name="style-setting"][value="traditional"]');
+        const modelRadio = document.querySelector('input[name="model-setting"][value="sdxl-lightning"]');
+        const regionRadio = document.querySelector('input[name="region-setting"][value="japan"]');
+        
+        if (styleRadio) {
+          styleRadio.checked = true;
+        }
+        if (modelRadio) {
+          modelRadio.checked = true;
+        }
+        if (regionRadio) {
+          regionRadio.checked = true;
+        }
+
+        // 設定を保存
+        this.saveSettings();
+
+        this.showMessage('設定をデフォルトに戻しました', 'success');
+      }
+
+      // プロンプト表示モーダルを開く
+      showPromptModal(style) {
+        const styleTitles = {
+          'traditional': '危険生物画スタイル',
+          'anime': 'アニメ風危険生物画スタイル',
+          'realistic': 'リアル危険生物写真スタイル'
+        };
+
+        const stylePrompts = {
+          'traditional': 'A highly detailed traditional Japanese dangerous illustration, in classical folkloric style. The image features fine ink outlines combined with delicate watercolor shading using traditional glazing techniques. Each feature and form is rendered with folkloric accuracy, showing intricate details and subtle color gradients. The background is pure white, with no shadows or textures. The style is reminiscent of Edo to Meiji period dangerous compendiums, with precise, academic aesthetics and clean composition.',
+          'anime': 'Illustrated in beautiful anime art style with vibrant colors and soft cel-shading. Clean vector-like lines with bright, saturated colors typical of Japanese animation. The dangerous maintains folkloric accuracy while being stylized with artistic flair. Soft gradients, glowing effects, and a cheerful, appealing aesthetic. Background with soft bokeh or gradient effects. Digital art finish with smooth textures.',
+          'realistic': 'Captured as a highly detailed, photorealistic image with cinematic quality. Crystal clear focus showing minute details like texture, form, expressions, and natural characteristics. Professional supernatural photography with excellent depth of field, natural color reproduction, and lifelike appearance. Include environmental context showing the dangerous\'s natural manifestation conditions. Shot with high-end paranormal photography techniques.'
+        };
+
+        const title = styleTitles[style] || '画像スタイル設定';
+        const prompt = stylePrompts[style] || 'プロンプトが見つかりません';
+
+        document.getElementById('prompt-modal-title').textContent = title + ' - ベースプロンプト';
+        document.getElementById('prompt-content').textContent = prompt;
+        document.getElementById('prompt-modal').classList.add('active');
+      }
+
+      // プロンプト表示モーダルを閉じる
+      closePromptModal() {
+        document.getElementById('prompt-modal').classList.remove('active');
+      }
+
+      // 画像生成プロンプトを表示
+      showImagePrompt(index) {
+        const dangerous = this.searchResults[index];
+        if (!dangerous || !dangerous.generatedImagePrompt) {
+          this.showMessage('プロンプト情報が見つかりません', 'warning');
+          return;
+        }
+
+        // スタイル情報も含めてタイトルを設定
+        const styleLabel = this.getStyleLabel(this.selectedStyle);
+        document.getElementById('prompt-modal-title').textContent = `${dangerous.commonName} - 画像生成プロンプト（${styleLabel}スタイル）`;
+        document.getElementById('prompt-content').textContent = dangerous.generatedImagePrompt;
+        
+        // 最適化情報を表示
+        const optimizationInfo = document.getElementById('prompt-optimization-info');
+        const draftSection = document.getElementById('draft-prompt-section');
+        const draftContent = document.getElementById('draft-prompt-content');
+        
+        if (dangerous.generatedImageDraftPrompt) {
+          // 最適化が実際に成功したかを検証
+          const finalPrompt = dangerous.generatedImagePrompt;
+          const draftPrompt = dangerous.generatedImageDraftPrompt;
+          const hasJapanese = window.containsJapanese ? window.containsJapanese(finalPrompt) : /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(finalPrompt);
+          const actuallyOptimized = finalPrompt !== draftPrompt;
+          
+          if (actuallyOptimized && !hasJapanese) {
+            // 実際に最適化が成功した場合のみ表示
+            optimizationInfo.style.display = 'block';
+            draftSection.style.display = 'block';
+            draftContent.textContent = dangerous.generatedImageDraftPrompt;
+          } else {
+            // 最適化が失敗または不完全な場合は表示しない
+            optimizationInfo.style.display = 'none';
+            draftSection.style.display = 'none';
+            console.warn('⚠️ Optimization label hidden due to incomplete optimization:', {
+              hasJapanese: hasJapanese,
+              actuallyOptimized: actuallyOptimized,
+              dangerousName: dangerous.scientificName
+            });
+          }
+        } else {
+          // ドラフトプロンプトが存在しない場合は最適化なしとして表示
+          optimizationInfo.style.display = 'none';
+          draftSection.style.display = 'none';
+        }
+        
+        document.getElementById('prompt-modal').classList.add('active');
+      }
+
+      // プロンプト最適化状況を検証し、UIに反映する共通関数
+      checkOptimizationStatus(dangerous, optimizationInfo, draftSection, draftContent, context = '') {
+        if (dangerous.generatedImageDraftPrompt) {
+          // 最適化が実際に成功したかを検証（imageResultの情報も考慮）
+          const finalPrompt = dangerous.generatedImagePrompt;
+          const draftPrompt = dangerous.generatedImageDraftPrompt;
+          let hasJapanese, actuallyOptimized;
+          
+          // imageResultに最適化情報がある場合はそれを優先使用
+          if (dangerous.wasActuallyOptimized !== undefined) {
+            actuallyOptimized = dangerous.wasActuallyOptimized;
+            hasJapanese = dangerous.hasJapanese || false;
+          } else {
+            // フォールバック：手動で検証
+            hasJapanese = window.containsJapanese ? window.containsJapanese(finalPrompt) : /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(finalPrompt);
+            actuallyOptimized = finalPrompt !== draftPrompt && !hasJapanese;
+          }
+          
+          if (actuallyOptimized) {
+            // 実際に最適化が成功した場合のみ表示
+            optimizationInfo.style.display = 'block';
+            draftSection.style.display = 'block';
+            draftContent.textContent = dangerous.generatedImageDraftPrompt;
+            
+
+          } else {
+            // 最適化が失敗または不完全な場合は表示しない
+            optimizationInfo.style.display = 'none';
+            draftSection.style.display = 'none';
+
+          }
+        } else {
+          // ドラフトプロンプトが存在しない場合は最適化なしとして表示
+          optimizationInfo.style.display = 'none';
+          draftSection.style.display = 'none';
+        }
+      }
+
+      // スタイル関連キーワードが含まれているかチェック
+      checkStyleKeywords(prompt, style) {
+        const styleKeywords = {
+          'traditional': ['traditional', 'folkloric style', 'compendium', 'watercolor', 'dangerous illustration'],
+          'anime': ['Japanese anime', 'cel-shading', 'manga', 'kawaii', 'Studio Ghibli', 'shoujo', 'seinen', 'lineart', 'vibrant colors'],
+          'realistic': ['photorealistic', 'macro photography', 'realistic', 'photography', 'lifelike']
+        };
+        
+        const keywords = styleKeywords[style] || [];
+        const foundKeywords = keywords.filter(keyword => 
+          prompt.toLowerCase().includes(keyword.toLowerCase())
+        );
+        
+        return {
+          found: foundKeywords,
+          total: keywords.length,
+          percentage: Math.round((foundKeywords.length / keywords.length) * 100)
+        };
+      }
+
+      // プロンプト最適化の効果を分析
+      analyzeOptimization(draftPrompt, optimizedPrompt) {
+        const draftWords = draftPrompt.split(/\s+/).length;
+        const optimizedWords = optimizedPrompt.split(/\s+/).length;
+        const draftLength = draftPrompt.length;
+        const optimizedLength = optimizedPrompt.length;
+        
+        // 日本語文字の有無をチェック
+        const draftHasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(draftPrompt);
+        const optimizedHasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(optimizedPrompt);
+        
+        // 技術用語の増加をチェック
+        const technicalTerms = ['traditional', 'folkloric', 'detailed', 'photography', 'macro', 'realistic', 'illustration', 'accuracy', 'supernatural'];
+        const draftTechnicalCount = technicalTerms.filter(term => draftPrompt.toLowerCase().includes(term)).length;
+        const optimizedTechnicalCount = technicalTerms.filter(term => optimizedPrompt.toLowerCase().includes(term)).length;
+        
+        return {
+          draftLength: draftLength,
+          optimizedLength: optimizedLength,
+          lengthChange: optimizedLength - draftLength,
+          compressionRatio: Math.round((optimizedLength / draftLength) * 100),
+          draftWords: draftWords,
+          optimizedWords: optimizedWords,
+          wordChange: optimizedWords - draftWords,
+          wasJapaneseRemoved: draftHasJapanese && !optimizedHasJapanese,
+          technicalTermsAdded: optimizedTechnicalCount - draftTechnicalCount,
+          optimizationEffectiveness: optimizedPrompt !== draftPrompt ? 'modified' : 'unchanged'
+        };
+      }
+
+      // マイ危険生物集の画像生成プロンプトを表示
+      showCollectionImagePrompt(index) {
+        const dangerous = this.myCollection[index];
+        if (!dangerous || !dangerous.generatedImagePrompt) {
+          this.showMessage('プロンプト情報が見つかりません', 'warning');
+          return;
+        }
+
+        document.getElementById('prompt-modal-title').textContent = `${dangerous.commonName} - 画像生成プロンプト`;
+        document.getElementById('prompt-content').textContent = dangerous.generatedImagePrompt;
+        
+        // 最適化情報を表示
+        const optimizationInfo = document.getElementById('prompt-optimization-info');
+        const draftSection = document.getElementById('draft-prompt-section');
+        const draftContent = document.getElementById('draft-prompt-content');
+        
+        if (dangerous.generatedImageDraftPrompt) {
+          // 最適化が実際に成功したかを検証
+          const finalPrompt = dangerous.generatedImagePrompt;
+          const draftPrompt = dangerous.generatedImageDraftPrompt;
+          const hasJapanese = window.containsJapanese ? window.containsJapanese(finalPrompt) : /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(finalPrompt);
+          const actuallyOptimized = finalPrompt !== draftPrompt;
+          
+          if (actuallyOptimized && !hasJapanese) {
+            // 実際に最適化が成功した場合のみ表示
+            optimizationInfo.style.display = 'block';
+            draftSection.style.display = 'block';
+            draftContent.textContent = dangerous.generatedImageDraftPrompt;
+          } else {
+            // 最適化が失敗または不完全な場合は表示しない
+            optimizationInfo.style.display = 'none';
+            draftSection.style.display = 'none';
+            console.warn('⚠️ Optimization label hidden due to incomplete optimization:', {
+              hasJapanese: hasJapanese,
+              actuallyOptimized: actuallyOptimized,
+              dangerousName: dangerous.scientificName
+            });
+          }
+        } else {
+          // ドラフトプロンプトが存在しない場合は最適化なしとして表示
+          optimizationInfo.style.display = 'none';
+          draftSection.style.display = 'none';
+        }
+        
+        document.getElementById('prompt-modal').classList.add('active');
+      }
+
+      // 一致度の根拠を表示
+      showConfidenceReason(index) {
+        const dangerous = this.searchResults[index];
+        if (!dangerous) {
+          this.showMessage('危険生物データが見つかりません', 'warning');
+          return;
+        }
+
+        // 一致度の意味を取得
+        const confidenceMeaning = this.getConfidenceMeaning(dangerous.confidence);
+        
+        // 一致度の色を取得
+        const confidenceColor = {
+          '非常に高い': '#4CAF50',
+          '高い': '#8BC34A',
+          '中程度': '#FFC107',
+          '低い': '#FF9800',
+          '非常に低い': '#F44336'
+        }[dangerous.confidence] || '#9E9E9E';
+
+        // 各要素のA〜D判定を取得
+        const evaluations = this.getConfidenceEvaluations(dangerous);
+
+        // モーダルの内容を構築
+        const modalBody = document.getElementById('confidence-modal-body');
+        modalBody.innerHTML = `
+          <div class="confidence-level-display">
+            <div class="confidence-value" style="color: ${confidenceColor}">${dangerous.confidence}</div>
+            <div class="confidence-meaning">${confidenceMeaning}</div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-search"></i>
+              検索クエリとの一致度
+              <span class="evaluation-grade grade-${evaluations.queryMatch.grade.toLowerCase()}">${evaluations.queryMatch.grade}</span>
+            </div>
+            <div class="confidence-factor-content">
+              <div class="evaluation-description">${evaluations.queryMatch.description}</div>
+              <div class="evaluation-reason">入力された特徴や検索語句が危険生物の特徴とどの程度一致しているかを評価します。特徴的な形態や出現環境の記述が正確に合致するほど一致度が向上します。</div>
+            </div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-leaf"></i>
+              特徴の明確性
+              <span class="evaluation-grade grade-${evaluations.featureClarity.grade.toLowerCase()}">${evaluations.featureClarity.grade}</span>
+            </div>
+            <div class="confidence-factor-content">
+              <div class="evaluation-description">${evaluations.featureClarity.description}</div>
+              <div class="evaluation-reason">危険生物の形態的特徴（姿かたち、色彩、大きさなど）や行動的特徴（出現時期、活動環境など）の記述が明確で詳細であるほど一致度が高くなります。</div>
+            </div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-globe-americas"></i>
+              地域との適合性
+              <span class="evaluation-grade grade-${evaluations.regionalMatch.grade.toLowerCase()}">${evaluations.regionalMatch.grade}</span>
+            </div>
+            <div class="confidence-factor-content">
+              <div class="evaluation-description">${evaluations.regionalMatch.description}</div>
+              <div class="evaluation-reason">選択された地域（${this.getRegionDisplayName()}）に伝承される危険生物であるかを評価します。地域特有の危険生物ほど一致度が向上します。</div>
+            </div>
+          </div>
+
+          <div class="confidence-factor">
+            <div class="confidence-factor-title">
+              <i class="fas fa-database"></i>
+              データベース信頼性
+              <span class="evaluation-grade grade-${evaluations.dataReliability.grade.toLowerCase()}">${evaluations.dataReliability.grade}</span>
+            </div>
+            <div class="confidence-factor-content">
+              <div class="evaluation-description">${evaluations.dataReliability.description}</div>
+              <div class="evaluation-reason">民俗学的に確立された分類体系や名称、一般的な呼称との整合性を評価します。正確な分類情報ほど信頼性が高くなります。</div>
+            </div>
+          </div>
+
+          <div class="confidence-note">
+            <i class="fas fa-info-circle"></i>
+            <strong>注意：</strong> この一致度はAIによる推定であり、正確な危険生物同定には専門家による確認が必要です。民俗学的研究や図鑑での詳細な照合も併せて行うことをお勧めします。
+          </div>
+        `;
+
+        // モーダルを表示
+        document.getElementById('confidence-modal').classList.add('active');
+      }
+
+      // 一致度の各要素をA〜D判定で評価
+      getConfidenceEvaluations(dangerous) {
+        // 基本的な一致度から各要素を推定
+        const baseScore = this.getConfidenceScore(dangerous.confidence);
+        
+        // 検索クエリとの一致度評価
+        const queryMatch = this.evaluateQueryMatch(dangerous, baseScore);
+        
+        // 特徴の明確性評価
+        const featureClarity = this.evaluateFeatureClarity(dangerous, baseScore);
+        
+        // 地域との適合性評価
+        const regionalMatch = this.evaluateRegionalMatch(dangerous, baseScore);
+        
+        // データベース信頼性評価
+        const dataReliability = this.evaluateDataReliability(dangerous, baseScore);
+
+        return {
+          queryMatch,
+          featureClarity,
+          regionalMatch,
+          dataReliability
+        };
+      }
+
+      // 一致度を数値スコアに変換
+      getConfidenceScore(confidence) {
+        const scores = {
+          '非常に高い': 0.9,
+          '高い': 0.75,
+          '中程度': 0.6,
+          '低い': 0.4,
+          '非常に低い': 0.2
+        };
+        return scores[confidence] || 0.5;
+      }
+
+      // 検索クエリとの一致度を評価
+      evaluateQueryMatch(dangerous, baseScore) {
+        // 特徴の詳細度から推定
+        const hasDetailedFeatures = dangerous.feature1 && dangerous.feature2 && dangerous.feature3;
+        const featureLength = (dangerous.features || '').length + (dangerous.feature1 || '').length + (dangerous.feature2 || '').length;
+        
+        let adjustedScore = baseScore;
+        if (hasDetailedFeatures && featureLength > 200) adjustedScore += 0.1;
+        if (featureLength < 100) adjustedScore -= 0.1;
+        
+        return this.scoreToGrade(adjustedScore, {
+          A: "検索語句と危険生物の特徴が非常によく一致している",
+          B: "検索語句と危険生物の特徴がよく一致している", 
+          C: "検索語句と危険生物の特徴が部分的に一致している",
+          D: "検索語句と危険生物の特徴の一致が限定的"
+        });
+      }
+
+      // 特徴の明確性を評価
+      evaluateFeatureClarity(dangerous, baseScore) {
+        // 各特徴フィールドの充実度から評価
+        const featureFields = [dangerous.features, dangerous.feature1, dangerous.feature2, dangerous.feature3, dangerous.habitat, dangerous.season].filter(f => f && f.length > 20);
+        const clarityScore = featureFields.length / 6; // 最大6フィールド
+        
+        let adjustedScore = baseScore * 0.7 + clarityScore * 0.3;
+        
+        return this.scoreToGrade(adjustedScore, {
+          A: "形態的・生態的特徴が非常に明確で詳細",
+          B: "形態的・生態的特徴が明確で十分詳細",
+          C: "形態的・生態的特徴が一般的なレベルで記述",
+          D: "形態的・生態的特徴の記述が不十分"
+        });
+      }
+
+      // 地域との適合性を評価
+      evaluateRegionalMatch(dangerous, baseScore) {
+        // 生息地情報の詳細度から推定
+        const hasHabitat = dangerous.habitat && dangerous.habitat.length > 10;
+        const hasRegionalInfo = dangerous.habitat && (
+          dangerous.habitat.includes('日本') || 
+          dangerous.habitat.includes('本州') || 
+          dangerous.habitat.includes('九州') ||
+          dangerous.habitat.includes('四国') ||
+          dangerous.habitat.includes('北海道') ||
+          dangerous.habitat.includes('東南アジア') ||
+          dangerous.habitat.includes('北米')
+        );
+        
+        let adjustedScore = baseScore;
+        if (hasRegionalInfo) adjustedScore += 0.1;
+        if (!hasHabitat) adjustedScore -= 0.15;
+        
+        const regionName = this.getRegionDisplayName();
+        return this.scoreToGrade(adjustedScore, {
+          A: `${regionName}の代表的な危険生物で伝承が確実`,
+          B: `${regionName}でよく見られる危険生物で伝承が適合`,
+          C: `${regionName}での分布は限定的だが存在`,
+          D: `${regionName}での分布情報が不明確`
+        });
+      }
+
+      // データベース信頼性を評価
+      evaluateDataReliability(dangerous, baseScore) {
+        // 学名の形式と情報の充実度から評価
+        const hasValidScientificName = dangerous.scientificName && dangerous.scientificName.includes(' ') && !dangerous.scientificName.includes('Unknown');
+        const hasAliases = dangerous.aliases && dangerous.aliases.length > 0;
+        const hasCompleteInfo = dangerous.culturalInfo && dangerous.humanConnection;
+        
+        let adjustedScore = baseScore;
+        if (hasValidScientificName) adjustedScore += 0.05;
+        if (hasAliases) adjustedScore += 0.05;
+        if (hasCompleteInfo) adjustedScore += 0.1;
+        if (dangerous.scientificName === 'JSON解析エラー') adjustedScore = 0.1;
+        
+        return this.scoreToGrade(adjustedScore, {
+          A: "民俗学的分類が確立され名称・分類情報が正確",
+          B: "一般的に認知された危険生物で分類情報が信頼できる",
+          C: "基本的な分類情報は整っているが詳細が不足",
+          D: "分類情報の信頼性に疑問がある"
+        });
+      }
+
+      // スコアをA〜D判定に変換
+      scoreToGrade(score, descriptions) {
+        let grade, description;
+        
+        if (score >= 0.8) {
+          grade = 'A';
+          description = descriptions.A;
+        } else if (score >= 0.65) {
+          grade = 'B'; 
+          description = descriptions.B;
+        } else if (score >= 0.45) {
+          grade = 'C';
+          description = descriptions.C;
+        } else {
+          grade = 'D';
+          description = descriptions.D;
+        }
+        
+        return { grade, description };
+      }
+
+      // 一致度の意味を取得
+      getConfidenceMeaning(confidence) {
+        const meanings = {
+          '非常に高い': '特徴が非常によく一致しており、ほぼ確実に同じ危険生物です',
+          '高い': '特徴がよく一致しており、同じ危険生物である可能性が高いです',
+          '中程度': '一部の特徴が一致していますが、他の候補も検討が必要です',
+          '低い': '特徴の一致が限定的で、さらなる確認が必要です',
+          '非常に低い': '特徴の一致が少なく、別の危険生物である可能性があります'
+        };
+        return meanings[confidence] || '一致度の評価が困難です';
+      }
+
+      // 現在の地域設定の表示名を取得
+      getRegionDisplayName() {
+        const regions = {
+          'japan': '日本',
+          'southeast_asia': '東南アジア',
+          'north_america': '北米'
+        };
+        return regions[this.selectedRegion] || '未設定';
+      }
+
+      // 一致度根拠モーダルを閉じる
+      closeConfidenceModal() {
+        document.getElementById('confidence-modal').classList.remove('active');
+      }
+
+      // 危険生物に対して安定したキーを生成（学名ベース）
+      getdangerousKey(index) {
+        if (!this.searchResults || !this.searchResults[index]) {
+          return `dangerous-${index}`; // フォールバック
+        }
+        const dangerous = this.searchResults[index];
+        return `${dangerous.scientificName}-${dangerous.commonName}`.replace(/[^a-zA-Z0-9\-]/g, '');
+      }
+
+      // 再生成試行回数を取得
+      getRegenerationCount(index) {
+        const key = this.getdangerousKey(index);
+        return this.imageGenerationAttempts[key] || 0;
+      }
+
+      // 再生成試行回数を更新
+      updateRegenerationCount(index) {
+        const key = this.getdangerousKey(index);
+        this.imageGenerationAttempts[key] = (this.imageGenerationAttempts[key] || 0) + 1;
+        this.saveImageGenerationAttempts(); // 即座に保存
+        return this.imageGenerationAttempts[key];
+      }
+
+      // 再生成可能かチェック（モデル別制限を考慮）
+      canRegenerate(index) {
+        const currentCount = this.getRegenerationCount(index);
+        
+        // Minimax Image-01とRecraft v3の場合は1回のみ
+        if (this.selectedModel === 'minimax' || this.selectedModel === 'recraft-v3') {
+          return currentCount < 1;
+        }
+        
+        // SDXL LightningとImagen 4 Fastの場合は3回まで
+        return currentCount < 3;
+      }
+
+      // 画像生成回数をリセット（新しい検索時に使用）
+      resetImageGenerationAttempts() {
+        this.imageGenerationAttempts = {};
+        this.saveImageGenerationAttempts(); // ローカルストレージにも反映
+        console.log('画像生成回数をリセットしました');
+      }
+
+      // 再生成回数をローカルストレージに保存
+      saveImageGenerationAttempts() {
+        localStorage.setItem('dangerousAppImageAttempts', JSON.stringify({
+          attempts: this.imageGenerationAttempts,
+          savedAt: new Date().toISOString()
+        }));
+      }
+
+      // 再生成回数をローカルストレージから読み込み
+      loadImageGenerationAttempts() {
+        try {
+          const saved = localStorage.getItem('dangerousAppImageAttempts');
+          if (saved) {
+            const data = JSON.parse(saved);
+            this.imageGenerationAttempts = data.attempts || {};
+            console.log('再生成回数を復元しました:', this.imageGenerationAttempts);
+          }
+        } catch (error) {
+          console.warn('再生成回数の読み込みに失敗:', error);
+          this.imageGenerationAttempts = {};
+        }
+      }
+
+      // 再生成ボタンの状態を更新（ページ読み込み後の同期用）
+      updateRegenerationButtons() {
+        // 検索結果がない場合は何もしない
+        if (!this.searchResults || this.searchResults.length === 0) {
+          console.log('🔄 再生成ボタン更新: 検索結果なし');
+          return;
+        }
+
+        console.log('🔄 再生成ボタン状態更新開始:', {
+          searchResultsCount: this.searchResults.length,
+          imageGenerationAttempts: this.imageGenerationAttempts,
+          selectedModel: this.selectedModel
+        });
+
+        this.searchResults.forEach((dangerous, index) => {
+          const regenBtn = document.getElementById(`regen-btn-${index}`);
+          const regenCount = document.getElementById(`regen-count-${index}`);
+          
+          if (regenBtn && regenCount) {
+            const currentCount = this.getRegenerationCount(index);
+            
+            // モデル別の制限を適用
+            if (this.selectedModel === 'minimax') {
+              regenCount.textContent = `(${currentCount}/1)`;
+              regenBtn.disabled = currentCount >= 1;
+            } else if (this.selectedModel === 'recraft-v3') {
+              regenCount.textContent = `(${currentCount}/1)`;
+              regenBtn.disabled = currentCount >= 1;
+            } else {
+              // SDXL Lightning と Imagen 4 Fast の場合は3回制限
+              regenCount.textContent = `(${currentCount}/3)`;
+              regenBtn.disabled = !this.canRegenerate(index);
+            }
+            
+            console.log(`✅ 再生成ボタン状態更新 - Plant ${index}: ${currentCount}/${this.selectedModel === 'minimax' ? '1' : '3'}, disabled: ${regenBtn.disabled}`);
+          } else {
+            console.warn(`⚠️ 再生成ボタン要素が見つからない - Plant ${index}`);
+          }
+        });
+      }
+
+      // ランダムシード生成（より大きな範囲で多様性を確保）
+      generateRandomSeed() {
+        return Math.floor(Math.random() * 4294967295); // 32bit整数の最大値
+      }
+
+      // 画像URLをBase64に変換
+      async convertImageToBase64(imageUrl) {
+        try {
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch (error) {
+          console.warn('画像の変換に失敗:', error);
+          return null;
+        }
+      }
+
+      // マイ危険生物集をエクスポート
+      async exportCollection() {
+        if (this.myCollection.length === 0) {
+          this.showMessage('エクスポートする危険生物がありません', 'warning');
+          return;
+        }
+
+        this.showMessage('エクスポート準備中...', 'info');
+
+        try {
+          // 画像をBase64に変換
+          const exportData = await Promise.all(this.myCollection.map(async (dangerous) => {
+            const dangerousData = { ...dangerous };
+            
+            // 画像URLがある場合はBase64に変換
+            if (dangerous.imageUrl) {
+              try {
+                const base64Data = await this.convertImageToBase64(dangerous.imageUrl);
+                dangerousData.imageBase64 = base64Data;
+              } catch (error) {
+                console.warn(`画像変換失敗 (${dangerous.commonName}):`, error);
+                dangerousData.imageBase64 = null;
+              }
+            }
+            
+            return dangerousData;
+          }));
+
+          // エクスポートデータの構造
+          const exportJson = {
+            exportInfo: {
+              version: "1.0",
+              appName: "AI危険生物辞典",
+              exportDate: new Date().toISOString(),
+              totaldangerous: exportData.length
+            },
+            dangerous: exportData
+          };
+
+          // JSONファイルとしてダウンロード
+          const jsonString = JSON.stringify(exportJson, null, 2);
+          const blob = new Blob([jsonString], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = url;
+          // 現在の日時を取得
+          const now = new Date();
+          const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
+          const time = now.toTimeString().slice(0, 5).replace(':', ''); // HHMM
+          
+          link.download = `AI危険生物図鑑_${date}-${time}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+
+          this.showMessage(`${exportData.length}件の危険生物をエクスポートしました`, 'success');
+        } catch (error) {
+          console.error('エクスポートエラー:', error);
+          this.showMessage('エクスポートに失敗しました', 'error');
+        }
+      }
+
+      // マイ危険生物集をインポート
+      async importCollection(fileInput) {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          const importData = JSON.parse(text);
+
+          // データ形式の検証
+          if (!importData.dangerouss || !Array.isArray(importData.dangerouss)) {
+            throw new Error('無効なファイル形式です');
+          }
+
+          let importedCount = 0;
+          let skippedCount = 0;
+
+          for (const dangerousData of importData.dangerouss) {
+            // 必須フィールドの確認
+            if (!dangerousData.scientificName || !dangerousData.commonName) {
+              skippedCount++;
+              continue;
+            }
+
+            // 既存データとの重複チェック
+            const isDuplicate = this.myCollection.some(existing => 
+              existing.scientificName === dangerousData.scientificName
+            );
+
+            if (isDuplicate) {
+              skippedCount++;
+              continue;
+            }
+
+            // 画像データの処理
+            const processedPlant = { ...dangerousData };
+            
+            // Base64画像データがある場合の処理
+            if (dangerousData.imageBase64) {
+              // Base64データをそのまま使用（ブラウザで表示可能）
+              processedPlant.imageUrl = dangerousData.imageBase64;
+            }
+
+            // インポート日時を追加
+            processedPlant.importedAt = new Date().toISOString();
+            if (!processedPlant.savedAt) {
+              processedPlant.savedAt = new Date().toISOString();
+            }
+
+            this.myCollection.push(processedPlant);
+            importedCount++;
+          }
+
+          // ローカルストレージに保存
+          this.saveCollection();
+          this.updateCollectionDisplay();
+
+          // 結果メッセージ
+          let message = `${importedCount}件の危険生物をインポートしました`;
+          if (skippedCount > 0) {
+            message += `（${skippedCount}件はスキップ）`;
+          }
+          this.showMessage(message, 'success');
+
+          // ファイル入力をリセット
+          fileInput.value = '';
+
+        } catch (error) {
+          console.error('インポートエラー:', error);
+          this.showMessage('インポートに失敗しました。ファイル形式を確認してください。', 'error');
+          fileInput.value = '';
+        }
+      }
+
+      // コレクションの完全消去（デバッグ用）
+      clearAllCollection() {
+        if (confirm('すべての危険生物データを削除しますか？この操作は取り消せません。')) {
+          this.myCollection = [];
+          this.saveCollection();
+          this.updateCollectionDisplay();
+          this.showMessage('すべての危険生物データを削除しました', 'success');
+        }
+      }
+
+      // 保存画像履歴セクションを表示する関数
+      showSavedImages() {
+        // 全てのセクションを非表示にする
+        document.getElementById('search-section').style.display = 'none';
+        document.getElementById('results-section').classList.remove('active');
+        document.getElementById('my-collection-section').classList.remove('active');
+        document.getElementById('settings-section').classList.remove('active');
+        
+        // 保存画像セクションを表示
+        document.getElementById('saved-images-section').style.display = 'block';
+        
+        // タブの状態をリセット（どのタブもアクティブにしない）
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        
+        // 保存画像を更新表示
+        this.updateSavedImagesDisplay();
+      }
+
+      // マイ危険生物集セクションに戻る関数
+      showMyCollection() {
+        // 保存画像セクションを非表示にする
+        document.getElementById('saved-images-section').style.display = 'none';
+        
+        // マイ危険生物集タブに切り替え
+        this.switchTab('collection');
+      }
+
+      // 保存された画像を表示する関数
+      updateSavedImagesDisplay() {
+        const savedImages = this.imageStorage.getSavedImages();
+        const container = document.getElementById('saved-images-grid');
+        const countElement = document.getElementById('saved-images-count');
+        
+        // カウント表示を更新
+        if (savedImages.length === 0) {
+          countElement.textContent = '保存された画像はありません';
+          container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-secondary);"><i class="fas fa-images" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i><br>まだ保存された画像がありません</div>';
+          return;
+        }
+        
+        countElement.textContent = `${savedImages.length}件の保存画像`;
+        
+        // 画像カードを生成
+        container.innerHTML = '';
+        savedImages.forEach((imageData, index) => {
+          const card = this.createSavedImageCard(imageData, index);
+          container.appendChild(card);
+        });
+      }
+
+      // 保存画像カードを作成
+      createSavedImageCard(imageData, index) {
+        const card = document.createElement('div');
+        card.className = 'saved-image-item fade-in';
+        card.style.animationDelay = `${index * 0.1}s`;
+        
+        // 保存日時をフォーマット
+        const saveDate = new Date(imageData.timestamp);
+        const formattedDate = saveDate.toLocaleDateString('ja-JP', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        // スタイル表示名を取得
+        const styleNames = {
+          'traditional': '危険生物画',
+          'anime': '日本の危険生物マンガ風',
+          'realistic': '写実的'
+        };
+        const styleName = styleNames[imageData.style] || imageData.style;
+        
+        // モデル表示名を取得
+        const modelNames = {
+          'bytedance/sdxl-lightning-4step': 'SDXL Lightning',
+          'minimax/image-01': 'Minimax Image-01',
+          'recraft-ai/recraft-v3': 'Recraft v3',
+          'google/imagen-4-fast': 'Google Imagen 4 Fast',
+          'sdxl-lightning': 'SDXL Lightning',
+          'minimax': 'Minimax Image-01',
+          'recraft-v3': 'Recraft v3',
+          'imagen-4-fast': 'Google Imagen 4 Fast'
+        };
+        const modelName = modelNames[imageData.model] || imageData.model;
+        
+        card.innerHTML = `
+          <div class="saved-image-container">
+            <img src="${imageData.base64Data}" alt="${imageData.dangerousName}" class="saved-image">
+            <button class="saved-image-delete-btn" onclick="app.deleteSavedImage('${imageData.id}')" title="この画像を削除">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+          
+          <div class="saved-image-info">
+            <div class="dangerous-names">
+              <div class="dangerous-common-name">${imageData.commonName || imageData.dangerousName}</div>
+              ${imageData.scientificName ? `<div class="dangerous-scientific-name">${imageData.scientificName}</div>` : ''}
+            </div>
+            
+            <div class="saved-image-meta">
+              <div class="meta-item">
+                <i class="fas fa-calendar"></i>
+                <span>${formattedDate}</span>
+              </div>
+              <div class="meta-item">
+                <i class="fas fa-palette"></i>
+                <span>${styleName}</span>
+              </div>
+              <div class="meta-item">
+                <i class="fas fa-robot"></i>
+                <span>${modelName}</span>
+              </div>
+            </div>
+            
+            ${imageData.prompt ? `
+              <div class="saved-image-prompt">
+                <button class="prompt-toggle-btn" onclick="app.toggleSavedImagePrompt('${imageData.id}')">
+                  <i class="fas fa-eye"></i> プロンプトを表示
+                </button>
+                <div class="prompt-content" id="prompt-${imageData.id}" style="display: none;">
+                  <div class="prompt-text">${imageData.prompt}</div>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+        
+        return card;
+      }
+
+      // 保存画像の削除
+      deleteSavedImage(imageId) {
+        if (confirm('この画像を削除しますか？')) {
+          const success = this.imageStorage.deleteImage(imageId);
+          if (success) {
+            this.updateSavedImagesDisplay();
+            this.showMessage('画像を削除しました', 'success');
+          } else {
+            this.showMessage('画像の削除に失敗しました', 'error');
+          }
+        }
+      }
+
+      // 保存画像のプロンプト表示切り替え
+      toggleSavedImagePrompt(imageId) {
+        const promptElement = document.getElementById(`prompt-${imageId}`);
+        const button = promptElement.previousElementSibling;
+        
+        if (promptElement.style.display === 'none') {
+          promptElement.style.display = 'block';
+          button.innerHTML = '<i class="fas fa-eye-slash"></i> プロンプトを隠す';
+        } else {
+          promptElement.style.display = 'none';
+          button.innerHTML = '<i class="fas fa-eye"></i> プロンプトを表示';
+        }
+      }
+
+      // 全ての保存画像を削除する関数
+      clearAllSavedImages() {
+        if (confirm('全ての保存画像を削除しますか？この操作は取り消せません。')) {
+          const success = this.imageStorage.clearAllImages();
+          if (success) {
+            this.updateSavedImagesDisplay();
+            this.showMessage('全ての保存画像を削除しました', 'success');
+          } else {
+            this.showMessage('削除に失敗しました', 'error');
+          }
+        }
+      }
+
+      // ストレージ情報を表示する関数
+      showStorageInfo() {
+        const storageInfo = this.imageStorage.getStorageInfo();
+        const modal = document.getElementById('storage-info-modal');
+        const body = document.getElementById('storage-info-body');
+        
+        // ストレージ使用量の警告レベルを判定
+        const usagePercent = (storageInfo.totalSize / (10 * 1024 * 1024)) * 100; // 10MBを基準とした使用率
+        let usageClass = 'normal';
+        let usageIcon = 'fas fa-check-circle';
+        let usageColor = '#4CAF50';
+        
+        if (usagePercent > 80) {
+          usageClass = 'warning';
+          usageIcon = 'fas fa-exclamation-triangle';
+          usageColor = '#FF9800';
+        } else if (usagePercent > 95) {
+          usageClass = 'danger';
+          usageIcon = 'fas fa-exclamation-circle';
+          usageColor = '#F44336';
+        }
+        
+        body.innerHTML = `
+          <div class="storage-stats">
+            <div class="storage-stat">
+              <div class="stat-icon">
+                <i class="fas fa-images"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-label">保存画像数</div>
+                <div class="stat-value">${storageInfo.totalImages} / ${storageInfo.maxItems}</div>
+              </div>
+            </div>
+            
+            <div class="storage-stat">
+              <div class="stat-icon">
+                <i class="fas fa-database"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-label">使用容量</div>
+                <div class="stat-value">${storageInfo.totalSizeMB} MB</div>
+              </div>
+            </div>
+            
+            <div class="storage-stat">
+              <div class="stat-icon" style="color: ${usageColor};">
+                <i class="${usageIcon}"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-label">ストレージ状況</div>
+                <div class="stat-value" style="color: ${usageColor};">
+                  ${usagePercent.toFixed(1)}% 使用中
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="storage-info-notes">
+            <h4><i class="fas fa-info-circle"></i> ストレージについて</h4>
+            <ul>
+              <li>画像は最大${storageInfo.maxItems}件まで保存可能です</li>
+              <li>古い画像から自動削除されます</li>
+              <li>各画像は5MBまでサポートしています</li>
+              <li>データはブラウザのローカルストレージに保存されます</li>
+            </ul>
+          </div>
+        `;
+        
+        modal.classList.add('active');
+      }
+
+      // ストレージ情報モーダルを閉じる関数
+      closeStorageInfoModal() {
+        const modal = document.getElementById('storage-info-modal');
+        modal.classList.remove('active');
+      }
+    }
+
+  </script>
+  
+  <!-- 統合されたLLM処理システム読み込み -->
+  <!-- 一致度根拠表示モーダル -->
+  <div id="confidence-modal" class="confidence-modal">
+    <div class="confidence-modal-content">
+      <div class="confidence-modal-header">
+        <h2 class="confidence-modal-title">
+          <i class="fas fa-chart-bar"></i>
+          一致度の根拠
+        </h2>
+        <button class="confidence-modal-close" onclick="app.closeConfidenceModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="confidence-modal-body" id="confidence-modal-body">
+        <!-- 内容は動的に生成されます -->
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  
+  <script>
+    // 危険生物アイコンの配列
+    const dangerousCreatureIcons = ['🐍', '🕷️', '🦂', '🐝', '🦈', '☠️', '⚠️', '🧪', '🔥', '⚡', '🐊', '🕸️'];
+    
+    // ローディングアイコンをランダムに変更する関数
+    function rotateDangerousIcon(iconElementId, intervalMs = 1500) {
+      const iconElement = document.getElementById(iconElementId);
+      if (!iconElement) return;
+      
+      let currentIndex = 0;
+      const rotateInterval = setInterval(() => {
+        const nextIcon = dangerousCreatureIcons[currentIndex % dangerousCreatureIcons.length];
+        iconElement.textContent = nextIcon;
+        currentIndex++;
+        
+        // 要素が見つからなくなったらインターバルを停止
+        if (!document.getElementById(iconElementId)) {
+          clearInterval(rotateInterval);
+        }
+      }, intervalMs);
+      
+      return rotateInterval;
+    }
+    
+    // ローディング開始時にアイコンローテーションを開始
+    function startDangerousIconRotation() {
+      // プロンプト最適化中のアイコンローテーション
+      rotateDangerousIcon('optimization-loading-icon', 1200);
+      // 画像生成中のアイコンローテーション
+      rotateDangerousIcon('generation-loading-icon', 1000);
+    }
+    
+    // アプリケーション初期化
+    const app = new dangerousDictionaryApp();
+    
+    // アイコンローテーション開始
+    startDangerousIconRotation();
+    
+    // グローバルからアクセスできるようにする
+    window.dangerousSearchLLM = app.searchLLM;
+    
+    // Replicate Worker URLを設定（app.jsでデフォルト値も設定済み）
+    app.setReplicateWorkerUrl('https://nurumayu-replicate-api.skume-bioinfo.workers.dev/');
+
+    // プロンプト情報アイコンのクリックイベントを設定
+    function setupPromptIcons() {
+      document.querySelectorAll('.prompt-info-icon').forEach(icon => {
+        icon.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const style = e.target.getAttribute('data-style');
+          console.log('Clicked style:', style); // デバッグ用
+          app.showPromptModal(style);
+        });
+      });
+
+      // モーダル背景クリックで閉じる
+      document.getElementById('prompt-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'prompt-modal') {
+          app.closePromptModal();
+        }
+      });
+
+      // 一致度根拠モーダル背景クリックで閉じる
+      document.getElementById('confidence-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'confidence-modal') {
+          app.closeConfidenceModal();
+        }
+      });
+    }
+
+    // ページが完全に読み込まれたら設定
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setupPromptIcons);
+    } else {
+      setupPromptIcons();
+    }
+  </script>
+</body>
+</html>

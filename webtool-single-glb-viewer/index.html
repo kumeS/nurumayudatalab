@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLB Model Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+            cursor: default;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #viewer {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #viewer canvas {
+            display: block;
+        }
+
+        #dropZone {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+
+        #dropZone.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #dropZone.dragover {
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px dashed #3b82f6;
+        }
+
+        .drop-content {
+            text-align: center;
+            max-width: 400px;
+            padding: 2rem;
+        }
+
+        .drop-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+
+        .drop-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #3b82f6, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .drop-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-button {
+            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .file-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+        }
+
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            z-index: 100;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .panel-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .model-info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+
+        .transform-modes {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+        }
+
+        .mode-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .mode-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .mode-button.active {
+            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+            border-color: #3b82f6;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .transform-values {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.6;
+        }
+
+        .transform-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .transform-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .transform-label {
+            font-weight: 600;
+        }
+
+        .position { color: #3b82f6; }
+        .rotation { color: #10b981; }
+        .scale { color: #f59e0b; }
+
+        .background-presets {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .bg-preset {
+            aspect-ratio: 1;
+            border-radius: 6px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .bg-preset:hover {
+            transform: scale(1.1);
+        }
+
+        .bg-preset.active {
+            border-color: white;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+
+        .color-picker {
+            width: 100%;
+            height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+
+        .action-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .action-button:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .action-button.save { background: linear-gradient(45deg, #3b82f6, #1d4ed8); }
+        .action-button.load { background: linear-gradient(45deg, #10b981, #059669); }
+        .action-button.reset { background: linear-gradient(45deg, #f59e0b, #d97706); }
+        .action-button.screenshot { background: linear-gradient(45deg, #8b5cf6, #7c3aed); }
+
+        .help-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            max-width: 300px;
+        }
+
+        .help-title {
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .shortcut-list {
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+
+        .shortcut-key {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.7rem;
+        }
+
+        .mode-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .mode-indicator.show {
+            opacity: 1;
+        }
+
+        .mode-indicator.translate { border-color: #3b82f6; color: #3b82f6; }
+        .mode-indicator.rotate { border-color: #10b981; color: #10b981; }
+        .mode-indicator.scale { border-color: #f59e0b; color: #f59e0b; }
+
+        @media (max-width: 768px) {
+            .control-panel {
+                width: calc(100vw - 20px);
+                right: 10px;
+                top: 10px;
+            }
+
+            .help-panel {
+                left: 10px;
+                bottom: 10px;
+                max-width: calc(100vw - 20px);
+            }
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* カーソル状態 */
+        .viewer-move { cursor: move !important; }
+        .viewer-grab { cursor: grab !important; }
+        .viewer-grabbing { cursor: grabbing !important; }
+        .viewer-crosshair { cursor: crosshair !important; }
+        .viewer-ew-resize { cursor: ew-resize !important; }
+        .viewer-ns-resize { cursor: ns-resize !important; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="viewer"></div>
+        
+        <div id="dropZone">
+            <div class="drop-content">
+                <div class="drop-icon">🎯</div>
+                <h1 class="drop-title">GLB Model Viewer</h1>
+                <p class="drop-subtitle">ドラッグ&ドロップまたはクリックしてGLB/GLTFファイルを選択</p>
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" class="file-input" accept=".glb,.gltf">
+                    <button class="file-button">ファイルを選択</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="controlPanel" class="control-panel" style="display: none;">
+            <div class="panel-section">
+                <div class="panel-title">📁 モデル情報</div>
+                <div id="modelInfo" class="model-info"></div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">🔧 変形モード</div>
+                <div class="transform-modes">
+                    <button class="mode-button active" data-mode="translate">
+                        移動<br><small>(T)</small>
+                    </button>
+                    <button class="mode-button" data-mode="rotate">
+                        回転<br><small>(R)</small>
+                    </button>
+                    <button class="mode-button" data-mode="scale">
+                        拡大<br><small>(S)</small>
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">📊 変形値</div>
+                <div id="transformValues" class="transform-values">
+                    <div class="transform-row">
+                        <span class="transform-label position">位置:</span>
+                        <span id="positionValue">0.00, 0.00, 0.00</span>
+                    </div>
+                    <div class="transform-row">
+                        <span class="transform-label rotation">回転:</span>
+                        <span id="rotationValue">0°, 0°, 0°</span>
+                    </div>
+                    <div class="transform-row">
+                        <span class="transform-label scale">拡大:</span>
+                        <span id="scaleValue">1.00, 1.00, 1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">🎨 背景</div>
+                <div class="background-presets">
+                    <div class="bg-preset active" data-color="#1a1a2e" style="background: #1a1a2e;"></div>
+                    <div class="bg-preset" data-color="#f0f0f0" style="background: #f0f0f0;"></div>
+                    <div class="bg-preset" data-color="#1e40af" style="background: #1e40af;"></div>
+                    <div class="bg-preset" data-color="#7c3aed" style="background: #7c3aed;"></div>
+                    <div class="bg-preset" data-color="#059669" style="background: #059669;"></div>
+                </div>
+                <input type="color" id="colorPicker" class="color-picker" value="#1a1a2e">
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">⚡ アクション</div>
+                <div class="action-buttons">
+                    <button id="saveBtn" class="action-button save">💾 保存</button>
+                    <button id="loadBtn" class="action-button load">📂 読込</button>
+                    <button id="resetBtn" class="action-button reset">🔄 リセット</button>
+                    <button id="screenshotBtn" class="action-button screenshot">📷 撮影</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="help-panel">
+            <div class="help-title">⌨️ 操作方法</div>
+            <div class="shortcut-list">
+                <div class="shortcut-item">
+                    <span>移動モード</span>
+                    <span class="shortcut-key">T</span>
+                </div>
+                <div class="shortcut-item">
+                    <span>回転モード</span>
+                    <span class="shortcut-key">R</span>
+                </div>
+                <div class="shortcut-item">
+                    <span>拡大モード</span>
+                    <span class="shortcut-key">S</span>
+                </div>
+                <div class="shortcut-item">
+                    <span>マウス操作</span>
+                    <span class="shortcut-key">直接ドラッグ</span>
+                </div>
+                <div class="shortcut-item">
+                    <span>状態保存</span>
+                    <span class="shortcut-key">Ctrl+S</span>
+                </div>
+                <div class="shortcut-item">
+                    <span>リセット</span>
+                    <span class="shortcut-key">Esc</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="modeIndicator" class="mode-indicator">
+            移動モード
+        </div>
+    </div>
+
+    <!-- Three.js and related libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- Application JavaScript -->
+    <script src="glb-viewer.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
