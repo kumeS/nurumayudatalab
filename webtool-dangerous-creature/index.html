@@ -1850,7 +1850,7 @@
           </h3>
                      <div class="settings-options">
              <label class="settings-option">
-               <input type="radio" name="style-setting" value="traditional" checked>
+               <input type="radio" name="style-setting" value="traditional">
                <div class="settings-option-content">
                  <div class="settings-option-label">
                    科学的イラスト画
@@ -1870,7 +1870,7 @@
                </div>
              </label>
              <label class="settings-option">
-               <input type="radio" name="style-setting" value="realistic">
+               <input type="radio" name="style-setting" value="realistic" checked>
                <div class="settings-option-content">
                  <div class="settings-option-label">
                    リアル写真風
@@ -1890,7 +1890,7 @@
           </h3>
           <div class="settings-options">
             <label class="settings-option">
-              <input type="radio" name="model-setting" value="sdxl-lightning" checked>
+              <input type="radio" name="model-setting" value="sdxl-lightning">
               <div class="settings-option-content">
                 <div class="settings-option-label">SDXL Lightning 4-step</div>
                 <div class="settings-option-desc">高速生成・軽量モデル（推奨）</div>
@@ -1911,7 +1911,7 @@
               </div>
             </label>
                           <label class="settings-option">
-                <input type="radio" name="model-setting" value="imagen-4-fast">
+                <input type="radio" name="model-setting" value="imagen-4-fast" checked>
                 <div class="settings-option-content">
                   <div class="settings-option-label">Google Imagen 4 Fast</div>
                   <div class="settings-option-desc">Google最新高速生成モデル、生物イラストの出力に適する</div>
@@ -2007,6 +2007,21 @@
         this.imageGenerationAttempts = {}; // 画像生成試行回数を追跡
         this.loadImageGenerationAttempts(); // 保存された再生成回数を読み込み
         this.imageStorage = new dangerousImageStorage(); // 画像ストレージ管理
+        
+        // 起動時のデバッグ情報
+        console.log('🚀 アプリを初期化しました:', {
+          currentTab: this.currentTab,
+          searchResultsCount: this.searchResults.length,
+          lastSearchQuery: this.lastSearchQuery,
+          collectionCount: this.myCollection.length,
+          currentInput: this.loadCurrentSearchInput(),
+          settings: {
+            style: this.selectedStyle,
+            model: this.selectedModel,
+            region: this.selectedRegion
+          }
+        });
+        
         this.init();
       }
 
@@ -2016,8 +2031,8 @@
         if (saved) {
           try {
             const settings = JSON.parse(saved);
-            this.selectedStyle = settings.style || 'traditional';
-            this.selectedModel = settings.model || 'sdxl-lightning';
+            this.selectedStyle = settings.style || 'realistic';
+            this.selectedModel = settings.model || 'imagen-4-fast';
             this.selectedRegion = settings.region || 'japan';
           } catch (error) {
             console.warn('設定の読み込みに失敗:', error);
@@ -2030,8 +2045,8 @@
 
       // デフォルト設定を設定
       setDefaultSettings() {
-        this.selectedStyle = 'traditional';
-        this.selectedModel = 'sdxl-lightning';
+        this.selectedStyle = 'realistic';
+        this.selectedModel = 'imagen-4-fast';
         this.selectedRegion = 'japan';
       }
 
@@ -2060,6 +2075,17 @@
         document.getElementById('clear-btn').addEventListener('click', () => this.clearSearch());
         document.getElementById('search-input').addEventListener('keypress', (e) => {
           if (e.key === 'Enter') this.performSearch();
+        });
+
+        // 検索入力フィールドのリアルタイム保存
+        document.getElementById('search-input').addEventListener('input', (e) => {
+          this.saveCurrentSearchInput(e.target.value);
+        });
+
+        // ページ離脱時にも検索入力を保存
+        window.addEventListener('beforeunload', () => {
+          const searchInput = document.getElementById('search-input').value;
+          this.saveCurrentSearchInput(searchInput);
         });
 
         // 検索例タグ
@@ -2844,6 +2870,16 @@
         return localStorage.getItem('lastSearchQuery') || '';
       }
 
+      // 現在の検索入力内容を保存
+      saveCurrentSearchInput(value) {
+        localStorage.setItem('currentSearchInput', value || '');
+      }
+
+      // 現在の検索入力内容を読み込み
+      loadCurrentSearchInput() {
+        return localStorage.getItem('currentSearchInput') || '';
+      }
+
       // 現在のタブの保存
       saveCurrentTab() {
         localStorage.setItem('currentTab', this.currentTab);
@@ -2861,8 +2897,15 @@
 
       // 検索状態の復元
       restoreSearchState() {
-        if (this.lastSearchQuery) {
-          document.getElementById('search-input').value = this.lastSearchQuery;
+        // 現在の検索入力を復元（優先）
+        const currentInput = this.loadCurrentSearchInput();
+        if (currentInput) {
+          document.getElementById('search-input').value = currentInput;
+          console.log('🔄 検索入力を復元しました:', currentInput);
+        } else if (this.lastSearchQuery) {
+          // フォールバック：最後の検索クエリを復元
+          document.getElementById('search-input').value = this.lastSearchQuery;  
+          console.log('🔄 最後の検索クエリを復元しました:', this.lastSearchQuery);
         }
         
         if (this.searchResults.length > 0) {
@@ -3095,7 +3138,9 @@
         this.lastSearchQuery = '';
         this.saveSearchResults();
         this.saveLastSearchQuery();
+        this.saveCurrentSearchInput(''); // 保存された検索入力もクリア
         this.hideMessage();
+        console.log('🧹 検索をクリアしました（保存された入力内容も削除）');
       }
 
       showLoading(show) {
@@ -3146,6 +3191,19 @@
         
         // 再生成回数も同時に保存
         this.saveImageGenerationAttempts();
+        
+        // 現在の検索入力も保存
+        const currentInput = document.getElementById('search-input').value;
+        if (currentInput) {
+          this.saveCurrentSearchInput(currentInput);
+        }
+        
+        console.log('⚙️ 設定を保存しました:', {
+          style: this.selectedStyle,
+          model: this.selectedModel,
+          region: this.selectedRegion,
+          currentInput: currentInput
+        });
       }
 
       // UIに設定を反映（設定値は既にロード済み）
@@ -3176,13 +3234,13 @@
 
       // 設定をデフォルトに戻す
       resetSettings() {
-        this.selectedStyle = 'traditional';
-        this.selectedModel = 'sdxl-lightning';
+        this.selectedStyle = 'realistic';
+        this.selectedModel = 'imagen-4-fast';
         this.selectedRegion = 'japan';
 
         // UIに反映
-        const styleRadio = document.querySelector('input[name="style-setting"][value="traditional"]');
-        const modelRadio = document.querySelector('input[name="model-setting"][value="sdxl-lightning"]');
+        const styleRadio = document.querySelector('input[name="style-setting"][value="realistic"]');
+        const modelRadio = document.querySelector('input[name="model-setting"][value="imagen-4-fast"]');
         const regionRadio = document.querySelector('input[name="region-setting"][value="japan"]');
         
         if (styleRadio) {
