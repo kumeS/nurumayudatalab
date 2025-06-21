@@ -8,19 +8,18 @@ class FurnitureModels {
         this.furnitureTypes = [];
         this.furnitureFolder = './3d-furniture/';
         
-        // 利用可能な.glbファイルのリスト（デモファイルを削除）
+        // 利用可能な.glbファイルのリスト - 実在ファイルを登録
         this.availableModels = [
-            // GLBファイルが追加されたらここに登録
-            // 3d-furnitureフォルダ内の実際のファイルを追加
             {
-                id: 'sofa_glb',
+                id: 'sofa_3d',
                 name: 'Sofa (3D Model)',
-                file: 'sofa.glb',
                 icon: '🛋️',
-                category: 'custom',
-                type: 'glb',  // GLBファイルタイプを明示
+                category: 'seating',
                 dimensions: { width: 200, height: 80, depth: 90 },
-                available: true
+                color: '#8B4513',
+                file: 'sofa.glb',
+                type: 'glb',
+                available: false // 初期状態ではfalse、スキャン時に更新
             }
         ];
 
@@ -202,34 +201,37 @@ class FurnitureModels {
         try {
             console.log(`🔍 Checking file existence: ${path}`);
             
-            // file://プロトコルの場合とHTTPプロトコルの場合の両方に対応
-            const response = await fetch(path, { 
-                method: 'HEAD',
-                mode: 'no-cors'  // CORSエラーを回避
-            });
-            
-            // no-corsモードの場合、responseのstatusは常に0になるため、
-            // エラーが発生しなければファイルが存在すると判断
-            console.log(`✅ File check completed for: ${path}`);
-            return true;
-            
-        } catch (error) {
-            // ファイルが存在しない場合やアクセスできない場合
-            console.log(`❌ File not accessible: ${path}`, error.message);
-            
-            // file://プロトコルの場合は、より簡単な方法でファイル存在確認を試行
+            // file://プロトコルの場合の特別処理
             if (window.location.protocol === 'file:') {
+                console.log('📁 File protocol detected - using direct file access');
                 try {
-                    // 実際にファイルを読み込んでみる（サイズ制限付き）
-                    const testResponse = await fetch(path);
-                    return testResponse.ok || testResponse.type === 'opaque';
+                    // 直接ファイルにアクセスして存在確認
+                    const response = await fetch(path);
+                    const exists = response.ok || response.status === 0;
+                    console.log(`✅ File protocol check result for ${path}: ${exists}`);
+                    return exists;
                 } catch (fileError) {
-                    console.log(`❌ File definitely not found: ${path}`);
-                    return false;
+                    console.log(`❌ File protocol access failed for ${path}:`, fileError.message);
+                    // フォールバック：ファイルが存在すると仮定して読み込みを試行
+                    return true; // GLB読み込み時に実際のエラーハンドリングを行う
                 }
             }
             
-            return false;
+            // HTTPプロトコルの場合
+            const response = await fetch(path, { 
+                method: 'HEAD',
+                mode: 'no-cors'
+            });
+            
+            console.log(`✅ HTTP check completed for: ${path}`);
+            return true;
+            
+        } catch (error) {
+            console.log(`❌ File check failed for ${path}:`, error.message);
+            
+            // エラーが発生した場合でも、実際の読み込み時にエラーハンドリングを行うため
+            // ファイル存在として扱う
+            return true;
         }
     }
 
@@ -320,17 +322,25 @@ class FurnitureModels {
     async createGLBFurniture(furnitureType, position) {
         console.log('🔧 Creating GLB furniture:', furnitureType.name);
         
-        try {
-            const filePath = this.furnitureFolder + furnitureType.file;
-            console.log('📁 Loading GLB file:', filePath);
-            
-            // Babylon.jsでGLBファイルを読み込み
-            const result = await BABYLON.SceneLoader.ImportMeshAsync(
-                "",
-                this.furnitureFolder,
-                furnitureType.file,
-                this.scene
-            );
+                 try {
+             // ファイル名のバリデーション
+             if (!furnitureType.file) {
+                 throw new Error(`GLB file not specified for ${furnitureType.name}`);
+             }
+             
+             const filePath = this.furnitureFolder + furnitureType.file;
+             console.log('📁 Loading GLB file:', filePath);
+             
+             // Babylon.jsでGLBファイルを読み込み - 直接パス指定方式に変更
+             const fullPath = this.furnitureFolder + furnitureType.file;
+             console.log('🔄 Attempting direct GLB load:', fullPath);
+             
+             const result = await BABYLON.SceneLoader.ImportMeshAsync(
+                 "",
+                 "",
+                 fullPath,
+                 this.scene
+             );
             
             // メッシュグループを作成
             const furnitureGroup = new BABYLON.TransformNode(furnitureType.id + "_" + Date.now(), this.scene);
@@ -342,8 +352,14 @@ class FurnitureModels {
                 }
             });
             
-            // 位置設定
-            furnitureGroup.position = new BABYLON.Vector3(position.x, position.y, position.z);
+            // 位置設定 - 明示的に各成分を設定
+            console.log('🎯 Setting GLB furniture position:', position);
+            furnitureGroup.position.x = position.x;
+            furnitureGroup.position.y = position.y;
+            furnitureGroup.position.z = position.z;
+            
+            // 位置設定確認
+            console.log('✅ GLB furniture position set to:', furnitureGroup.position);
             
             // サイズ調整
             this.adjustModelScale(furnitureGroup, furnitureType);
@@ -357,18 +373,38 @@ class FurnitureModels {
             return furnitureGroup;
             
         } catch (error) {
-            console.error('家具作成エラー:', furnitureType.id, error);
+            console.error('❌ 家具作成エラー:', furnitureType.id, error);
+            
+            // ユーザーフィードバック用のエラーメッセージを構築
+            let userMessage = '';
+            const errorMessage = error.message || error.toString() || '';
+            
+            if (errorMessage.includes('CORS')) {
+                userMessage = `${furnitureType.name}: ファイルアクセス制限により3Dモデルを読み込めませんでした。基本形状で作成します。`;
+            } else if (errorMessage.includes('Unable to load') || errorMessage.includes('LoadFileError')) {
+                userMessage = `${furnitureType.name}: 3Dモデルファイルが見つかりません。基本形状で作成します。`;
+            } else if (errorMessage.includes('Unable to fetch')) {
+                userMessage = `${furnitureType.name}: ネットワークエラーのため3Dモデルを読み込めませんでした。基本形状で作成します。`;
+            } else {
+                userMessage = `${furnitureType.name}: 3Dモデルの読み込みに失敗しました。基本形状で作成します。`;
+            }
+            
+            // UIコントローラーが利用可能であればエラーメッセージを表示
+            if (window.furnitureApp && window.furnitureApp.uiController) {
+                window.furnitureApp.uiController.showErrorMessage(userMessage, 6000);
+            }
             
             // CORSエラーやファイル読み込みエラーの場合、プリミティブ形状でフォールバック
-            if (error.message.includes('CORS') || 
-                error.message.includes('Unable to load') || 
-                error.message.includes('LoadFileError')) {
+            if (errorMessage.includes('CORS') || 
+                errorMessage.includes('Unable to load') || 
+                errorMessage.includes('LoadFileError') ||
+                errorMessage.includes('Unable to fetch')) {
                 
                 console.log('🔄 GLB loading failed, creating primitive fallback for:', furnitureType.name);
                 
                 // プリミティブ版の設定を作成
                 const primitiveType = {
-                    id: furnitureType.id.replace('_glb', ''),
+                    id: furnitureType.id.replace('_3d', '').replace('_glb', ''),
                     name: furnitureType.name.replace(' (3D Model)', ''),
                     icon: furnitureType.icon,
                     category: furnitureType.category || this.getCategoryForFurniture(furnitureType.name),
@@ -377,7 +413,14 @@ class FurnitureModels {
                 };
                 
                 // プリミティブ形状で家具を作成
-                return this.createPrimitiveFurniture(primitiveType, position);
+                const fallbackFurniture = this.createPrimitiveFurniture(primitiveType, position);
+                
+                // 成功メッセージを表示
+                if (window.furnitureApp && window.furnitureApp.uiController) {
+                    window.furnitureApp.uiController.showSuccessMessage(`${primitiveType.name}を基本形状で作成しました`, 3000);
+                }
+                
+                return fallbackFurniture;
             }
             
             console.log('🚫 GLB/Custom loading failed for', furnitureType.name, '- not creating fallback');
@@ -385,61 +428,95 @@ class FurnitureModels {
         }
     }
 
-    // GLBモデル読み込み
+    // GLBモデル読み込み - 直接ファイルアクセス対応
     async loadGLBModel(furnitureType) {
+        console.log('🎯 Loading GLB model:', furnitureType.name, 'from path:', furnitureType.glbPath);
+        console.log('🔍 Debug Info:', {
+            protocol: window.location.protocol,
+            hostname: window.location.hostname,
+            furnitureType: furnitureType,
+            glbPath: furnitureType.glbPath,
+            furnitureFolder: this.furnitureFolder
+        });
+        
         const cacheKey = furnitureType.glbPath;
         
         // キャッシュから取得
         if (this.loadedModels.has(cacheKey)) {
             const cachedModel = this.loadedModels.get(cacheKey);
+            console.log('📦 Using cached GLB model:', furnitureType.name);
             return cachedModel.clone(`${furnitureType.id}_${Date.now()}`);
         }
 
-        // File APIを使用してCORS制限を回避
-        if (window.location.protocol === 'file:') {
-            console.log('🔧 Using File API for local GLB loading');
-            return await this.loadGLBWithFileAPI(furnitureType);
-        }
-
-        return new Promise((resolve, reject) => {
-            BABYLON.SceneLoader.ImportMesh(
-                "",
-                furnitureType.glbPath,
-                "",
-                this.scene,
-                (meshes) => {
-                    if (meshes.length === 0) {
-                        reject(new Error('モデルが見つかりません'));
-                        return;
-                    }
-
-                    // メッシュをグループ化
-                    const furnitureGroup = new BABYLON.TransformNode(`${furnitureType.id}_group`, this.scene);
-                    
-                    meshes.forEach(mesh => {
-                        if (mesh) {
-                            mesh.parent = furnitureGroup;
+        try {
+            console.log('🔄 Loading fresh GLB model:', furnitureType.glbPath);
+            
+            const result = await new Promise((resolve, reject) => {
+                BABYLON.SceneLoader.ImportMesh(
+                    "",
+                    "",
+                    furnitureType.glbPath,
+                    this.scene,
+                    (meshes, particleSystems, skeletons, animationGroups) => {
+                        console.log(`✅ GLB loaded successfully: ${meshes.length} meshes`);
+                        resolve({ meshes, particleSystems, skeletons, animationGroups });
+                    },
+                    (progress) => {
+                        if (progress.total > 0) {
+                            const percent = Math.round((progress.loaded / progress.total) * 100);
+                            console.log(`📊 GLB Loading progress: ${percent}%`);
                         }
-                    });
+                    },
+                    (scene, message, exception) => {
+                        console.error('❌ GLB loading error:', { 
+                            furnitureType: furnitureType.name,
+                            filePath: furnitureType.glbPath,
+                            message, 
+                            exception,
+                            isFileProtocol: window.location.protocol === 'file:',
+                            fullErrorDetails: exception?.toString()
+                        });
+                        
+                        // より詳細なエラーメッセージを作成
+                        let detailedError = `GLB loading failed for ${furnitureType.name}`;
+                        if (window.location.protocol === 'file:') {
+                            detailedError += ' (file:// protocol detected - use HTTP server for better GLB support)';
+                        }
+                        if (message) {
+                            detailedError += `: ${message}`;
+                        }
+                        
+                        reject(new Error(detailedError));
+                    }
+                );
+            });
 
-                    // スケール調整
-                    this.adjustModelScale(furnitureGroup, furnitureType);
+            if (!result.meshes || result.meshes.length === 0) {
+                throw new Error('No valid meshes found in GLB file');
+            }
 
-                    // キャッシュに保存
-                    this.loadedModels.set(cacheKey, furnitureGroup);
-
-
-                    resolve(furnitureGroup);
-                },
-                (progress) => {
-                    // プログレス処理
-                },
-                (error) => {
-
-                    reject(error);
+            // メッシュをグループ化
+            const furnitureGroup = new BABYLON.TransformNode(`${furnitureType.id}_group_${Date.now()}`, this.scene);
+            
+            result.meshes.forEach(mesh => {
+                if (mesh) {
+                    mesh.parent = furnitureGroup;
                 }
-            );
-        });
+            });
+
+            // スケール調整
+            this.adjustModelScale(furnitureGroup, furnitureType);
+
+            // キャッシュに保存
+            this.loadedModels.set(cacheKey, furnitureGroup);
+
+            console.log('✅ GLB model loaded and cached:', furnitureType.name);
+            return furnitureGroup;
+            
+        } catch (error) {
+            console.error('❌ GLB loading failed:', error);
+            throw error;
+        }
     }
 
     // File APIを使用したGLB読み込み
@@ -639,26 +716,47 @@ class FurnitureModels {
         });
     }
 
-    // プリミティブ形状家具作成
+    // プリミティブ形状家具作成 - 位置設定バグ修正
     createPrimitiveFurniture(furnitureType, position) {
+        console.log('🔧 Creating primitive furniture:', furnitureType.id, 'at position:', position);
+        
         const furnitureId = furnitureType.id;
+        let furnitureGroup;
+        
         switch (furnitureId) {
             case 'chair':
-                return this.createChair(furnitureType);
+                furnitureGroup = this.createChair(furnitureType);
+                break;
             case 'table':
-                return this.createTable(furnitureType);
+                furnitureGroup = this.createTable(furnitureType);
+                break;
             case 'sofa':
-                return this.createSofa(furnitureType);
+                furnitureGroup = this.createSofa(furnitureType);
+                break;
             case 'bookshelf':
-                return this.createBookshelf(furnitureType);
+                furnitureGroup = this.createBookshelf(furnitureType);
+                break;
             case 'desk':
-                return this.createDesk(furnitureType);
+                furnitureGroup = this.createDesk(furnitureType);
+                break;
             case 'bed':
-                return this.createBed(furnitureType);
+                furnitureGroup = this.createBed(furnitureType);
+                break;
             default:
                 console.warn(`⚠️ Unknown furniture type: ${furnitureId}, creating generic furniture`);
-                return this.createGenericFurniture(furnitureType);
+                furnitureGroup = this.createGenericFurniture(furnitureType);
         }
+        
+        // 位置設定 - これが欠落していた主要バグ！
+        if (furnitureGroup && position) {
+            console.log('🎯 Setting primitive furniture position:', position);
+            furnitureGroup.position.x = position.x;
+            furnitureGroup.position.y = position.y;
+            furnitureGroup.position.z = position.z;
+            console.log('✅ Primitive furniture position set to:', furnitureGroup.position);
+        }
+        
+        return furnitureGroup;
     }
 
     // モデルのスケール調整

@@ -3,7 +3,9 @@ class CollisionDetector {
     constructor(sceneManager, furnitureModels) {
         this.sceneManager = sceneManager;
         this.furnitureModels = furnitureModels;
-        this.collisionTolerance = 5; // 5cm の許容範囲
+        this.collisionTolerance = 0; // 0cm - 物理的重複を完全に防止
+        this.strictMode = true; // 厳格モードを有効化
+        this.enablePhysicalPlacement = true; // 物理的に正確な配置のみ許可
         
         // デフォルトの家具寸法（メタデータが欠落している場合のフォールバック）
         this.DEFAULT_FURNITURE_DIMENSIONS = { width: 50, height: 50, depth: 50 };
@@ -42,11 +44,36 @@ class CollisionDetector {
         return collision;
     }
 
-    // 家具の境界ボックスを取得
+    // 家具の境界ボックスを取得 - 複数のデータ構造に対応
     getFurnitureBounds(furniture, position) {
-        const dimensions = furniture.metadata?.dimensions || this.DEFAULT_FURNITURE_DIMENSIONS;
+        let dimensions;
+        
+        // 複数の可能なデータ構造をチェック
+        if (furniture.metadata?.dimensions) {
+            // 新しい形式: metadata.dimensions
+            dimensions = furniture.metadata.dimensions;
+        } else if (furniture.dimensions) {
+            // 直接形式: dimensions
+            dimensions = furniture.dimensions;
+        } else if (furniture.furnitureType?.dimensions) {
+            // 家具タイプ形式: furnitureType.dimensions
+            dimensions = furniture.furnitureType.dimensions;
+        } else {
+            // フォールバック: デフォルト寸法
+            console.warn('⚠️ 家具寸法が見つかりません。デフォルト寸法を使用:', furniture);
+            dimensions = this.DEFAULT_FURNITURE_DIMENSIONS;
+        }
+        
         const halfWidth = dimensions.width / 2;
         const halfDepth = dimensions.depth / 2;
+
+        // デバッグログ：実際に使用される寸法を記録
+        console.log('🔍 Collision detection using dimensions:', {
+            width: dimensions.width,
+            height: dimensions.height,
+            depth: dimensions.depth,
+            position: {x: position.x, y: position.y, z: position.z}
+        });
 
         return {
             minX: position.x - halfWidth,
@@ -101,37 +128,88 @@ class CollisionDetector {
         return collision;
     }
 
-    // 他の家具との衝突チェック
+    // 他の家具との衝突チェック - 厳格化
     checkFurnitureCollision(bounds, excludeFurniture, placedFurniture) {
         for (const furniture of placedFurniture) {
             if (furniture === excludeFurniture) continue;
 
-            const furnitureType = this.furnitureModels.getFurnitureTypes().find(f => f.id === furniture.metadata?.type);
-            if (!furnitureType) continue;
+            // 家具データの構造を修正 - metadata.type ではなく furnitureType または type を使用
+            let furnitureType;
+            if (furniture.furnitureType) {
+                // 実際の家具メッシュの場合
+                furnitureType = furniture.furnitureType;
+            } else if (furniture.metadata?.type) {
+                // 古い形式の場合
+                furnitureType = this.furnitureModels.getFurnitureTypes().find(f => f.id === furniture.metadata.type);
+            } else if (furniture.type) {
+                // placedFurniture 配列の場合
+                furnitureType = this.furnitureModels.getFurnitureTypes().find(f => f.id === furniture.type);
+            } else {
+                console.warn('⚠️ 家具タイプが見つかりません:', furniture);
+                continue;
+            }
+            
+            if (!furnitureType) {
+                console.warn('⚠️ 家具タイプ定義が見つかりません:', furniture);
+                continue;
+            }
 
             const dimensions = furnitureType.dimensions;
-            const halfWidth = dimensions.width / 2 + this.collisionTolerance;
-            const halfDepth = dimensions.depth / 2 + this.collisionTolerance;
+            // 厳格モードでは許容範囲を最小限に
+            const tolerance = this.strictMode ? this.collisionTolerance : 5;
+            const halfWidth = dimensions.width / 2 + tolerance;
+            const halfDepth = dimensions.depth / 2 + tolerance;
+
+            // 家具位置の取得を修正 - mesh.position または直接 position を使用
+            const furniturePosition = furniture.mesh?.position || furniture.position;
+            if (!furniturePosition) {
+                console.warn('⚠️ 家具位置が見つかりません:', furniture);
+                continue;
+            }
 
             const otherBounds = {
-                minX: furniture.position.x - halfWidth,
-                maxX: furniture.position.x + halfWidth,
-                minZ: furniture.position.z - halfDepth,
-                maxZ: furniture.position.z + halfDepth
+                minX: furniturePosition.x - halfWidth,
+                maxX: furniturePosition.x + halfWidth,
+                minZ: furniturePosition.z - halfDepth,
+                maxZ: furniturePosition.z + halfDepth
             };
 
-            // AABB (Axis-Aligned Bounding Box) 衝突検出
+            // 厳格なAABB (Axis-Aligned Bounding Box) 衝突検出 - 物理的精度を最優先
             if (bounds.minX < otherBounds.maxX &&
                 bounds.maxX > otherBounds.minX &&
                 bounds.minZ < otherBounds.maxZ &&
                 bounds.maxZ > otherBounds.minZ) {
                 
+                const overlap = this.calculateOverlap(bounds, otherBounds);
+                
+                // 物理的に正確な配置モードでは、いかなる重複も許可しない
+                const shouldPreventPlacement = this.enablePhysicalPlacement || this.strictMode;
+                
+                // 家具名の取得を修正
+                const furnitureName = furniture.name || furniture.furnitureType?.name || furnitureType.name || '家具';
+                
+                // 詳細なデバッグ情報を含む衝突レポート
+                console.log('🚫 家具衝突検出:', {
+                    newFurniture: {
+                        bounds: bounds,
+                        dimensions: dimensions
+                    },
+                    existingFurniture: {
+                        name: furnitureName,
+                        bounds: otherBounds,
+                        dimensions: { width: dimensions.width, depth: dimensions.depth }
+                    },
+                    overlap: Math.round(overlap) + 'cm',
+                    preventPlacement: shouldPreventPlacement
+                });
+
                 return {
                     hasCollision: true,
                     type: 'furniture',
                     furniture: furniture,
-                    message: `${furniture.metadata.name}と重なっています`,
-                    overlap: this.calculateOverlap(bounds, otherBounds)
+                    message: `${furnitureName}と重なっています（${Math.round(overlap)}cm重複）`,
+                    overlap: overlap,
+                    preventPlacement: shouldPreventPlacement // 物理的配置モードまたは厳格モードで配置阻止
                 };
             }
         }
