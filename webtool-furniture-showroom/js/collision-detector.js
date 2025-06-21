@@ -332,7 +332,7 @@ class CollisionDetector {
 
     // 有効な配置位置を提案
     suggestValidPosition(furniture, originalPosition, placedFurniture = []) {
-        const furnitureType = this.furnitureModels.getFurnitureTypes().find(f => f.id === furniture.metadata?.type);
+        const furnitureType = this.furnitureModels.getFurnitureTypes().find(f => f.id === furniture.metadata?.type || f.id === furniture.furnitureType?.id);
         if (!furnitureType) return originalPosition;
 
         const dimensions = furnitureType.dimensions;

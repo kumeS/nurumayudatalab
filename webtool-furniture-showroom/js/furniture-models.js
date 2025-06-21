@@ -242,20 +242,23 @@ class FurnitureModels {
         // 利用可能な.glbモデルを追加
         for (const model of this.availableModels) {
             if (model.available) {
+                const modelFile = this.furnitureFolder + model.file;
                 this.furnitureTypes.push({
                     id: model.id,
                     name: model.name,
                     icon: model.icon,
                     category: model.category,
                     dimensions: model.dimensions,
-                    modelFile: this.furnitureFolder + model.file,
+                    modelFile: modelFile,
                     type: 'glb'
                 });
                 
-                // Track the base name (e.g., 'sofa' from 'sofa_glb')
-                const baseName = model.id.replace(/_glb$/, '');
+                // Track the base name (e.g., 'sofa' from 'sofa_3d')
+                const baseName = model.id.replace(/_3d$/, '').replace(/_glb$/, '');
                 addedBaseNames.add(baseName);
-                console.log(`📦 Added GLB furniture: ${model.name} (base: ${baseName})`);
+                console.log(`📦 Added GLB furniture: ${model.name} (base: ${baseName}) with modelFile: ${modelFile}`);
+            } else {
+                console.log(`⏭️ Skipping unavailable GLB: ${model.name} (file: ${model.file})`);
             }
         }
         
@@ -295,6 +298,7 @@ class FurnitureModels {
 
         try {
             if (furnitureType.type === 'glb') {
+                console.log('🎯 Creating GLB furniture:', furnitureType.name, 'with modelFile:', furnitureType.modelFile);
                 return await this.createGLBFurniture(furnitureType, position);
             } else if (furnitureType.category === 'custom' && furnitureType.meshData) {
                 return await this.createCustomGLBFurniture(furnitureType, position);
@@ -323,22 +327,21 @@ class FurnitureModels {
         console.log('🔧 Creating GLB furniture:', furnitureType.name);
         
                  try {
-             // ファイル名のバリデーション
-             if (!furnitureType.file) {
-                 throw new Error(`GLB file not specified for ${furnitureType.name}`);
+             // ファイルパスのバリデーション
+             if (!furnitureType.modelFile) {
+                 throw new Error(`GLB modelFile not specified for ${furnitureType.name}`);
              }
              
-             const filePath = this.furnitureFolder + furnitureType.file;
+             const filePath = furnitureType.modelFile;
              console.log('📁 Loading GLB file:', filePath);
              
-             // Babylon.jsでGLBファイルを読み込み - 直接パス指定方式に変更
-             const fullPath = this.furnitureFolder + furnitureType.file;
-             console.log('🔄 Attempting direct GLB load:', fullPath);
+             // Babylon.jsでGLBファイルを読み込み - modelFileを直接使用
+             console.log('🔄 Attempting direct GLB load:', filePath);
              
              const result = await BABYLON.SceneLoader.ImportMeshAsync(
                  "",
                  "",
-                 fullPath,
+                 filePath,
                  this.scene
              );
             
@@ -430,16 +433,16 @@ class FurnitureModels {
 
     // GLBモデル読み込み - 直接ファイルアクセス対応
     async loadGLBModel(furnitureType) {
-        console.log('🎯 Loading GLB model:', furnitureType.name, 'from path:', furnitureType.glbPath);
+        console.log('🎯 Loading GLB model:', furnitureType.name, 'from path:', furnitureType.modelFile);
         console.log('🔍 Debug Info:', {
             protocol: window.location.protocol,
             hostname: window.location.hostname,
             furnitureType: furnitureType,
-            glbPath: furnitureType.glbPath,
+            modelFile: furnitureType.modelFile,
             furnitureFolder: this.furnitureFolder
         });
         
-        const cacheKey = furnitureType.glbPath;
+        const cacheKey = furnitureType.modelFile;
         
         // キャッシュから取得
         if (this.loadedModels.has(cacheKey)) {
@@ -449,13 +452,13 @@ class FurnitureModels {
         }
 
         try {
-            console.log('🔄 Loading fresh GLB model:', furnitureType.glbPath);
+            console.log('🔄 Loading fresh GLB model:', furnitureType.modelFile);
             
             const result = await new Promise((resolve, reject) => {
                 BABYLON.SceneLoader.ImportMesh(
                     "",
                     "",
-                    furnitureType.glbPath,
+                    furnitureType.modelFile,
                     this.scene,
                     (meshes, particleSystems, skeletons, animationGroups) => {
                         console.log(`✅ GLB loaded successfully: ${meshes.length} meshes`);
@@ -470,7 +473,7 @@ class FurnitureModels {
                     (scene, message, exception) => {
                         console.error('❌ GLB loading error:', { 
                             furnitureType: furnitureType.name,
-                            filePath: furnitureType.glbPath,
+                            filePath: furnitureType.modelFile,
                             message, 
                             exception,
                             isFileProtocol: window.location.protocol === 'file:',
@@ -522,7 +525,7 @@ class FurnitureModels {
     // File APIを使用したGLB読み込み
     async loadGLBWithFileAPI(furnitureType) {
         // 既存のGLBファイルを直接読み込む場合
-        if (furnitureType.file && this.furnitureFolder) {
+        if (furnitureType.modelFile && this.furnitureFolder) {
             try {
                 return await this.loadGLBFromExistingFile(furnitureType);
             } catch (error) {
@@ -581,7 +584,7 @@ class FurnitureModels {
                             this.adjustModelScale(furnitureGroup, furnitureType);
 
                             // キャッシュに保存
-                            this.loadedModels.set(furnitureType.glbPath, furnitureGroup);
+                            this.loadedModels.set(furnitureType.modelFile, furnitureGroup);
 
                             console.log(`✅ GLB model loaded successfully: ${file.name}`);
                             resolve(furnitureGroup);
@@ -619,7 +622,7 @@ class FurnitureModels {
     async loadGLBFromExistingFile(furnitureType) {
         return new Promise(async (resolve, reject) => {
             try {
-                const filePath = this.furnitureFolder + furnitureType.file;
+                const filePath = furnitureType.modelFile;
                 console.log(`🔧 Attempting to load existing GLB: ${filePath}`);
 
                 // fetchでファイルを読み込み（これもCORSで失敗する可能性があるが、試行）
@@ -700,7 +703,7 @@ class FurnitureModels {
                     this.adjustModelScale(furnitureGroup, furnitureType);
 
                     // キャッシュに保存
-                    this.loadedModels.set(furnitureType.glbPath || furnitureType.file, furnitureGroup);
+                    this.loadedModels.set(furnitureType.modelFile, furnitureGroup);
 
                     console.log(`✅ GLB processed successfully from ArrayBuffer`);
                     resolve(furnitureGroup);
