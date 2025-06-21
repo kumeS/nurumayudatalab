@@ -6,19 +6,57 @@ class CollisionDetector {
         this.collisionTolerance = 0; // 0cm - 物理的重複を完全に防止
         this.strictMode = true; // 厳格モードを有効化
         this.enablePhysicalPlacement = true; // 物理的に正確な配置のみ許可
+        this.debugMode = false; // デバッグモードの初期状態
+        
+        // 🆕 衝突検出のON/OFF切り替え機能
+        this.collisionDetectionEnabled = true; // デフォルトでは有効
+        this.placementMode = 'realistic'; // 'realistic' or 'creative'
         
         // デフォルトの家具寸法（メタデータが欠落している場合のフォールバック）
         this.DEFAULT_FURNITURE_DIMENSIONS = { width: 50, height: 50, depth: 50 };
+        
+        // 衝突統計の初期化
+        this.collisionStats = {
+            totalCollisions: 0,
+            furnitureCollisions: 0,
+            wallCollisions: 0,
+            preventedPlacements: 0,
+            startTime: new Date().toISOString()
+        };
+        
+        console.log('🛡️ 物理的衝突防止システム初期化完了:', {
+            tolerance: this.collisionTolerance,
+            strictMode: this.strictMode,
+            physicalPlacement: this.enablePhysicalPlacement,
+            debugMode: this.debugMode
+        });
     }
 
-    // 衝突チェック（メイン関数）
+    // 衝突チェック（メイン関数） - トグル対応
     checkCollisions(furniture, position, excludeFurniture = null, placedFurniture = []) {
+        // 🆕 衝突検出が無効の場合は常に衝突なしを返す
+        if (!this.collisionDetectionEnabled || this.placementMode === 'creative') {
+            if (this.debugMode) {
+                console.log('🎨 Creative Mode: 衝突検出をスキップ - 自由配置許可');
+            }
+            return {
+                hasCollision: false,
+                type: null,
+                details: null,
+                severity: 'none',
+                mode: this.placementMode,
+                detectionEnabled: this.collisionDetectionEnabled
+            };
+        }
+        
         const bounds = this.getFurnitureBounds(furniture, position);
         const collision = {
             hasCollision: false,
             type: null,
             details: null,
-            severity: 'none' // 'low', 'medium', 'high'
+            severity: 'none', // 'low', 'medium', 'high'
+            mode: this.placementMode,
+            detectionEnabled: this.collisionDetectionEnabled
         };
 
         // 壁との衝突チェック
@@ -44,24 +82,47 @@ class CollisionDetector {
         return collision;
     }
 
-    // 家具の境界ボックスを取得 - 複数のデータ構造に対応
+    // 家具の境界ボックスを取得 - 複数のデータ構造に対応（強化デバッグ版）
     getFurnitureBounds(furniture, position) {
         let dimensions;
+        let dimensionSource = 'unknown';
         
         // 複数の可能なデータ構造をチェック
         if (furniture.metadata?.dimensions) {
             // 新しい形式: metadata.dimensions
             dimensions = furniture.metadata.dimensions;
+            dimensionSource = 'metadata.dimensions';
         } else if (furniture.dimensions) {
             // 直接形式: dimensions
             dimensions = furniture.dimensions;
+            dimensionSource = 'direct.dimensions';
         } else if (furniture.furnitureType?.dimensions) {
             // 家具タイプ形式: furnitureType.dimensions
             dimensions = furniture.furnitureType.dimensions;
+            dimensionSource = 'furnitureType.dimensions';
         } else {
             // フォールバック: デフォルト寸法
-            console.warn('⚠️ 家具寸法が見つかりません。デフォルト寸法を使用:', furniture);
+            console.warn('⚠️ 家具寸法が見つかりません。デフォルト寸法を使用:', {
+                furniture: furniture,
+                availableProperties: Object.keys(furniture),
+                defaultDimensions: this.DEFAULT_FURNITURE_DIMENSIONS
+            });
             dimensions = this.DEFAULT_FURNITURE_DIMENSIONS;
+            dimensionSource = 'default_fallback';
+        }
+        
+        // 詳細デバッグログ（デバッグモード時のみ）
+        if (this.debugMode || window.furnitureApp?.debugMode) {
+            console.log('🔍 家具境界計算:', {
+                dimensionSource: dimensionSource,
+                dimensions: dimensions,
+                position: position,
+                furnitureInfo: {
+                    id: furniture.furnitureId || furniture.id,
+                    type: furniture.furnitureType?.id || furniture.type,
+                    name: furniture.name || furniture.furnitureType?.name
+                }
+            });
         }
         
         const halfWidth = dimensions.width / 2;
@@ -123,6 +184,19 @@ class CollisionDetector {
 
         if (collision.hasCollision) {
             collision.message = `家具が${collision.walls.join('・')}の壁を超えています`;
+            
+            // 壁衝突統計を記録
+            this.collisionStats.wallCollisions++;
+            this.collisionStats.totalCollisions++;
+            
+            if (this.debugMode) {
+                console.log('🚧 壁衝突検出:', {
+                    walls: collision.walls,
+                    message: collision.message,
+                    bounds: bounds,
+                    roomBounds: roomBounds
+                });
+            }
         }
 
         return collision;
@@ -203,14 +277,46 @@ class CollisionDetector {
                     preventPlacement: shouldPreventPlacement
                 });
 
-                return {
+                // 詳細な衝突レポートを作成
+                const collisionReport = {
                     hasCollision: true,
                     type: 'furniture',
                     furniture: furniture,
                     message: `${furnitureName}と重なっています（${Math.round(overlap)}cm重複）`,
                     overlap: overlap,
-                    preventPlacement: shouldPreventPlacement // 物理的配置モードまたは厳格モードで配置阻止
+                    preventPlacement: shouldPreventPlacement,
+                    severity: overlap > 20 ? 'high' : (overlap > 10 ? 'medium' : 'low'),
+                    details: {
+                        collidingFurniture: {
+                            name: furnitureName,
+                            id: furniture.furnitureId || furniture.id,
+                            type: furniture.furnitureType?.id || furniture.type
+                        },
+                        overlapAmount: Math.round(overlap),
+                        bounds: {
+                            current: bounds,
+                            other: otherBounds
+                        },
+                        physicalAccuracy: {
+                            strictMode: this.strictMode,
+                            tolerance: this.collisionTolerance,
+                            physicalPlacement: this.enablePhysicalPlacement
+                        }
+                    }
                 };
+                
+                // 衝突統計を記録
+                this.collisionStats = this.collisionStats || { totalCollisions: 0, furnitureCollisions: 0 };
+                this.collisionStats.totalCollisions++;
+                this.collisionStats.furnitureCollisions++;
+                
+                console.error('🚫 家具衝突検出:', {
+                    collision: collisionReport,
+                    stats: this.collisionStats,
+                    timestamp: new Date().toISOString()
+                });
+                
+                return collisionReport;
             }
         }
 
@@ -340,6 +446,104 @@ class CollisionDetector {
     getCollisionTolerance() {
         return this.collisionTolerance;
     }
+    
+    // 🆕 衝突検出ON/OFF切り替え
+    setCollisionDetectionEnabled(enabled) {
+        this.collisionDetectionEnabled = enabled;
+        console.log(`🔄 衝突検出: ${enabled ? '有効' : '無効'}`);
+        return this;
+    }
+    
+    // 🆕 配置モード切り替え
+    setPlacementMode(mode) {
+        if (!['realistic', 'creative'].includes(mode)) {
+            console.warn('⚠️ 無効な配置モード:', mode, '- realistic または creative を指定してください');
+            return this;
+        }
+        
+        const previousMode = this.placementMode;
+        this.placementMode = mode;
+        
+        // モードに応じて衝突検出を自動調整
+        if (mode === 'creative') {
+            this.collisionDetectionEnabled = false;
+        } else if (mode === 'realistic') {
+            this.collisionDetectionEnabled = true;
+        }
+        
+        console.log(`🎯 配置モード変更: ${previousMode} → ${mode}`, {
+            collisionDetection: this.collisionDetectionEnabled,
+            strictMode: this.strictMode,
+            tolerance: this.collisionTolerance
+        });
+        
+        // ユーザーフィードバック
+        if (window.furnitureApp && window.furnitureApp.uiController) {
+            let feedbackMessage = '';
+            if (mode === 'creative') {
+                feedbackMessage = '🎨 クリエイティブモード: 任意の場所に自由配置可能 (衝突検出OFF)';
+            } else {
+                feedbackMessage = '🔒 リアリスティックモード: 物理的制約あり (衝突検出ON)';
+            }
+            window.furnitureApp.uiController.showSuccessMessage(feedbackMessage, 4000);
+        }
+        
+        return this;
+    }
+    
+    // 🆕 現在の設定状態を取得
+    getSettings() {
+        return {
+            collisionDetectionEnabled: this.collisionDetectionEnabled,
+            placementMode: this.placementMode,
+            strictMode: this.strictMode,
+            collisionTolerance: this.collisionTolerance,
+            enablePhysicalPlacement: this.enablePhysicalPlacement,
+            debugMode: this.debugMode
+        };
+    }
+
+    // 衝突統計の表示
+    getCollisionStats() {
+        const now = new Date();
+        const startTime = new Date(this.collisionStats.startTime);
+        const sessionDuration = Math.round((now - startTime) / 1000); // 秒単位
+        
+        return {
+            ...this.collisionStats,
+            sessionDuration: sessionDuration,
+            sessionDurationFormatted: `${Math.floor(sessionDuration / 60)}分${sessionDuration % 60}秒`,
+            collisionsPerMinute: sessionDuration > 0 ? Math.round((this.collisionStats.totalCollisions / sessionDuration) * 60) : 0
+        };
+    }
+    
+    // 衝突統計をコンソールに表示
+    logCollisionStats() {
+        const stats = this.getCollisionStats();
+        console.table(stats);
+        console.log('🛡️ 物理的衝突防止システム統計:', stats);
+    }
+    
+    // デバッグモードの切り替え
+    setDebugMode(enabled) {
+        this.debugMode = enabled;
+        console.log(`🔧 衝突検出デバッグモード: ${enabled ? '有効' : '無効'}`);
+        if (enabled) {
+            this.logCollisionStats();
+        }
+    }
+    
+    // 衝突統計をリセット
+    resetCollisionStats() {
+        this.collisionStats = {
+            totalCollisions: 0,
+            furnitureCollisions: 0,
+            wallCollisions: 0,
+            preventedPlacements: 0,
+            startTime: new Date().toISOString()
+        };
+        console.log('📊 衝突統計をリセットしました');
+    }
 
     // デバッグ用境界ボックス表示 (無効化 - 赤いボックス表示を防止)
     debugShowBounds(bounds, color = 'red') {
@@ -382,4 +586,99 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = CollisionDetector;
 } else {
     window.CollisionDetector = CollisionDetector;
+}
+
+// グローバルデバッグ関数を追加（ブラウザコンソールからアクセス可能）
+if (typeof window !== 'undefined') {
+    window.collisionDebug = {
+        enableDebug: () => {
+            if (window.furnitureApp?.collisionDetector) {
+                window.furnitureApp.collisionDetector.setDebugMode(true);
+                console.log('🔧 衝突デバッグモードを有効にしました');
+            } else {
+                console.warn('⚠️ CollisionDetector が見つかりません');
+            }
+        },
+        disableDebug: () => {
+            if (window.furnitureApp?.collisionDetector) {
+                window.furnitureApp.collisionDetector.setDebugMode(false);
+                console.log('🔧 衝突デバッグモードを無効にしました');
+            }
+        },
+        showStats: () => {
+            if (window.furnitureApp?.collisionDetector) {
+                window.furnitureApp.collisionDetector.logCollisionStats();
+            } else {
+                console.warn('⚠️ CollisionDetector が見つかりません');
+            }
+        },
+        resetStats: () => {
+            if (window.furnitureApp?.collisionDetector) {
+                window.furnitureApp.collisionDetector.resetCollisionStats();
+            } else {
+                console.warn('⚠️ CollisionDetector が見つかりません');
+            }
+        },
+        // 🆕 配置モード制御
+        setCreativeMode: () => {
+            if (window.furnitureApp?.collisionDetector) {
+                window.furnitureApp.collisionDetector.setPlacementMode('creative');
+                console.log('🎨 クリエイティブモード: 任意の場所に自由配置可能');
+            } else {
+                console.warn('⚠️ CollisionDetector が見つかりません');
+            }
+        },
+        setRealisticMode: () => {
+            if (window.furnitureApp?.collisionDetector) {
+                window.furnitureApp.collisionDetector.setPlacementMode('realistic');
+                console.log('🔒 リアリスティックモード: 物理的制約あり');
+            } else {
+                console.warn('⚠️ CollisionDetector が見つかりません');
+            }
+        },
+        toggleCollision: () => {
+            if (window.furnitureApp?.collisionDetector) {
+                const detector = window.furnitureApp.collisionDetector;
+                const newState = !detector.collisionDetectionEnabled;
+                detector.setCollisionDetectionEnabled(newState);
+                console.log(`🔄 衝突検出: ${newState ? '有効' : '無効'}`);
+            } else {
+                console.warn('⚠️ CollisionDetector が見つかりません');
+            }
+        },
+        showSettings: () => {
+            if (window.furnitureApp?.collisionDetector) {
+                const settings = window.furnitureApp.collisionDetector.getSettings();
+                console.table(settings);
+                console.log('⚙️ 現在の設定:', settings);
+            } else {
+                console.warn('⚠️ CollisionDetector が見つかりません');
+            }
+        },
+        help: () => {
+            console.log(`
+🛡️ 衝突検出・配置制御コマンド:
+
+🎯 配置モード:
+• collisionDebug.setCreativeMode()  - 🎨 自由配置モード (衝突検出OFF)
+• collisionDebug.setRealisticMode() - 🔒 物理制約モード (衝突検出ON)
+
+🔄 衝突検出制御:
+• collisionDebug.toggleCollision()  - 衝突検出ON/OFF切り替え
+• collisionDebug.showSettings()     - 現在の設定表示
+
+📊 統計・デバッグ:
+• collisionDebug.enableDebug()      - デバッグモード有効
+• collisionDebug.disableDebug()     - デバッグモード無効  
+• collisionDebug.showStats()        - 衝突統計表示
+• collisionDebug.resetStats()       - 統計リセット
+
+💡 使用例:
+  collisionDebug.setCreativeMode()   → 任意の場所に配置可能
+  collisionDebug.setRealisticMode()  → 物理的制約を復活
+            `);
+        }
+    };
+    
+    console.log('🔧 衝突デバッグ関数をグローバルに登録しました。コンソールで collisionDebug.help() を実行してください。');
 } 
