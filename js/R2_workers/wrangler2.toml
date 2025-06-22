@@ -1,0 +1,5 @@
+
+[[r2_buckets]]
+binding = "IMAGE_BUCKET"
+bucket_name = "nurmayudatalab"
+preview_bucket_name = "nurmayudatalab"

@@ -1,84 +1,81 @@
-## シングル GLB操作ビューア — 仕様書（静的 HTML＋JavaScript 実装） ### 1. 目的とユースケース
-Web ブラウザ上で 単一の GLB/glTF モデル を手早く確認・操作できる軽量ビューアを提供する。
+## シングル GLB操作ビューア — 仕様書（静的 HTML＋JavaScript 実装） 
+1枚あるいは複数の画像をアップロードすると、replicate APIで、GLBが作成されて、3Dビューアーで確認できる。
+GLB作成時間が40秒程度で、アプトップをworkers経由でR2に保存する。
+R2_workers_replicate_v1.jsを修正する必要はあるか？
 
-家具・キャラクターモデル等の 個別デバッグ／プレゼン
-モデルのポーズ調整やカメラアングル検証
-モデルを編集前に素早く確認したい 3D アーティスト／開発者向け
---- ### 2. 技術スタック | モジュール | 採用技術・ライブラリ | | ---------- | --------------------------------------------- | | モデル読み込み | **`GLTFLoader`**（three.js） | | レンダリング/シーン | `Scene`, `PerspectiveCamera`, `WebGLRenderer` | | 環境光・背景 | `PMREMGenerator`（HDRI）／単色背景 | | モデル管理 | `Object3D` でラップ（1 件のみ保持） | | 操作 UI | `TransformControls`（移動・回転・拡大縮小） | | GUI パネル | **dat.GUI**（必要最低限の UI） | | 状態保存 | **localStorage**（JSON シリアライズ） | --- ### 3. 画面レイアウト（MVP）
+実装内容
+シンプルなvierwerの機能はそのままでOK
+GLBアップロードの機能は完全に削除する。その代わりに、1枚あるいは複数枚の画像をアップロードできるようにする。
+The model accepts: - An input image (PNG or JPEG format) -
 
-┌───────────────────────────────┐
-│          3D ビューポート        │
-│  (マウス: OrbitControls)       │
-└───────────┬────────────────────┘
-            │ 右サイドバー (dat.GUI)
-            │  ├ ファイル読込ボタン
-            │  ├ Transform モード切替 (T/R/S)
-            │  ├ Reset Transform
-            │  ├ 背景   : [色 / HDRI 選択]
-            │  ├ Save   : 状態を保存
-            │  └ Load   : 保存済み状態を復元
---- ### 4. 機能要件 | 区分 | 要件 | 詳細 | | -------- | --------------------------------------------------- | -------------------------------------------- | | A. モデル読込 | ドラッグ＆ドロップ／ファイル選択 | 新しい GLB を読み込むと既存モデルは置き換え | | B. 変形操作 | `TransformControls` | **T**ranslate／**R**otate／**S**cale の 3 モード切替 | | C. 背景 | ① 単色カラーピッカー<br>② HDRI 環境テクスチャ（複数プリセット） | | | D. 保存 | シーン状態（位置・回転・スケール・背景設定）を JSON として `localStorage` に保存 | ボタン１つ | | E. 復元 | 保存済み JSON を読み込み、直前の状態を復元 | | | F. リセット | Transform を初期値 (0,0,0 / 1,1,1) へ戻す | | --- ### 5. 非機能要件
-静的ホスティングのみで稼働（GitHub Pages／Cloudflare Pages 等）
-主要ブラウザ（Chrome, Edge, Safari, Firefox）で 60 FPS 程度を維持
-モバイル対応：二本指パン・ピンチで OrbitControls を操作
---- ### 6. データ構造（保存フォーマット例）
-
+API実行 curlでの場合
+curl --silent --show-error https://api.replicate.com/v1/predictions \
+	--request POST \
+	--header "Authorization: Bearer $REPLICATE_API_TOKEN" \
+	--header "Content-Type: application/json" \
+	--header "Prefer: wait" \
+	--data @- <<-EOM
 {
-  "modelName": "chair.glb",
-  "transform": {
-    "position": [0, 0, 0],
-    "rotation": [0, 1.5708, 0],   // radians
-    "scale":    [1, 1, 1]
-  },
-  "background": {
-    "type": "color",
-    "value": "#ececec"
-  }
+	"version": "e8f6c45206993f297372f5436b90350817bd9b4a0d52d2a76df50c1c8afa2b3c",
+	"input": {
+      "images": [
+        "https://replicate.delivery/pbxt/MJaYRxQMgIzPsALScNadsZFCXR2h1n97xBzhRinmUQw9aw25/ephemeros_a_dune_sandworm_with_black_background_de398ce7-2276-4634-8f1d-c4ed2423cda4.png"
+      ],
+      "texture_size": 2048,
+      "mesh_simplify": 0.9,
+      "generate_model": true,
+      "save_gaussian_ply": true,
+      "ss_sampling_steps": 38
+	}
 }
---- ### 7. 最小実装ステップ (MVP)
-基礎セットアップ
+EOM
 
-three.js (CDN) と dat.GUI を読み込む
-Scene, PerspectiveCamera, WebGLRenderer, OrbitControls を構築
-GLB 読込
-
-input[type="file"] ＋ drag-over イベント → GLTFLoader.load()
-TransformControls
-
-読み込んだ scene ノードに controls.attach()
-GUI パネル
-
-モード切替 (T/R/S), Reset, 背景設定, Save/Load 実装
-状態保存／復元
-
-localStorage.setItem/getItem で JSON シリアライズ
-UI 微調整
-
-レスポンシブ CSS／タッチ操作対応
---- ### 8. 拡張アイデア（将来）
-スクリーンショット生成（renderer→toDataURL）
-GLB 再エクスポート（three.js GLTFExporter）
-アニメーション UI（再生 / ポーズ / シークバー）
-WASM を用いた 形式変換 (GLB⇄OBJ) 追加
-環境プリセット の切替（屋外・スタジオ・夜景 ほか）
---- ### 9. ディレクトリ構成例
-
-/public
- ├ index.html
- ├ main.js
- ├ libs/
- │   ├ three.min.js
- │   ├ GLTFLoader.js
- │   ├ TransformControls.js
- │   ├ OrbitControls.js
- │   └ dat.gui.min.js
- └ assets/
-     └ hdr/
-         ├ studio.hdr
-         └ sunset.hdr
---- ### 10. MVP 完了チェックリスト
-GLB 単体読み込みができる
-TransformControls で移動・回転・拡大縮小が機能
-背景色／HDRI の切替が反映
-状態保存／復元が正常動作
-PC／スマホの主要ブラウザで表示崩れなし
+アプトップの例
+{
+  "completed_at": "2024-12-25T09:47:25.433534Z",
+  "created_at": "2024-12-25T09:44:13.178000Z",
+  "data_removed": false,
+  "error": null,
+  "id": "8h775kppf9rj60ckzmsry8ckj4",
+  "input": {
+    "seed": 0,
+    "images": [
+      "https://replicate.delivery/pbxt/MClj4HeBGlMw8Jwr8nRJgG4gtSMuIzHYZmsV2XKeJkYtqFYg/yoimiya_3.png",
+      "https://replicate.delivery/pbxt/MClj53w5pbLeLnZuBtDdhqIyolFZBXJ30nlM2d3IeCNfbawR/yoimiya_2.png",
+      "https://replicate.delivery/pbxt/MClj4vk3vYcbRp88EPypUzwUnJFScjLLEqTDgVNKiQg2LiRS/yoimiya_1.png"
+    ],
+    "texture_size": 2048,
+    "mesh_simplify": 0.9,
+    "generate_color": true,
+    "generate_model": true,
+    "randomize_seed": true,
+    "generate_normal": false,
+    "ss_sampling_steps": 12,
+    "slat_sampling_steps": 12,
+    "ss_guidance_strength": 7.5,
+    "slat_guidance_strength": 3
+  },
+  "logs": "INFO:predict:Loading and preprocessing input images...\nINFO:predict:Saved images without background\nINFO:predict:Using randomized seed: 714495115\nINFO:predict:Running TRELLIS pipeline...\nSampling:   0%|          | 0/12 [00:00<?, ?it/s]\nSampling:   8%|▊         | 1/12 [00:00<00:01,  9.78it/s]\nSampling:  25%|██▌       | 3/12 [00:00<00:00, 10.86it/s]\nSampling:  42%|████▏     | 5/12 [00:00<00:00, 11.09it/s]\nSampling:  58%|█████▊    | 7/12 [00:00<00:00, 11.19it/s]\nSampling:  75%|███████▌  | 9/12 [00:00<00:00, 11.22it/s]\nSampling:  92%|█████████▏| 11/12 [00:00<00:00, 12.30it/s]\nSampling: 100%|██████████| 12/12 [00:00<00:00, 12.15it/s]\nSampling:   0%|          | 0/12 [00:00<?, ?it/s]\nSampling:   8%|▊         | 1/12 [00:00<00:02,  4.42it/s]\nSampling:  17%|█▋        | 2/12 [00:00<00:01,  5.29it/s]\nSampling:  25%|██▌       | 3/12 [00:00<00:01,  5.66it/s]\nSampling:  33%|███▎      | 4/12 [00:00<00:01,  5.86it/s]\nSampling:  42%|████▏     | 5/12 [00:00<00:01,  5.97it/s]\nSampling:  50%|█████     | 6/12 [00:01<00:00,  6.04it/s]\nSampling:  58%|█████▊    | 7/12 [00:01<00:00,  6.08it/s]\nSampling:  67%|██████▋   | 8/12 [00:01<00:00,  6.11it/s]\nSampling:  75%|███████▌  | 9/12 [00:01<00:00,  6.14it/s]\nSampling:  83%|████████▎ | 10/12 [00:01<00:00,  6.16it/s]\nSampling: 100%|██████████| 12/12 [00:01<00:00,  8.05it/s]\nSampling: 100%|██████████| 12/12 [00:01<00:00,  6.50it/s]\nINFO:predict:TRELLIS pipeline complete!\nINFO:predict:Available output formats: dict_keys(['mesh', 'gaussian'])\nINFO:predict:Starting video rendering...\nINFO:predict:Generating color video from gaussian output...\nRendering: 0it [00:00, ?it/s]\nRendering: 21it [00:00, 206.98it/s]\nRendering: 48it [00:00, 242.90it/s]\nRendering: 77it [00:00, 261.52it/s]\nRendering: 104it [00:00, 262.47it/s]\nRendering: 120it [00:00, 257.84it/s]\nINFO:predict:Available gaussian render types: ['color', 'depth']\nINFO:predict:Generated color video successfully\nINFO:predict:Video rendering complete!\nINFO:predict:Generating GLB model...\nINFO- Loaded 7519 vertices and 15028 faces.\n0% done\n9% done\n18% done\n27% done\n36% done\n45% done\n54% done\n63% done\n72% done\n81% done\n90% done\n100% done\nWARNING- Some cuts were necessary to cope with non manifold configuration.\nRendering: 0it [00:00, ?it/s]\nRendering: 13it [00:00, 123.82it/s]\nRendering: 27it [00:00, 129.03it/s]\nRendering: 41it [00:00, 130.83it/s]\nRendering: 55it [00:00, 132.20it/s]\nRendering: 69it [00:00, 132.92it/s]\nRendering: 83it [00:00, 134.45it/s]\nRendering: 97it [00:00, 134.80it/s]\nRendering: 100it [00:00, 132.81it/s]\nINFO:predict:GLB model generation complete!\nINFO:predict:Prediction complete! Returning results...",
+  "metrics": {
+    "predict_time": 45.160399745,
+    "total_time": 192.255534
+  },
+  "output": {
+    "model_file": "https://replicate.delivery/yhqm/e92dQj5ltczLUiXknNARE0JSUwrZMbdY8LY406ai77gWNMfTA/output.glb",
+    "color_video": "https://replicate.delivery/yhqm/s4zZA2breS25B6sffONCKebGhhIjijj4vMypTIMa8Dt0qh5PB/output_color.mp4",
+    "normal_video": null,
+    "combined_video": null,
+    "no_background_images": [
+      "https://replicate.delivery/yhqm/MfGPrnwFDER0TS2yiblgnCcXpVsQV6nk1ZCW8ukKyFfsaYenA/output_no_background_0.png",
+      "https://replicate.delivery/yhqm/DAH2dLrIdt7KAt5ScEWLF1ewepeVBO7gdie2Peru3KLiVDzfE/output_no_background_1.png",
+      "https://replicate.delivery/yhqm/WcIYW20ZGV4ffEtZLbuCHPYP1gwcY7Ev0fkcvUOOwGJZ1w8nA/output_no_background_2.png"
+    ]
+  },
+  "started_at": "2024-12-25T09:46:40.273135Z",
+  "status": "succeeded",
+  "urls": {
+    "get": "https://api.replicate.com/v1/predictions/8h775kppf9rj60ckzmsry8ckj4",
+    "cancel": "https://api.replicate.com/v1/predictions/8h775kppf9rj60ckzmsry8ckj4/cancel"
+  },
+  "version": "06f601b67d482565d4724ae3bc29e5e8cbaa6c4594df900da315d6a02f37ce2a"
+}
