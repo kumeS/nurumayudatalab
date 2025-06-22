@@ -410,6 +410,10 @@
             transform: scale(1.1);
         }
 
+        .help-toggle.hidden {
+            display: none;
+        }
+
         .help-toggle.shifted {
             bottom: 160px;
         }
@@ -516,8 +520,8 @@
                 <h1 class="drop-title">AIKW 3D Viewer</h1>
                 <p class="drop-subtitle">ドラッグ&ドロップまたはクリックしてGLB/GLTFファイルを選択</p>
                 <div class="file-input-wrapper">
-                    <input type="file" id="fileInput" class="file-input" accept=".glb,.gltf">
-                    <button class="file-button">ファイルを選択</button>
+                    <input type="file" id="fileInput" class="file-input" accept=".glb,.gltf" style="display: none;">
+                    <button class="file-button" id="fileButton">ファイルを選択</button>
                 </div>
             </div>
         </div>
@@ -574,14 +578,14 @@
         </div>
 
         <!-- ヘルプ表示切り替えボタン -->
-        <button id="helpToggle" class="help-toggle">❓</button>
+        <button id="helpToggle" class="help-toggle hidden">❓</button>
 
         <div id="helpPanel" class="help-panel hidden">
             <div class="help-title">⌨️ 操作方法</div>
             <div class="shortcut-list">
                 <div class="shortcut-item">
-                    <span>カメラ回転</span>
-                    <span class="shortcut-key">マウス</span>
+                    <span>回転</span>
+                    <span class="shortcut-key">左クリック</span>
                 </div>
                 <div class="shortcut-item">
                     <span>ズーム</span>

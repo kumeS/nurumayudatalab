@@ -11,8 +11,18 @@ class GLBViewer {
         this.directionalLight = null;
         this.directionalLight2 = null;
         
-        this.init();
-        this.setupEventListeners();
+        // Ensure DOM is loaded before initialization
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.init();
+                this.setupEventListeners();
+                window.glbViewerInitialized = true;
+            });
+        } else {
+            this.init();
+            this.setupEventListeners();
+            window.glbViewerInitialized = true;
+        }
     }
 
     init() {
@@ -83,6 +93,95 @@ class GLBViewer {
         this.orbitControls.enableDamping = true;
         this.orbitControls.dampingFactor = 0.05;
         
+        // RADICAL SOLUTION: Complete override of 180-degree limitation
+        // Remove ALL constraints that cause the 180-degree lock (set to unrestricted)
+        this.orbitControls.minPolarAngle = -Infinity;
+        this.orbitControls.maxPolarAngle = Infinity; // Unlimited vertical rotation
+        this.orbitControls.minAzimuthAngle = -Infinity;
+        this.orbitControls.maxAzimuthAngle = Infinity;
+        
+        // Basic settings
+        this.orbitControls.enablePan = true;
+        this.orbitControls.enableZoom = true;
+        this.orbitControls.enableRotate = true;
+        this.orbitControls.rotateSpeed = 1.0;
+        this.orbitControls.panSpeed = 1.0;
+        this.orbitControls.zoomSpeed = 1.0;
+        
+        // ABSOLUTE FINAL SOLUTION: Completely disable OrbitControls internal constraints
+        console.log('Applying ABSOLUTE FINAL SOLUTION for unlimited vertical rotation...');
+        
+        // Store reference to controls for easier access
+        const controls = this.orbitControls;
+        
+        // Method 1: Force-override constraint properties
+        Object.defineProperty(controls, 'minPolarAngle', {
+            // Return unrestricted value so internal clamps are effectively disabled
+            get: () => -Infinity,
+            set: () => {},
+            configurable: false
+        });
+        Object.defineProperty(controls, 'maxPolarAngle', {
+            // Allow unlimited positive range
+            get: () => Infinity,
+            set: () => {},
+            configurable: false
+        });
+        
+        // Method 2: Wrap the original update method to ensure internal clamps always see unrestricted limits
+        const originalUpdate = controls.update.bind(controls);
+        controls.update = function() {
+            // Temporarily ensure min/max are unrestricted (in case internal code tries to modify them)
+            const prevMin = this.minPolarAngle;
+            const prevMax = this.maxPolarAngle;
+            this.minPolarAngle = -Infinity;
+            this.maxPolarAngle = Infinity;
+
+            const result = originalUpdate();
+
+            // Restore (though getters already lock them, keep for clarity)
+            this.minPolarAngle = prevMin;
+            this.maxPolarAngle = prevMax;
+            return result;
+        };
+        
+        // Method 3: Deep patch of spherical coordinates system
+        setTimeout(() => {
+            if (controls.spherical) {
+                const spherical = controls.spherical;
+                
+                // Track cumulative phi rotation for unlimited vertical movement
+                let cumulativePhi = Math.PI / 2; // Start at equator
+                let lastUpdatePhi = spherical.phi;
+                
+                // Override makeSafe completely
+                spherical.makeSafe = function() {
+                    this.radius = Math.max(this.radius, Number.EPSILON);
+                    // CRITICAL: Remove phi clamping entirely
+                };
+                
+                // Override setFromVector3 to accumulate phi changes
+                const originalSetFromVector3 = spherical.setFromVector3;
+                spherical.setFromVector3 = function(vector) {
+                    originalSetFromVector3.call(this, vector);
+                    
+                    // Calculate phi delta and add to cumulative
+                    const deltaPhi = this.phi - lastUpdatePhi;
+                    if (Math.abs(deltaPhi) < Math.PI) { // Avoid large jumps
+                        cumulativePhi += deltaPhi;
+                        this.phi = cumulativePhi;
+                    }
+                    lastUpdatePhi = this.phi;
+                    
+                    return this;
+                };
+                
+                console.log('Spherical system COMPLETELY patched - no more 180° limits!');
+            }
+        }, 100);
+        
+        console.log('ABSOLUTE FINAL PATCH APPLIED: All vertical rotation limits eliminated!');
+        
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
         
@@ -93,9 +192,55 @@ class GLBViewer {
     setupEventListeners() {
         // File input
         const fileInput = document.getElementById('fileInput');
+        const fileButton = document.getElementById('fileButton');
+        
+        // Debug: Check if elements exist
+        console.log('File input element:', fileInput);
+        console.log('File button element:', fileButton);
+        
+        if (!fileInput) {
+            console.error('File input element not found!');
+            return;
+        }
+        
+        if (!fileButton) {
+            console.error('File button element not found!');
+            return;
+        }
+        
+        // File change event
         fileInput.addEventListener('change', (e) => {
+            console.log('File input changed:', e.target.files);
             if (e.target.files.length > 0) {
-                this.loadModel(e.target.files[0]);
+                const file = e.target.files[0];
+                console.log('Selected file:', file.name, file.type, file.size);
+                
+                // Validate file type
+                const isValidType = file.name.toLowerCase().endsWith('.glb') || 
+                                   file.name.toLowerCase().endsWith('.gltf') ||
+                                   file.type === 'model/gltf-binary' ||
+                                   file.type === 'model/gltf+json';
+                
+                if (!isValidType) {
+                    alert('GLBまたはGLTFファイルを選択してください');
+                    fileInput.value = ''; // Clear the input
+                    return;
+                }
+                
+                this.loadModel(file);
+            }
+        });
+        
+        // File button click to trigger file input
+        fileButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('File button clicked, opening file dialog');
+            try {
+                fileInput.click();
+                console.log('File input click triggered successfully');
+            } catch (error) {
+                console.error('Error triggering file input:', error);
             }
         });
 
@@ -117,13 +262,21 @@ class GLBViewer {
             dropZone.classList.remove('dragover');
             
             const files = Array.from(e.dataTransfer.files);
-            const glbFile = files.find(file => 
-                file.name.toLowerCase().endsWith('.glb') || 
-                file.name.toLowerCase().endsWith('.gltf')
-            );
+            console.log('Dropped files:', files);
+            
+            const glbFile = files.find(file => {
+                const isValidType = file.name.toLowerCase().endsWith('.glb') || 
+                                   file.name.toLowerCase().endsWith('.gltf') ||
+                                   file.type === 'model/gltf-binary' ||
+                                   file.type === 'model/gltf+json';
+                return isValidType;
+            });
             
             if (glbFile) {
+                console.log('Valid GLB/GLTF file dropped:', glbFile.name);
                 this.loadModel(glbFile);
+            } else {
+                alert('GLBまたはGLTFファイルをドロップしてください');
             }
         });
 
@@ -245,9 +398,14 @@ class GLBViewer {
             }
             
             const link = document.createElement('a');
-            const fileName = this.currentModelName ? 
-                `${this.currentModelName.replace(/\.(glb|gltf)$/i, '')}_screenshot.png` : 
-                'screenshot.png';
+            
+            // Generate filename with aikw-3D-viewer-YYYYMM-HHMM.png format
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const fileName = `aikw-3D-viewer-${year}${month}-${hours}${minutes}.png`;
             
             link.download = fileName;
             link.href = dataURL;
@@ -264,9 +422,11 @@ class GLBViewer {
     showDropZone(show) {
         const dropZone = document.getElementById('dropZone');
         const settingsToggle = document.getElementById('settingsToggle');
+        const helpToggle = document.getElementById('helpToggle');
         
         dropZone.classList.toggle('hidden', !show);
         settingsToggle.classList.toggle('hidden', show);
+        helpToggle.classList.toggle('hidden', show);
     }
 
     showControlPanel(show) {
