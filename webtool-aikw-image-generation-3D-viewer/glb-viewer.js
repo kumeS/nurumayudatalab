@@ -91,41 +91,7 @@ class GLBViewer {
     }
 
     setupEventListeners() {
-        // File input
-        const fileInput = document.getElementById('fileInput');
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                this.loadModel(e.target.files[0]);
-            }
-        });
-
-        // Drag and drop
-        const dropZone = document.getElementById('dropZone');
-        
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-        
-        dropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-        });
-        
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            
-            const files = Array.from(e.dataTransfer.files);
-            const glbFile = files.find(file => 
-                file.name.toLowerCase().endsWith('.glb') || 
-                file.name.toLowerCase().endsWith('.gltf')
-            );
-            
-            if (glbFile) {
-                this.loadModel(glbFile);
-            }
-        });
+        // Note: File input and drag/drop events are now handled by ImageTo3DGenerator class
 
         // Background presets
         document.querySelectorAll('.bg-preset').forEach(preset => {

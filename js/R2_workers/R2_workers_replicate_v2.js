@@ -280,62 +280,110 @@ export default {
       throw new Error("R2 bucket binding not configured");
     }
 
-    // 画像URLを抽出
-    const imageUrls = this.extractImageUrls(responseData);
+    // 全ての出力ファイルURLを抽出
+    const fileUrls = this.extractAllFileUrls(responseData);
     
-    if (imageUrls.length === 0) {
-      console.log("No image URLs found in response");
+    if (fileUrls.length === 0) {
+      console.log("No file URLs found in response");
       return;
     }
 
-    console.log(`Found ${imageUrls.length} image URLs to process`);
+    console.log(`Found ${fileUrls.length} file URLs to process`);
 
     // モデル名を抽出
     const modelName = this.extractModelName(responseData);
 
-    // 各画像を並列処理
-    const savePromises = imageUrls.map(async (imageUrl, index) => {
+    // 各ファイルを並列処理
+    const savePromises = fileUrls.map(async (fileUrl, index) => {
       try {
-        // 画像をダウンロード
-        const imageResponse = await fetch(imageUrl);
-        if (!imageResponse.ok) {
-          throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+        // ファイルをダウンロード
+        const fileResponse = await fetch(fileUrl);
+        if (!fileResponse.ok) {
+          throw new Error(`Failed to fetch file: ${fileResponse.status}`);
         }
 
-        // Content-Typeから画像形式を判定
-        const contentType = imageResponse.headers.get('content-type') || '';
-        const extension = this.getImageExtension(contentType, imageUrl);
+        // Content-Typeからファイル形式を判定
+        const contentType = fileResponse.headers.get('content-type') || '';
+        const extension = this.getFileExtension(contentType, fileUrl);
         
         if (!extension) {
-          throw new Error(`Unsupported image format: ${contentType}`);
+          console.warn(`Unsupported file format: ${contentType}, URL: ${fileUrl}`);
+          return;
         }
 
-        // 画像データを取得
-        const imageData = await imageResponse.arrayBuffer();
+        // ファイルデータを取得
+        const fileData = await fileResponse.arrayBuffer();
         
         // ファイル名を生成（モデル名を含む）
         const fileName = this.generateFileName(modelName, index, extension);
         
         // R2に保存
-        await env.IMAGE_BUCKET.put(fileName, imageData, {
+        await env.IMAGE_BUCKET.put(fileName, fileData, {
           httpMetadata: {
-            contentType: contentType || `image/${extension}`
+            contentType: contentType || this.getContentTypeForExtension(extension)
           }
         });
 
-        console.log(`Image saved to R2: ${fileName} (${imageData.byteLength} bytes)`);
+        console.log(`File saved to R2: ${fileName} (${fileData.byteLength} bytes)`);
         
       } catch (error) {
-        console.error(`Failed to process image ${index}:`, error);
-        throw error;
+        console.error(`Failed to process file ${index}:`, error);
+        // 個別ファイルのエラーは継続処理
       }
     });
 
-    // 全ての画像処理を待機
+    // 全てのファイル処理を待機
     await Promise.all(savePromises);
   },
 
-  // レスポンスデータから画像URLを抽出
+  // レスポンスデータから全ファイルURLを抽出（GLB、MP4、画像など）
+  extractAllFileUrls(responseData) {
+    const fileUrls = [];
+
+    // TRELLIS v2の出力形式に対応
+    if (responseData.output) {
+      // GLBモデルファイル
+      if (responseData.output.model_file) {
+        fileUrls.push(responseData.output.model_file);
+      }
+      
+      // 動画ファイル
+      if (responseData.output.color_video) {
+        fileUrls.push(responseData.output.color_video);
+      }
+      if (responseData.output.normal_video) {
+        fileUrls.push(responseData.output.normal_video);
+      }
+      if (responseData.output.combined_video) {
+        fileUrls.push(responseData.output.combined_video);
+      }
+      
+      // 背景除去画像
+      if (Array.isArray(responseData.output.no_background_images)) {
+        responseData.output.no_background_images.forEach(imageUrl => {
+          if (typeof imageUrl === 'string' && this.isValidUrl(imageUrl)) {
+            fileUrls.push(imageUrl);
+          }
+        });
+      }
+      
+      // その他の配列形式の出力
+      if (Array.isArray(responseData.output)) {
+        responseData.output.forEach(item => {
+          if (typeof item === 'string' && this.isValidUrl(item)) {
+            fileUrls.push(item);
+          }
+        });
+      } else if (typeof responseData.output === 'string' && this.isValidUrl(responseData.output)) {
+        fileUrls.push(responseData.output);
+      }
+    }
+
+    // 重複を除去
+    return [...new Set(fileUrls)];
+  },
+
+  // レスポンスデータから画像URLを抽出（後方互換性のため保持）
   extractImageUrls(responseData) {
     const imageUrls = [];
 
@@ -408,7 +456,87 @@ export default {
     }
   },
 
-  // Content-Typeまたは拡張子から画像の拡張子を取得
+  // URLが有効かどうか判定
+  isValidUrl(url) {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  // Content-Typeまたはファイル拡張子から正しい拡張子を取得
+  getFileExtension(contentType, url) {
+    // Content-Typeから判定
+    const typeMap = {
+      'model/gltf-binary': 'glb',
+      'model/gltf+json': 'gltf',
+      'application/octet-stream': null, // URLから判定
+      'video/mp4': 'mp4',
+      'video/mpeg': 'mp4',
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg', 
+      'image/png': 'png',
+      'image/gif': 'gif',
+      'image/webp': 'webp',
+      'image/bmp': 'bmp'
+    };
+
+    // Content-Typeがマップにある場合
+    if (contentType && typeMap[contentType.toLowerCase()]) {
+      return typeMap[contentType.toLowerCase()];
+    }
+
+    // URLから拡張子を抽出
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname.toLowerCase();
+      const match = pathname.match(/\.([a-z0-9]+)$/);
+      if (match) {
+        const ext = match[1];
+        // サポートする拡張子のみ許可
+        if (['glb', 'gltf', 'mp4', 'mov', 'avi', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) {
+          return ext === 'jpeg' ? 'jpg' : ext;
+        }
+      }
+    } catch {
+      // URL解析エラーは無視
+    }
+
+    // application/octet-streamでGLBファイルの場合
+    if (contentType && contentType.toLowerCase().includes('octet-stream')) {
+      try {
+        const urlObj = new URL(url);
+        if (urlObj.pathname.toLowerCase().includes('glb') || urlObj.pathname.toLowerCase().includes('model')) {
+          return 'glb';
+        }
+      } catch {
+        // URL解析エラーは無視
+      }
+    }
+
+    return null;
+  },
+
+  // 拡張子からContent-Typeを取得
+  getContentTypeForExtension(extension) {
+    const extMap = {
+      'glb': 'model/gltf-binary',
+      'gltf': 'model/gltf+json',
+      'mp4': 'video/mp4',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'bmp': 'image/bmp'
+    };
+    
+    return extMap[extension.toLowerCase()] || 'application/octet-stream';
+  },
+
+  // Content-Typeまたは拡張子から画像の拡張子を取得（後方互換性のため保持）
   getImageExtension(contentType, url) {
     // Content-Typeから判定
     const typeMap = {

@@ -1,10 +1,12 @@
 ## シングル GLB操作ビューア — 仕様書（静的 HTML＋JavaScript 実装） 
-1枚あるいは複数の画像をアップロードすると、replicate APIで、GLBが作成されて、3Dビューアーで確認できる。
-GLB作成時間が40秒程度で、アプトップをworkers経由でR2に保存する。
+index.html、glb-viewer.js、main.jsを利用する。
+GLBアップロードの画面は削除する。
+1枚あるいは複数の画像をアップロードすると（その後、実行ボタンあり）、replicate APIで、GLBが作成されて、GLBを読み込んで3Dビューアで確認できる。
+GLB作成時間が40秒程度で、アプトップをworkers経由（API.txtおよびR2_workers_replicate_v1.jsを参考に）でR2に保存する。
 R2_workers_replicate_v1.jsを修正する必要はあるか？
 
 実装内容
-シンプルなvierwerの機能はそのままでOK
+シンプルなvierwerの機能はそのままでOK。3Dビューアの仕様は変更しない。
 GLBアップロードの機能は完全に削除する。その代わりに、1枚あるいは複数枚の画像をアップロードできるようにする。
 The model accepts: - An input image (PNG or JPEG format) -
 
