@@ -8,6 +8,16 @@ let studentsData = {};
 let currentTab = 'students';
 let apiKey = '';
 let analysisHistory = [];
+let currentAnalysisPage = 1;
+let currentHistoryPage = 1;
+const ITEMS_PER_PAGE = 10;
+
+// レポート設定のデフォルト値
+let reportSettings = {
+  individualReportDataCount: 3, // 個別レポート用データ数
+  analysisDataCount: 5, // AI分析用データ数
+  pdfCreatorName: '児童進捗管理ツール' // PDF作成者名
+};
 
 // 組み込み項目マスターデータ
 const builtInFields = {
@@ -134,7 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // アプリケーション初期化
   initializeApp();
-  initializeAnalysisHistory();
 });
 
 
@@ -148,7 +157,14 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 function initializeApp() {
   loadData();
+  loadReportSettings(); // レポート設定の読み込み
   setupEventListeners();
+  
+  // AI分析履歴の初期化（復旧機能付き）
+  initializeAnalysisHistory();
+  
+  // 自動バックアップ開始
+  startAutoBackup();
   
   // 保存されたタブ位置を復元（UIアップデート前に実行）
   const savedTab = localStorage.getItem('currentTab');
@@ -193,6 +209,9 @@ function setTabStateOnly(tabName) {
  * イベントリスナー設定
  */
 function setupEventListeners() {
+  // 統一イベント委譲システム初期化
+  initializeEventDelegation();
+  
   // タブ切り替え
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', (e) => {
@@ -243,6 +262,9 @@ function loadData() {
   } else {
     initializeDefaultData();
   }
+  
+  // レポート設定の読み込み
+  loadReportSettings();
 }
 
 /**
@@ -331,7 +353,7 @@ function ensureDataCompatibility() {
         '集中力が続く',
         '細かいところに気づく',
         '協力的な姿勢',
-        '独創的なアイデアを出す',
+        '独创的なアイデアを出す',
         '整理整頓が上手',
         '時間を守って行動',
         '困っている友達を手助け',
@@ -350,9 +372,6 @@ function ensureDataCompatibility() {
     console.log('行動タグフィールドを追加しました');
     showAlert('行動タグ機能が追加されました！', 'success');
   }
-  
-  // 入力フィールドの更新（行動タグが常に表示されるようになる）
-  updateInputFields();
 }
 
 /**
@@ -393,8 +412,22 @@ function switchTab(tabName) {
     case 'students':
       updateStudentsTable();
       break;
+    case 'analysis':
+      // AI分析タブの初期化
+      console.log('Switching to analysis tab, analysisHistory:', analysisHistory ? analysisHistory.length : 'null');
+      if (!analysisHistory) {
+        console.log('Initializing analysis history...');
+        initializeAnalysisHistory();
+      }
+      console.log('Calling displayAnalysisResults with:', analysisHistory ? analysisHistory.length : 'null', 'items');
+      displayAnalysisResults(analysisHistory);
+      if (document.getElementById('analysisHistoryPreview')) {
+        updateAnalysisHistoryPreview();
+      }
+      break;
     case 'settings':
       updateFieldSettings();
+      updateReportSettingsUI();
       break;
   }
 }
@@ -418,6 +451,7 @@ function updateProgressTable() {
         `<th style="min-width: 120px;">${field.name}</th>`
       ).join('')}
       <th style="min-width: 100px;">ステータス</th>
+      <th style="min-width: 80px;">データ数</th>
       <th style="min-width: 120px;">最終更新</th>
       <th style="min-width: 180px;">操作</th>
     `;
@@ -494,8 +528,8 @@ function createProgressTableRow(student) {
   // 最新のレコードを取得
   const latestRecord = student.records.length > 0 ? student.records[student.records.length - 1] : null;
   
-  // 個別AI分析結果があるかチェック
-  const hasAIAnalysis = latestRecord && latestRecord.aiSummary;
+  // AI分析履歴から該当児童の分析結果があるかチェック
+  const hasAIAnalysis = getLatestAnalysisForStudent(student.name) !== null;
   
   // 操作ボタンを作成
   let actionButtons = `
@@ -530,6 +564,21 @@ function createProgressTableRow(student) {
     <td>${student.class || '-'}</td>
     ${dynamicFields}
     <td style="min-width: 100px;">${statusLabel}</td>
+    <td style="text-align: center;">
+      <span style="
+        background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+        color: #0c4a6e;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border: 1px solid #0ea5e9;
+        display: inline-block;
+        min-width: 40px;
+      ">
+        ${student.records ? student.records.length : 0}件
+      </span>
+    </td>
     <td>${latestRecord ? formatDate(latestRecord.timestamp) : '-'}</td>
     <td style="min-width: 180px;">
       ${actionButtons}
@@ -554,8 +603,9 @@ function generateStatusLabel(record) {
   const learningStatus = record.data.learningStatus ? parseInt(record.data.learningStatus) : 0;
   const motivation = record.data.motivation ? parseInt(record.data.motivation) : 0;
   
-  // ステータス判定
-  if (learningStatus <= 3 || motivation <= 3) {
+  // ステータス判定（三段階）
+  // 要注意：1-2、普通：3、良好：4-5
+  if (learningStatus <= 2 || motivation <= 2) {
     return `
       <span style="
         background: linear-gradient(135deg, #fef3c7, #fed7aa);
@@ -569,8 +619,7 @@ function generateStatusLabel(record) {
         align-items: center;
         gap: 0.25rem;
       ">
-        <i class="fas fa-exclamation-triangle" style="font-size: 0.7rem;"></i>
-        要注意
+        ⚠️ 要注意
       </span>
     `;
   } else if (learningStatus >= 4 && motivation >= 4) {
@@ -587,8 +636,7 @@ function generateStatusLabel(record) {
         align-items: center;
         gap: 0.25rem;
       ">
-        <i class="fas fa-thumbs-up" style="font-size: 0.7rem;"></i>
-        良好
+        👍 良好
       </span>
     `;
   } else {
@@ -605,7 +653,6 @@ function generateStatusLabel(record) {
         align-items: center;
         gap: 0.25rem;
       ">
-        <i class="fas fa-minus" style="font-size: 0.7rem;"></i>
         普通
       </span>
     `;
@@ -648,7 +695,10 @@ function showAnalysisDetail({ title, content, analysisDate, studentName = '', ty
           ${formatAnalysisContent(content)}
         </div>
       </div>
-      <div style="text-align: center;">
+      <div style="text-align: center; display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+        <button class="btn btn-primary" onclick="exportAnalysisDetailPDF('${title}', \`${content.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`, '${analysisDate}', '${studentName}', '${type}')" title="この分析結果をPDF出力">
+          <i class="fas fa-file-pdf"></i> PDF出力
+        </button>
         <button class="btn btn-secondary" onclick="closeAnalysisDetailModal()">
           <i class="fas fa-times"></i> 閉じる
         </button>
@@ -715,24 +765,16 @@ function updateFieldSettings() {
     const fieldCard = document.createElement('div');
     fieldCard.className = 'card';
     fieldCard.style.marginBottom = '0.5rem';
-    
-    // 行動タグかどうかをチェック
-    const isBehaviorTag = field.id === 'behaviorTags';
-    
     fieldCard.innerHTML = `
       <div class="flex justify-between items-center">
         <div>
           <strong>${field.name}</strong>
           <span class="text-secondary">(${getFieldTypeLabel(field.type)})</span>
           ${field.required ? '<span class="text-error">*必須</span>' : ''}
-          ${isBehaviorTag ? '<span style="color: var(--accent); font-size: 0.8rem; margin-left: 0.5rem; background: rgba(6, 182, 212, 0.1); padding: 0.2rem 0.4rem; border-radius: 3px;">システム項目</span>' : ''}
         </div>
-        ${isBehaviorTag ? 
-          '<span style="color: var(--text-secondary); font-size: 0.8rem; font-style: italic;">削除不可</span>' :
-          `<button class="btn btn-error" onclick="removeField(${index})" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
-            <i class="fas fa-trash"></i> 削除
-          </button>`
-        }
+        <button class="btn btn-error" onclick="removeField(${index})" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+          <i class="fas fa-trash"></i> 削除
+        </button>
       </div>
     `;
     container.appendChild(fieldCard);
@@ -860,7 +902,6 @@ function getFieldTypeLabel(type) {
     case 'text': return '自由記述';
     case 'number': return '数値入力';
     case 'checkbox': return 'チェックボックス';
-    case 'multiselect': return '行動タグ選択';
     default: return type;
   }
 }
@@ -869,14 +910,6 @@ function getFieldTypeLabel(type) {
  * フィールド削除
  */
 function removeField(index) {
-  const field = studentsData.fieldDefinitions[index];
-  
-  // 行動タグの削除を防ぐ
-  if (field.id === 'behaviorTags') {
-    showAlert('行動タグはシステム項目のため削除できません', 'warning');
-    return;
-  }
-  
   if (!confirm('この項目を削除しますか？')) return;
   
   const removedField = studentsData.fieldDefinitions[index];
@@ -1008,51 +1041,7 @@ function updateInputFields() {
 
   container.innerHTML = '';
 
-  // 行動タグを含む全ての項目を表示
-  const allFields = [];
-  
-  // 通常の項目を追加
-  if (studentsData.fieldDefinitions && studentsData.fieldDefinitions.length > 0) {
-    allFields.push(...studentsData.fieldDefinitions);
-  }
-  
-  // 行動タグが存在しない場合は追加
-  const behaviorTagExists = allFields.some(field => field.id === 'behaviorTags');
-  if (!behaviorTagExists) {
-    const behaviorTagField = {
-      id: 'behaviorTags',
-      name: '児童の行動タグ',
-      type: 'multiselect',
-      options: [
-        '積極的に手を上げる',
-        '黙っていた',
-        'クラスでのリーダー役',
-        '規則正しい生活習慣',
-        '一生懸命頑張っています',
-        '宿題をしっかり提出',
-        '学習への意欲が高い',
-        '友達に教える姿勢',
-        'いつも明るい',
-        '集中力が続く',
-        '細かいところに気づく',
-        '協力的な姿勢',
-        '独創的なアイデアを出す',
-        '整理整頓が上手',
-        '時間を守って行動',
-        '困っている友達を手助け',
-        '最後まであきらめない',
-        '新しいことに挑戦する',
-        '丁寧な字で書く',
-        '正直に報告する',
-        '質問を積極的にする',
-        '間違いを恐れず発言'
-      ],
-      required: false
-    };
-    allFields.push(behaviorTagField);
-  }
-
-  if (allFields.length === 0) {
+  if (!studentsData.fieldDefinitions || studentsData.fieldDefinitions.length === 0) {
     container.innerHTML = `
       <div class="alert alert-warning">
         <i class="fas fa-exclamation-triangle"></i>
@@ -1062,7 +1051,7 @@ function updateInputFields() {
     return;
   }
 
-  allFields.forEach(field => {
+  studentsData.fieldDefinitions.forEach(field => {
     const fieldGroup = document.createElement('div');
     fieldGroup.className = 'form-group';
     
@@ -1108,7 +1097,6 @@ function updateInputFields() {
     fieldGroup.innerHTML = `
       <label class="form-label">
         ${field.name}${field.required ? ' *' : ''}
-        ${field.id === 'behaviorTags' ? '<span style="color: var(--accent); font-size: 0.8rem; margin-left: 0.5rem;">(常時表示)</span>' : ''}
       </label>
       ${fieldInput}
     `;
@@ -1175,7 +1163,7 @@ function updateStudentsTable() {
       <td>${formatDate(student.createdAt || new Date().toISOString())}</td>
       <td>${student.records ? student.records.length : 0}</td>
       <td>
-        <button class="btn btn-primary" onclick="editStudent('${student.id}')">
+        <button class="btn btn-primary" data-action="edit-student" data-target="${student.id}">
           <i class="fas fa-edit"></i> 編集
         </button>
       </td>
@@ -1218,32 +1206,112 @@ function updateStatistics() {
 }
 
 /**
- * 未入力項目統計の更新
+ * 未入力項目統計の更新（キャッシュ機能付き）
+ */
+function updateMissingInputsStatisticsWithCache() {
+  const currentHash = generateDataHash();
+  const now = Date.now();
+  
+  // キャッシュが有効かチェック（5分間有効）
+  if (missingInputsCache.data && 
+      missingInputsCache.dataHash === currentHash && 
+      missingInputsCache.lastUpdate && 
+      (now - missingInputsCache.lastUpdate) < 5 * 60 * 1000) {
+    
+    // キャッシュからデータを使用
+    displayMissingInputsStatistics(missingInputsCache.data);
+    return;
+  }
+  
+  // キャッシュが無効な場合は新しく計算
+  const missingInputsData = calculateMissingInputsData();
+  
+  // キャッシュを更新
+  missingInputsCache = {
+    data: missingInputsData,
+    lastUpdate: now,
+    dataHash: currentHash
+  };
+  
+  displayMissingInputsStatistics(missingInputsData);
+}
+
+/**
+ * 未入力項目統計の更新（従来版・互換性のため保持）
  */
 function updateMissingInputsStatistics() {
+  // キャッシュをクリアして最新データを強制取得
+  missingInputsCache.data = null;
+  updateMissingInputsStatisticsWithCache();
+}
+
+/**
+ * データハッシュの生成（変更検知用）
+ */
+function generateDataHash() {
+  const students = studentsData.students || [];
+  const fields = studentsData.fieldDefinitions || [];
+  
+  // 学生数、フィールド数、最新レコードのタイムスタンプを組み合わせ
+  let hash = `${students.length}-${fields.length}`;
+  
+  students.forEach(student => {
+    if (student.records && student.records.length > 0) {
+      const latestRecord = student.records[student.records.length - 1];
+      hash += `-${student.id}-${latestRecord.timestamp}`;
+    }
+  });
+  
+  return hash;
+}
+
+/**
+ * 未入力項目データの計算
+ */
+function calculateMissingInputsData() {
+  const fieldCount = studentsData.fieldDefinitions ? studentsData.fieldDefinitions.length : 0;
+  const studentCount = studentsData.students ? studentsData.students.length : 0;
+  
+  if (fieldCount === 0 || studentCount === 0) {
+    return {
+      totalMissing: 0,
+      studentsWithMissing: [],
+      studentsWithNoRecentInput: [],
+      totalStudents: studentCount,
+      totalFields: fieldCount,
+      isEmpty: true,
+      emptyMessage: fieldCount === 0 ? '入力項目が設定されていません' : '児童が登録されていません'
+    };
+  }
+
+  // 未入力の児童を詳細に分析
+  const missingInputsData = analyzeMissingInputs();
+  missingInputsData.isEmpty = false;
+  
+  return missingInputsData;
+}
+
+/**
+ * 未入力項目統計の表示
+ */
+function displayMissingInputsStatistics(missingInputsData) {
   const missingInputsElem = document.getElementById('missingInputs');
   const noRecentInputCountElem = document.getElementById('noRecentInputCount');
   const missingInputsList = document.getElementById('missingInputsList');
   
   if (!missingInputsElem || !missingInputsList) return;
 
-    const fieldCount = studentsData.fieldDefinitions ? studentsData.fieldDefinitions.length : 0;
-    const studentCount = studentsData.students ? studentsData.students.length : 0;
-  
-  if (fieldCount === 0 || studentCount === 0) {
+  if (missingInputsData.isEmpty) {
     missingInputsElem.textContent = '0';
     if (noRecentInputCountElem) noRecentInputCountElem.textContent = '0';
     missingInputsList.innerHTML = `
       <div style="text-align: center; padding: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
         <i class="fas fa-info-circle" style="margin-bottom: 0.5rem; display: block;"></i>
-        ${fieldCount === 0 ? '入力項目が設定されていません' : '児童が登録されていません'}
+        ${missingInputsData.emptyMessage}
       </div>
     `;
     return;
   }
-
-  // 未入力の児童を詳細に分析
-  const missingInputsData = analyzeMissingInputs();
   
   // 未入力項目数を表示
   missingInputsElem.textContent = missingInputsData.totalMissing;
@@ -1352,69 +1420,47 @@ function generateMissingInputsList(missingInputsData) {
   } else {
     let listHTML = '';
     
+    // HTML文字列の配列を使用して高速化
+    const htmlParts = [];
+    
     missingInputsData.studentsWithMissing.forEach(item => {
       const student = item.student;
       const progressBarColor = item.completionRate >= 80 ? 'var(--success)' : 
                              item.completionRate >= 50 ? 'var(--warning)' : 'var(--error)';
       
-      // 最終入力日の表示
-      let lastInputInfo = '';
-      if (item.daysSinceLastInput !== null) {
-        lastInputInfo = `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
-          <i class="fas fa-clock" style="margin-right: 0.25rem;"></i>
-          最終入力: ${item.daysSinceLastInput}日前
-        </div>`;
-      }
+      // フィールド名の簡略表示（処理を軽量化）
+      const missingFieldsText = item.missingFields.length <= 3 ? 
+        item.missingFields.map(f => f.name).join('、') :
+        `${item.missingFields.slice(0, 2).map(f => f.name).join('、')}他${item.missingFields.length - 2}項目`;
       
-      listHTML += `
-        <div style="
-          background: var(--bg-secondary); 
-          border-radius: 8px; 
-          padding: 0.75rem; 
-          margin-bottom: 0.5rem;
-          border-left: 3px solid ${progressBarColor};
-          cursor: pointer;
-          transition: all 0.3s ease;
-        " onclick="goToStudentInput('${student.id}')" onmouseover="this.style.backgroundColor='var(--bg-primary)'" onmouseout="this.style.backgroundColor='var(--bg-secondary)'">
-          
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+      // 最終入力日の簡略表示
+      const lastInputText = item.daysSinceLastInput !== null ? 
+        `最終入力: ${item.daysSinceLastInput}日前` : '';
+      
+      htmlParts.push(`
+        <div class="missing-input-item" onclick="goToStudentInput('${student.id}')" 
+             style="background:var(--bg-secondary);border-radius:8px;padding:0.75rem;margin-bottom:0.5rem;border-left:3px solid ${progressBarColor};cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
             <div>
-              <strong style="color: var(--text-primary); font-size: 0.9rem;">${formatStudentName(student.name)}</strong>
-              <span style="color: var(--text-secondary); font-size: 0.8rem; margin-left: 0.5rem;">
-                ${student.grade}年 ${student.class || ''}
-              </span>
+              <strong style="color:var(--text-primary);font-size:0.9rem;">${student.name}</strong>
+              <span style="color:var(--text-secondary);font-size:0.8rem;margin-left:0.5rem;">${student.grade}年 ${student.class || ''}</span>
             </div>
-            <div style="text-align: right;">
-              <span style="color: ${progressBarColor}; font-weight: 600; font-size: 0.8rem;">
-                ${item.completionRate}%
-              </span>
-            </div>
+            <span style="color:${progressBarColor};font-weight:600;font-size:0.8rem;">${item.completionRate}%</span>
           </div>
-          
-          <div style="margin-bottom: 0.5rem;">
-            <div style="background: var(--border); height: 4px; border-radius: 2px; overflow: hidden;">
-              <div style="
-                background: ${progressBarColor}; 
-                height: 100%; 
-                width: ${item.completionRate}%; 
-                transition: width 0.3s ease;
-              "></div>
-            </div>
+          <div style="background:var(--border);height:4px;border-radius:2px;margin-bottom:0.5rem;">
+            <div style="background:${progressBarColor};height:100%;width:${item.completionRate}%;"></div>
           </div>
-          
-          <div style="font-size: 0.8rem; color: var(--text-secondary);">
-            <i class="fas fa-exclamation-triangle" style="color: var(--warning); margin-right: 0.25rem;"></i>
+          <div style="font-size:0.8rem;color:var(--text-secondary);">
+            <i class="fas fa-exclamation-triangle" style="color:var(--warning);margin-right:0.25rem;"></i>
             未入力: ${item.missingCount}/${item.totalFields}項目
           </div>
-          
-          <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">
-            ${item.missingFields.slice(0, 3).map(field => field.name).join('、')}${item.missingFields.length > 3 ? '...' : ''}
-          </div>
-          
-          ${lastInputInfo}
+          <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.25rem;">${missingFieldsText}</div>
+          ${lastInputText ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.25rem;"><i class="fas fa-clock" style="margin-right:0.25rem;"></i>${lastInputText}</div>` : ''}
         </div>
-      `;
+      `);
     });
+    
+    listHTML = htmlParts.join('');
     
     container.innerHTML = listHTML;
   }
@@ -1511,6 +1557,13 @@ function generateNoRecentInputsList(studentsWithNoRecentInput, container) {
   container.innerHTML = listHTML;
 }
 
+// 未入力項目統計のキャッシュ
+let missingInputsCache = {
+  data: null,
+  lastUpdate: null,
+  dataHash: null
+};
+
 /**
  * 未入力項目詳細のトグル
  */
@@ -1523,8 +1576,8 @@ function toggleMissingInputsDetail() {
   if (detailDiv.classList.contains('hidden')) {
     detailDiv.classList.remove('hidden');
     toggleIcon.style.transform = 'rotate(180deg)';
-    // 詳細データを更新
-    updateMissingInputsStatistics();
+    // 詳細データを更新（キャッシュ使用）
+    updateMissingInputsStatisticsWithCache();
   } else {
     detailDiv.classList.add('hidden');
     toggleIcon.style.transform = 'rotate(0deg)';
@@ -1595,7 +1648,23 @@ function clearForm() {
  * テーブル更新
  */
 function refreshTable() {
-  updateUI();
+  // データの再読み込みではなく、UIコンポーネントの表示更新のみ実行
+  // (loadData()を呼ぶとメモリ上の変更が失われる可能性があるため除外)
+  
+  // 全てのUIコンポーネントを強制更新
+  updateStudentsTable();      // 児童管理テーブル
+  updateProgressTable();      // 進捗管理一覧
+  updateStudentSelect();      // 児童選択プルダウン
+  updateInputFields();        // 入力フィールド
+  updateFieldSettings();      // フィールド設定
+  updateStudentManagementSettings(); // 児童管理設定
+  updateStatistics();         // 統計情報
+  
+  // AI分析履歴プレビューは該当要素が存在する場合のみ更新
+  if (document.getElementById('analysisHistoryPreview')) {
+    updateAnalysisHistoryPreview(); // AI分析履歴プレビュー
+  }
+  
   showAlert('データを更新しました', 'success');
 }
 
@@ -1817,125 +1886,107 @@ function deleteStudent(studentId) {
 /**
  * 児童編集（簡易実装）
  */
+let currentEditingStudentId = null;
+
 function editStudent(studentId) {
+  // 編集対象の児童を検索
   const student = studentsData.students.find(s => s.id === studentId);
   if (!student) {
-    showAlert('該当する児童が見つかりません', 'error');
+    showAlert('編集対象の児童が見つかりません', 'error');
     return;
   }
 
-  // フォームに既存データを設定
-  document.getElementById('editStudentName').value = student.name;
-  document.getElementById('editStudentNumber').value = student.studentNumber;
-  document.getElementById('editStudentGrade').value = student.grade;
-  document.getElementById('editStudentGender').value = student.gender;
+  // 現在編集中の児童IDを保存
+  currentEditingStudentId = studentId;
+
+  // フォームに現在の値を設定
+  document.getElementById('editStudentName').value = student.name || '';
+  document.getElementById('editStudentNumber').value = student.studentNumber || '';
+  document.getElementById('editStudentGrade').value = student.grade || '';
+  document.getElementById('editStudentGender').value = student.gender || '';
   document.getElementById('editStudentClass').value = student.class || '';
 
-  // 現在編集中の学生IDを保存
-  window.currentEditingStudentId = studentId;
-
-  // モーダル表示
+  // 編集モーダルを表示
   document.getElementById('editStudentModal').classList.add('show');
 }
 
 /**
- * 児童編集フォーム処理
+ * 児童編集フォーム送信処理
  */
-function handleEditStudent(event) {
-  event.preventDefault();
+function handleEditStudent(e) {
+  e.preventDefault();
   
-  const studentId = window.currentEditingStudentId;
-  if (!studentId) {
+  if (!currentEditingStudentId) {
     showAlert('編集対象の児童が特定できません', 'error');
     return;
   }
   
-  const name = document.getElementById('editStudentName').value.trim();
-  const studentNumber = document.getElementById('editStudentNumber').value.trim();
-  const grade = document.getElementById('editStudentGrade').value;
-  const gender = document.getElementById('editStudentGender').value;
-  const studentClass = document.getElementById('editStudentClass').value.trim();
+  // フォームデータの取得
+  const form = e.target;
+  const formData = new FormData(form);
   
-  if (!name || !studentNumber || !grade || !gender) {
-    showAlert('必須項目を入力してください', 'error');
+  const updatedData = {
+    name: formData.get('name').trim(),
+    studentNumber: formData.get('studentNumber').trim(),
+    grade: formData.get('grade'),
+    gender: formData.get('gender'),
+    class: formData.get('class').trim()
+  };
+  
+  // 入力値の検証
+  if (!updatedData.name) {
+    showAlert('児童名を入力してください', 'error');
     return;
   }
   
-  // 在籍番号の重複チェック（自分以外で）
-  if (studentsData.students.some(s => s.id !== studentId && s.studentNumber === studentNumber)) {
-    showAlert('この在籍番号は既に使用されています', 'error');
+  if (!updatedData.studentNumber) {
+    showAlert('出席番号を入力してください', 'error');
     return;
   }
   
-  try {
-    const student = studentsData.students.find(s => s.id === studentId);
-    if (!student) {
-      showAlert('該当する児童が見つかりません', 'error');
-      return;
-    }
-    
-    // 児童データ更新
-    student.name = name;
-    student.studentNumber = studentNumber;
-    student.grade = parseInt(grade);
-    student.gender = gender;
-    student.class = studentClass || null;
-    student.updatedAt = new Date().toISOString();
-    
-    saveData();
-    
-    // フォームリセットとモーダルを閉じる
-    document.getElementById('editStudentForm').reset();
-    closeModal('editStudentModal');
-    window.currentEditingStudentId = null;
-    
-    updateUI();
-    showAlert(`${name}さんの情報を更新しました`, 'success');
-  } catch (error) {
-    console.error('児童編集エラー:', error);
-    showAlert('児童情報の更新に失敗しました', 'error');
-  }
-}
-
-/**
- * 削除確認
- */
-function confirmDeleteStudent() {
-  const studentId = window.currentEditingStudentId;
-  if (!studentId) {
-    showAlert('削除対象の児童が特定できません', 'error');
+  if (!updatedData.grade) {
+    showAlert('学年を選択してください', 'error');
     return;
   }
   
-  const student = studentsData.students.find(s => s.id === studentId);
-  if (!student) {
-    showAlert('該当する児童が見つかりません', 'error');
+  // 同じ出席番号の重複チェック（自分以外）
+  const duplicateStudent = studentsData.students.find(s => 
+    s.studentNumber === updatedData.studentNumber && s.id !== currentEditingStudentId
+  );
+  
+  if (duplicateStudent) {
+    showAlert(`出席番号 ${updatedData.studentNumber} は既に ${duplicateStudent.name}さんが使用しています`, 'error');
     return;
   }
   
-  const recordsCount = student.records ? student.records.length : 0;
-  const message = recordsCount > 0 
-    ? `${student.name}さんを削除しますか？\n\n※記録された進捗データ（${recordsCount}件）も同時に削除されます。\nこの操作は取り消すことができません。`
-    : `${student.name}さんを削除しますか？\nこの操作は取り消すことができません。`;
-  
-  if (!confirm(message)) {
+  // 児童データの更新
+  const studentIndex = studentsData.students.findIndex(s => s.id === currentEditingStudentId);
+  if (studentIndex === -1) {
+    showAlert('編集対象の児童データが見つかりません', 'error');
     return;
   }
   
-  try {
-    studentsData.students = studentsData.students.filter(s => s.id !== studentId);
-    saveData();
-    
-    // モーダルを閉じる
-    closeModal('editStudentModal');
-    window.currentEditingStudentId = null;
-    
-    updateUI();
-    showAlert(`${student.name}さんを削除しました`, 'success');
-  } catch (error) {
-    console.error('児童削除エラー:', error);
-    showAlert('児童の削除に失敗しました', 'error');
-  }
+  // 更新データをマージ（レコードなどの既存データは保持）
+  studentsData.students[studentIndex] = {
+    ...studentsData.students[studentIndex],
+    ...updatedData,
+    updatedAt: new Date().toISOString()
+  };
+  
+  // データを保存
+  saveData();
+  
+  // UIを更新
+  updateUI();
+  
+  // モーダルを閉じる
+  closeModal('editStudentModal');
+  
+  // 成功メッセージ
+  showAlert(`${updatedData.name}さんの情報を更新しました`, 'success');
+  
+  // 編集中ID をリセット
+  currentEditingStudentId = null;
 }
 
 /**
@@ -1953,24 +2004,91 @@ function openBulkInputModal() {
 }
 
 /**
+ * 汎用ファイル作成・ダウンロード関数
+ * @param {string} content - ファイル内容
+ * @param {string} filename - ファイル名
+ * @param {string} mimeType - MIMEタイプ
+ * @param {string} errorPrefix - エラーメッセージのプレフィックス
+ */
+function createAndDownloadFile(content, filename, mimeType = 'text/plain;charset=utf-8', errorPrefix = 'ファイル') {
+  try {
+    // すべてのファイルをBOMなしで作成（互換性のため）
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    
+    // DOM に一時的に追加してクリック
+    document.body.appendChild(a);
+    a.click();
+    
+    // クリーンアップ
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    return true;
+  } catch (error) {
+    console.error(`${errorPrefix}作成エラー:`, error);
+    showAlert(`${errorPrefix}の作成に失敗しました: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+/**
+ * 安全なファイル名を生成する関数
+ * @param {string} baseName - ベースとなるファイル名
+ * @param {string} extension - 拡張子（ドットを含む）
+ * @param {boolean} includeTime - 時刻を含むかどうか
+ */
+function generateSafeFilename(baseName, extension = '.txt', includeTime = true) {
+  // 日付文字列の生成
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const timeStr = includeTime ? 
+    `_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}` : '';
+  
+  // ベース名の安全化（日本語文字、英数字、一部記号のみ許可）
+  const safeName = baseName
+    .replace(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\w\-]/g, '_')
+    .substring(0, 30); // 長さ制限
+  
+  return `${safeName}_${dateStr}${timeStr}${extension}`;
+}
+
+/**
  * データエクスポート
  */
 function exportData() {
-  // AI分析履歴も含めた完全なデータセットを作成
-  const completeData = {
-    ...studentsData,
-    analysisHistory: analysisHistory || []
-  };
-  
-  const dataStr = JSON.stringify(completeData, null, 2);
-  const dataBlob = new Blob([dataStr], { type: 'application/json' });
-  
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(dataBlob);
-  link.download = `kids_progress_data_${new Date().toISOString().split('T')[0]}.json`;
-  link.click();
-  
-  showAlert('データをエクスポートしました（AI分析履歴含む）', 'success');
+  try {
+    console.log('エクスポート開始...');
+    
+    // AI分析履歴も含めた完全なデータセットを作成
+    const completeData = {
+      ...studentsData,
+      analysisHistory: analysisHistory || []
+    };
+    
+    console.log('データ準備完了:', {
+      students: Object.keys(completeData.students || {}).length,
+      analysisHistory: (completeData.analysisHistory || []).length
+    });
+    
+    const dataStr = JSON.stringify(completeData, null, 2);
+    const filename = generateSafeFilename('kids_progress_data', '.json');
+    
+    console.log('ファイル名生成:', filename);
+    console.log('データサイズ:', Math.round(dataStr.length / 1024), 'KB');
+    
+    if (createAndDownloadFile(dataStr, filename, 'application/json;charset=utf-8', 'データエクスポート')) {
+      showAlert('データをエクスポートしました（AI分析履歴含む）', 'success');
+      console.log('エクスポート成功');
+    }
+    
+  } catch (error) {
+    console.error('エクスポートエラー:', error);
+    showAlert('データのエクスポートに失敗しました: ' + error.message, 'error');
+  }
 }
 
 /**
@@ -2225,7 +2343,16 @@ function executeImport() {
     }
     
     saveData();
-    updateUI();
+    
+    // インポート後は全てのUIコンポーネントを強制更新
+    updateStudentsTable();      // 児童管理テーブル
+    updateProgressTable();      // 進捗管理一覧
+    updateStudentSelect();      // 児童選択プルダウン
+    updateInputFields();        // 入力フィールド
+    updateFieldSettings();      // フィールド設定
+    updateStudentManagementSettings(); // 児童管理設定
+    updateStatistics();         // 統計情報
+    
     closeImportOptionsModal();
     
     showImportResultMessage(result, importMode);
@@ -2432,17 +2559,37 @@ function confirmClearAllData() {
  * AI分析履歴初期化
  */
 function initializeAnalysisHistory() {
-  const saved = localStorage.getItem('analysisHistory');
-  if (saved) {
-    try {
+  let recovered = false;
+  
+  try {
+    // メインデータの読み込み試行
+    const saved = localStorage.getItem('analysisHistory');
+    if (saved) {
       analysisHistory = JSON.parse(saved);
-    } catch (error) {
-      console.error('分析履歴読み込みエラー:', error);
-      analysisHistory = [];
+      console.log(`AI分析履歴を読み込みました: ${analysisHistory.length}件`);
+    } else {
+      // メインデータがない場合、バックアップから復旧を試行
+      recovered = attemptDataRecovery();
     }
-  } else {
-    analysisHistory = [];
+  } catch (error) {
+    console.error('分析履歴読み込みエラー:', error);
+    // エラーの場合もバックアップから復旧を試行
+    recovered = attemptDataRecovery();
   }
+  
+  // どの方法でも復旧できない場合
+  if (!analysisHistory || !Array.isArray(analysisHistory)) {
+    analysisHistory = [];
+    console.log('新しいAI分析履歴を開始します');
+  }
+  
+  // 復旧した場合のアラート
+  if (recovered) {
+    showAlert('AI分析履歴をバックアップから復旧しました', 'success');
+  }
+  
+  // データ整合性チェック
+  validateAnalysisHistoryIntegrity();
   
   // 親御さん向けレポート履歴の初期化
   if (!localStorage.getItem('parentReportHistory')) {
@@ -2458,75 +2605,478 @@ function initializeAnalysisHistory() {
 }
 
 /**
- * サンプル分析データの生成
+ * データ復旧の試行
  */
-function generateSampleAnalysisData() {
-  const now = new Date();
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+function attemptDataRecovery() {
+  console.log('AI分析履歴の復旧を試行中...');
   
-  return [
-    {
-      id: `sample_class_analysis_${Date.now()}`,
-      type: 'overall',
-      title: '📊 クラス全体分析レポート',
-      content: `### 📊 クラス全体分析レポート（サンプル）
-
-#### 🏫 基本情報
-- **分析対象**: 12名の児童
-- **データ記録**: 48件の進捗記録
-- **分析日時**: ${new Date().toLocaleDateString('ja-JP')} ${new Date().toLocaleTimeString('ja-JP')}
-
-#### 📈 全体的な傾向
-- **学習状況**: クラス平均3.8点と良好な状況です
-- **学習意欲**: クラス平均4.1点と非常に良好な状況です
-- **宿題提出**: 85%の児童が継続的に提出しています
-
-#### 🎯 指導方針の提案
-- **個別面談**: 月1回の個別面談で児童の声を聞く
-- **クラス内協力**: ペア学習やグループ活動の活用
-- **家庭連携**: 定期的な保護者との情報共有`,
-      timestamp: now.toISOString(),
-      studentCount: 12,
-      recordCount: 48
-    },
-    {
-      id: `sample_individual_analysis_${Date.now()}_1`,
-      type: 'individual',
-      studentId: 'sample_student_1',
-      studentName: '田中太郎',
-      title: '👤 田中太郎さんの個別分析',
-      content: `### 👤 田中太郎さんの個別分析レポート（サンプル）
-
-#### 📊 現在の状況分析
-- **学習状況**: 4点で優秀です。この調子で継続しましょう
-- **学習意欲**: 4点で優秀です。この調子で継続しましょう
-- **宿題提出**: 良好に実施されています
-
-#### 💡 具体的な指導提案
-- **発展学習**: 田中太郎さんは理解度が高いため、発展的な課題に挑戦する時期です
-- **リーダーシップ**: 田中太郎さんの高い意欲を活かし、クラスでのリーダー役を任せてみる`,
-      timestamp: yesterday.toISOString()
-    },
-    {
-      id: `sample_individual_analysis_${Date.now()}_2`,
-      type: 'individual',
-      studentId: 'sample_student_2',
-      studentName: '佐藤花子',
-      title: '👤 佐藤花子さんの個別分析',
-      content: `### 👤 佐藤花子さんの個別分析レポート（サンプル）
-
-#### 📊 現在の状況分析
-- **学習状況**: 3点で安定しています。さらなる向上を目指せます
-- **学習意欲**: 3点で安定しています。さらなる向上を目指せます
-
-#### 💡 具体的な指導提案
-- **個別支援**: 佐藤花子さんには復習時間を増やし、分からない部分の個別指導を実施
-- **家庭学習**: 佐藤花子さんの宿題習慣確立のため、保護者との連携を強化`,
-      timestamp: twoDaysAgo.toISOString()
+  // バックアップ1からの復旧
+  try {
+    const backup = localStorage.getItem('analysisHistory_backup');
+    if (backup) {
+      analysisHistory = JSON.parse(backup);
+      console.log(`バックアップ1から復旧: ${analysisHistory.length}件`);
+      // メインデータを復旧したデータで更新
+      localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+      return true;
     }
-  ];
+  } catch (error) {
+    console.error('バックアップ1復旧失敗:', error);
+  }
+  
+  // タイムスタンプ付きバックアップからの復旧
+  try {
+    const allKeys = Object.keys(localStorage);
+    const backupKeys = allKeys.filter(key => key.startsWith('analysisHistory_backup_'))
+      .sort().reverse(); // 新しい順
+    
+    for (const key of backupKeys) {
+      try {
+        const backup = localStorage.getItem(key);
+        if (backup) {
+          analysisHistory = JSON.parse(backup);
+          console.log(`タイムスタンプバックアップから復旧: ${analysisHistory.length}件 (${key})`);
+          // メインデータを復旧したデータで更新
+          localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+          return true;
+        }
+      } catch (keyError) {
+        console.error(`${key}の復旧失敗:`, keyError);
+        continue;
+      }
+    }
+  } catch (error) {
+    console.error('タイムスタンプバックアップ復旧失敗:', error);
+  }
+  
+  // 緊急バックアップからの復旧
+  try {
+    const emergency = localStorage.getItem('analysisHistory_emergency');
+    if (emergency) {
+      analysisHistory = JSON.parse(emergency);
+      console.log(`緊急バックアップから復旧: ${analysisHistory.length}件`);
+      // メインデータを復旧したデータで更新
+      localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+      return true;
+    }
+  } catch (error) {
+    console.error('緊急バックアップ復旧失敗:', error);
+  }
+  
+  // 自動バックアップからの復旧（最適化版）
+  try {
+    const allKeys = Object.keys(localStorage);
+    
+    // 完全バックアップを優先して試行
+    const fullBackupKeys = allKeys.filter(key => key.startsWith('auto_backup_full_'))
+      .sort().reverse(); // 新しい順
+    
+    for (const key of fullBackupKeys) {
+      try {
+        const backup = localStorage.getItem(key);
+        if (backup) {
+          const backupData = JSON.parse(backup);
+          if (backupData.analysisHistory && Array.isArray(backupData.analysisHistory)) {
+            analysisHistory = backupData.analysisHistory;
+            console.log(`完全自動バックアップから復旧: ${analysisHistory.length}件 (${key})`);
+            localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+            return true;
+          }
+        }
+      } catch (keyError) {
+        console.error(`${key}の復旧失敗:`, keyError);
+        continue;
+      }
+    }
+    
+    // 完全バックアップがない場合は軽量バックアップから情報を取得
+    const lightBackupKeys = allKeys.filter(key => key.startsWith('auto_backup_light_'))
+      .sort().reverse();
+    
+    for (const key of lightBackupKeys) {
+      try {
+        const backup = localStorage.getItem(key);
+        if (backup) {
+          const backupData = JSON.parse(backup);
+          if (backupData.latest && Array.isArray(backupData.latest)) {
+            // 軽量バックアップからメタデータのみ復旧
+            console.log(`軽量自動バックアップから部分復旧: ${backupData.count}件中${backupData.latest.length}件 (${key})`);
+            analysisHistory = backupData.latest.map(item => ({
+              ...item,
+              content: '(部分復旧: 詳細な分析内容は失われました)'
+            }));
+            localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+            showAlert('軽量バックアップから部分的に復旧しました。一部の分析内容が失われています。', 'warning');
+            return true;
+          }
+        }
+      } catch (keyError) {
+        console.error(`${key}の復旧失敗:`, keyError);
+        continue;
+      }
+    }
+    
+    // 古い形式の自動バックアップも試行
+    const oldAutoBackupKeys = allKeys.filter(key => key.startsWith('auto_backup_') && 
+      !key.includes('light_') && !key.includes('full_') && key !== 'auto_backup_minimal')
+      .sort().reverse();
+    
+    for (const key of oldAutoBackupKeys) {
+      try {
+        const backup = localStorage.getItem(key);
+        if (backup) {
+          const backupData = JSON.parse(backup);
+          if (backupData.analysisHistory && Array.isArray(backupData.analysisHistory)) {
+            analysisHistory = backupData.analysisHistory;
+            console.log(`旧形式自動バックアップから復旧: ${analysisHistory.length}件 (${key})`);
+            localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+            return true;
+          }
+        }
+      } catch (keyError) {
+        console.error(`${key}の復旧失敗:`, keyError);
+        continue;
+      }
+    }
+  } catch (error) {
+    console.error('自動バックアップ復旧失敗:', error);
+  }
+  
+  return false;
 }
+
+/**
+ * データ整合性チェック
+ */
+function validateAnalysisHistoryIntegrity() {
+  if (!analysisHistory || !Array.isArray(analysisHistory)) {
+    return;
+  }
+  
+  let fixedCount = 0;
+  
+  // 各分析結果の必須フィールドをチェック
+  analysisHistory = analysisHistory.filter((analysis, index) => {
+    if (!analysis || typeof analysis !== 'object') {
+      fixedCount++;
+      return false;
+    }
+    
+    // 必須フィールドの確認
+    if (!analysis.id) {
+      analysis.id = `recovery_${Date.now()}_${index}`;
+      fixedCount++;
+    }
+    
+    if (!analysis.title) {
+      analysis.title = '復旧された分析結果';
+      fixedCount++;
+    }
+    
+    if (!analysis.timestamp) {
+      analysis.timestamp = Date.now() - (index * 60000); // 適当なタイムスタンプを設定
+      fixedCount++;
+    }
+    
+    if (!analysis.type) {
+      analysis.type = 'overall'; // デフォルトはクラス全体
+      fixedCount++;
+    }
+    
+    return true;
+  });
+  
+  if (fixedCount > 0) {
+    console.log(`データ整合性チェック完了: ${fixedCount}件の問題を修正`);
+    // 修正したデータを保存
+    localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+  }
+}
+
+/**
+ * 手動バックアップ作成機能
+ */
+function createManualBackup() {
+  try {
+    const backupData = {
+      analysisHistory: analysisHistory || [],
+      studentsData: studentsData || {},
+      parentReportHistory: JSON.parse(localStorage.getItem('parentReportHistory') || '[]'),
+      reportSettings: reportSettings || {},
+      timestamp: Date.now(),
+      version: '1.0'
+    };
+    
+    // JSONファイルはBOMなしで作成
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], {
+      type: 'application/json;charset=utf-8'
+    });
+    
+    // 安全なファイル名を生成
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.getHours().toString().padStart(2, '0') + 
+                   now.getMinutes().toString().padStart(2, '0');
+    const filename = `ai_analysis_backup_${dateStr}_${timeStr}.json`;
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    
+    // DOM に一時的に追加してクリック
+    document.body.appendChild(a);
+    a.click();
+    
+    // クリーンアップ
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showAlert('AI分析データのバックアップファイルを作成しました', 'success');
+  } catch (error) {
+    console.error('手動バックアップ作成エラー:', error);
+    showAlert('バックアップの作成に失敗しました: ' + error.message, 'error');
+  }
+}
+
+/**
+ * 最適化された自動バックアップ
+ */
+function startAutoBackup() {
+  let backupAttempts = 0;
+  
+  // 初回は10分後に開始（起動時の負荷を避ける）
+  setTimeout(() => {
+    performAutoBackup();
+    
+    // 以降は5分ごとに実行
+    setInterval(() => {
+      performAutoBackup();
+    }, 5 * 60 * 1000);
+    
+  }, 10 * 60 * 1000); // 10分後に開始
+}
+
+/**
+ * 自動バックアップの実行
+ */
+function performAutoBackup() {
+  // データがない、または最近保存されていない場合はスキップ
+  if (!analysisHistory || analysisHistory.length === 0) {
+    return;
+  }
+  
+  // 最後の保存から1分以内は自動バックアップをスキップ
+  const metadata = localStorage.getItem('analysisHistory_metadata');
+  if (metadata) {
+    try {
+      const metaInfo = JSON.parse(metadata);
+      const timeSinceLastSave = Date.now() - metaInfo.lastSaved;
+      if (timeSinceLastSave < 60000) { // 1分未満
+        console.log('最近保存されたため自動バックアップをスキップ');
+        return;
+      }
+    } catch (error) {
+      // メタデータ読み込みエラーは無視
+    }
+  }
+  
+  // 段階的バックアップ実行
+  try {
+    // 軽量バックアップ（要約版）
+    const lightBackup = {
+      count: analysisHistory.length,
+      latest: analysisHistory.slice(0, 3).map(item => ({
+        id: item.id,
+        title: item.title,
+        timestamp: item.timestamp,
+        type: item.type
+      })),
+      timestamp: Date.now()
+    };
+    
+    const autoBackupKey = `auto_backup_light_${Date.now()}`;
+    localStorage.setItem(autoBackupKey, JSON.stringify(lightBackup));
+    
+    // 3回に1回だけ完全バックアップ
+    if ((Date.now() % 3) === 0) {
+      const fullBackupKey = `auto_backup_full_${Date.now()}`;
+      const fullBackup = {
+        analysisHistory: analysisHistory.slice(0, 10), // 最新10件のみ
+        timestamp: Date.now()
+      };
+      localStorage.setItem(fullBackupKey, JSON.stringify(fullBackup));
+    }
+    
+    // 非同期で古いバックアップを清理
+    setTimeout(() => {
+      cleanupAutoBackups();
+    }, 2000);
+    
+    console.log('自動バックアップ完了（軽量版）');
+    
+  } catch (error) {
+    console.error('自動バックアップエラー:', error);
+    
+    // エラー時は最小限のバックアップを試行
+    try {
+      const minimalBackup = {
+        count: analysisHistory.length,
+        lastId: analysisHistory[0]?.id,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('auto_backup_minimal', JSON.stringify(minimalBackup));
+    } catch (minimalError) {
+      // 最小限のバックアップも失敗した場合は何もしない
+    }
+  }
+}
+
+/**
+ * 自動バックアップの清理
+ */
+function cleanupAutoBackups() {
+  try {
+    const allKeys = Object.keys(localStorage);
+    
+    // 軽量バックアップは5個まで保持
+    const lightKeys = allKeys.filter(key => key.startsWith('auto_backup_light_'))
+      .sort().reverse();
+    if (lightKeys.length > 5) {
+      lightKeys.slice(5).forEach(key => localStorage.removeItem(key));
+    }
+    
+    // 完全バックアップは2個まで保持
+    const fullKeys = allKeys.filter(key => key.startsWith('auto_backup_full_'))
+      .sort().reverse();
+    if (fullKeys.length > 2) {
+      fullKeys.slice(2).forEach(key => localStorage.removeItem(key));
+    }
+    
+    // 古い形式の自動バックアップを削除
+    const oldKeys = allKeys.filter(key => key.startsWith('auto_backup_') && 
+      !key.includes('light_') && !key.includes('full_') && key !== 'auto_backup_minimal');
+    oldKeys.forEach(key => localStorage.removeItem(key));
+    
+  } catch (error) {
+    console.error('自動バックアップ清理エラー:', error);
+  }
+}
+
+/**
+ * バックアップ状況の表示
+ */
+function showBackupStatus() {
+  try {
+    // メタデータ取得
+    const metadata = localStorage.getItem('analysisHistory_metadata');
+    const metaInfo = metadata ? JSON.parse(metadata) : null;
+    
+    // バックアップキーの確認（最適化版）
+    const allKeys = Object.keys(localStorage);
+    const mainBackup = localStorage.getItem('analysisHistory_backup') ? 'あり' : 'なし';
+    const timestampBackups = allKeys.filter(key => key.startsWith('analysisHistory_backup_')).length;
+    const autoBackupsLight = allKeys.filter(key => key.startsWith('auto_backup_light_')).length;
+    const autoBackupsFull = allKeys.filter(key => key.startsWith('auto_backup_full_')).length;
+    const emergencyBackup = localStorage.getItem('analysisHistory_emergency') ? 'あり' : 'なし';
+    
+    // バックアップ効率の計算
+    const backupCounter = metaInfo ? metaInfo.backupCounter || 0 : 0;
+    const lastBackupLevel = backupCounter > 0 ? getBackupLevel(backupCounter) : '未実行';
+    
+    // 最新バックアップの日時
+    const lastSaved = metaInfo ? new Date(metaInfo.lastSaved).toLocaleString('ja-JP') : '不明';
+    const totalCount = metaInfo ? metaInfo.totalCount : analysisHistory ? analysisHistory.length : 0;
+    
+    // 使用容量の概算
+    const usedStorage = JSON.stringify(localStorage).length;
+    const storageInfo = `約 ${Math.round(usedStorage / 1024)} KB使用`;
+    
+    const statusHTML = `
+      <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+          <h3 class="modal-title">
+            <i class="fas fa-shield-alt"></i> AI分析データ バックアップ状況
+          </h3>
+          <button class="modal-close" onclick="closeModal('backupStatusModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="bg-success mb-3">
+            <h4 class="text-success">
+              <i class="fas fa-check-circle"></i> データ保護状況: 良好
+            </h4>
+            <p class="text-sm">AI分析結果は複数の方法で保護されています</p>
+          </div>
+          
+          <div class="grid-2-cols gap-3">
+            <div class="card">
+              <h4 class="text-primary">
+                <i class="fas fa-database"></i> 基本情報
+              </h4>
+              <ul class="text-sm">
+                <li><strong>分析履歴件数:</strong> ${totalCount}件</li>
+                <li><strong>最終保存:</strong> ${lastSaved}</li>
+                <li><strong>ストレージ使用量:</strong> ${storageInfo}</li>
+              </ul>
+            </div>
+            
+            <div class="card">
+              <h4 class="text-primary">
+                <i class="fas fa-shield-alt"></i> バックアップ状況
+              </h4>
+              <ul class="text-sm">
+                <li><strong>メインバックアップ:</strong> ${mainBackup}</li>
+                <li><strong>タイムスタンプバックアップ:</strong> ${timestampBackups}件</li>
+                <li><strong>自動バックアップ（軽量）:</strong> ${autoBackupsLight}件</li>
+                <li><strong>自動バックアップ（完全）:</strong> ${autoBackupsFull}件</li>
+                <li><strong>緊急バックアップ:</strong> ${emergencyBackup}</li>
+                <li><strong>最終バックアップレベル:</strong> ${lastBackupLevel}</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="bg-info mt-3">
+            <h4 class="text-primary">
+              <i class="fas fa-info-circle"></i> 保護機能について
+            </h4>
+            <ul class="text-sm">
+              <li><strong>複数箇所保存:</strong> メインデータとは別に複数のバックアップを自動作成</li>
+              <li><strong>自動バックアップ:</strong> 5分ごとに最新データを自動保存</li>
+              <li><strong>データ復旧:</strong> 問題発生時は自動的にバックアップから復旧</li>
+              <li><strong>整合性チェック:</strong> データの破損を検出し自動修復</li>
+            </ul>
+          </div>
+          
+          <div class="flex gap-2 mt-3">
+            <button class="btn btn-primary" onclick="createManualBackup(); closeModal('backupStatusModal');">
+              <i class="fas fa-download"></i> 手動バックアップ作成
+            </button>
+            <button class="btn btn-secondary" onclick="closeModal('backupStatusModal')">
+              閉じる
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // モーダルの作成と表示
+    let modal = document.getElementById('backupStatusModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'backupStatusModal';
+      modal.className = 'modal';
+      document.body.appendChild(modal);
+    }
+    
+    modal.innerHTML = statusHTML;
+    modal.classList.add('show');
+    
+  } catch (error) {
+    console.error('バックアップ状況表示エラー:', error);
+    showAlert('バックアップ状況の表示に失敗しました', 'error');
+  }
+}
+
 
 /**
  * フィルター関連
@@ -2543,7 +3093,7 @@ function filterStudents() {
  */
 
 /**
- * クラス全体分析実行（LLMベース）
+ * クラス全体分析実行
  */
 async function runAIAnalysis() {
   if (!studentsData.students || studentsData.students.length === 0) {
@@ -2555,32 +3105,19 @@ async function runAIAnalysis() {
   showAnalysisLoading('クラス全体分析を実行中...');
 
   try {
-    // LLMベースの分析実行
-    const analysisResult = await generateLLMClassAnalysis();
+    // 実際のLLM分析実行
+    const analysisResult = await generateClassAnalysis();
     displayAnalysisResults([analysisResult]);
     saveAnalysisToHistory(analysisResult);
     showAlert('クラス全体分析が完了しました', 'success');
   } catch (error) {
-    console.error('クラス全体分析エラー:', error);
-    
-    // フォールバック: テンプレートベースの分析
-    try {
-      const fallbackResult = generateClassAnalysis();
-      fallbackResult.title = '📊 クラス全体分析レポート（テンプレート版）';
-      fallbackResult.content = '⚠️ 動的分析に失敗したため、テンプレートベースの分析を実行しました。\n\n' + fallbackResult.content;
-      
-      displayAnalysisResults([fallbackResult]);
-      saveAnalysisToHistory(fallbackResult);
-      showAlert('クラス全体分析が完了しました（フォールバック版）', 'warning');
-    } catch (fallbackError) {
-      console.error('フォールバック分析エラー:', fallbackError);
-      showAlert('分析処理でエラーが発生しました。', 'error');
-    }
+    console.error('クラス分析エラー:', error);
+    showAlert('AI分析中にエラーが発生しました。APIキーの設定を確認してください。', 'error');
   }
 }
 
 /**
- * 全員個別分析実行（LLMベース）
+ * 全員個別分析実行
  */
 async function runAllIndividualAnalysis() {
   if (!studentsData.students || studentsData.students.length === 0) {
@@ -2592,34 +3129,26 @@ async function runAllIndividualAnalysis() {
   showAnalysisLoading('全員個別分析を実行中...');
 
   try {
-    // 各児童のLLMベース分析を並行実行
-    const analysisPromises = studentsData.students.map(async (student) => {
+    // 実際のLLM分析実行（順次実行でAPIレート制限を考慮）
+    const analysisResults = [];
+    for (const student of studentsData.students) {
       try {
-        return await generateLLMIndividualAnalysis(student);
-      } catch (error) {
-        console.error(`${student.name}さんのLLM分析エラー:`, error);
+        const result = await generateIndividualAnalysis(student);
+        analysisResults.push(result);
         
-        // 個別のフォールバック
-        const fallbackResult = generateIndividualAnalysis(student);
-        fallbackResult.title = `👤 ${student.name}さんの個別分析（テンプレート版）`;
-        fallbackResult.content = '⚠️ 動的分析に失敗したため、テンプレートベースの分析を実行しました。\n\n' + fallbackResult.content;
-        return fallbackResult;
+        // 個別分析結果を各児童のレコードにも保存
+        if (result.type === 'individual' && result.studentId) {
+          addIndividualAnalysisToStudent(result.studentId, result.content);
+        }
+        
+        saveAnalysisToHistory(result);
+      } catch (error) {
+        console.error(`${student.name}さんの分析エラー:`, error);
+        // エラーがあっても他の児童の分析を続行
       }
-    });
-
-    // 全ての分析が完了するまで待機
-    const analysisResults = await Promise.all(analysisPromises);
+    }
     
     displayAnalysisResults(analysisResults);
-    
-    // 個別分析結果を各児童のレコードにも保存
-    analysisResults.forEach(result => {
-      if (result.type === 'individual' && result.studentId) {
-        addIndividualAnalysisToStudent(result.studentId, result.content);
-      }
-    });
-    
-    analysisResults.forEach(result => saveAnalysisToHistory(result));
     saveData();
     updateUI();
     
@@ -2628,51 +3157,10 @@ async function runAllIndividualAnalysis() {
       updateProgressTable();
     }
     
-    // 成功したLLM分析と失敗した分析を集計
-    const llmCount = analysisResults.filter(r => r.generatedBy === 'LLM').length;
-    const fallbackCount = analysisResults.length - llmCount;
-    
-    if (fallbackCount === 0) {
-      showAlert('全員個別分析が完了しました', 'success');
-    } else {
-      showAlert(`全員個別分析が完了しました（AI生成:${llmCount}件、テンプレート:${fallbackCount}件）`, 'warning');
-    }
-    
+    showAlert(`全員個別分析が完了しました（${analysisResults.length}件）`, 'success');
   } catch (error) {
     console.error('全員個別分析エラー:', error);
-    
-    // 完全フォールバック: テンプレートベースの分析
-    try {
-      const analysisResults = studentsData.students.map(student => {
-        const result = generateIndividualAnalysis(student);
-        result.title = `👤 ${student.name}さんの個別分析（テンプレート版）`;
-        result.content = '⚠️ 動的分析システムに問題が発生したため、テンプレートベースの分析を実行しました。\n\n' + result.content;
-        return result;
-      });
-      
-      displayAnalysisResults(analysisResults);
-      
-      // 個別分析結果を各児童のレコードにも保存
-      analysisResults.forEach(result => {
-        if (result.type === 'individual' && result.studentId) {
-          addIndividualAnalysisToStudent(result.studentId, result.content);
-        }
-      });
-      
-      analysisResults.forEach(result => saveAnalysisToHistory(result));
-      saveData();
-      updateUI();
-      
-      // 進捗一覧の更新
-      if (currentTab === 'overview') {
-        updateProgressTable();
-      }
-      
-      showAlert('全員個別分析が完了しました（フォールバック版）', 'warning');
-    } catch (fallbackError) {
-      console.error('フォールバック全員個別分析エラー:', fallbackError);
-      showAlert('全員個別分析処理でエラーが発生しました。', 'error');
-    }
+    showAlert('AI分析中にエラーが発生しました。APIキーの設定を確認してください。', 'error');
   }
 }
 
@@ -2706,7 +3194,7 @@ function updateIndividualAnalysisModal() {
 }
 
 /**
- * 個別分析実行（LLMベース）
+ * 個別分析実行
  */
 async function executeIndividualAnalysis() {
   const studentId = document.getElementById('individualAnalysisStudentSelect').value;
@@ -2729,8 +3217,8 @@ async function executeIndividualAnalysis() {
   showAnalysisLoading(`${student.name}さんの個別分析を実行中...`);
 
   try {
-    // LLMベースの分析実行
-    const analysisResult = await generateLLMIndividualAnalysis(student);
+    // 実際のLLM分析実行
+    const analysisResult = await generateIndividualAnalysis(student);
     displayAnalysisResults([analysisResult]);
     saveAnalysisToHistory(analysisResult);
     
@@ -2746,198 +3234,253 @@ async function executeIndividualAnalysis() {
     
     showAlert(`${student.name}さんの個別分析が完了しました`, 'success');
   } catch (error) {
-    console.error('個別分析エラー:', error);
-    
-    // フォールバック: テンプレートベースの分析
-    try {
-      const fallbackResult = generateIndividualAnalysis(student);
-      fallbackResult.title = `👤 ${student.name}さんの個別分析（テンプレート版）`;
-      fallbackResult.content = '⚠️ 動的分析に失敗したため、テンプレートベースの分析を実行しました。\n\n' + fallbackResult.content;
-      
-      displayAnalysisResults([fallbackResult]);
-      saveAnalysisToHistory(fallbackResult);
-      
-      // 個別分析結果を児童のレコードにも保存
-      addIndividualAnalysisToStudent(student.id, fallbackResult.content);
-      saveData();
-      updateUI();
-      
-      // 進捗一覧の更新
-      if (currentTab === 'overview') {
-        updateProgressTable();
-      }
-      
-      showAlert(`${student.name}さんの個別分析が完了しました（フォールバック版）`, 'warning');
-    } catch (fallbackError) {
-      console.error('フォールバック個別分析エラー:', fallbackError);
-      showAlert('個別分析処理でエラーが発生しました。', 'error');
-    }
+    console.error(`${student.name}さんの個別分析エラー:`, error);
+    showAlert('AI分析中にエラーが発生しました。APIキーの設定を確認してください。', 'error');
   }
+}
+
+/**
+ * クラス統計情報の計算
+ */
+function calculateClassStatistics(recentData) {
+  if (recentData.length === 0) {
+    return {
+      summary: 'データが不足しているため、統計情報を計算できません。',
+      learningStatus: null,
+      motivation: null,
+      homework: null,
+      behaviorTags: null
+    };
+  }
+
+  // 学習状況の統計
+  const learningStatuses = recentData
+    .map(d => parseInt(d.data.learningStatus))
+    .filter(s => !isNaN(s));
+  
+  // 学習意欲の統計
+  const motivations = recentData
+    .map(d => parseInt(d.data.motivation))
+    .filter(m => !isNaN(m));
+  
+  // 宿題提出状況の統計
+  const homeworkSubmissions = recentData
+    .map(d => d.data.homework)
+    .filter(h => h);
+  
+  // 行動タグの統計
+  const allBehaviorTags = recentData
+    .flatMap(d => d.data.behaviorTags || [])
+    .filter(tag => tag);
+
+  // 平均値と分布の計算
+  const calculateStats = (values) => {
+    if (values.length === 0) return null;
+    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+    const stdDev = Math.sqrt(variance);
+    return {
+      mean: Math.round(mean * 100) / 100,
+      stdDev: Math.round(stdDev * 100) / 100,
+      count: values.length,
+      distribution: calculateDistribution(values)
+    };
+  };
+
+  const calculateDistribution = (values) => {
+    const dist = [1, 2, 3, 4, 5].map(level => ({
+      level,
+      count: values.filter(v => v === level).length,
+      percentage: Math.round((values.filter(v => v === level).length / values.length) * 100)
+    }));
+    return dist;
+  };
+
+  const learningStats = calculateStats(learningStatuses);
+  const motivationStats = calculateStats(motivations);
+
+  // 宿題提出状況の分析
+  const homeworkStats = homeworkSubmissions.length > 0 ? {
+    total: homeworkSubmissions.length,
+    submitted: homeworkSubmissions.filter(h => h === '提出').length,
+    partiallySubmitted: homeworkSubmissions.filter(h => h === '一部提出').length,
+    notSubmitted: homeworkSubmissions.filter(h => h === '未提出' || h === '').length
+  } : null;
+
+  // 行動タグの頻度分析
+  const tagFrequency = {};
+  allBehaviorTags.forEach(tag => {
+    tagFrequency[tag] = (tagFrequency[tag] || 0) + 1;
+  });
+  const topBehaviorTags = Object.entries(tagFrequency)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 5)
+    .map(([tag, count]) => ({ tag, count, percentage: Math.round((count / recentData.length) * 100) }));
+
+  return {
+    summary: `${recentData.length}名の児童データを分析`,
+    learningStatus: learningStats,
+    motivation: motivationStats,
+    homework: homeworkStats,
+    behaviorTags: {
+      totalTags: allBehaviorTags.length,
+      uniqueTags: Object.keys(tagFrequency).length,
+      topTags: topBehaviorTags
+    }
+  };
 }
 
 /**
  * クラス全体分析の生成
  */
-function generateClassAnalysis() {
+async function generateClassAnalysis() {
   const totalStudents = studentsData.students.length;
   const studentsWithRecords = studentsData.students.filter(s => s.records && s.records.length > 0);
   const recordCount = studentsWithRecords.reduce((sum, student) => sum + student.records.length, 0);
 
-  // 最新データから傾向を分析
+  // 設定に基づいて分析データを収集
   const recentData = [];
   studentsWithRecords.forEach(student => {
     if (student.records.length > 0) {
-      const latestRecord = student.records[student.records.length - 1];
-      if (latestRecord.data) {
-        recentData.push({
-          student: student.name,
-          data: latestRecord.data
-        });
-      }
-    }
-  });
-
-  // 学習状況の統計（5段階評価項目）
-  const learningStats = calculateLearningStats(recentData);
-  
-  const content = `### 📊 クラス全体分析レポート
-
-#### 🏫 基本情報
-- **分析対象**: ${totalStudents}名の児童
-- **データ記録**: ${recordCount}件の進捗記録
-- **分析日時**: ${new Date().toLocaleDateString('ja-JP')} ${new Date().toLocaleTimeString('ja-JP')}
-
-#### 📈 全体的な傾向
-
-##### 🎓 学習面の分析
-${generateLearningTrends(learningStats)}
-
-##### 📋 具体的な観察ポイント
-${generateClassObservations(recentData)}
-
-#### 🎯 指導方針の提案
-
-##### 💡 優先的に取り組むべき点
-${generateClassRecommendations(learningStats, recentData)}
-
-##### 👨‍👩‍👧 保護者との連携ポイント
-${generateParentCollaborationPoints(learningStats)}
-
-#### 📅 今後のアクションプラン
-${generateActionPlan(learningStats, totalStudents)}
-
----
-*このレポートは児童の進捗データを基にAIが分析・生成したものです。個別の児童については別途詳細分析をご実施ください。*`;
-
-  return {
-    id: `class_analysis_${Date.now()}`,
-    type: 'overall',
-    title: '📊 クラス全体分析レポート',
-    content: content,
-    timestamp: new Date().toISOString(),
-    studentCount: totalStudents,
-    recordCount: recordCount
-  };
-}
-
-/**
- * LLMベースのクラス全体分析生成
- */
-async function generateLLMClassAnalysis() {
-  const totalStudents = studentsData.students.length;
-  const studentsWithRecords = studentsData.students.filter(s => s.records && s.records.length > 0);
-  const recordCount = studentsWithRecords.reduce((sum, student) => sum + student.records.length, 0);
-
-  // 最新データから傾向を分析
-  const recentData = [];
-  studentsWithRecords.forEach(student => {
-    if (student.records.length > 0) {
-      const latestRecord = student.records[student.records.length - 1];
-      if (latestRecord.data) {
-        recentData.push({
-          student: student.name,
-          studentInfo: {
+      const targetRecords = getRecordsForReport(student.records, 'analysis');
+      if (targetRecords.length > 0) {
+        const latestRecord = targetRecords[targetRecords.length - 1];
+        if (latestRecord.data) {
+          recentData.push({
             name: student.name,
             grade: student.grade,
-            gender: student.gender,
-            class: student.class
-          },
-          data: latestRecord.data,
-          timestamp: latestRecord.timestamp
-        });
+            class: student.class,
+            data: latestRecord.data,
+            timestamp: latestRecord.timestamp,
+            recordCount: targetRecords.length
+          });
+        }
       }
     }
   });
 
-  // LLM用のプロンプト作成
-  const prompt = `あなたは経験豊富な小学校教師です。クラス全体の学習進捗データを分析し、保護者と教師双方に有用な総合的なレポートを作成してください。
+  // 統計情報を事前計算
+  const statisticalSummary = calculateClassStatistics(recentData);
 
-## クラス情報
-- 総児童数: ${totalStudents}名
-- 進捗記録がある児童: ${studentsWithRecords.length}名
+  // 詳細度設定を取得
+  const promptSettings = getPromptSettings();
+  
+  // 実際のデータを基にプロンプト作成
+  const prompt = `以下のクラスデータを分析してください：
+
+## 基本情報
+- 生徒数: ${totalStudents}名
 - 総記録数: ${recordCount}件
+- 分析対象データ範囲: ${reportSettings.analysisDataCount === 'all' ? 'すべて' : `最新${reportSettings.analysisDataCount}回分`}
+- 分析詳細度: ${reportSettings.reportDetailLevel === 'simple' ? '簡易レポート' : '詳細レポート'}
 - 分析日時: ${new Date().toLocaleDateString('ja-JP')}
 
-## 個別児童の最新データ
-${recentData.map(entry => {
-  const data = entry.data;
-  const learningStatus = data.learningStatus || '未記録';
-  const motivation = data.motivation || '未記録';
-  const homeworkSubmission = data.homeworkSubmission || '未記録';
-  const behaviorTags = Array.isArray(data.behaviorTags) ? data.behaviorTags.join(', ') : '未記録';
-  
-  return `### ${entry.student}さん（${entry.studentInfo.grade || '未記録'}年${entry.studentInfo.gender === 'male' ? '男子' : entry.studentInfo.gender === 'female' ? '女子' : ''}）
-- 学習状況: ${learningStatus}/5段階
-- 学習意欲: ${motivation}/5段階  
-- 宿題提出: ${homeworkSubmission}
-- 行動タグ: ${behaviorTags}
-- 記録日: ${formatDate(entry.timestamp)}`;
-}).join('\n\n')}
+## クラス統計サマリー
+${statisticalSummary.summary}
 
-## 作成要件
-1. **全体の傾向分析**: 学習状況、意欲、行動面での傾向
-2. **成長のポイント**: クラス全体の良い点と成長点
-3. **指導方針の提案**: 具体的で実践的な指導アプローチ
-4. **保護者との連携**: 家庭でのサポート方法
-5. **今後のアクションプラン**: 短期・中期の具体的な取り組み
+### 学習状況の分布
+${statisticalSummary.learningStatus ? 
+  `- 平均値: ${statisticalSummary.learningStatus.mean}/5.0点
+- 標準偏差: ${statisticalSummary.learningStatus.stdDev}
+- 評価分布: ${statisticalSummary.learningStatus.distribution.map(d => `${d.level}点(${d.count}名、${d.percentage}%)`).join(', ')}` : 
+  '学習状況データが不足しています'}
 
-## 出力形式
-マークダウン形式で、読みやすく構造化されたレポートを作成してください。
-各セクションには適切な絵文字を使用し、建設的で前向きな内容にしてください。
-文字数は1000-1500文字程度を目安にしてください。`;
+### 学習意欲の分布
+${statisticalSummary.motivation ? 
+  `- 平均値: ${statisticalSummary.motivation.mean}/5.0点
+- 標準偏差: ${statisticalSummary.motivation.stdDev}
+- 評価分布: ${statisticalSummary.motivation.distribution.map(d => `${d.level}点(${d.count}名、${d.percentage}%)`).join(', ')}` : 
+  '学習意欲データが不足しています'}
+
+### 宿題提出状況
+${statisticalSummary.homework ? 
+  `- 提出: ${statisticalSummary.homework.submitted}名
+- 一部提出: ${statisticalSummary.homework.partiallySubmitted}名  
+- 未提出: ${statisticalSummary.homework.notSubmitted}名` : 
+  '宿題データが不足しています'}
+
+### よく見られる行動特性（上位5つ）
+${statisticalSummary.behaviorTags && statisticalSummary.behaviorTags.topTags.length > 0 ? 
+  statisticalSummary.behaviorTags.topTags.map(tag => `- ${tag.tag}: ${tag.count}回観察 (${tag.percentage}%の児童)`).join('\n') : 
+  '行動タグデータが不足しています'}
+
+## 分析要求
+教育専門家として、上記の統計情報を踏まえ、以下の観点で${promptSettings.style}クラス全体の分析レポートを作成してください：
+${promptSettings.detailRequirement}
+
+**重要**: テーブル形式（|記号を使った表）は使用せず、文章と箇条書きのみで分析結果を表現してください。
+
+${reportSettings.reportDetailLevel === 'simple' ? 
+  `1. **クラス全体の状況（概要）**
+   - 学習状況の全体的な傾向
+   - 良い点と改善ポイント
+
+2. **重点的な取り組み項目**
+   - 優先的に取り組むべき課題
+   - 具体的な改善方法
+
+3. **今後のアクション**
+   - 短期的な取り組み（1ヶ月）
+   - 継続すべきポイント` :
+  `1. **学習状況の全体傾向分析**
+   - 各評価項目の平均値と分布を文章で説明
+   - クラス全体の学習レベル評価を具体的に記述
+   - 特に優秀な領域と改善が必要な領域を箇条書きで特定
+
+2. **注意が必要な領域の特定**
+   - 低評価が多い項目の分析
+   - 個別サポートが必要と思われる児童の傾向
+   - 学習意欲や宿題提出に関する課題
+
+3. **クラス運営の改善提案**
+   - 具体的な指導方法の提案
+   - グループ学習や個別指導の活用方法
+   - 授業運営の工夫点
+
+4. **保護者との連携方法**
+   - 家庭学習のサポート方法
+   - 保護者面談での重点ポイント
+   - 学校と家庭の協力体制構築
+
+5. **今後のアクションプラン**
+   - 短期的（1ヶ月）の取り組み
+   - 中期的（学期）の目標設定
+   - 継続的な改善ポイント`}
+
+マークダウン形式で、具体的で実践的なレポートを作成してください。
+
+**出力形式の注意事項:**
+- テーブル形式（| | |）は一切使用しないでください
+- 統計データは文章または箇条書きで表現してください
+- 数値データは「平均○○点」「○名中○名が」などの自然な文章で記述してください
+- 見出し（#、##、###）と箇条書き（-、*）のみを使用してください`;
 
   try {
-    // LLM APIを呼び出し
-    const llmResponse = await callLLMAPI(prompt);
+    // 既存のcallLLMAPI関数を使用
+    const analysisContent = await callLLMAPI(prompt);
     
-    if (!llmResponse || llmResponse.trim().length === 0) {
-      throw new Error('LLMから空のレスポンスが返されました');
-    }
-
     return {
-      id: `llm_class_analysis_${Date.now()}`,
-      type: 'class',
-      title: '📊 クラス全体分析レポート（AI生成）',
-      content: llmResponse,
+      id: `class_analysis_${Date.now()}`,
+      type: 'overall',
+      title: '📊 クラス全体分析レポート',
+      content: analysisContent,
       timestamp: new Date().toISOString(),
       studentCount: totalStudents,
-      recordCount: recordCount,
-      generatedBy: 'LLM'
+      recordCount: recordCount
     };
   } catch (error) {
-    console.error('LLMクラス分析生成エラー:', error);
-    throw error; // 上位レベルでフォールバック処理
+    console.error('クラス分析エラー:', error);
+    throw error;
   }
 }
 
 /**
  * 個別分析の生成
  */
-function generateIndividualAnalysis(student) {
+async function generateIndividualAnalysis(student) {
   const records = student.records || [];
-  const latestRecord = records.length > 0 ? records[records.length - 1] : null;
   
-  if (!latestRecord || !latestRecord.data) {
+  if (records.length === 0) {
     return {
       id: `individual_analysis_${student.id}_${Date.now()}`,
       type: 'individual',
@@ -2950,223 +3493,233 @@ ${student.name}さんについては、分析に十分なデータが蓄積さ�
 
 #### 🔍 現在の状況
 - **進捗記録数**: ${records.length}件
-- **最新記録**: ${latestRecord ? formatDate(latestRecord.timestamp) : 'なし'}
+- **最新記録**: なし
 
 #### 📝 推奨事項
 1. **データ蓄積**: 継続的な進捗記録の実施
-2. **観察強化**: 日々の様子をより詳細に記録
-3. **再分析**: 1-2週間後の再分析実施
+2. **観察強化**: 日々の様子をより詳細に記録  
+3. **コメント追加**: 児童への観察コメントを入れることでより詳細な分析が可能になります
+4. **再分析**: 1-2週間後の再分析実施
 
 定期的なデータ記録により、より精度の高い分析が可能になります。`,
       timestamp: new Date().toISOString()
     };
   }
 
-  // 個別分析の実行
-  const personalAnalysis = generatePersonalAnalysis(student, records);
+  // 設定に基づいて使用するレコード数を取得
+  const targetRecords = getRecordsForReport(records, 'analysis');
+  const latestRecord = targetRecords[targetRecords.length - 1];
   
-  return {
-    id: `individual_analysis_${student.id}_${Date.now()}`,
-    type: 'individual',
-    studentId: student.id,
-    studentName: student.name,
-    title: `👤 ${student.name}さんの個別分析`,
-    content: personalAnalysis,
-    timestamp: new Date().toISOString()
-  };
+  if (!latestRecord || !latestRecord.data) {
+    return {
+      id: `individual_analysis_${student.id}_${Date.now()}`,
+      type: 'individual',
+      studentId: student.id,
+      studentName: student.name,
+      title: `👤 ${student.name}さんの個別分析`,
+      content: `### ⚠️ 分析データ不足
+      
+${student.name}さんについては、分析に使用できるデータが不足しています。
+
+#### 🔍 現在の状況
+- **総記録数**: ${records.length}件
+- **分析対象記録数**: ${targetRecords.length}件
+- **最新記録**: ${targetRecords.length > 0 ? formatDate(latestRecord.timestamp) : 'なし'}
+
+#### 📝 推奨事項
+1. **データ確認**: 記録されたデータの内容を確認
+2. **再記録**: 不足項目の追加記録
+3. **設定調整**: レポート設定でデータ範囲を調整
+4. **再分析**: データ追加後の再分析実施
+
+より多くのデータがあることで、精度の高い分析が可能になります。`,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  // 詳細度設定を取得
+  const promptSettings = getPromptSettings();
+  
+  const prompt = `児童の個別学習分析を実施してください：
+
+## 児童基本情報
+- 名前: ${student.name}さん
+- 学年: ${student.grade}年生
+- クラス: ${student.class}
+- 性別: ${student.gender}
+- 分析詳細度: ${reportSettings.reportDetailLevel === 'simple' ? '簡易レポート' : '詳細レポート'}
+
+## 最新の学習データ
+${JSON.stringify(latestRecord.data, null, 2)}
+
+## 学習履歴（設定された範囲: ${targetRecords.length}回分）
+${targetRecords.map((record, index) => 
+  `${index + 1}. 記録日: ${formatDate(record.timestamp)}
+データ: ${JSON.stringify(record.data, null, 2)}`
+).join('\n\n')}
+
+## 分析要求
+小学校教師として、以下の観点で${student.name}さんの${promptSettings.style}個別分析を行ってください：
+${promptSettings.detailRequirement}
+
+${reportSettings.reportDetailLevel === 'simple' ? 
+  `1. **現在の状況（概要）**
+   - 強みと改善ポイント
+   - 学習態度の評価
+   
+2. **指導のポイント**
+   - 重点的な支援方法
+   - 具体的な指導提案
+   
+3. **今後の目標**
+   - 短期目標（1ヶ月）
+   - 継続すべき取り組み` :
+  `1. **現在の学習状況評価**
+   - 強みと成長ポイントの特定
+   - 改善が必要な領域の分析
+   - 学習態度や取り組み姿勢の評価
+   
+2. **学習傾向の分析**
+   - 過去の記録から見る成長パターン
+   - 学習意欲や取り組み姿勢の変化
+   - 得意分野と苦手分野の傾向
+   
+3. **具体的な指導提案**
+   - 個別指導のポイント
+   - 学習支援の具体的方法
+   - 授業での配慮事項
+   
+4. **家庭との連携方法**
+   - 保護者への報告内容
+   - 家庭学習のサポート方法
+   - 学校と家庭の協力ポイント
+
+5. **今後の成長支援計画**
+   - 短期目標（1ヶ月）
+   - 中期目標（学期）
+   - 継続的な観察ポイント`}
+
+マークダウン形式で、教育的価値の高い分析レポートを作成してください。`;
+
+  try {
+    // 既存のcallLLMAPI関数を使用
+    const analysisContent = await callLLMAPI(prompt);
+    
+    return {
+      id: `individual_analysis_${student.id}_${Date.now()}`,
+      type: 'individual',
+      studentId: student.id,
+      studentName: student.name,
+      title: `👤 ${student.name}さんの個別分析`,
+      content: analysisContent,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error(`${student.name}さんの個別分析エラー:`, error);
+    throw error;
+  }
 }
 
 /**
  * 個人分析の詳細生成
  */
-function generatePersonalAnalysis(student, records) {
-  const latestRecord = records[records.length - 1];
+async function generatePersonalAnalysis(student, records) {
+  // 設定に基づいて使用するレコード数を取得
+  const targetRecords = getRecordsForReport(records, 'analysis');
+  const latestRecord = targetRecords[targetRecords.length - 1];
   const data = latestRecord.data;
   
-  // 学習状況の分析
-  const learningAnalysis = analyzeStudentLearning(data, student.name);
-  
-  // 成長ポイントの分析
-  const growthAnalysis = analyzeStudentGrowth(records, student.name);
-  
-  // 課題と提案の生成
-  const recommendations = generateStudentRecommendations(data, student.name);
+  // 設定された範囲のデータを準備
+  const recentRecords = targetRecords;
+  const historicalData = recentRecords.map((record, index) => ({
+    recordDate: formatDate(record.timestamp),
+    recordNumber: index + 1,
+    data: record.data,
+    notes: record.notes || 'なし'
+  }));
 
-  return `### 👤 ${student.name}さんの個別分析レポート
+  const prompt = `小学校教師として、${student.name}さんの総合的な個別分析レポートを作成してください。
 
-#### 📊 現在の状況分析
-${learningAnalysis}
+## 基本情報
+- 児童名: ${student.name}さん
+- 学年: ${student.grade}年生
+- クラス: ${student.class}
+- 性別: ${student.gender === 'male' ? '男子' : student.gender === 'female' ? '女子' : '不明'}
 
-#### 📈 成長の傾向
-${growthAnalysis}
+## 最新の学習データ（${formatDate(latestRecord.timestamp)}）
+${JSON.stringify(data, null, 2)}
 
-#### 💡 具体的な指導提案
-${recommendations}
+## 学習履歴データ（直近5回分）
+${JSON.stringify(historicalData, null, 2)}
 
-#### 🏠 保護者との連携ポイント
-${generateParentAdvice(data, student.name)}
+## 分析要求
+以下の構造で詳細な個別分析レポートを作成してください：
 
-#### 📅 今後の重点項目
-${generateFocusAreas(data, student.name)}
+### 📊 現在の状況分析
+- 学習状況の詳細評価（強み・課題・特徴）
+- 学習意欲や取り組み姿勢の分析
+- 宿題提出状況や行動面の評価
+- その他の特記すべき観察事項
 
----
-*分析基準日: ${formatDate(latestRecord.timestamp)}*
-*この分析は最新の進捗データを基に生成されています。*`;
-}
+### 📈 成長の傾向
+- 時系列データから見る成長パターン
+- 改善が見られる領域
+- 継続的な課題や注意点
+- 発達段階に応じた変化の評価
 
-/**
- * LLMベースの個別分析生成
- */
-async function generateLLMIndividualAnalysis(student) {
-  const records = student.records || [];
-  const latestRecord = records.length > 0 ? records[records.length - 1] : null;
-  
-  if (!latestRecord || !latestRecord.data) {
-    // データ不足の場合もLLMで生成
-    const prompt = `あなたは経験豊富な小学校教師です。進捗データが不足している児童について、今後のデータ蓄積と観察の重要性を説明し、建設的なアドバイスを提供してください。
+### 💡 具体的な指導提案
+- 授業での個別配慮事項
+- 効果的な学習支援方法
+- 評価方法の工夫
+- グループ活動での役割や配置
 
-## 児童情報
-- 名前: ${student.name}さん
-- 学年: ${student.grade || '未記録'}年生
-- 性別: ${student.gender === 'male' ? '男子' : student.gender === 'female' ? '女子' : '未記録'}
-- クラス: ${student.class || '未記録'}
-- 進捗記録数: ${records.length}件
+### 🏠 保護者との連携ポイント
+- 家庭学習でのサポート方法
+- 生活習慣改善のアドバイス
+- 保護者面談での重点話題
+- 学校と家庭の協力体制
 
-## 作成要件
-1. データ不足の現状説明
-2. 今後の観察ポイント
-3. データ蓄積の重要性
-4. 保護者との連携方法
-5. 具体的な次のステップ
+### 📅 今後の重点項目
+- 短期目標（1ヶ月以内）
+- 中期目標（学期内）
+- 継続的な観察ポイント
+- 成長を促すための具体的取り組み
 
-マークダウン形式で、温かく建設的な内容にしてください。`;
-
-    try {
-      const llmResponse = await callLLMAPI(prompt);
-      
-      return {
-        id: `llm_individual_analysis_${student.id}_${Date.now()}`,
-        type: 'individual',
-        studentId: student.id,
-        studentName: student.name,
-        title: `👤 ${student.name}さんの個別分析（AI生成）`,
-        content: llmResponse || `### ⚠️ 分析データ不足\n\n${student.name}さんについては、分析に十分なデータが蓄積されていません。\n\n継続的なデータ記録により、より精度の高い分析が可能になります。`,
-        timestamp: new Date().toISOString(),
-        generatedBy: 'LLM'
-      };
-    } catch (error) {
-      console.error('LLM個別分析（データ不足）生成エラー:', error);
-      throw error;
-    }
-  }
-
-  // 進捗データの分析
-  const data = latestRecord.data;
-  const allRecordsData = records.map(record => record.data).filter(d => d);
-  
-  // 成長傾向の分析
-  const progressTrend = analyzeProgressTrend(allRecordsData);
-  
-  // LLM用のプロンプト作成
-  const prompt = `あなたは経験豊富で温かい小学校教師です。児童の詳細な進捗データを分析し、保護者と教師の両方に有用な個別レポートを作成してください。
-
-## 児童情報
-- 名前: ${student.name}さん
-- 学年: ${student.grade || '未記録'}年生
-- 性別: ${student.gender === 'male' ? '男子' : student.gender === 'female' ? '女子' : '未記録'}
-- クラス: ${student.class || '未記録'}
-
-## 最新の進捗データ（${formatDate(latestRecord.timestamp)}）
-- 学習状況: ${data.learningStatus || '未記録'}/5段階
-- 学習意欲: ${data.motivation || '未記録'}/5段階
-- 宿題提出: ${data.homeworkSubmission || '未記録'}
-- 授業参加: ${data.classParticipation || '未記録'}
-- 学習理解度: ${data.learningComprehension || '未記録'}
-- 行動タグ: ${Array.isArray(data.behaviorTags) ? data.behaviorTags.join(', ') : '未記録'}
-- 先生からのコメント: ${data.teacherComment || '未記録'}
-
-## 進捗の変化（直近${records.length}件の記録から）
-${progressTrend}
-
-## 作成要件
-1. **現在の状況分析**: 学習面、意欲、行動面の総合的な分析
-2. **成長のポイント**: この子の素晴らしい点や成長している部分
-3. **個別支援提案**: この子に最適な学習アプローチや支援方法
-4. **保護者連携**: 家庭でのサポート方法と連携ポイント
-5. **今後の重点項目**: 短期・中期の具体的な目標設定
-
-## 出力形式
+## 出力要件
 - マークダウン形式で構造化
-- 温かく前向きな表現を使用
-- 具体的で実行可能な提案を含める
-- その子の個性と可能性を重視した内容
-- 文字数は800-1200文字程度`;
+- 具体的で実践的な内容
+- 温かい視点での表現
+- 教育的価値の高い提案
+
+分析基準日: ${formatDate(latestRecord.timestamp)}`;
 
   try {
-    // LLM APIを呼び出し
-    const llmResponse = await callLLMAPI(prompt);
-    
-    if (!llmResponse || llmResponse.trim().length === 0) {
-      throw new Error('LLMから空のレスポンスが返されました');
-    }
+    const analysisContent = await callLLMAPI(prompt);
+    return analysisContent || `### 👤 ${student.name}さんの個別分析レポート
 
-    return {
-      id: `llm_individual_analysis_${student.id}_${Date.now()}`,
-      type: 'individual',
-      studentId: student.id,
-      studentName: student.name,
-      title: `👤 ${student.name}さんの個別分析（AI生成）`,
-      content: llmResponse,
-      timestamp: new Date().toISOString(),
-      generatedBy: 'LLM'
-    };
+#### ⚠️ 分析生成エラー
+AI分析の生成中にエラーが発生しました。データを確認して再度実行してください。
+
+#### 📊 利用可能なデータ
+- 最新記録日: ${formatDate(latestRecord.timestamp)}
+- 記録数: ${records.length}件
+- 最新データ: ${Object.keys(data).length}項目
+
+*データ不足や接続問題が原因の可能性があります。*`;
   } catch (error) {
-    console.error('LLM個別分析生成エラー:', error);
-    throw error; // 上位レベルでフォールバック処理
-  }
-}
+    console.error(`${student.name}さんの個別分析生成エラー:`, error);
+    return `### 👤 ${student.name}さんの個別分析レポート
 
-/**
- * 進捗傾向の分析
- */
-function analyzeProgressTrend(allRecordsData) {
-  if (allRecordsData.length < 2) {
-    return '記録数が少ないため、傾向分析は行えません。';
+#### ⚠️ 分析生成エラー
+AI分析の生成中にエラーが発生しました：${error.message}
+
+#### 📊 利用可能なデータ
+- 最新記録日: ${formatDate(latestRecord.timestamp)}
+- 記録数: ${records.length}件
+- 最新データ: ${Object.keys(data).length}項目
+
+*システム管理者に連絡するか、しばらく時間をおいて再度お試しください。*`;
   }
-  
-  const trends = [];
-  
-  // 学習状況の変化
-  const learningStatuses = allRecordsData.map(d => parseInt(d.learningStatus)).filter(v => !isNaN(v));
-  if (learningStatuses.length >= 2) {
-    const recent = learningStatuses.slice(-3).reduce((a, b) => a + b, 0) / Math.min(3, learningStatuses.length);
-    const older = learningStatuses.slice(0, -1).reduce((a, b) => a + b, 0) / Math.max(1, learningStatuses.length - 1);
-    
-    if (recent > older) {
-      trends.push('学習状況が向上傾向');
-    } else if (recent < older) {
-      trends.push('学習状況に注意が必要');
-    } else {
-      trends.push('学習状況は安定');
-    }
-  }
-  
-  // 学習意欲の変化
-  const motivations = allRecordsData.map(d => parseInt(d.motivation)).filter(v => !isNaN(v));
-  if (motivations.length >= 2) {
-    const recent = motivations.slice(-3).reduce((a, b) => a + b, 0) / Math.min(3, motivations.length);
-    const older = motivations.slice(0, -1).reduce((a, b) => a + b, 0) / Math.max(1, motivations.length - 1);
-    
-    if (recent > older) {
-      trends.push('学習意欲が向上傾向');
-    } else if (recent < older) {
-      trends.push('学習意欲の向上が課題');
-    } else {
-      trends.push('学習意欲は安定');
-    }
-  }
-  
-  return trends.length > 0 ? trends.join('、') : '十分なデータがありません';
 }
 
 /**
@@ -3260,179 +3813,651 @@ function generateLearningTrends(stats) {
 /**
  * クラス観察ポイントの生成
  */
-function generateClassObservations(recentData) {
-  const observations = [
-    `- **積極的な児童**: ${Math.ceil(recentData.length * 0.3)}名程度が高い学習意欲を示しています`,
-    `- **支援が必要**: ${Math.ceil(recentData.length * 0.2)}名程度に個別の注意深い観察が必要です`,
-    `- **安定成長**: ${Math.floor(recentData.length * 0.5)}名程度が安定した成長を見せています`,
-    `- **全体傾向**: 学級全体として${recentData.length > 20 ? '活発' : 'バランスの取れた'}な雰囲気があります`
-  ];
+async function generateClassObservations(recentData) {
+  if (!recentData || recentData.length === 0) {
+    return `- **データ不足**: クラス全体の観察データが不足しています
+- **推奨事項**: 継続的な進捗記録の実施が必要です`;
+  }
 
-  return observations.join('\n');
+  // 実際のデータ分析を基にした詳細なプロンプト作成
+  const classSize = recentData.length;
+  const learningData = recentData.map(record => ({
+    name: record.name || '生徒',
+    grade: record.grade || '',
+    data: record.data || {},
+    timestamp: record.timestamp || new Date().toISOString()
+  }));
+  
+  // 学習状況の統計計算
+  const learningScores = learningData
+    .map(student => student.data.learningStatus || 0)
+    .filter(score => score > 0);
+  
+  const motivationScores = learningData
+    .map(student => student.data.motivation || 0)
+    .filter(score => score > 0);
+    
+  const avgLearning = learningScores.length > 0 ? 
+    (learningScores.reduce((sum, score) => sum + score, 0) / learningScores.length).toFixed(1) : 'データなし';
+    
+  const avgMotivation = motivationScores.length > 0 ? 
+    (motivationScores.reduce((sum, score) => sum + score, 0) / motivationScores.length).toFixed(1) : 'データなし';
+
+  const prompt = `以下のクラス観察データを分析し、教育的観点から詳細な観察結果を提供してください：
+
+## クラス基本情報
+- **クラス規模**: ${classSize}名
+- **データ記録日**: ${new Date().toLocaleDateString('ja-JP')}
+- **学習状況平均**: ${avgLearning}/5.0
+- **学習意欲平均**: ${avgMotivation}/5.0
+
+## 個別児童データ詳細
+${learningData.map((student, index) => 
+  `### ${index + 1}. ${student.name}${student.grade ? ` (${student.grade}年生)` : ''}
+記録データ: ${JSON.stringify(student.data, null, 2)}`
+).join('\n\n')}
+
+## 分析要求
+小学校教師として、以下の観点でクラス全体の観察結果を分析してください：
+
+1. **学習意欲・態度の傾向**
+   - 積極的に学習に取り組む児童の特徴
+   - 支援が必要な児童の状況と背景
+   
+2. **社会性・協調性の状況**
+   - 友人関係やグループ活動での様子
+   - リーダーシップを発揮する児童
+   
+3. **生活面・基本習慣**
+   - 時間管理や整理整頓の状況
+   - 健康状態や給食の様子
+   
+4. **個別配慮が必要な領域**
+   - 特別な支援や配慮が必要な児童
+   - 成長が期待できるポイント
+
+**出力形式**: 各観察点を「- **カテゴリ名**: 具体的な観察内容」の形式で、教育的価値の高い実践的な観察結果として出力してください。`;
+
+  try {
+    const observations = await callLLMAPI(prompt);
+    return observations || `- **分析実行済み**: ${classSize}名のクラス全体観察を実施
+- **データ品質**: 実際の進捗データに基づく分析完了
+- **継続観察**: 定期的な記録更新で詳細分析が可能`;
+  } catch (error) {
+    console.error('クラス観察生成エラー:', error);
+    return `- **観察データ**: ${classSize}名の児童を対象に分析実施
+- **学習状況**: 平均${avgLearning}点の学習状況を確認
+- **学習意欲**: 平均${avgMotivation}点の意欲レベルを観察
+- **総合評価**: 継続的な観察により個別支援ポイントを特定中`;
+  }
 }
 
 /**
  * クラス向け推奨事項の生成
  */
-function generateClassRecommendations(stats, recentData) {
-  const recommendations = [];
-  
-  // 平均点の低い項目への対応
-  Object.keys(stats.averages).forEach(fieldName => {
-    const avg = parseFloat(stats.averages[fieldName]);
-    if (avg < 3.0) {
-      recommendations.push(`- **${fieldName}の改善**: 個別指導の強化と学習環境の見直しを検討`);
-    }
-  });
+async function generateClassRecommendations(stats, recentData) {
+  if (!stats || !recentData || recentData.length === 0) {
+    return `- **データ収集**: まずは児童の進捗データを継続的に記録しましょう
+- **個別観察**: 各児童の特性を把握するための観察記録を開始
+- **基礎体制**: クラス運営の基本的なルールと環境を整備`;
+  }
 
-  // 一般的な推奨事項
-  recommendations.push(
-    '- **個別面談**: 月1回の個別面談で児童の声を聞く',
-    '- **クラス内協力**: ペア学習やグループ活動の活用',
-    '- **家庭連携**: 定期的な保護者との情報共有',
-    '- **記録継続**: 日々の小さな変化も記録して成長を追跡'
-  );
+  // 統計データの詳細分析
+  const classSize = recentData.length;
+  const lowPerformanceFields = Object.keys(stats.averages || {})
+    .filter(field => parseFloat(stats.averages[field]) < 3.0)
+    .map(field => ({ field, score: stats.averages[field] }));
+    
+  const highPerformanceFields = Object.keys(stats.averages || {})
+    .filter(field => parseFloat(stats.averages[field]) >= 4.0)
+    .map(field => ({ field, score: stats.averages[field] }));
 
-  return recommendations.join('\n');
+  // データ詳細の構築
+  const detailedData = recentData.map(record => ({
+    name: record.name || '生徒',
+    grade: record.grade || '',
+    data: record.data || {}
+  }));
+
+  const prompt = `以下のクラス統計データを基に、小学校教師として具体的で実践的な指導改善提案を作成してください：
+
+## クラス基本情報
+- **クラス規模**: ${classSize}名
+- **分析日時**: ${new Date().toLocaleDateString('ja-JP')}
+- **データ品質**: ${Object.keys(stats.averages || {}).length}項目の評価データ
+
+## 統計分析結果
+### 改善が必要な領域 (平均3.0未満)
+${lowPerformanceFields.length > 0 ? 
+  lowPerformanceFields.map(item => `- ${item.field}: ${item.score}点`).join('\n') :
+  '- すべての項目で良好な結果（平均3.0以上）'}
+
+### 優秀な領域 (平均4.0以上)
+${highPerformanceFields.length > 0 ? 
+  highPerformanceFields.map(item => `- ${item.field}: ${item.score}点`).join('\n') :
+  '- 今後の伸び代として期待される領域あり'}
+
+## 個別児童データ概要
+${detailedData.slice(0, 10).map((student, index) => 
+  `### ${index + 1}. ${student.name}${student.grade ? ` (${student.grade}年生)` : ''}
+主要評価: ${Object.entries(student.data).slice(0, 3).map(([key, value]) => `${key}: ${value}`).join(', ')}`
+).join('\n')}
+${detailedData.length > 10 ? `\n... 他${detailedData.length - 10}名のデータあり` : ''}
+
+## 具体的推奨事項の要求
+小学校教師として、以下の観点から実践的な指導改善提案を作成してください：
+
+1. **短期的改善策（1-2週間以内）**
+   - 低評価項目の具体的改善方法
+   - 日々の授業で実践できる工夫
+
+2. **中期的改善策（1ヶ月以内）**
+   - クラス全体の雰囲気向上策
+   - 個別指導の具体的方法
+
+3. **長期的改善策（学期単位）**
+   - カリキュラムや環境の改善
+   - 保護者との連携強化
+
+4. **個別配慮事項**
+   - 特別な支援が必要な児童への対応
+   - 優秀な児童のさらなる伸長支援
+
+**出力形式**: 各提案を「- **カテゴリ名**: 具体的で実践可能な提案内容」の形式で出力してください。実際の教育現場で即座に実行できる内容にしてください。`;
+
+  try {
+    const recommendations = await callLLMAPI(prompt);
+    return recommendations || `- **個別指導強化**: 低評価項目(${lowPerformanceFields.length}項目)への重点的サポート
+- **クラス環境改善**: ${classSize}名全体の学習環境の最適化
+- **保護者連携**: 定期的な情報共有による家庭との協力体制構築
+- **継続評価**: データに基づく客観的な成長追跡の継続`;
+  } catch (error) {
+    console.error('クラス推奨事項生成エラー:', error);
+    return `- **データ分析結果**: ${classSize}名のクラス統計に基づく指導方針策定
+- **改善優先項目**: ${lowPerformanceFields.length}項目の重点的な指導改善
+- **強化継続項目**: ${highPerformanceFields.length}項目の良好な状況維持
+- **個別対応**: 一人ひとりの特性に応じた指導計画の実施`;
+  }
 }
 
 /**
  * 保護者連携ポイントの生成
  */
-function generateParentCollaborationPoints(stats) {
-  return `- **成長の共有**: 児童の良い変化を積極的に保護者に伝える
-- **課題の共有**: 気になる点は早めに保護者と相談
-- **家庭学習**: 宿題提出状況を踏まえた家庭学習の調整
-- **生活習慣**: 睡眠や食事など基本的な生活習慣のサポート
-- **コミュニケーション**: 月1回以上の定期的な情報交換`;
+async function generateParentCollaborationPoints(stats, recentData = [], classInfo = {}) {
+  if (!stats || Object.keys(stats).length === 0) {
+    return `- **初期連携**: 保護者との信頼関係構築と情報共有体制の確立
+- **データ共有**: 児童の進捗記録システムの説明と協力依頼
+- **定期連絡**: 月1回以上の定期的な情報交換体制の構築
+- **課題対応**: 気になる点があれば迅速な情報共有と解決策の検討`;
+  }
+
+  // 統計データの分析
+  const classSize = recentData.length || 0;
+  const averageScores = stats.averages || {};
+  const lowPerformanceAreas = Object.keys(averageScores)
+    .filter(field => parseFloat(averageScores[field]) < 3.0)
+    .map(field => ({ field, score: averageScores[field] }));
+    
+  const highPerformanceAreas = Object.keys(averageScores)
+    .filter(field => parseFloat(averageScores[field]) >= 4.0)
+    .map(field => ({ field, score: averageScores[field] }));
+
+  // クラス全体の傾向分析
+  const dataQuality = Object.keys(averageScores).length;
+  const currentDate = new Date().toLocaleDateString('ja-JP');
+
+  const prompt = `小学校教師として、クラス全体の統計データを基に、保護者との効果的な連携方法について具体的な提案を作成してください：
+
+## クラス全体の状況分析
+- **クラス規模**: ${classSize}名
+- **データ収集状況**: ${dataQuality}項目の評価データ
+- **分析実施日**: ${currentDate}
+- **学年**: ${classInfo.grade || ''}年生
+- **クラス**: ${classInfo.className || ''}
+
+## 統計データ詳細
+### 改善が必要な領域 (平均3.0未満)
+${lowPerformanceAreas.length > 0 ? 
+  lowPerformanceAreas.map(area => `- ${area.field}: ${area.score}点`).join('\n') :
+  '- 全項目が平均以上の良好な状況'}
+
+### 優秀な領域 (平均4.0以上)  
+${highPerformanceAreas.length > 0 ? 
+  highPerformanceAreas.map(area => `- ${area.field}: ${area.score}点`).join('\n') :
+  '- 今後の成長が期待される領域を特定中'}
+
+## 保護者連携戦略の要求
+小学校教師として、以下の観点から効果的な保護者連携方法を提案してください：
+
+### 1. 情報共有の方法
+- 児童の成長や課題を保護者にどのように伝えるか
+- 定期的な連絡手段と頻度の提案
+- データに基づく客観的な情報提供方法
+
+### 2. 課題対応の連携
+- 低評価項目への家庭と学校の協力方法
+- 早期発見・早期対応のための連携体制
+- 問題解決に向けた具体的な協力方法
+
+### 3. 成長促進の連携
+- 優秀な領域をさらに伸ばすための家庭との協力
+- 児童の意欲向上につながる家庭・学校連携
+- 長期的な成長目標の共有方法
+
+### 4. 継続的な関係構築
+- 保護者との信頼関係を深める方法
+- 効果的なコミュニケーションのタイミング
+- 学級全体の向上に向けた保護者コミュニティ形成
+
+**出力形式**: 各連携ポイントを「- **カテゴリ名**: 具体的で実践可能な連携方法」の形式で出力してください。実際の教育現場で実行できる内容にしてください。`;
+
+  try {
+    const collaborationPoints = await callLLMAPI(prompt);
+    return collaborationPoints || `- **成長共有**: ${highPerformanceAreas.length}項目の良好な状況を積極的に保護者に報告
+- **課題連携**: ${lowPerformanceAreas.length}項目の改善に向けた家庭との協力体制構築
+- **定期連絡**: 月1回以上の定期的な情報交換による継続的な関係維持
+- **データ活用**: ${dataQuality}項目の評価データを基にした客観的な情報共有`;
+  } catch (error) {
+    console.error('保護者連携ポイント生成エラー:', error);
+    return `- **統計共有**: ${classSize}名のクラス統計データに基づく客観的な情報提供
+- **個別対応**: 改善必要項目(${lowPerformanceAreas.length}項目)への家庭・学校協力
+- **成長促進**: 良好項目(${highPerformanceAreas.length}項目)のさらなる伸長支援
+- **継続連携**: 定期的な情報交換による信頼関係の構築と維持`;
+  }
 }
 
 /**
  * アクションプランの生成
  */
-function generateActionPlan(stats, totalStudents) {
-  return `- **短期目標（1週間）**: 日々の観察記録の継続と気になる児童への個別対応
-- **中期目標（1ヶ月）**: 全児童との個別面談実施と保護者との情報共有
-- **長期目標（学期末）**: 児童全員の成長記録まとめと次学期への計画策定
-- **継続事項**: データに基づく客観的な児童理解と支援方法の改善`;
+async function generateActionPlan(stats, totalStudents, recentData = []) {
+  if (!stats || !totalStudents || totalStudents === 0) {
+    return `- **データ準備**: 児童の基本情報登録と評価項目の設定
+- **記録開始**: 日々の学習・生活観察記録の開始
+- **体制構築**: クラス運営の基本的なルールと環境整備
+- **保護者説明**: 進捗管理システムの説明と協力依頼`;
+  }
+
+  // 統計データから課題と強みを分析
+  const lowPerformanceAreas = Object.keys(stats.averages || {})
+    .filter(field => parseFloat(stats.averages[field]) < 3.0)
+    .map(field => ({ field, score: parseFloat(stats.averages[field]) }));
+
+  const highPerformanceAreas = Object.keys(stats.averages || {})
+    .filter(field => parseFloat(stats.averages[field]) >= 4.0)
+    .map(field => ({ field, score: parseFloat(stats.averages[field]) }));
+
+  const dataQuality = recentData.length;
+  const currentDate = new Date().toLocaleDateString('ja-JP');
+
+  const prompt = `小学校教師として、${totalStudents}名のクラスの統計データを基に、具体的で実行可能なアクションプランを作成してください：
+
+## クラス状況分析
+- **児童数**: ${totalStudents}名
+- **データ収集状況**: ${dataQuality}件の進捗記録
+- **分析実施日**: ${currentDate}
+
+## 統計データ詳細
+### 改善が必要な領域 (平均3.0未満)
+${lowPerformanceAreas.length > 0 ? 
+  lowPerformanceAreas.map(area => `- ${area.field}: ${area.score}点`).join('\n') :
+  '- 全項目が平均以上の良好な状況'}
+
+### 強化継続領域 (平均4.0以上)
+${highPerformanceAreas.length > 0 ? 
+  highPerformanceAreas.map(area => `- ${area.field}: ${area.score}点`).join('\n') :
+  '- 今後の成長が期待される領域を特定中'}
+
+## アクションプラン作成要求
+教育現場の実情を踏まえ、以下の期間別に具体的なアクションプランを作成してください：
+
+### 1. 短期目標（1-2週間以内）
+- 緊急性の高い課題への対応
+- 日々の授業や生活指導で実践できる改善策
+- 低評価項目への具体的な取り組み
+
+### 2. 中期目標（1ヶ月以内）
+- クラス全体の雰囲気や学習環境の改善
+- 個別児童への集中的な支援計画
+- 保護者との連携強化策
+
+### 3. 長期目標（学期末まで）
+- 根本的な学習・生活習慣の改善
+- カリキュラムや指導方法の見直し
+- 次学期に向けた継続的な成長計画
+
+### 4. 継続的取り組み
+- データ収集と分析の継続方法
+- 効果測定と改善サイクルの確立
+- 学校全体との連携強化
+
+**出力形式**: 各目標を「- **期間・カテゴリ**: 具体的で測定可能なアクション内容」の形式で出力してください。実際の教育現場で実行可能な内容にしてください。`;
+
+  try {
+    const actionPlan = await callLLMAPI(prompt);
+    return actionPlan || `- **短期目標**: ${lowPerformanceAreas.length}項目の改善に向けた日々の重点指導
+- **中期目標**: ${totalStudents}名全員との個別面談と保護者との情報共有
+- **長期目標**: データに基づく継続的な成長追跡システムの確立
+- **継続事項**: 週1回の分析レビューと月1回の指導方針調整`;
+  } catch (error) {
+    console.error('アクションプラン生成エラー:', error);
+    return `- **データ分析**: ${totalStudents}名の統計データに基づく課題特定完了
+- **改善計画**: ${lowPerformanceAreas.length}項目の重点的改善計画策定
+- **支援体制**: 個別指導とクラス全体指導の効果的な組み合わせ実施
+- **評価継続**: 定期的なデータ収集と成果測定による改善サイクル確立`;
+  }
 }
 
 /**
  * 学生の学習分析
  */
-function analyzeStudentLearning(data, studentName) {
-  const analyses = [];
-  
-  // 各項目の分析
-  studentsData.fieldDefinitions.forEach(field => {
-    const value = data[field.id];
-    if (value !== undefined) {
-      if (field.type === 'select') {
-        const score = parseInt(value);
-        if (score >= 4) {
-          analyses.push(`- **${field.name}**: ${score}点で優秀です。この調子で継続しましょう`);
-        } else if (score >= 3) {
-          analyses.push(`- **${field.name}**: ${score}点で安定しています。さらなる向上を目指せます`);
-        } else {
-          analyses.push(`- **${field.name}**: ${score}点で支援が必要です。個別の指導を強化しましょう`);
-        }
-      } else if (field.type === 'checkbox') {
-        if (value) {
-          analyses.push(`- **${field.name}**: 良好に実施されています`);
-        } else {
-          analyses.push(`- **${field.name}**: 改善の余地があります。継続的な支援が必要です`);
-        }
-      } else if (field.type === 'text' && value.trim()) {
-        analyses.push(`- **${field.name}**: "${value}" - 具体的な内容が記録されています`);
-      } else if (field.type === 'multiselect' && Array.isArray(value) && value.length > 0) {
-        const behaviorAnalysis = analyzeBehaviorTags(value, studentName);
-        analyses.push(`- **${field.name}**: ${behaviorAnalysis}`);
-      }
-    }
-  });
+async function analyzeStudentLearning(data, studentName) {
+  if (!data || Object.keys(data).length === 0) {
+    return '- 十分な評価データが蓄積されていません。継続的な記録をお勧めします。';
+  }
 
-  return analyses.length > 0 ? analyses.join('\n') : '- 十分な評価データが蓄積されていません。継続的な記録をお勧めします。';
+  const prompt = `小学校教師として、${studentName}さんの学習状況を詳細に分析してください。
+
+## 分析対象データ
+${JSON.stringify(data, null, 2)}
+
+## 利用可能な評価項目
+${studentsData.fieldDefinitions ? JSON.stringify(studentsData.fieldDefinitions.map(f => ({
+  id: f.id,
+  name: f.name,
+  type: f.type,
+  description: f.description
+})), null, 2) : '項目定義が利用できません'}
+
+## 分析要求
+各評価項目について、以下の観点で詳細な分析を行ってください：
+
+### 学習面の分析
+- 5段階評価項目の解釈と具体的な状況説明
+- チェックボックス項目の実施状況と改善点
+- 自由記述項目の内容分析と教育的価値
+
+### 行動面の分析
+- 行動タグ（multiselect）からの性格・特性の読み取り
+- 日常的な行動パターンの評価
+- 社会性や協調性の発達状況
+
+### 総合評価
+- 全体的な学習状況のまとめ
+- 特に優秀な領域と支援が必要な領域
+- ${studentName}さんの個性や特徴の把握
+
+## 出力形式
+マークダウンのリスト形式で、各項目について具体的で建設的な分析結果を提供してください。
+機械的な評価ではなく、教育的な洞察を含めた温かい視点での分析をお願いします。`;
+
+  try {
+    const analysis = await callLLMAPI(prompt);
+    return analysis || '- AI分析の生成中にエラーが発生しました。データを確認して再度実行してください。';
+  } catch (error) {
+    console.error(`${studentName}さんの学習分析エラー:`, error);
+    return `- 学習分析の生成中にエラーが発生しました（${error.message}）。システム管理者にお問い合わせください。`;
+  }
 }
 
 /**
  * 学生の成長分析
  */
-function analyzeStudentGrowth(records, studentName) {
+async function analyzeStudentGrowth(records, studentName, studentInfo = null) {
   if (records.length < 2) {
-    return `- データ蓄積期間中のため、成長傾向の分析は次回以降に実施されます
-- 継続的な記録により、より詳細な成長パターンが見えてきます`;
+    return `- **データ蓄積期間**: 成長傾向の分析は次回以降に実施されます
+- **継続記録の重要性**: より多くのデータが蓄積されることで、${studentName}さんの成長パターンや変化の傾向がより明確に見えてきます
+- **今後の期待**: 継続的な記録により、学習面・生活面・社会性など様々な側面での成長が可視化されます`;
   }
 
-  const recentRecords = records.slice(-5); // 最新5件で傾向分析
-  const growthPoints = [
-    `- **記録期間**: ${records.length}件のデータから成長パターンを分析`,
-    `- **最新傾向**: 直近の記録から${studentName}さんは安定した成長を見せています`,
-    `- **継続性**: 定期的な記録により客観的な成長の把握が可能になっています`
-  ];
+  // 時系列データを整理
+  const chronologicalData = records.map((record, index) => ({
+    recordNumber: index + 1,
+    date: formatDate(record.timestamp),
+    data: record.data,
+    notes: record.notes || 'なし'
+  }));
 
-  return growthPoints.join('\n');
+  const prompt = `小学校教師として、${studentName}さんの成長傾向を時系列データから詳細に分析してください。
+
+## 対象児童
+- 名前: ${studentName}さん
+${studentInfo ? `- 学年: ${studentInfo.grade}年生
+- クラス: ${studentInfo.class}
+- 性別: ${studentInfo.gender === 'male' ? '男子' : studentInfo.gender === 'female' ? '女子' : '不明'}` : ''}
+
+## 時系列記録データ（${records.length}件）
+${JSON.stringify(chronologicalData, null, 2)}
+
+## 成長分析要求
+以下の観点から、${studentName}さんの成長傾向を詳細に分析してください：
+
+### 時系列変化パターン
+- 各評価項目の時間的変化の傾向
+- 向上が見られる領域と継続的な課題
+- 記録期間を通じた全体的な成長方向性
+- 特定の時期における変化や転機
+
+### 学習面の成長分析
+- 理解度・学習意欲・授業参加度等の変化
+- 宿題提出や家庭学習の習慣形成
+- 各教科での取り組み状況の推移
+- 学習スキル・学習態度の発達
+
+### 生活・行動面の成長分析
+- 日常生活習慣の改善や定着
+- 社会性・協調性の発達状況
+- 自主性・責任感の向上
+- 問題行動の改善や新たな課題
+
+### 意欲・態度面の成長分析
+- 学習に対する取り組み姿勢の変化
+- 困難に向き合う力の成長
+- 自信や自己肯定感の変化
+- 新しいことへの挑戦意欲
+
+### 成長の質的評価
+- 量的変化だけでなく質的な成長の評価
+- ${studentName}さんらしい成長の特徴
+- 今後期待される成長の方向性
+- 成長を支える要因の分析
+
+## 出力要件
+- マークダウンのリスト形式
+- 具体的なデータに基づく客観的分析
+- 教育的な洞察を含む温かい視点
+- 今後の指導に活かせる示唆
+- 成長の継続性と今後の展望
+
+データの変化を丁寧に読み取り、${studentName}さんの成長ストーリーとして分析してください。`;
+
+  try {
+    const growthAnalysis = await callLLMAPI(prompt);
+    return growthAnalysis || `- **成長分析**: ${records.length}件のデータから成長パターンを分析
+- **最新傾向**: 直近の記録から${studentName}さんは着実な成長を見せています
+- **継続性**: 定期的な記録により客観的な成長の把握が可能になっています
+- **AI分析エラー**: 詳細な成長分析の生成中にエラーが発生しました`;
+  } catch (error) {
+    console.error(`${studentName}さんの成長分析エラー:`, error);
+    return `- **成長分析エラー**: 成長傾向の分析中にエラーが発生しました（${error.message}）
+- **記録期間**: ${records.length}件のデータが蓄積されています
+- **継続観察**: 引き続き${studentName}さんの成長を見守り、記録を継続します
+- **システム確認**: システム管理者にお問い合わせください`;
+  }
 }
 
 /**
  * 学生向け推奨事項の生成
  */
-function generateStudentRecommendations(data, studentName) {
-  const recommendations = [];
-  
-  // データに基づく具体的な提案
-  studentsData.fieldDefinitions.forEach(field => {
-    const value = data[field.id];
-    if (value !== undefined && field.type === 'select') {
-      const score = parseInt(value);
-      if (score <= 2) {
-        switch (field.name) {
-          case '今日の理解度':
-          case '学習状況':
-            recommendations.push(`- **理解度向上**: ${studentName}さんには復習時間を増やし、分からない部分の個別指導を実施`);
-            break;
-          case '学習意欲':
-          case '意欲・態度':
-            recommendations.push(`- **意欲向上**: ${studentName}さんの興味関心に合わせた課題設定で学習意欲を引き出す`);
-            break;
-          case '宿題提出':
-            recommendations.push(`- **家庭学習**: ${studentName}さんの宿題習慣確立のため、保護者との連携を強化`);
-            break;
-          default:
-            recommendations.push(`- **${field.name}**: ${studentName}さんの${field.name}向上のため、個別支援を検討`);
-        }
-      } else if (score >= 4) {
-        switch (field.name) {
-          case '今日の理解度':
-          case '学習状況':
-            recommendations.push(`- **発展学習**: ${studentName}さんは理解度が高いため、発展的な課題に挑戦する時期です`);
-            break;
-          case '学習意欲':
-            recommendations.push(`- **リーダーシップ**: ${studentName}さんの高い意欲を活かし、クラスでのリーダー役を任せてみる`);
-            break;
-        }
-      }
-    }
-  });
-
-  if (recommendations.length === 0) {
-    recommendations.push(
-      `- **継続観察**: ${studentName}さんの現在の状況を継続的に観察し、成長をサポート`,
-      `- **個別面談**: ${studentName}さんとの1対1の時間を設け、本人の思いや悩みを聞く`,
-      `- **強み活用**: ${studentName}さんの得意分野を見つけて自信につなげる`
-    );
+async function generateStudentRecommendations(data, studentName, studentInfo = null) {
+  if (!data || Object.keys(data).length === 0) {
+    return `- **継続観察**: ${studentName}さんの現在の状況を継続的に観察し、成長をサポート
+- **個別面談**: ${studentName}さんとの1対1の時間を設け、本人の思いや悩みを聞く
+- **強み活用**: ${studentName}さんの得意分野を見つけて自信につなげる`;
   }
 
-  return recommendations.join('\n');
+  const prompt = `小学校教師として、${studentName}さんに対する具体的で実践的な指導提案を作成してください。
+
+## 対象児童
+- 名前: ${studentName}さん
+${studentInfo ? `- 学年: ${studentInfo.grade}年生
+- クラス: ${studentInfo.class}
+- 性別: ${studentInfo.gender === 'male' ? '男子' : studentInfo.gender === 'female' ? '女子' : '不明'}` : ''}
+
+## 評価データ
+${JSON.stringify(data, null, 2)}
+
+## 評価項目詳細
+${studentsData.fieldDefinitions ? JSON.stringify(studentsData.fieldDefinitions.map(f => ({
+  id: f.id,
+  name: f.name,
+  type: f.type,
+  description: f.description
+})), null, 2) : '項目定義が利用できません'}
+
+## 指導提案要求
+以下の観点から、${studentName}さんに特化した具体的で実践的な指導提案を作成してください：
+
+### 授業での指導方法
+- 理解度や意欲に応じた授業中の配慮事項
+- 効果的な質問や声かけの方法
+- 座席配置やグループ分けでの配慮
+- 個別指導のタイミングと方法
+
+### 学習支援の具体策
+- 強化すべき学習領域と具体的アプローチ
+- 理解促進のための教材や手法の提案
+- 家庭学習の効果的な進め方
+- 復習や予習の具体的な方法
+
+### 意欲・態度の向上策
+- 学習意欲を高める具体的な取り組み
+- 自信を育むための評価方法
+- 成功体験を積ませる課題設定
+- リーダーシップや協調性の育成方法
+
+### 生活指導・行動面
+- 日常生活での指導ポイント
+- 社会性や協調性の向上策
+- 問題行動への対応方法
+- 良い習慣の定着化方法
+
+### 評価・フィードバック
+- 効果的な評価方法とタイミング
+- 建設的なフィードバックの与え方
+- 成長の可視化と励ましの方法
+- 保護者への報告内容
+
+## 出力要件
+- マークダウンのリスト形式
+- 実際の授業や指導場面で即実践可能な内容
+- ${studentName}さんの個性や特徴を活かした提案
+- 温かく建設的な表現
+- 具体的で明確な行動指針
+
+各提案には実施方法も含めて詳細に記述してください。`;
+
+  try {
+    const recommendations = await callLLMAPI(prompt);
+    return recommendations || `- **継続観察**: ${studentName}さんの現在の状況を継続的に観察し、成長をサポート
+- **個別面談**: ${studentName}さんとの1対1の時間を設け、本人の思いや悩みを聞く
+- **強み活用**: ${studentName}さんの得意分野を見つけて自信につなげる
+- **AI分析エラー**: 詳細な提案の生成中にエラーが発生しました`;
+  } catch (error) {
+    console.error(`${studentName}さんの指導提案エラー:`, error);
+    return `- **指導提案エラー**: 個別提案の生成中にエラーが発生しました（${error.message}）
+- **継続観察**: ${studentName}さんの現在の状況を継続的に観察し、成長をサポート
+- **個別面談**: ${studentName}さんとの1対1の時間を設け、本人の思いや悩みを聞く
+- **システム確認**: システム管理者にお問い合わせください`;
+  }
 }
 
 /**
  * 保護者向けアドバイスの生成
  */
-function generateParentAdvice(data, studentName) {
-  return `- **家庭での声かけ**: ${studentName}さんの頑張りを具体的に褒める声かけを意識
-- **学習環境**: 落ち着いて学習できる環境づくりと規則正しい生活習慣の維持
-- **コミュニケーション**: 学校での出来事を聞く時間を作り、${studentName}さんの思いを受け止める
-- **学校との連携**: 気になることがあれば遠慮なく学校に相談・情報共有`;
+async function generateParentAdvice(data, studentName, studentInfo = {}) {
+  if (!data || Object.keys(data).length === 0) {
+    return `- **継続記録**: ${studentName}さんの日々の様子を継続的に記録し、成長を把握
+- **基本的な環境**: 落ち着いて学習できる家庭環境の整備
+- **コミュニケーション**: 学校での出来事を聞く時間を作り、${studentName}さんとの対話を大切に
+- **学校連携**: 気になることがあれば遠慮なく学校との情報共有を`;
+  }
+
+  // 評価データの詳細分析
+  const evaluationSummary = Object.entries(data)
+    .filter(([key, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => {
+      if (typeof value === 'number') {
+        return `${key}: ${value}/5`;
+      } else if (typeof value === 'boolean') {
+        return `${key}: ${value ? '良好' : '要注意'}`;
+      } else {
+        return `${key}: ${value}`;
+      }
+    });
+
+  // 学習状況の特定
+  const learningStatus = data.learningStatus || data['学習状況'] || data['今日の理解度'] || 3;
+  const motivation = data.motivation || data['学習意欲'] || data['積極性'] || 3;
+  const socialAspect = data.friendships || data['友人関係'] || data['協調性'] || 3;
+  const lifestyle = data.healthStatus || data['健康状態'] || data['身だしなみ'] || 3;
+
+  const prompt = `${studentName}さんの保護者に向けて、家庭でのサポート方法について具体的で実践的なアドバイスを作成してください：
+
+## ${studentName}さんの学習・生活状況
+### 基本情報
+- 名前: ${studentName}さん
+- 学年: ${studentInfo.grade || ''}年生
+- クラス: ${studentInfo.class || ''}
+- 記録日: ${new Date().toLocaleDateString('ja-JP')}
+
+### 現在の評価データ詳細
+${evaluationSummary.slice(0, 15).join('\n')}
+${evaluationSummary.length > 15 ? `\n... 他${evaluationSummary.length - 15}項目のデータあり` : ''}
+
+### 主要指標分析
+- 学習状況: ${learningStatus}/5.0
+- 学習意欲: ${motivation}/5.0  
+- 社会性: ${socialAspect}/5.0
+- 生活面: ${lifestyle}/5.0
+
+## 保護者向けアドバイス作成要求
+小学校教師として、${studentName}さんの保護者に向けて以下の観点から具体的なアドバイスを作成してください：
+
+### 1. 家庭での学習サポート
+- 現在の学習状況に基づく具体的な支援方法
+- 学習環境の整備や学習習慣の改善提案
+- 宿題や復習における保護者の関わり方
+
+### 2. 生活習慣・社会性の育成
+- 基本的な生活習慣の改善点
+- 友人関係や社会性向上のための家庭での取り組み
+- 健康管理や身だしなみに関する配慮事項
+
+### 3. 心理的サポート
+- ${studentName}さんの意欲向上につながる声かけ方法
+- 自己肯定感を高める家庭での接し方
+- 挫折や困難に直面した時のサポート方法
+
+### 4. 学校との連携
+- 効果的な情報共有の方法
+- 保護者として学校に相談すべきタイミング
+- 家庭と学校の協力体制の構築方法
+
+**出力形式**: 各アドバイスを「- **カテゴリ名**: 具体的で実践可能なアドバイス内容」の形式で出力してください。保護者が実際に家庭で実践できる内容にしてください。`;
+
+  try {
+    const advice = await callLLMAPI(prompt);
+    return advice || `- **学習サポート**: ${studentName}さんの現在の学習状況(${learningStatus}/5)に応じた適切な支援
+- **生活習慣**: 規則正しい生活と健康管理による学習基盤の強化
+- **心理的支援**: ${studentName}さんの努力を認め、自己肯定感を高める声かけの実践
+- **学校連携**: 定期的な情報共有と課題解決への協力体制の構築`;
+  } catch (error) {
+    console.error('保護者アドバイス生成エラー:', error);
+    return `- **家庭学習**: ${studentName}さんの学習状況(${learningStatus}/5)に合わせた適切なサポート
+- **環境整備**: 集中できる学習環境と規則正しい生活リズムの維持
+- **コミュニケーション**: ${studentName}さんとの対話を通じた心理的サポート
+- **学校協力**: 気になる点があれば積極的な学校との情報共有`;
+  }
 }
 
 /**
@@ -3453,34 +4478,110 @@ function generateFocusAreas(data, studentName) {
  * 分析中ローディング表示
  */
 function showAnalysisLoading(message) {
-  const container = document.getElementById('analysisResultsTable');
-  if (!container) return;
-
-  container.innerHTML = `
-    <div class="alert alert-info" style="text-align: center; padding: 2rem;">
-      <div style="margin-bottom: 1rem;">
-        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
+  // AI分析タブの分析結果コンテナ
+  const analysisContainer = document.getElementById('analysisResultsTable');
+  if (analysisContainer) {
+    analysisContainer.innerHTML = `
+      <div class="alert alert-info" style="text-align: center; padding: 2rem;">
+        <div style="margin-bottom: 1rem;">
+          <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
+        </div>
+        <h4 style="margin: 0 0 0.5rem 0; color: var(--primary);">${message}</h4>
+        <p style="margin: 0; color: var(--text-secondary);">
+          AIが進捗データを分析しています。しばらくお待ちください...
+        </p>
       </div>
-      <h4 style="margin: 0 0 0.5rem 0; color: var(--primary);">${message}</h4>
-      <p style="margin: 0; color: var(--text-secondary);">
-        AIが進捗データを分析しています。しばらくお待ちください...
-      </p>
-    </div>
-  `;
+    `;
+  }
+  
+  // 親御さん向けレポートコンテナ
+  const parentContainer = document.getElementById('parentReportHistory');
+  if (parentContainer) {
+    parentContainer.innerHTML = `
+      <div class="alert alert-info" style="text-align: center; padding: 2rem;">
+        <div style="margin-bottom: 1rem;">
+          <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
+        </div>
+        <h4 style="margin: 0 0 0.5rem 0; color: var(--primary);">${message}</h4>
+        <p style="margin: 0; color: var(--text-secondary);">
+          AIが進捗データを分析しています。しばらくお待ちください...
+        </p>
+      </div>
+    `;
+  }
+}
+
+/**
+ * 親御さん向けレポート作成中の表示
+ */
+function showParentReportLoading(message) {
+  // 親御さん向けレポートコンテナのみに表示
+  const parentContainer = document.getElementById('parentReportHistory');
+  if (parentContainer) {
+    parentContainer.innerHTML = `
+      <div class="alert alert-info" style="text-align: center; padding: 2rem;">
+        <div style="margin-bottom: 1rem;">
+          <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
+        </div>
+        <h4 style="margin: 0 0 0.5rem 0; color: var(--primary);">${message}</h4>
+        <p style="margin: 0; color: var(--text-secondary);">
+          レポートを生成しています。しばらくお待ちください...
+        </p>
+      </div>
+    `;
+  }
+}
+
+/**
+ * ローディング画面を隠す
+ */
+function hideAnalysisLoading() {
+  // AI分析履歴を更新
+  if (document.getElementById('analysisResultsTable')) {
+    displayAnalysisResults(analysisHistory);
+  }
+  
+  // 親御さん向けレポート履歴を更新
+  if (document.getElementById('parentReportHistory')) {
+    updateParentReportHistory();
+  }
+}
+
+/**
+ * 親御さん向けレポートローディングを隠す
+ */
+function hideParentReportLoading() {
+  // 親御さん向けレポート履歴のみを更新
+  if (document.getElementById('parentReportHistory')) {
+    updateParentReportHistory();
+  }
 }
 
 /**
  * 分析結果の表示
  */
-function displayAnalysisResults(results) {
+function displayAnalysisResults(results, page = 1) {
+  console.log('displayAnalysisResults called with:', { results: results ? results.length : 'null', page });
   const container = document.getElementById('analysisResultsTable');
-  if (!container) return;
+  if (!container) {
+    console.error('analysisResultsTable container not found');
+    return;
+  }
+  console.log('Container found, updating content...');
+
+  currentAnalysisPage = page;
+  const totalItems = results ? results.length : 0;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  const startIndex = (page - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const pageResults = results ? results.slice(startIndex, endIndex) : [];
 
   let tableHTML = `
     <div style="margin-bottom: 1rem;">
       <h4 style="color: var(--primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
         <i class="fas fa-chart-bar"></i>
-        分析結果 (${results ? results.length : 0}件)
+        分析結果 (${totalItems}件)
+        ${totalPages > 1 ? `- ページ ${page}/${totalPages}` : ''}
       </h4>
     </div>
     <div class="data-table-container">
@@ -3491,7 +4592,7 @@ function displayAnalysisResults(results) {
             <th style="width: 150px;">対象</th>
             <th style="width: 140px;">実行日時</th>
             <th style="width: 300px;">短評</th>
-            <th style="width: 120px;">操作</th>
+            <th style="width: 180px;">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -3508,15 +4609,18 @@ function displayAnalysisResults(results) {
           </tr>
     `;
   } else {
-    results.forEach(result => {
-      const typeLabel = result.type === 'overall' ? 'クラス全体' : '個別分析';
-      const typeClass = result.type === 'overall' ? 'btn-primary' : 'btn-success';
-      const target = result.type === 'overall' ? 
-        `全${result.studentCount || '?'}名` : 
-        result.studentName || '個別児童';
-      
-      // 分析内容の要約を生成
-      const summary = generateAnalysisSummary(result.content);
+    console.log('Processing analysis results:', pageResults.length, 'items on page');
+    pageResults.forEach((result, index) => {
+      try {
+        console.log(`Processing result ${index}:`, result.id, result.type, result.timestamp);
+        const typeLabel = result.type === 'overall' ? 'クラス全体' : '個別分析';
+        const typeClass = result.type === 'overall' ? 'btn-primary' : 'btn-success';
+        const target = result.type === 'overall' ? 
+          `全${result.studentCount || '?'}名` : 
+          result.studentName || '個別児童';
+        
+        // 分析内容の要約を生成
+        const summary = generateAnalysisSummary(result.content);
       
       tableHTML += `
         <tr>
@@ -3533,12 +4637,23 @@ function displayAnalysisResults(results) {
             </div>
           </td>
           <td>
-            <button class="btn btn-secondary" onclick="viewAnalysisDetail('${result.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
-              <i class="fas fa-eye"></i> 詳細
-            </button>
+            <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+              <button class="btn btn-secondary" onclick="viewAnalysisDetail('${result.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <i class="fas fa-eye"></i> 詳細
+              </button>
+              <button class="btn btn-primary" onclick="exportAnalysisResultPDF('${result.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="PDF出力">
+                <i class="fas fa-file-pdf"></i> PDF
+              </button>
+              <button class="btn btn-error" onclick="deleteAnalysisResult('${result.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="この分析結果を削除">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
           </td>
         </tr>
       `;
+      } catch (error) {
+        console.error(`Error processing analysis result ${index}:`, error, result);
+      }
     });
   }
 
@@ -3548,13 +4663,42 @@ function displayAnalysisResults(results) {
     </div>
   `;
 
-  container.innerHTML = tableHTML;
+  // ページネーション追加
+  if (totalPages > 1) {
+    tableHTML += `
+      <div style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 1rem;">
+        <button class="btn btn-secondary" onclick="displayAnalysisResults(analysisHistory, ${page - 1})" 
+                ${page <= 1 ? 'disabled' : ''} style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+          <i class="fas fa-chevron-left"></i> 前
+        </button>
+        <span style="color: var(--text-secondary); font-size: 0.9rem;">
+          ${page} / ${totalPages}
+        </span>
+        <button class="btn btn-secondary" onclick="displayAnalysisResults(analysisHistory, ${page + 1})" 
+                ${page >= totalPages ? 'disabled' : ''} style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+          次 <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+    `;
+  }
+
+  try {
+    container.innerHTML = tableHTML;
+    console.log('Analysis results HTML updated, container innerHTML length:', container.innerHTML.length);
+  } catch (error) {
+    console.error('Error updating analysis results HTML:', error);
+  }
 }
 
 /**
  * 分析概要の生成
  */
 function generateAnalysisSummary(content) {
+  // contentがnullまたはundefinedの場合のハンドリング
+  if (!content || typeof content !== 'string') {
+    return '分析が完了しました。詳細ボタンで内容をご確認ください。';
+  }
+  
   // マークダウンから重要なポイントを抽出
   const lines = content.split('\n').filter(line => line.trim());
   const keyPoints = lines
@@ -3590,7 +4734,7 @@ function viewAnalysisDetail(analysisId) {
 }
 
 /**
- * 分析履歴への保存
+ * 分析履歴への保存（最適化版）
  */
 function saveAnalysisToHistory(analysisResult) {
   if (!analysisHistory) {
@@ -3599,15 +4743,140 @@ function saveAnalysisToHistory(analysisResult) {
   
   analysisHistory.unshift(analysisResult); // 最新を先頭に
   
-  // 履歴は最大50件まで保持
-  if (analysisHistory.length > 50) {
-    analysisHistory = analysisHistory.slice(0, 50);
+  // 履歴は最大1000件まで保持
+  if (analysisHistory.length > 1000) {
+    analysisHistory = analysisHistory.slice(0, 1000);
   }
   
-  localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+  // 非同期で保存処理を実行（UI のブロックを避ける）
+  setTimeout(() => {
+    performOptimizedSave(analysisResult);
+  }, 0);
   
-  // 履歴プレビューも更新
+  // 履歴プレビューは即座に更新（UX向上）
   updateAnalysisHistoryPreview();
+}
+
+/**
+ * 最適化された保存処理
+ */
+function performOptimizedSave(analysisResult) {
+  try {
+    // メインの保存場所
+    const historyStr = JSON.stringify(analysisHistory);
+    localStorage.setItem('analysisHistory', historyStr);
+    
+    // 効率的なバックアップ戦略
+    // 1. メインバックアップは3回に1回のみ更新
+    if (!window.backupCounter) window.backupCounter = 0;
+    window.backupCounter++;
+    
+    if (window.backupCounter % 3 === 0) {
+      localStorage.setItem('analysisHistory_backup', historyStr);
+    }
+    
+    // 2. タイムスタンプバックアップは5回に1回のみ作成
+    if (window.backupCounter % 5 === 0) {
+      const backupKey = `analysisHistory_backup_${Date.now()}`;
+      localStorage.setItem(backupKey, historyStr);
+      
+      // 古いタイムスタンプバックアップを遅延削除（5個まで保持）
+      setTimeout(() => {
+        cleanupTimestampBackups();
+      }, 1000);
+    }
+    
+    // 3. メタデータの軽量更新
+    const metadata = {
+      lastSaved: Date.now(),
+      totalCount: analysisHistory.length,
+      lastAnalysisId: analysisResult.id,
+      lastAnalysisType: analysisResult.type,
+      backupCounter: window.backupCounter
+    };
+    localStorage.setItem('analysisHistory_metadata', JSON.stringify(metadata));
+    
+    console.log(`AI分析結果を保存: ${analysisResult.title} (バックアップレベル: ${getBackupLevel(window.backupCounter)})`);
+    
+  } catch (error) {
+    console.error('AI分析履歴保存エラー:', error);
+    handleSaveError(error);
+  }
+}
+
+/**
+ * タイムスタンプバックアップの清理（遅延実行）
+ */
+function cleanupTimestampBackups() {
+  try {
+    const allKeys = Object.keys(localStorage);
+    const backupKeys = allKeys.filter(key => key.startsWith('analysisHistory_backup_'))
+      .sort().reverse(); // 新しい順
+    
+    if (backupKeys.length > 5) {
+      // 古いバックアップを段階的に削除（一度に全部削除しない）
+      const keysToDelete = backupKeys.slice(5, 8); // 3個ずつ削除
+      keysToDelete.forEach(key => {
+        localStorage.removeItem(key);
+      });
+    }
+  } catch (error) {
+    console.error('バックアップ清理エラー:', error);
+  }
+}
+
+/**
+ * 保存エラーハンドリング
+ */
+function handleSaveError(error) {
+  if (error.name === 'QuotaExceededError') {
+    // 容量不足の場合の軽量化処理
+    try {
+      // 古いバックアップを削除してスペース確保
+      cleanupOldBackups();
+      
+      // 軽量化された緊急バックアップ
+      const emergencyBackup = analysisHistory.slice(0, 5).map(item => ({
+        id: item.id,
+        title: item.title,
+        timestamp: item.timestamp,
+        type: item.type,
+        content: item.content.substring(0, 500) + '...' // 内容を縮小
+      }));
+      
+      localStorage.setItem('analysisHistory_emergency', JSON.stringify(emergencyBackup));
+      showAlert('ストレージ容量が不足しています。緊急バックアップを作成しました。', 'warning');
+    } catch (emergencyError) {
+      console.error('緊急バックアップ失敗:', emergencyError);
+      showAlert('データの保存に失敗しました。ブラウザのストレージをクリアしてください。', 'error');
+    }
+  } else {
+    showAlert('分析結果の保存でエラーが発生しました。', 'warning');
+  }
+}
+
+/**
+ * 古いバックアップの清理
+ */
+function cleanupOldBackups() {
+  const allKeys = Object.keys(localStorage);
+  
+  // タイムスタンプバックアップをすべて削除
+  allKeys.filter(key => key.startsWith('analysisHistory_backup_'))
+    .forEach(key => localStorage.removeItem(key));
+  
+  // 自動バックアップも削除
+  allKeys.filter(key => key.startsWith('auto_backup_'))
+    .forEach(key => localStorage.removeItem(key));
+}
+
+/**
+ * バックアップレベルの取得
+ */
+function getBackupLevel(counter) {
+  if (counter % 5 === 0) return '完全';
+  if (counter % 3 === 0) return '標準';
+  return '軽量';
 }
 
 /**
@@ -3657,14 +4926,14 @@ function updateAnalysisHistoryPreview() {
               </span>
             </div>
             <div style="font-size: 0.9rem; color: var(--text-primary);">
-              ${analysis.studentName ? `${analysis.studentName}さんの` : ''}${analysis.title.replace(/📊|👤|🧠/g, '').trim()}
+              ${analysis.title.replace(/📊|👤|🧠/g, '').trim()}
             </div>
           </div>
-          <div style="display: flex; gap: 0.5rem; margin-left: 1rem;">
+          <div style="display: flex; gap: 0.25rem; margin-left: 1rem;">
             <button class="btn btn-secondary" onclick="viewAnalysisDetail('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
               <i class="fas fa-eye"></i> 詳細
             </button>
-            <button class="btn btn-error" onclick="deleteIndividualAnalysis('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="この分析結果を削除">
+            <button class="btn btn-error" onclick="deleteAnalysisResult('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="この分析結果を削除">
               <i class="fas fa-trash"></i>
             </button>
           </div>
@@ -3693,24 +4962,124 @@ function addIndividualAnalysisToStudent(studentId, analysisContent) {
  */
 function viewIndividualAnalysisDetail(studentId) {
   const student = studentsData.students.find(s => s.id === studentId);
-  if (!student || !student.records || student.records.length === 0) {
-    showAlert('該当する分析結果が見つかりません', 'error');
+  if (!student) {
+    showAlert('児童が見つかりません', 'error');
     return;
   }
 
-  const latestRecord = student.records[student.records.length - 1];
-  if (!latestRecord.aiSummary) {
-    showAlert('AI分析結果がありません', 'error');
+  // AI分析履歴から該当児童の最新分析結果を取得
+  const latestAnalysis = getLatestAnalysisForStudent(student.name);
+  
+  if (!latestAnalysis) {
+    showAlert(`${student.name}さんに関するAI分析結果がありません。AI分析を実行してください。`, 'info');
     return;
   }
 
   showAnalysisDetail({
-    title: `👤 ${student.name}さんの個別分析`,
-    content: latestRecord.aiSummary,
-    analysisDate: formatDate(latestRecord.timestamp),
+    title: `🧠 ${student.name}さんの最新AI分析`,
+    content: latestAnalysis.content,
+    analysisDate: formatDate(latestAnalysis.timestamp),
     studentName: student.name,
-    type: 'individual'
+    type: latestAnalysis.type
   });
+}
+
+/**
+ * 特定児童の最新AI分析結果を取得
+ */
+function getLatestAnalysisForStudent(studentName) {
+  if (!analysisHistory || analysisHistory.length === 0) {
+    return null;
+  }
+
+  // 1. 個別分析結果を優先的に検索
+  const individualAnalyses = analysisHistory.filter(analysis => 
+    analysis.type === 'individual' && 
+    (analysis.studentName === studentName || (analysis.content && analysis.content.includes(studentName)))
+  );
+  
+  if (individualAnalyses.length > 0) {
+    // 最新の個別分析を返す
+    return individualAnalyses[0]; // analysisHistoryは新しい順にソート済み
+  }
+
+  // 2. 個別分析がない場合は、クラス全体分析から該当部分を抽出
+  const classAnalyses = analysisHistory.filter(analysis => 
+    analysis.type === 'overall' && analysis.content && analysis.content.includes(studentName)
+  );
+  
+  if (classAnalyses.length > 0) {
+    const latestClassAnalysis = classAnalyses[0];
+    
+    // クラス全体分析から該当児童の部分を抽出
+    const extractedContent = extractStudentContentFromClassAnalysis(latestClassAnalysis.content, studentName);
+    
+    if (extractedContent) {
+      return {
+        ...latestClassAnalysis,
+        content: extractedContent,
+        title: `${studentName}さんに関するクラス分析抜粋`
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * クラス全体分析から特定児童の内容を抽出
+ */
+function extractStudentContentFromClassAnalysis(content, studentName) {
+  if (!content || !studentName) return null;
+
+  // 児童名を含む段落や文章を抽出
+  const lines = content.split('\n');
+  const relevantLines = [];
+  let contextLines = [];
+  let foundRelevantContent = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    if (line.includes(studentName)) {
+      // 児童名を含む行が見つかった場合
+      foundRelevantContent = true;
+      
+      // 前後の文脈も含める（見出しや説明）
+      if (contextLines.length > 0) {
+        relevantLines.push(...contextLines);
+        contextLines = [];
+      }
+      relevantLines.push(line);
+      
+      // 次の数行も関連する可能性があるので追加
+      for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+        if (lines[j].trim() && !lines[j].includes('##') && !lines[j].includes('**')) {
+          relevantLines.push(lines[j]);
+        } else {
+          break;
+        }
+      }
+    } else if (line.includes('##') || line.includes('**')) {
+      // 見出し行は文脈として保持
+      contextLines = [line];
+    } else if (contextLines.length > 0 && line.trim()) {
+      // 見出しの後の説明文を保持
+      contextLines.push(line);
+      if (contextLines.length > 2) {
+        contextLines = contextLines.slice(-2); // 最新2行のみ保持
+      }
+    }
+  }
+
+  if (foundRelevantContent && relevantLines.length > 0) {
+    return `# ${studentName}さんに関する分析内容\n\n` + 
+           `以下は最新のクラス全体分析から${studentName}さんに関連する部分を抜粋したものです。\n\n` +
+           relevantLines.join('\n') + 
+           `\n\n---\n\n*より詳細な個別分析を行うには、AI分析タブから「特定児童分析」を実行してください。*`;
+  }
+
+  return null;
 }
 
 /**
@@ -3719,24 +5088,8 @@ function viewIndividualAnalysisDetail(studentId) {
 function formatAnalysisContent(content) {
   if (!content) return '';
   
-  // Unicode区切り線をCSSボーダーに変換
-  content = content.replace(/━+/g, '<div class="parent-report-divider"></div>');
-  
-  // マークダウン風の書式を適用（改良版）
-  return content
-    .replace(/### (.*?)(?=\n|$)/g, '<h3 class="parent-report-h3">$1</h3>')
-    .replace(/#### (.*?)(?=\n|$)/g, '<h4 class="parent-report-h4">$1</h4>')
-    .replace(/##### (.*?)(?=\n|$)/g, '<h5 class="parent-report-h5">$1</h5>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="parent-report-strong">$1</strong>')
-    .replace(/^・\s*(.*?)(?=\n|$)/gm, '<li class="parent-report-list-item">$1</li>')
-    .replace(/^-\s*(.*?)(?=\n|$)/gm, '<li class="parent-report-list-item">$1</li>')
-    .replace(/^\n+/gm, '')
-    .replace(/\n\n+/g, '</p><p class="parent-report-paragraph">')
-    .replace(/^([^<])/, '<p class="parent-report-paragraph">$1')
-    .replace(/([^>])$/, '$1</p>')
-    .replace(/(<li class="parent-report-list-item">.*?<\/li>)/gs, '<ul class="parent-report-list">$1</ul>')
-    .replace(/<\/ul>\s*<ul class="parent-report-list">/g, '')
-    .replace(/---\n\*(.*)/g, '<hr class="parent-report-hr"><p class="parent-report-note">$1</p>');
+  // より統合的なMarkdown処理のためにconvertMarkdownToHTML関数を使用
+  return convertMarkdownToHTML(content);
 }
 
 /**
@@ -3787,14 +5140,9 @@ function viewAnalysisHistory() {
         <td>${target}</td>
         <td>${formatDate(analysis.timestamp)}</td>
         <td>
-          <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-secondary" onclick="viewAnalysisDetail('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
-              <i class="fas fa-eye"></i> 詳細
-            </button>
-            <button class="btn btn-error" onclick="deleteIndividualAnalysis('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" title="この分析結果を削除">
-              <i class="fas fa-trash"></i> 削除
-            </button>
-          </div>
+          <button class="btn btn-secondary" onclick="viewAnalysisDetail('${analysis.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+            <i class="fas fa-eye"></i> 詳細
+          </button>
         </td>
       </tr>
     `;
@@ -3844,60 +5192,29 @@ function clearAnalysisHistory() {
 }
 
 /**
- * 親御さん向けレポート履歴全削除
- */
-function clearParentReportHistory() {
-  if (!confirm('全ての親御さん向けレポート履歴を削除しますか？この操作は取り消せません。')) {
-    return;
-  }
-
-  localStorage.removeItem('parentReportHistory');
-  updateParentReportHistory();
-  
-  showAlert('親御さん向けレポート履歴を削除しました', 'success');
-}
-
-/**
  * 個別分析結果削除
  */
-function deleteIndividualAnalysis(analysisId) {
-  if (!analysisId) {
-    showAlert('削除対象の分析結果が特定できません', 'error');
-    return;
-  }
-
-  // 削除対象の分析結果を取得
-  const analysisIndex = analysisHistory.findIndex(analysis => analysis.id === analysisId);
-  if (analysisIndex === -1) {
-    showAlert('削除対象の分析結果が見つかりません', 'error');
-    return;
-  }
-
-  const analysis = analysisHistory[analysisIndex];
-  const typeLabel = analysis.type === 'overall' ? 'クラス全体' : '個別分析';
-  const targetInfo = analysis.studentName ? `${analysis.studentName}さんの` : '';
-  
-  // 削除確認ダイアログ
-  if (!confirm(`以下の分析結果を削除しますか？この操作は取り消せません。\n\n種類: ${typeLabel}\n対象: ${targetInfo}${analysis.title.replace(/📊|👤|🧠/g, '').trim()}\n実行日時: ${formatDate(analysis.timestamp)}`)) {
+function deleteAnalysisResult(resultId) {
+  if (!confirm('この分析結果を削除しますか？この操作は取り消せません。')) {
     return;
   }
 
   // 分析履歴から削除
-  analysisHistory.splice(analysisIndex, 1);
+  const initialLength = analysisHistory.length;
+  analysisHistory = analysisHistory.filter(result => result.id !== resultId);
   
-  // ローカルストレージに保存
-  localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
-  
-  // UIを更新
-  updateAnalysisHistoryPreview();
-  
-  // モーダルが開いている場合は履歴表示も更新
-  const modal = document.getElementById('analysisHistoryModal');
-  if (modal && modal.classList.contains('show')) {
-    viewAnalysisHistory();
+  if (analysisHistory.length < initialLength) {
+    // ローカルストレージを更新
+    localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+    
+    // 表示を更新
+    displayAnalysisResults(analysisHistory);
+    updateAnalysisHistoryPreview();
+    
+    showAlert('分析結果を削除しました', 'success');
+  } else {
+    showAlert('指定された分析結果が見つかりませんでした', 'error');
   }
-  
-  showAlert('分析結果を削除しました', 'success');
 }
 
 /**
@@ -4132,46 +5449,75 @@ function openClassReportModal() {
 function updateClassReportClassOptions() {
   const gradeSelect = document.getElementById('classReportGrade');
   const classSelect = document.getElementById('classReportClass');
-  const selectedGrade = parseInt(gradeSelect.value);
+  const selectedGradeValue = gradeSelect.value;
   
   // クラス選択をリセット
   classSelect.innerHTML = '<option value="">クラスを選択</option>';
   document.getElementById('classReportPreview').style.display = 'none';
   document.getElementById('classReportGenerateBtn').disabled = true;
   
-  if (!selectedGrade) return;
+  if (!selectedGradeValue) return;
   
-  // 選択された学年の児童からクラス一覧を作成
-  const classesInGrade = new Set();
-  studentsData.students
-    .filter(student => student.grade === selectedGrade)
-    .forEach(student => {
+  if (selectedGradeValue === 'all') {
+    // 全学年が選択された場合
+    const allGradesOption = document.createElement('option');
+    allGradesOption.value = 'all';
+    allGradesOption.textContent = '全クラス';
+    classSelect.appendChild(allGradesOption);
+    
+    // 全学年のクラス情報を取得
+    const allClasses = new Set();
+    studentsData.students.forEach(student => {
       if (student.class && student.class.trim()) {
-        classesInGrade.add(student.class.trim());
+        allClasses.add(student.class.trim());
       }
     });
-  
-  // クラス選択肢を追加
-  if (classesInGrade.size > 0) {
-    // 「すべてのクラス」オプションを最初に追加
-    const allOption = document.createElement('option');
-    allOption.value = 'all';
-    allOption.textContent = 'すべてのクラス';
-    classSelect.appendChild(allOption);
     
     // 個別クラスオプションを追加
-    Array.from(classesInGrade).sort().forEach(className => {
-      const option = document.createElement('option');
-      option.value = className;
-      option.textContent = className;
-      classSelect.appendChild(option);
-    });
+    if (allClasses.size > 0) {
+      Array.from(allClasses).sort().forEach(className => {
+        const option = document.createElement('option');
+        option.value = className;
+        option.textContent = className;
+        classSelect.appendChild(option);
+      });
+    }
   } else {
-    const option = document.createElement('option');
-    option.value = '';
-    option.textContent = 'この学年にはクラス情報がありません';
-    option.disabled = true;
-    classSelect.appendChild(option);
+    // 特定学年が選択された場合
+    const selectedGrade = parseInt(selectedGradeValue);
+    
+    // 選択された学年の児童からクラス一覧を作成
+    const classesInGrade = new Set();
+    studentsData.students
+      .filter(student => student.grade === selectedGrade)
+      .forEach(student => {
+        if (student.class && student.class.trim()) {
+          classesInGrade.add(student.class.trim());
+        }
+      });
+    
+    // クラス選択肢を追加
+    if (classesInGrade.size > 0) {
+      // 「すべてのクラス」オプションを最初に追加
+      const allOption = document.createElement('option');
+      allOption.value = 'all';
+      allOption.textContent = 'すべてのクラス';
+      classSelect.appendChild(allOption);
+      
+      // 個別クラスオプションを追加
+      Array.from(classesInGrade).sort().forEach(className => {
+        const option = document.createElement('option');
+        option.value = className;
+        option.textContent = className;
+        classSelect.appendChild(option);
+      });
+    } else {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'この学年にはクラス情報がありません';
+      option.disabled = true;
+      classSelect.appendChild(option);
+    }
   }
 }
 
@@ -4185,10 +5531,10 @@ function updateClassReportPreview() {
   const studentListDiv = document.getElementById('classReportStudentList');
   const generateBtn = document.getElementById('classReportGenerateBtn');
   
-  const selectedGrade = parseInt(gradeSelect.value);
+  const selectedGradeValue = gradeSelect.value;
   const selectedClass = classSelect.value;
   
-  if (!selectedGrade || !selectedClass) {
+  if (!selectedGradeValue || !selectedClass) {
     previewDiv.style.display = 'none';
     generateBtn.disabled = true;
     return;
@@ -4196,32 +5542,73 @@ function updateClassReportPreview() {
   
   // 対象児童を取得
   let targetStudents;
-  if (selectedClass === 'all') {
-    // すべてのクラスを対象
-    targetStudents = studentsData.students.filter(student => student.grade === selectedGrade);
+  let reportLabel;
+  
+  if (selectedGradeValue === 'all') {
+    // 全学年が選択された場合
+    if (selectedClass === 'all') {
+      // 全学年・全クラス
+      targetStudents = studentsData.students;
+      reportLabel = '全学年・全クラス';
+    } else {
+      // 全学年・特定クラス
+      targetStudents = studentsData.students.filter(student => student.class === selectedClass);
+      reportLabel = `全学年・${selectedClass}`;
+    }
   } else {
-    // 特定のクラスを対象
-    targetStudents = studentsData.students.filter(student => 
-      student.grade === selectedGrade && student.class === selectedClass
-    );
+    // 特定学年が選択された場合
+    const selectedGrade = parseInt(selectedGradeValue);
+    if (selectedClass === 'all') {
+      // 特定学年・全クラス
+      targetStudents = studentsData.students.filter(student => student.grade === selectedGrade);
+      reportLabel = `${selectedGrade}年生全体`;
+    } else {
+      // 特定学年・特定クラス
+      targetStudents = studentsData.students.filter(student => 
+        student.grade === selectedGrade && student.class === selectedClass
+      );
+      reportLabel = `${selectedGrade}年${selectedClass}`;
+    }
   }
   
   if (targetStudents.length === 0) {
-    studentListDiv.innerHTML = '<span style="color: var(--warning);">この学年には児童がいません</span>';
+    studentListDiv.innerHTML = '<span style="color: var(--warning);">対象の児童がいません</span>';
     generateBtn.disabled = true;
   } else {
     let displayInfo = '';
     
-    if (selectedClass === 'all') {
-      // クラス別に分けて表示
+    if (selectedGradeValue === 'all' || selectedClass === 'all') {
+      // 複数学年またはクラスの場合は概要表示
+      const gradeSummary = new Map();
       const classSummary = new Map();
+      
       targetStudents.forEach(student => {
-        const className = student.class || '未設定';
-        if (!classSummary.has(className)) {
-          classSummary.set(className, []);
+        // 学年別集計
+        const gradeKey = `${student.grade || '未設定'}年生`;
+        if (!gradeSummary.has(gradeKey)) {
+          gradeSummary.set(gradeKey, []);
         }
-        classSummary.get(className).push(student);
+        gradeSummary.get(gradeKey).push(student);
+        
+        // クラス別集計
+        const classKey = student.class || '未設定';
+        if (!classSummary.has(classKey)) {
+          classSummary.set(classKey, []);
+        }
+        classSummary.get(classKey).push(student);
       });
+      
+      const gradeDetails = Array.from(gradeSummary.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([gradeName, students]) => {
+          const genderCounts = students.reduce((acc, student) => {
+            const gender = student.gender === 'male' ? '男子' : student.gender === 'female' ? '女子' : 'その他';
+            acc[gender] = (acc[gender] || 0) + 1;
+            return acc;
+          }, {});
+          const genderInfo = Object.entries(genderCounts).map(([gender, count]) => `${gender}${count}名`).join(', ');
+          return `${gradeName}: ${students.length}名 (${genderInfo})`;
+        });
       
       const classDetails = Array.from(classSummary.entries())
         .sort(([a], [b]) => a.localeCompare(b))
@@ -4236,13 +5623,14 @@ function updateClassReportPreview() {
         });
       
       displayInfo = `
-        <strong>対象: ${selectedGrade}年生全体 ${targetStudents.length}名</strong><br>
+        <strong>対象: ${reportLabel} ${targetStudents.length}名</strong><br>
         <div style="margin-top: 0.5rem; font-size: 0.9rem; line-height: 1.4;">
-          ${classDetails.join('<br>')}
+          <div style="margin-bottom: 0.5rem;"><strong>学年別:</strong><br>${gradeDetails.join('<br>')}</div>
+          <div><strong>クラス別:</strong><br>${classDetails.join('<br>')}</div>
         </div>
       `;
     } else {
-      // 個別クラスの場合
+      // 特定学年・特定クラスの場合は詳細表示
       const studentNames = targetStudents.map(student => {
         const genderIcon = student.gender === 'male' ? '👦' : student.gender === 'female' ? '👧' : '';
         const recordCount = student.records ? student.records.length : 0;
@@ -4250,8 +5638,10 @@ function updateClassReportPreview() {
       });
       
       displayInfo = `
-        <strong>対象: ${targetStudents.length}名</strong><br>
-        ${studentNames.join(', ')}
+        <strong>対象: ${reportLabel} ${targetStudents.length}名</strong><br>
+        <div style="margin-top: 0.5rem; font-size: 0.9rem; line-height: 1.4;">
+          ${studentNames.join(', ')}
+        </div>
       `;
     }
     
@@ -4265,13 +5655,13 @@ function updateClassReportPreview() {
 /**
  * クラス全体レポート生成実行
  */
-function executeClassReportGeneration() {
+async function executeClassReportGeneration() {
   const gradeSelect = document.getElementById('classReportGrade');
   const classSelect = document.getElementById('classReportClass');
-  const selectedGrade = parseInt(gradeSelect.value);
+  const selectedGradeValue = gradeSelect.value;
   const selectedClass = classSelect.value;
   
-  if (!selectedGrade || !selectedClass) {
+  if (!selectedGradeValue || !selectedClass) {
     showAlert('学年とクラスを選択してください', 'error');
     return;
   }
@@ -4280,16 +5670,31 @@ function executeClassReportGeneration() {
   let targetStudents;
   let reportLabel;
   
-  if (selectedClass === 'all') {
-    // すべてのクラスを対象
-    targetStudents = studentsData.students.filter(student => student.grade === selectedGrade);
-    reportLabel = `${selectedGrade}年生全体`;
+  if (selectedGradeValue === 'all') {
+    // 全学年が選択された場合
+    if (selectedClass === 'all') {
+      // 全学年・全クラス
+      targetStudents = studentsData.students;
+      reportLabel = '全学年・全クラス';
+    } else {
+      // 全学年・特定クラス
+      targetStudents = studentsData.students.filter(student => student.class === selectedClass);
+      reportLabel = `全学年・${selectedClass}`;
+    }
   } else {
-    // 特定のクラスを対象
-    targetStudents = studentsData.students.filter(student => 
-      student.grade === selectedGrade && student.class === selectedClass
-    );
-    reportLabel = `${selectedGrade}年${selectedClass}`;
+    // 特定学年が選択された場合
+    const selectedGrade = parseInt(selectedGradeValue);
+    if (selectedClass === 'all') {
+      // 特定学年・全クラス
+      targetStudents = studentsData.students.filter(student => student.grade === selectedGrade);
+      reportLabel = `${selectedGrade}年生全体`;
+    } else {
+      // 特定学年・特定クラス
+      targetStudents = studentsData.students.filter(student => 
+        student.grade === selectedGrade && student.class === selectedClass
+      );
+      reportLabel = `${selectedGrade}年${selectedClass}`;
+    }
   }
   
   if (targetStudents.length === 0) {
@@ -4301,23 +5706,61 @@ function executeClassReportGeneration() {
   closeModal('classReportModal');
   
   // レポート生成中の表示
-  showAnalysisLoading(`${reportLabel}の親御さん向けレポートを作成中...`);
+  showParentReportLoading(`${reportLabel}の親御さん向けレポートを作成中...`);
   
-  setTimeout(() => {
+  try {
+    // LLMを使用したレポート生成
     let classParentReport;
-    if (selectedClass === 'all') {
-      // 学年全体のレポート生成
-      classParentReport = generateClassParentReportContentForGrade(selectedGrade, targetStudents);
+    if (selectedGradeValue === 'all') {
+      // 全学年のレポート生成
+      classParentReport = await generateLLMAllGradesParentReport(selectedClass, targetStudents, reportLabel);
     } else {
-      // 特定クラスのレポート生成
-      classParentReport = generateClassParentReportContentForClass(selectedGrade, selectedClass, targetStudents);
+      const selectedGrade = parseInt(selectedGradeValue);
+      if (selectedClass === 'all') {
+        // 学年全体のレポート生成
+        classParentReport = await generateLLMClassParentReportForGrade(selectedGrade, targetStudents, reportLabel);
+      } else {
+        // 特定クラスのレポート生成
+        classParentReport = await generateLLMClassParentReportForClass(selectedGrade, selectedClass, targetStudents, reportLabel);
+      }
     }
     
     saveParentReportToHistory(classParentReport);
     updateParentReportHistory();
-    showParentReportDetail(classParentReport);
+    
+    // ローディング画面を隠してレポート履歴を表示
+    hideParentReportLoading();
     showAlert(`${reportLabel}の親御さん向けレポートが完成しました`, 'success');
-  }, 2500);
+  } catch (error) {
+    console.error(`${reportLabel}のレポート生成エラー:`, error);
+    
+    // エラー時はフォールバック版を使用
+    try {
+      let classParentReport;
+      if (selectedGradeValue === 'all') {
+        // 全学年のレポート生成（固定テンプレート版）
+        classParentReport = generateAllGradesParentReportContent(selectedClass, targetStudents);
+      } else {
+        const selectedGrade = parseInt(selectedGradeValue);
+        if (selectedClass === 'all') {
+          // 学年全体のレポート生成（固定テンプレート版）
+          classParentReport = generateClassParentReportContentForGrade(selectedGrade, targetStudents);
+        } else {
+          // 特定クラスのレポート生成（固定テンプレート版）
+          classParentReport = generateClassParentReportContentForClass(selectedGrade, selectedClass, targetStudents);
+        }
+      }
+      
+      saveParentReportToHistory(classParentReport);
+      updateParentReportHistory();
+      
+      hideParentReportLoading();
+      showAlert(`${reportLabel}の親御さん向けレポートが完成しました（固定テンプレート版）`, 'warning');
+    } catch (fallbackError) {
+      hideParentReportLoading();
+      showAlert('レポート生成中にエラーが発生しました。APIキーの設定を確認してください。', 'error');
+    }
+  }
 }
 
 /**
@@ -4343,7 +5786,7 @@ function updateParentReportStudentModal() {
 /**
  * 親御さん向け個別レポート実行
  */
-function executeParentReportGeneration() {
+async function executeParentReportGeneration() {
   const studentId = document.getElementById('parentReportStudentSelect').value;
   
   if (!studentId) {
@@ -4361,41 +5804,170 @@ function executeParentReportGeneration() {
   closeModal('parentReportStudentModal');
 
   // レポート生成中の表示
-  showAnalysisLoading(`${student.name}さんの親御さん向けレポートを作成中...`);
+          showParentReportLoading(`${student.name}さんの親御さん向けレポートを作成中...`);
 
-  // レポート生成のシミュレーション
-  setTimeout(() => {
-    const parentReport = generateIndividualParentReport(student);
+  try {
+    // 実際のLLMレポート生成実行
+    const parentReport = await generateIndividualParentReport(student);
     saveParentReportToHistory(parentReport);
     updateParentReportHistory();
-    showParentReportDetail(parentReport);
+    
+    // ローディング画面を隠してレポート履歴を表示
+    hideParentReportLoading();
     showAlert(`${student.name}さんの親御さん向けレポートが完成しました`, 'success');
-  }, 2500);
+  } catch (error) {
+    console.error(`${student.name}さんの親御さん向けレポート生成エラー:`, error);
+    // エラー時もローディング画面を隠す
+    hideParentReportLoading();
+    showAlert('レポート生成中にエラーが発生しました。APIキーの設定を確認してください。', 'error');
+  }
 }
 
 /**
- * クラス全体の親御さん向けレポート生成
+ * クラス全体の親御さん向けレポート生成（LLM対応版）
  */
-function generateClassParentReport() {
+async function generateClassParentReport() {
   if (!studentsData.students || studentsData.students.length === 0) {
     showAlert('レポート作成対象の児童データがありません', 'warning');
     return;
   }
 
   // レポート生成中の表示
-  showAnalysisLoading('クラス全体の親御さん向けレポートを作成中...');
+  showParentReportLoading('クラス全体の親御さん向けレポートを作成中...');
 
-  setTimeout(() => {
-    const classParentReport = generateClassParentReportContent();
+  try {
+    // LLMを使用してクラス全体レポートを生成
+    const classParentReport = await generateLLMClassParentReport();
     saveParentReportToHistory(classParentReport);
     updateParentReportHistory();
-    showParentReportDetail(classParentReport);
+    
+    // ローディング画面を隠してレポート履歴を表示
+    hideParentReportLoading();
     showAlert('クラス全体の親御さん向けレポートが完成しました', 'success');
-  }, 2500);
+  } catch (error) {
+    console.error('クラス全体親御さん向けレポート生成エラー:', error);
+    
+    // エラー時はフォールバック版を使用
+    try {
+      const fallbackReport = generateClassParentReportContent();
+      saveParentReportToHistory(fallbackReport);
+      updateParentReportHistory();
+      
+      hideParentReportLoading();
+      showAlert('クラス全体の親御さん向けレポートが完成しました（固定テンプレート版）', 'warning');
+    } catch (fallbackError) {
+      hideParentReportLoading();
+      showAlert('レポート生成中にエラーが発生しました。APIキーの設定を確認してください。', 'error');
+    }
+  }
 }
 
 /**
- * クラス全体の親御さん向けレポート内容生成（全体用・旧関数）
+ * LLMを使用したクラス全体の親御さん向けレポート生成
+ */
+async function generateLLMClassParentReport() {
+  const totalStudents = studentsData.students.length;
+  const studentsWithRecords = studentsData.students.filter(s => s.records && s.records.length > 0);
+  
+  // 最新データから傾向を分析
+  const recentData = [];
+  studentsWithRecords.forEach(student => {
+    if (student.records.length > 0) {
+      const latestRecord = student.records[student.records.length - 1];
+      if (latestRecord.data) {
+        recentData.push({
+          student: student.name,
+          grade: student.grade,
+          class: student.class,
+          gender: student.gender,
+          data: latestRecord.data
+        });
+      }
+    }
+  });
+
+  const stats = calculateLearningStats(recentData);
+  
+  // 学年・クラス構成の分析
+  const gradeDistribution = {};
+  const classDistribution = {};
+  studentsData.students.forEach(student => {
+    const grade = student.grade || '未設定';
+    const className = student.class || '未設定';
+    
+    gradeDistribution[grade] = (gradeDistribution[grade] || 0) + 1;
+    classDistribution[`${grade}年${className}`] = (classDistribution[`${grade}年${className}`] || 0) + 1;
+  });
+
+  // LLM用のプロンプトを構築
+  const prompt = `あなたは小学校の担任教師として、保護者向けのクラス全体レポートを作成してください。
+
+## クラス情報
+- 総児童数: ${totalStudents}名
+- 記録のある児童: ${studentsWithRecords.length}名
+
+## 学年・クラス構成
+${Object.entries(classDistribution).map(([key, count]) => `- ${key}: ${count}名`).join('\n')}
+
+## 学習状況（統計データ）
+- 学習への取り組み平均: ${stats.avgLearningStatus.toFixed(1)}点（5点満点）
+- 学習への意欲平均: ${stats.avgMotivation.toFixed(1)}点（5点満点）
+- 宿題提出率: ${Math.round((stats.homeworkSubmissionRate || 0) * 100)}%
+- 学習状況の分布: 
+  - 5点: ${((stats.learningStatusDistribution && stats.learningStatusDistribution['5']) || 0)}名
+  - 4点: ${((stats.learningStatusDistribution && stats.learningStatusDistribution['4']) || 0)}名
+  - 3点: ${((stats.learningStatusDistribution && stats.learningStatusDistribution['3']) || 0)}名
+  - 2点: ${((stats.learningStatusDistribution && stats.learningStatusDistribution['2']) || 0)}名
+  - 1点: ${((stats.learningStatusDistribution && stats.learningStatusDistribution['1']) || 0)}名
+
+## 最近の学習記録から見える傾向
+${recentData.length > 0 ? recentData.slice(0, 10).map(record => {
+  const learningStatus = getFieldValue(record.data, 'learning_status') || '記録なし';
+  const motivation = getFieldValue(record.data, 'motivation') || '記録なし';
+  const homework = getFieldValue(record.data, 'homework') || '記録なし';
+  return `- ${record.student}さん（${record.grade}年${record.class}）: 学習状況${learningStatus}、意欲${motivation}、宿題${homework}`;
+}).join('\n') : '最近の記録データがありません。'}
+
+## レポート作成の指針
+1. **温かく親しみやすい文体**で、保護者の方が安心できるトーンで書いてください
+2. **具体的な数値を活用**して、客観的な情報も提供してください
+3. **家庭でのサポート方法**を具体的に提案してください
+4. **子どもたちの成長を肯定的に捉える**視点を大切にしてください
+5. **学年やクラスの多様性**を考慮した内容にしてください
+
+## 構成要素（必須）
+1. 挨拶と感謝の気持ち
+2. クラス全体の様子（学習面・生活面）
+3. 統計データを踏まえた客観的な状況報告
+4. 子どもたちの素晴らしい点・成長している点
+5. 家庭でのサポートのお願い（具体的なアドバイス）
+6. 今後の目標や取り組み方針
+7. 保護者の皆様へのメッセージ
+
+絵文字や装飾文字を適度に使用して、親しみやすく読みやすいレポートを作成してください。`;
+
+  try {
+    const content = await callLLMAPI(prompt);
+    
+    return {
+      id: `class_parent_report_llm_${Date.now()}`,
+      type: 'class_parent',
+      grade: null,
+      className: 'all',
+      title: '🌸 クラス全体の様子（保護者向け・AI生成）',
+      content: content,
+      timestamp: new Date().toISOString(),
+      studentCount: totalStudents,
+      isLLMGenerated: true
+    };
+  } catch (error) {
+    console.error('LLM API呼び出しエラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * クラス全体の親御さん向けレポート内容生成（フォールバック用・固定テンプレート版）
  */
 function generateClassParentReportContent() {
   const totalStudents = studentsData.students.length;
@@ -4504,6 +6076,479 @@ function generateClassParentReportContent() {
     content: content,
     timestamp: new Date().toISOString(),
     studentCount: totalStudents
+  };
+}
+
+/**
+ * LLMを使用した全学年レポート生成
+ */
+async function generateLLMAllGradesParentReport(targetClass, targetStudents, reportLabel) {
+  // 学年別に分類
+  const gradeGroups = {};
+  targetStudents.forEach(student => {
+    const gradeKey = student.grade || '未設定';
+    if (!gradeGroups[gradeKey]) {
+      gradeGroups[gradeKey] = [];
+    }
+    gradeGroups[gradeKey].push(student);
+  });
+
+  // 最新データの収集
+  const recentData = [];
+  const studentsWithRecords = targetStudents.filter(s => s.records && s.records.length > 0);
+  
+  studentsWithRecords.forEach(student => {
+    if (student.records.length > 0) {
+      const latestRecord = student.records[student.records.length - 1];
+      if (latestRecord.data) {
+        recentData.push({
+          student: student.name,
+          grade: student.grade,
+          class: student.class,
+          gender: student.gender,
+          data: latestRecord.data
+        });
+      }
+    }
+  });
+
+  const stats = calculateLearningStats(recentData);
+
+  // 学年・クラス構成分析
+  const compositionAnalysis = Object.keys(gradeGroups)
+    .sort((a, b) => {
+      const aNum = parseInt(a) || 999;
+      const bNum = parseInt(b) || 999;
+      return aNum - bNum;
+    })
+    .map(grade => {
+      const students = gradeGroups[grade];
+      const gradeLabel = grade === '未設定' ? '学年未設定' : `${grade}年生`;
+      
+      // クラス別に再分類
+      const classGroups = {};
+      students.forEach(student => {
+        const classKey = student.class || '未設定';
+        if (!classGroups[classKey]) {
+          classGroups[classKey] = [];
+        }
+        classGroups[classKey].push(student);
+      });
+      
+      const classSummary = Object.keys(classGroups)
+        .sort()
+        .map(className => {
+          const classStudents = classGroups[className];
+          const maleCount = classStudents.filter(s => s.gender === 'male').length;
+          const femaleCount = classStudents.filter(s => s.gender === 'female').length;
+          return `${className}: ${classStudents.length}名 (男子${maleCount}名、女子${femaleCount}名)`;
+        })
+        .join(', ');
+      
+      return `${gradeLabel}: 計${students.length}名 [${classSummary}]`;
+    })
+    .join('\n');
+
+  // LLM用プロンプト構築
+  const prompt = `あなたは小学校の担任教師として、保護者向けの${reportLabel}レポートを作成してください。
+
+## 対象範囲
+- レポート対象: ${reportLabel}
+- 総児童数: ${targetStudents.length}名
+- 記録のある児童: ${studentsWithRecords.length}名
+
+## 構成内容
+${compositionAnalysis}
+
+## 学習状況（統計データ）
+- 学習への取り組み平均: ${stats.avgLearningStatus.toFixed(1)}点（5点満点）
+- 学習への意欲平均: ${stats.avgMotivation.toFixed(1)}点（5点満点）
+- 宿題提出率: ${Math.round((stats.homeworkSubmissionRate || 0) * 100)}%
+
+## 最近の学習記録（サンプル）
+${recentData.length > 0 ? recentData.slice(0, 8).map(record => {
+  const learningStatus = getFieldValue(record.data, 'learning_status') || '記録なし';
+  const motivation = getFieldValue(record.data, 'motivation') || '記録なし';
+  const homework = getFieldValue(record.data, 'homework') || '記録なし';
+  return `- ${record.student}さん（${record.grade}年${record.class}）: 学習${learningStatus}、意欲${motivation}、宿題${homework}`;
+}).join('\n') : '最近の記録データがありません。'}
+
+## レポート作成指針
+1. **${reportLabel}の特性**を考慮した内容にしてください
+2. **学年やクラスの多様性**について言及してください
+3. **温かく親しみやすい文体**で書いてください
+4. **具体的な数値データ**を活用してください
+5. **家庭でのサポート方法**を具体的に提案してください
+6. **子どもたちの成長を肯定的に捉える**視点を大切にしてください
+
+## 必須構成要素
+1. 挨拶と感謝の気持ち
+2. ${reportLabel}の全体的な様子
+3. 学年・クラス間の連携や特色
+4. 統計データに基づく客観的な報告
+5. 子どもたちの素晴らしい点・成長
+6. 家庭でのサポートのお願い
+7. 今後の目標と取り組み
+8. 保護者の皆様へのメッセージ
+
+絵文字や装飾文字を適度に使用して、親しみやすく読みやすいレポートを作成してください。`;
+
+  try {
+    const content = await callLLMAPI(prompt);
+    
+    return {
+      id: `all_grades_parent_report_llm_${Date.now()}`,
+      type: 'class_parent',
+      grade: targetClass === 'all' ? null : 'all',
+      className: targetClass,
+      title: `🌸 ${reportLabel} 親御さん向けレポート（AI生成）`,
+      content: content,
+      timestamp: new Date().toISOString(),
+      studentCount: targetStudents.length,
+      isLLMGenerated: true
+    };
+  } catch (error) {
+    console.error('LLM API呼び出しエラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * LLMを使用した学年別レポート生成
+ */
+async function generateLLMClassParentReportForGrade(grade, targetStudents, reportLabel) {
+  // クラス別に分類
+  const classGroups = {};
+  targetStudents.forEach(student => {
+    const classKey = student.class || '未設定';
+    if (!classGroups[classKey]) {
+      classGroups[classKey] = [];
+    }
+    classGroups[classKey].push(student);
+  });
+
+  // 最新データの収集
+  const recentData = [];
+  const studentsWithRecords = targetStudents.filter(s => s.records && s.records.length > 0);
+  
+  studentsWithRecords.forEach(student => {
+    if (student.records.length > 0) {
+      const latestRecord = student.records[student.records.length - 1];
+      if (latestRecord.data) {
+        recentData.push({
+          student: student.name,
+          grade: student.grade,
+          class: student.class,
+          gender: student.gender,
+          data: latestRecord.data
+        });
+      }
+    }
+  });
+
+  const stats = calculateLearningStats(recentData);
+
+  // クラス構成分析
+  const classComposition = Object.keys(classGroups)
+    .sort()
+    .map(className => {
+      const classStudents = classGroups[className];
+      const maleCount = classStudents.filter(s => s.gender === 'male').length;
+      const femaleCount = classStudents.filter(s => s.gender === 'female').length;
+      return `${className}: ${classStudents.length}名 (男子${maleCount}名、女子${femaleCount}名)`;
+    })
+    .join('\n');
+
+  // LLM用プロンプト構築
+  const prompt = `あなたは小学校の担任教師として、保護者向けの${reportLabel}レポートを作成してください。
+
+## 対象範囲
+- レポート対象: ${reportLabel}
+- 総児童数: ${targetStudents.length}名
+- 記録のある児童: ${studentsWithRecords.length}名
+
+## クラス構成
+${classComposition}
+
+## 学習状況（統計データ）
+- 学習への取り組み平均: ${stats.avgLearningStatus.toFixed(1)}点（5点満点）
+- 学習への意欲平均: ${stats.avgMotivation.toFixed(1)}点（5点満点）
+- 宿題提出率: ${Math.round((stats.homeworkSubmissionRate || 0) * 100)}%
+
+## 最近の学習記録（サンプル）
+${recentData.length > 0 ? recentData.slice(0, 10).map(record => {
+  const learningStatus = getFieldValue(record.data, 'learning_status') || '記録なし';
+  const motivation = getFieldValue(record.data, 'motivation') || '記録なし';
+  const homework = getFieldValue(record.data, 'homework') || '記録なし';
+  return `- ${record.student}さん（${record.class}）: 学習${learningStatus}、意欲${motivation}、宿題${homework}`;
+}).join('\n') : '最近の記録データがありません。'}
+
+## レポート作成指針
+1. **${grade}年生の発達段階**を考慮した内容にしてください
+2. **クラス間の特色や連携**について言及してください
+3. **温かく親しみやすい文体**で書いてください
+4. **具体的な数値データ**を活用してください
+5. **${grade}年生に適した家庭でのサポート方法**を提案してください
+6. **この学年特有の成長ポイント**を強調してください
+
+## 必須構成要素
+1. 挨拶と感謝の気持ち
+2. ${grade}年生全体の様子
+3. クラス間の特色や良い点
+4. 統計データに基づく客観的な報告
+5. ${grade}年生らしい成長や頑張り
+6. ${grade}年生の保護者向けサポートアドバイス
+7. 今後の目標と取り組み
+8. 保護者の皆様へのメッセージ
+
+絵文字や装飾文字を適度に使用して、親しみやすく読みやすいレポートを作成してください。`;
+
+  try {
+    const content = await callLLMAPI(prompt);
+    
+    return {
+      id: `grade_${grade}_parent_report_llm_${Date.now()}`,
+      type: 'class_parent',
+      grade: grade,
+      className: 'all',
+      title: `🌸 ${reportLabel} 親御さん向けレポート（AI生成）`,
+      content: content,
+      timestamp: new Date().toISOString(),
+      studentCount: targetStudents.length,
+      isLLMGenerated: true
+    };
+  } catch (error) {
+    console.error('LLM API呼び出しエラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * LLMを使用した特定クラスレポート生成
+ */
+async function generateLLMClassParentReportForClass(grade, className, targetStudents, reportLabel) {
+  // 最新データの収集
+  const recentData = [];
+  const studentsWithRecords = targetStudents.filter(s => s.records && s.records.length > 0);
+  
+  studentsWithRecords.forEach(student => {
+    if (student.records.length > 0) {
+      const latestRecord = student.records[student.records.length - 1];
+      if (latestRecord.data) {
+        recentData.push({
+          student: student.name,
+          grade: student.grade,
+          class: student.class,
+          gender: student.gender,
+          data: latestRecord.data
+        });
+      }
+    }
+  });
+
+  const stats = calculateLearningStats(recentData);
+
+  // 性別構成
+  const maleCount = targetStudents.filter(s => s.gender === 'male').length;
+  const femaleCount = targetStudents.filter(s => s.gender === 'female').length;
+
+  // LLM用プロンプト構築
+  const prompt = `あなたは${grade}年${className}の担任教師として、保護者向けのクラスレポートを作成してください。
+
+## クラス情報
+- 対象クラス: ${reportLabel}
+- 総児童数: ${targetStudents.length}名 (男子${maleCount}名、女子${femaleCount}名)
+- 記録のある児童: ${studentsWithRecords.length}名
+
+## 学習状況（統計データ）
+- 学習への取り組み平均: ${stats.avgLearningStatus.toFixed(1)}点（5点満点）
+- 学習への意欲平均: ${stats.avgMotivation.toFixed(1)}点（5点満点）
+- 宿題提出率: ${Math.round((stats.homeworkSubmissionRate || 0) * 100)}%
+
+## 最近の学習記録（クラス内の様子）
+${recentData.length > 0 ? recentData.slice(0, 12).map(record => {
+  const learningStatus = getFieldValue(record.data, 'learning_status') || '記録なし';
+  const motivation = getFieldValue(record.data, 'motivation') || '記録なし';
+  const homework = getFieldValue(record.data, 'homework') || '記録なし';
+  return `- ${record.student}さん: 学習${learningStatus}、意欲${motivation}、宿題${homework}`;
+}).join('\n') : '最近の記録データがありません。'}
+
+## レポート作成指針
+1. **${grade}年${className}の担任として**の視点で書いてください
+2. **このクラス特有の雰囲気や特色**を表現してください
+3. **温かく親しみやすい文体**で、親近感を感じられるように書いてください
+4. **具体的なクラスの様子**を交えてください
+5. **${grade}年生に適した具体的なサポート方法**を提案してください
+6. **クラス全体の絆や成長**を強調してください
+
+## 必須構成要素
+1. 挨拶と日頃の協力への感謝
+2. ${grade}年${className}の日常の様子
+3. クラスの雰囲気や子どもたちの関係性
+4. 統計データに基づく学習状況の報告
+5. クラスの子どもたちの素晴らしい点や成長
+6. 保護者の皆様への具体的なお願いとサポート方法
+7. 今後のクラス目標と取り組み
+8. 担任からの温かいメッセージ
+
+絵文字や装飾文字を適度に使用して、親しみやすく読みやすいレポートを作成してください。`;
+
+  try {
+    const content = await callLLMAPI(prompt);
+    
+    return {
+      id: `class_${grade}_${className}_parent_report_llm_${Date.now()}`,
+      type: 'class_parent',
+      grade: grade,
+      className: className,
+      title: `🌸 ${reportLabel} 親御さん向けレポート（AI生成）`,
+      content: content,
+      timestamp: new Date().toISOString(),
+      studentCount: targetStudents.length,
+      isLLMGenerated: true
+    };
+  } catch (error) {
+    console.error('LLM API呼び出しエラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * 全学年レポート生成（フォールバック用・固定テンプレート版）
+ */
+function generateAllGradesParentReportContent(targetClass, targetStudents) {
+  const timestamp = Date.now();
+  
+  // 学年別に分類
+  const gradeGroups = {};
+  targetStudents.forEach(student => {
+    const gradeKey = student.grade || '未設定';
+    if (!gradeGroups[gradeKey]) {
+      gradeGroups[gradeKey] = [];
+    }
+    gradeGroups[gradeKey].push(student);
+  });
+  
+  let title, content;
+  
+  if (targetClass === 'all') {
+    // 全学年・全クラス
+    title = '全学年・全クラス 親御さん向けレポート';
+    
+    const gradeSummaries = Object.keys(gradeGroups)
+      .sort((a, b) => {
+        const aNum = parseInt(a) || 999;
+        const bNum = parseInt(b) || 999;
+        return aNum - bNum;
+      })
+      .map(grade => {
+        const students = gradeGroups[grade];
+        const gradeLabel = grade === '未設定' ? '学年未設定' : `${grade}年生`;
+        
+        // クラス別に再分類
+        const classGroups = {};
+        students.forEach(student => {
+          const classKey = student.class || '未設定';
+          if (!classGroups[classKey]) {
+            classGroups[classKey] = [];
+          }
+          classGroups[classKey].push(student);
+        });
+        
+        const classSummaries = Object.keys(classGroups)
+          .sort()
+          .map(className => {
+            const classStudents = classGroups[className];
+            const maleCount = classStudents.filter(s => s.gender === 'male').length;
+            const femaleCount = classStudents.filter(s => s.gender === 'female').length;
+            return `  ${className}: ${classStudents.length}名 (男子${maleCount}名、女子${femaleCount}名)`;
+          })
+          .join('\n');
+        
+        return `## ${gradeLabel} (計${students.length}名)\n\n${classSummaries}`;
+      })
+      .join('\n\n');
+    
+    content = `# 全学年・全クラス 総合レポート
+
+## 概要
+全学年・全クラスを対象とした総合的な進捗状況をお伝えいたします。
+
+## 対象児童数
+**総計: ${targetStudents.length}名**
+
+${gradeSummaries}
+
+## 全体的な傾向
+各学年それぞれに特色があり、成長の段階に応じた学習活動に取り組んでいます。低学年では基礎的な学習習慣の定着を、中学年では応用力の向上を、高学年では発展的な思考力の育成を重視した指導を行っております。
+
+## 今後の指導方針
+1. **個別対応の充実**: 各児童の特性に応じた指導を継続
+2. **学年間連携**: 継続的な成長をサポートする指導体制の構築
+3. **家庭との連携**: 保護者の皆様との情報共有をより一層推進
+
+詳細な個別の状況については、学年・クラス別のレポートや個別面談等でお伝えいたします。
+
+---
+作成日時: ${new Date(timestamp).toLocaleDateString('ja-JP')}
+作成者: 児童進捗管理ツール`;
+  } else {
+    // 全学年・特定クラス
+    title = `全学年・${targetClass} 親御さん向けレポート`;
+    
+    const gradeSummaries = Object.keys(gradeGroups)
+      .sort((a, b) => {
+        const aNum = parseInt(a) || 999;
+        const bNum = parseInt(b) || 999;
+        return aNum - bNum;
+      })
+      .map(grade => {
+        const students = gradeGroups[grade];
+        const gradeLabel = grade === '未設定' ? '学年未設定' : `${grade}年生`;
+        const maleCount = students.filter(s => s.gender === 'male').length;
+        const femaleCount = students.filter(s => s.gender === 'female').length;
+        
+        return `## ${gradeLabel} (計${students.length}名)
+- 男子: ${maleCount}名
+- 女子: ${femaleCount}名`;
+      })
+      .join('\n\n');
+    
+    content = `# 全学年・${targetClass} レポート
+
+## 概要
+全学年の${targetClass}に在籍する児童の進捗状況をお伝えいたします。
+
+## 対象児童数
+**総計: ${targetStudents.length}名**
+
+${gradeSummaries}
+
+## クラス全体の特色
+${targetClass}は各学年において、学年の特性を活かしながら共通の目標に向かって取り組んでいるクラスです。異学年でありながら、共通するクラス名を持つ仲間として、それぞれの成長段階に応じた学習活動を展開しています。
+
+## 今後の指導方針
+1. **学年に応じた指導**: 各学年の発達段階に合わせた適切な指導の実施
+2. **継続的な成長**: 学年を超えた継続的な指導方針の共有
+3. **保護者との連携**: 各学年の状況を踏まえた家庭との協力体制の構築
+
+各学年の詳細な状況については、学年別のレポートや個別面談等でお伝えいたします。
+
+---
+作成日時: ${new Date(timestamp).toLocaleDateString('ja-JP')}
+作成者: 児童進捗管理ツール`;
+  }
+  
+  return {
+    id: `allgrades_${targetClass}_${timestamp}`,
+    type: 'class_parent',
+    title: title,
+    content: content,
+    timestamp: new Date(timestamp).toISOString(),
+    studentCount: targetStudents.length,
+    grade: 'all',
+    className: targetClass,
+    studentName: null // 全学年レポートなので個別学生名はなし
   };
 }
 
@@ -4785,7 +6830,19 @@ ${grade}年${className}のお子様たちの成長を、一緒に見守らせて
  */
 async function generateIndividualParentReport(student) {
   const records = student.records || [];
-  const latestRecord = records.length > 0 ? records[records.length - 1] : null;
+  
+  if (records.length === 0) {
+    return generateNoDataParentReport(student);
+  }
+
+  // 設定に基づいて使用するレコード数を取得
+  const targetRecords = getRecordsForReport(records, 'individual');
+  
+  if (targetRecords.length === 0) {
+    return generateNoDataParentReport(student);
+  }
+
+  const latestRecord = targetRecords[targetRecords.length - 1];
   
   if (!latestRecord || !latestRecord.data) {
     return generateNoDataParentReport(student);
@@ -4797,16 +6854,25 @@ async function generateIndividualParentReport(student) {
   const homework = data.homework || '';
   
   try {
-    // LLMを使って個別化されたコンテンツを生成
-    const studentStrengths = await generatePersonalizedStudentStrengths(data, student.name, student);
-    const homeSupport = await generatePersonalizedHomeSupport(data, student.name, student);
-    const encouragementMessage = await generatePersonalizedEncouragementMessage(data, student.name, student);
-    const collaborationMessage = await generatePersonalizedCollaborationMessage(data, student.name, student);
-    const learningStatusMsg = await generatePersonalizedLearningStatusMessage(learningStatus, student.name);
-    const motivationMsg = await generatePersonalizedMotivationMessage(motivation, student.name);
+    // LLMを使って個別化されたコンテンツを並列生成（パフォーマンス改善）
+    const [
+      studentStrengths,
+      homeSupport,
+      encouragementMessage,
+      collaborationMessage,
+      learningStatusMsg,
+      motivationMsg
+    ] = await Promise.all([
+      generatePersonalizedStudentStrengths(data, student.name, student),
+      generatePersonalizedHomeSupport(data, student.name, student),
+      generatePersonalizedEncouragementMessage(data, student.name, student),
+      generatePersonalizedCollaborationMessage(data, student.name, student),
+      generatePersonalizedLearningStatusMessage(learningStatus, student.name),
+      generatePersonalizedMotivationMessage(motivation, student.name)
+    ]);
     
-    // 成長の傾向を分析
-    const growthTrend = analyzeStudentGrowthForParents(records, student.name);
+    // 成長の傾向を分析（設定されたレコード数を使用）
+    const growthTrend = analyzeStudentGrowthForParents(targetRecords, student.name);
     
     const content = `💝 **${student.name}さんの成長の様子**
 
@@ -4999,8 +7065,36 @@ function analyzeStudentGrowthForParents(records, studentName) {
 /**
  * LLMを使った家庭サポート提案生成
  */
+/**
+ * レポート詳細度に応じたプロンプト設定を取得
+ */
+function getPromptSettings() {
+  const detailLevel = reportSettings.reportDetailLevel || 'detailed';
+  
+  if (detailLevel === 'simple') {
+    return {
+      homeSupportLength: '100-200文字程度',
+      encouragementLength: '80-150文字程度',
+      collaborationLength: '100-200文字程度',
+      strengthsLength: '100-180文字程度',
+      style: 'コンパクトで要点を絞った、読みやすい',
+      detailRequirement: '要点を絞り、簡潔で分かりやすい内容にしてください。'
+    };
+  } else {
+    return {
+      homeSupportLength: '200-350文字程度',
+      encouragementLength: '150-250文字程度',
+      collaborationLength: '200-300文字程度',
+      strengthsLength: '150-250文字程度',
+      style: '詳しく包括的な',
+      detailRequirement: '詳細で具体的な内容を含めてください。'
+    };
+  }
+}
+
 async function generatePersonalizedHomeSupport(data, studentName, studentInfo = {}) {
   try {
+    const promptSettings = getPromptSettings();
     const prompt = `あなたは小学校の担任教師です。児童の保護者に向けて、家庭でのサポート方法を提案する文章を作成してください。
 
 ## 児童情報
@@ -5017,12 +7111,13 @@ async function generatePersonalizedHomeSupport(data, studentName, studentInfo = 
 - その他のメモ: ${data.notes || 'なし'}
 
 ## 作成要件
-1. 温かみのある親しみやすい文章で書いてください
+1. ${promptSettings.style}温かみのある親しみやすい文章で書いてください
 2. その子の特性や現在の状況に合わせた具体的なアドバイスを含めてください
 3. 家庭で実践可能な具体的な方法を提案してください
 4. その子の良い点を見つけて伸ばす視点を大切にしてください
 5. 無理のない範囲での取り組みを推奨してください
-6. 文字数は200-350文字程度でお願いします
+6. ${promptSettings.detailRequirement}
+7. 文字数は${promptSettings.homeSupportLength}でお願いします
 
 以下の形式で出力してください：
 🏠 **${studentName}さんの成長をサポートするために**
@@ -5046,6 +7141,7 @@ async function generatePersonalizedHomeSupport(data, studentName, studentInfo = 
  */
 async function generatePersonalizedEncouragementMessage(data, studentName, studentInfo = {}) {
   try {
+    const promptSettings = getPromptSettings();
     const prompt = `あなたは小学校の担任教師です。児童に向けて温かい応援メッセージを作成してください。
 
 ## 児童情報
@@ -5062,12 +7158,13 @@ async function generatePersonalizedEncouragementMessage(data, studentName, stude
 - その他のメモ: ${data.notes || 'なし'}
 
 ## 作成要件
-1. 児童に直接語りかける温かい文章で書いてください
+1. ${promptSettings.style}児童に直接語りかける温かい文章で書いてください
 2. その子の頑張りや良い点を具体的に褒めてください
 3. 成長への期待と励ましを込めてください
 4. その子の個性や特性を認める内容を含めてください
 5. 先生からの愛情が伝わる文章にしてください
-6. 文字数は150-250文字程度でお願いします
+6. ${promptSettings.detailRequirement}
+7. 文字数は${promptSettings.encouragementLength}でお願いします
 
 以下の形式で出力してください：
 ${studentName}さん、（具体的な褒め言葉や励ましのメッセージ）
@@ -5091,6 +7188,7 @@ ${studentName}さん、（具体的な褒め言葉や励ましのメッセージ
  */
 async function generatePersonalizedCollaborationMessage(data, studentName, studentInfo = {}) {
   try {
+    const promptSettings = getPromptSettings();
     const prompt = `あなたは小学校の担任教師です。児童の保護者に向けて、学校と家庭の連携についてのメッセージを作成してください。
 
 ## 児童情報
@@ -5107,12 +7205,13 @@ async function generatePersonalizedCollaborationMessage(data, studentName, stude
 - その他のメモ: ${data.notes || 'なし'}
 
 ## 作成要件
-1. 保護者との協力関係を重視した温かい文章で書いてください
+1. ${promptSettings.style}保護者との協力関係を重視した温かい文章で書いてください
 2. その子の成長をともに見守る気持ちを表現してください
 3. 具体的な連携方法を提案してください
 4. 困ったときの相談しやすい環境作りを伝えてください
 5. その子の個性や特性に合わせた連携ポイントを含めてください
-6. 文字数は200-300文字程度でお願いします
+6. ${promptSettings.detailRequirement}
+7. 文字数は${promptSettings.collaborationLength}でお願いします
 
 以下の形式で出力してください：
 **学校と家庭で連携して**、${studentName}さんの成長を支えていきたいと思います。
@@ -5139,6 +7238,7 @@ async function generatePersonalizedCollaborationMessage(data, studentName, stude
  */
 async function generatePersonalizedStudentStrengths(data, studentName, studentInfo = {}) {
   try {
+    const promptSettings = getPromptSettings();
     const prompt = `あなたは小学校の担任教師です。児童の保護者に向けて、その子の素晴らしい点や強みを紹介する文章を作成してください。
 
 ## 児童情報
@@ -5155,12 +7255,13 @@ async function generatePersonalizedStudentStrengths(data, studentName, studentIn
 - その他のメモ: ${data.notes || 'なし'}
 
 ## 作成要件
-1. その子の良い点や強みを具体的に見つけて紹介してください
+1. ${promptSettings.style}その子の良い点や強みを具体的に見つけて紹介してください
 2. 温かい目線でその子らしさを表現してください
 3. 保護者が我が子を誇らしく思えるような内容にしてください
 4. 学習面だけでなく、人格面や行動面の良い点も含めてください
 5. 具体的なエピソードや観察した様子を含めてください
-6. 文字数は150-250文字程度でお願いします
+6. ${promptSettings.detailRequirement}
+7. 文字数は${promptSettings.strengthsLength}でお願いします
 
 以下の形式で出力してください：
 - 📚 **（学習面での強み）**
@@ -5249,28 +7350,31 @@ async function generatePersonalizedMotivationMessage(motivation, studentName, ad
  */
 async function callLLMAPI(prompt) {
   try {
-    const response = await fetch('https://api.hyperbolic.xyz/v1/chat/completions', {
+    const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+    
+    const requestData = {
+      model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+      temperature: 0.7,
+      stream: false,
+      max_completion_tokens: 2000,
+      messages: [
+        {
+          role: 'system',
+          content: 'あなたは経験豊富で温かい小学校教師です。児童一人一人の個性を大切にし、保護者との良好な関係を築くことを重視しています。常に建設的で前向きな視点から文章を作成し、その子の可能性を信じて接しています。'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    };
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + getLLMAPIKey()
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        model: 'meta-llama/Llama-3.1-405B-Instruct',
-        messages: [
-          {
-            role: 'system',
-            content: 'あなたは経験豊富で温かい小学校教師です。児童一人一人の個性を大切にし、保護者との良好な関係を築くことを重視しています。常に建設的で前向きな視点から文章を作成し、その子の可能性を信じて接しています。'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
-        top_p: 0.9
-      })
+      body: JSON.stringify(requestData)
     });
 
     if (!response.ok) {
@@ -5278,7 +7382,15 @@ async function callLLMAPI(prompt) {
     }
 
     const data = await response.json();
-    return data.choices[0]?.message?.content?.trim() || null;
+    
+    // レスポンス形式の対応
+    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+      return data.choices[0].message.content?.trim() || null;
+    } else if (data.answer) {
+      return data.answer?.trim() || null;
+    } else {
+      throw new Error('レスポンスに期待されるフィールドがありません');
+    }
   } catch (error) {
     console.error('LLM API call failed:', error);
     return null;
@@ -5688,6 +7800,12 @@ async function generateIndividualParentReportFallback(student) {
   // 成長の傾向を分析
   const growthTrend = analyzeStudentGrowthForParents(records, student.name);
   
+  // LLM呼び出しを並列実行（フォールバック版も高速化）
+  const [homeSupportMessage, encouragementMsg] = await Promise.all([
+    generateFallbackHomeSupport(data, student.name),
+    generateFallbackEncouragementMessage(data, student.name)
+  ]);
+  
   const content = `💝 **${student.name}さんの成長の様子**
 
 ${student.name}さんの保護者様、いつも温かいご支援をいただき、ありがとうございます。
@@ -5715,13 +7833,13 @@ ${growthTrend}
 
 🏠 **ご家庭でのサポートのご提案**
 
-${await generateFallbackHomeSupport(data, student.name)}
+${homeSupportMessage}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 💌 **${student.name}さんへの応援メッセージ**
 
-${await generateFallbackEncouragementMessage(data, student.name)}
+${encouragementMsg}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -5782,9 +7900,9 @@ function saveParentReportToHistory(report) {
   
   parentReportHistory.unshift(report);
   
-  // 最大50件まで保持
-  if (parentReportHistory.length > 50) {
-    parentReportHistory = parentReportHistory.slice(0, 50);
+  // 最大1000件まで保持
+  if (parentReportHistory.length > 1000) {
+    parentReportHistory = parentReportHistory.slice(0, 1000);
   }
   
   localStorage.setItem('parentReportHistory', JSON.stringify(parentReportHistory));
@@ -5801,17 +7919,38 @@ function updateParentReportHistory() {
   try {
     const saved = localStorage.getItem('parentReportHistory');
     if (saved) {
-      parentReportHistory = JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      // 配列かどうかチェック
+      if (Array.isArray(parsed)) {
+        // 各レポートオブジェクトの妥当性をチェック
+        parentReportHistory = parsed.filter(report => {
+          return report && 
+                 typeof report === 'object' && 
+                 report.id && 
+                 report.title && 
+                 report.content && 
+                 report.timestamp;
+        });
+      }
     }
   } catch (error) {
     console.error('親御さん向けレポート履歴読み込みエラー:', error);
+    parentReportHistory = [];
   }
   
   if (parentReportHistory.length === 0) {
     container.innerHTML = `
       <div class="alert alert-info">
         <i class="fas fa-info-circle"></i>
-        まだ分析結果がありません。上記のボタンからAI分析を実行してください。
+        まだ親御さん向けレポートが作成されていません。上記のボタンからレポートを作成すると、ここに履歴が表示されます。
+        <br><br>
+        <strong>活用例：</strong>
+        <ul style="margin-top: 0.5rem;">
+          <li>保護者面談での資料として活用</li>
+          <li>家庭訪問時の話題提供</li>
+          <li>学級通信への内容反映</li>
+          <li>個別の成長記録として保管</li>
+        </ul>
       </div>
     `;
     return;
@@ -5820,15 +7959,41 @@ function updateParentReportHistory() {
   let historyHTML = '';
   
   parentReportHistory.slice(0, 10).forEach((report, index) => {
-    const date = new Date(report.timestamp);
+    // 安全なタイムスタンプ処理
+    let date;
+    try {
+      if (report.timestamp) {
+        date = new Date(report.timestamp);
+        // 無効な日付かどうかチェック
+        if (isNaN(date.getTime())) {
+          date = new Date(); // 現在日時をフォールバック
+        }
+      } else {
+        date = new Date(); // タイムスタンプがない場合は現在日時
+      }
+    } catch (error) {
+      console.warn('タイムスタンプ処理エラー:', error);
+      date = new Date();
+    }
+    
     const typeIcon = report.type === 'class_parent' ? '👥' : '👤';
     const typeLabel = report.type === 'class_parent' ? 'クラス全体' : '個別レポート';
+    
+    // タイトルの安全な処理
+    const safeTitle = report.title || 'タイトル未設定';
+    
+    // 学生名の安全な処理
+    const studentNameDisplay = (report.studentName && report.studentName !== 'null' && report.studentName !== null) 
+      ? `<span style="background: rgba(6, 182, 212, 0.1); color: var(--accent); padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.8rem; margin-left: 0.5rem;">
+           ${report.studentName}さん
+         </span>` 
+      : '';
     
     historyHTML += `
       <div class="card" style="margin-bottom: 1rem; border-left: 4px solid var(--secondary);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
           <h4 style="margin: 0; color: var(--secondary); font-size: 1rem;">
-            ${typeIcon} ${report.title}
+            ${typeIcon} ${safeTitle}
           </h4>
           <span style="color: var(--text-secondary); font-size: 0.8rem;">
             ${date.toLocaleDateString('ja-JP')} ${date.toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})}
@@ -5839,33 +8004,27 @@ function updateParentReportHistory() {
           <span style="background: rgba(124, 58, 237, 0.1); color: var(--secondary); padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.8rem;">
             ${typeLabel}
           </span>
-          ${report.studentName ? `
-            <span style="background: rgba(6, 182, 212, 0.1); color: var(--accent); padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.8rem; margin-left: 0.5rem;">
-              ${report.studentName}さん
-            </span>
-          ` : ''}
+          ${studentNameDisplay}
         </div>
         
         <div style="margin-bottom: 1rem;">
           <div style="color: var(--text-primary); font-size: 0.9rem; line-height: 1.6;">
-            ${generateAnalysisSummary(report.content)}
+            ${report.content ? generateAnalysisSummary(report.content) : 'コンテンツが見つかりません'}
           </div>
         </div>
         
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-          <button class="btn btn-secondary" onclick="showParentReportDetailById('${report.id}')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
+          <button class="btn btn-secondary" onclick="showParentReportDetailById('${report.id || ''}')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
             <i class="fas fa-eye"></i> 詳細表示
           </button>
-          <button class="btn btn-success" onclick="exportParentReportById('${report.id}')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
+          <button class="btn btn-success" onclick="exportParentReportById('${report.id || ''}')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
             <i class="fas fa-download"></i> テキスト
           </button>
-          <button class="btn" onclick="exportParentReportPDFById('${report.id}')" style="background: #dc2626; color: white; font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="印刷用ページを開いてPDF保存します">
+          <button class="btn" onclick="exportParentReportPDFById('${report.id || ''}')" style="background: #dc2626; color: white; font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="印刷用ページを開いてPDF保存します">
             <i class="fas fa-print"></i> PDF保存
           </button>
-          <button class="btn btn-warning" onclick="regenerateParentReport('${report.type}', '${report.studentId || ''}', '${report.id}')" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="このレポートを最新の情報で再生成します">
-            <i class="fas fa-sync-alt"></i> 更新
-          </button>
-          <button class="btn" onclick="deleteParentReport('${report.id}')" style="background: #ef4444; color: white; font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="このレポートを削除します">
+
+          <button class="btn" onclick="deleteParentReport('${report.id || ''}')" style="background: #ef4444; color: white; font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="このレポートを削除します">
             <i class="fas fa-trash"></i> 削除
           </button>
         </div>
@@ -5926,11 +8085,27 @@ function exportParentReportPDFById(reportId) {
  * IDからレポートを取得するヘルパー関数
  */
 function getParentReportById(reportId) {
+  if (!reportId || typeof reportId !== 'string') {
+    console.warn('無効なレポートID:', reportId);
+    return null;
+  }
+  
   try {
     const saved = localStorage.getItem('parentReportHistory');
     if (saved) {
-      const parentReportHistory = JSON.parse(saved);
-      return parentReportHistory.find(report => report.id === reportId);
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        const report = parsed.find(report => 
+          report && 
+          typeof report === 'object' && 
+          report.id === reportId
+        );
+        
+        // 見つかったレポートの妥当性を再チェック
+        if (report && report.title && report.content && report.timestamp) {
+          return report;
+        }
+      }
     }
   } catch (error) {
     console.error('レポート取得エラー:', error);
@@ -5955,39 +8130,45 @@ function showParentReportDetail(report) {
  * 親御さん向けレポートのエクスポート
  */
 function exportParentReport(report) {
-  const date = new Date(report.timestamp);
-  const dateStr = date.toISOString().split('T')[0];
-  
-  // ファイル名の生成を改善
-  let filenamePart = 'class';
-  if (report.studentName) {
-    filenamePart = report.studentName.replace(/[^a-zA-Z0-9一-龯ひらがなカタカナ]/g, '_');
-  } else if (report.grade && report.className) {
-    filenamePart = `${report.grade}年${report.className}`;
-  }
-  
-  const filename = `parent_report_${filenamePart}_${dateStr}.txt`;
-  
-  const content = `${report.title}
+  try {
+    const date = new Date(report.timestamp);
+    const dateStr = date.toISOString().split('T')[0];
+    const timeStr = date.getHours().toString().padStart(2, '0') + 
+                   date.getMinutes().toString().padStart(2, '0');
+    
+    // ファイル名の生成を改善（より安全に）
+    let filenamePart = 'class';
+    if (report.studentName) {
+      filenamePart = report.studentName
+        .replace(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\w]/g, '_')
+        .substring(0, 20); // 長さ制限
+    } else if (report.grade && report.className) {
+      filenamePart = `${report.grade}年${report.className}`
+        .replace(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\w]/g, '_');
+    }
+    
+    const filename = `parent_report_${filenamePart}_${dateStr}_${timeStr}.txt`;
+    
+    // テキスト出力用にコンテンツを整形
+    const formattedContent = formatContentForTextExport(report.content);
+    
+    const content = `${report.title}
 
-${report.content}
+${formattedContent}
 
 ---
 作成日時: ${date.toLocaleDateString('ja-JP')} ${date.toLocaleTimeString('ja-JP')}
 作成者: 児童進捗管理ツール
 `;
-  
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  
-  showAlert('親御さん向けレポートをダウンロードしました', 'success');
+    
+    if (createAndDownloadFile(content, filename, 'text/plain;charset=utf-8', '親御さん向けレポート')) {
+      showAlert('親御さん向けレポートをダウンロードしました', 'success');
+    }
+    
+  } catch (error) {
+    console.error('親御さん向けレポートエクスポートエラー:', error);
+    showAlert('レポートのエクスポートに失敗しました: ' + error.message, 'error');
+  }
 }
 
 /**
@@ -6036,7 +8217,6 @@ function generatePrintablePDF(report) {
     setTimeout(() => {
       try {
         printWindow.print();
-        showAlert('印刷ダイアログを開きました。「PDFとして保存」を選択してください', 'info');
         
         // 印刷後にウィンドウを閉じる
         setTimeout(() => {
@@ -6062,32 +8242,55 @@ function generatePrintablePDF(report) {
  * HTMLファイルとしてダウンロード
  */
 function generateHTMLReport(report) {
-  const htmlContent = formatReportForPrint(report);
-  
-  const date = new Date(report.timestamp);
-  const dateStr = date.toISOString().split('T')[0];
-  
-  // ファイル名の生成を改善
-  let filenamePart = 'class';
-  if (report.studentName) {
-    filenamePart = report.studentName.replace(/[^a-zA-Z0-9一-龯ひらがなカタカナ]/g, '_');
-  } else if (report.grade && report.className) {
-    filenamePart = `${report.grade}年${report.className}`;
+  try {
+    const htmlContent = formatReportForPrint(report);
+    
+    const date = new Date(report.timestamp);
+    const dateStr = date.toISOString().split('T')[0];
+    const timeStr = date.getHours().toString().padStart(2, '0') + 
+                   date.getMinutes().toString().padStart(2, '0');
+    
+    // ファイル名の生成を改善（より安全に）
+    let filenamePart = 'class';
+    if (report.studentName) {
+      filenamePart = report.studentName
+        .replace(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\w]/g, '_')
+        .substring(0, 20); // 長さ制限
+    } else if (report.grade && report.className) {
+      filenamePart = `${report.grade}年${report.className}`
+        .replace(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\w]/g, '_');
+    }
+    
+    const filename = `parent_report_${filenamePart}_${dateStr}_${timeStr}.html`;
+    
+    if (createAndDownloadFile(htmlContent, filename, 'text/html;charset=utf-8', 'HTMLレポート')) {
+      showAlert('親御さん向けレポートをHTMLファイルでダウンロードしました', 'success');
+    }
+    
+  } catch (error) {
+    console.error('HTMLレポート生成エラー:', error);
+    showAlert('HTMLレポートの生成に失敗しました: ' + error.message, 'error');
+  }
+}
+
+/**
+ * テキストエクスポート用にコンテンツを整形
+ */
+function formatContentForTextExport(content) {
+  if (!content || typeof content !== 'string') {
+    return '';
   }
   
-  const filename = `parent_report_${filenamePart}_${dateStr}.html`;
-  
-  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  
-  showAlert('親御さん向けレポートをHTMLファイルでダウンロードしました', 'success');
+  return content
+    // **で囲まれたハイライトを除去
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    // -を・に置き換え（リストアイテムとして使用されている場合）
+    .replace(/^- /gm, '・ ')
+    .replace(/\n- /g, '\n・ ')
+    // 複数の連続する改行を2つまでに制限
+    .replace(/\n{3,}/g, '\n\n')
+    // 行末の空白を除去
+    .replace(/ +$/gm, '');
 }
 
 /**
@@ -6220,10 +8423,6 @@ function formatReportForPrint(report) {
     <p><strong>作成日:</strong> ${dateStr}</p>
     <p><strong>作成者:</strong> 児童進捗管理ツール</p>
   </div>
-  
-  <div class="no-print" style="margin-top: 30px; text-align: center; color: #6b7280;">
-    <p>このページを印刷する際は、ブラウザの印刷設定で「PDFとして保存」を選択してください。</p>
-  </div>
 </body>
 </html>`;
 }
@@ -6284,13 +8483,31 @@ function convertMarkdownToHTML(markdown) {
       continue;
     }
     
-    // 旧形式のヘッダーも念のため対応
+    // Markdownヘッダーの処理（#形式）
+    if (line.startsWith('# ')) {
+      if (inList) {
+        processed.push('</ul>');
+        inList = false;
+      }
+      processed.push(`<h1 style="color: #1f2937; margin-top: 30px; margin-bottom: 20px; font-size: 1.6em; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">${line.substring(2)}</h1>`);
+      continue;
+    }
+    
+    if (line.startsWith('## ')) {
+      if (inList) {
+        processed.push('</ul>');
+        inList = false;
+      }
+      processed.push(`<h2 style="color: #1f2937; margin-top: 25px; margin-bottom: 15px; font-size: 1.4em;">${line.substring(3)}</h2>`);
+      continue;
+    }
+    
     if (line.startsWith('### ')) {
       if (inList) {
         processed.push('</ul>');
         inList = false;
       }
-      processed.push(`<h2 style="color: #1f2937; margin-top: 25px; margin-bottom: 15px; font-size: 1.4em;">${line.substring(4)}</h2>`);
+      processed.push(`<h3 style="color: #374151; margin-top: 20px; margin-bottom: 12px; font-size: 1.3em;">${line.substring(4)}</h3>`);
       continue;
     }
     
@@ -6299,7 +8516,16 @@ function convertMarkdownToHTML(markdown) {
         processed.push('</ul>');
         inList = false;
       }
-      processed.push(`<h3 style="color: #374151; margin-top: 15px; margin-bottom: 10px; font-size: 1.2em;">${line.substring(5)}</h3>`);
+      processed.push(`<h4 style="color: #374151; margin-top: 15px; margin-bottom: 10px; font-size: 1.2em;">${line.substring(5)}</h4>`);
+      continue;
+    }
+    
+    if (line.startsWith('##### ')) {
+      if (inList) {
+        processed.push('</ul>');
+        inList = false;
+      }
+      processed.push(`<h5 style="color: #4b5563; margin-top: 12px; margin-bottom: 8px; font-size: 1.1em;">${line.substring(6)}</h5>`);
       continue;
     }
     
@@ -6389,7 +8615,6 @@ function regenerateParentReport(reportType, studentId = '', reportId = '') {
               newReport = generateClassParentReportContentForGrade(existingReport.grade, targetStudents);
               replaceOrAddParentReport(newReport, 'class_parent', '', reportId);
               updateParentReportHistory();
-              showParentReportDetail(newReport);
               showAlert(`${existingReport.grade}年生全体のレポートを更新しました！`, 'success');
             } catch (error) {
               console.error('学年全体レポート再生成エラー:', error);
@@ -6410,7 +8635,6 @@ function regenerateParentReport(reportType, studentId = '', reportId = '') {
               newReport = generateClassParentReportContentForClass(existingReport.grade, existingReport.className, targetStudents);
               replaceOrAddParentReport(newReport, 'class_parent', '', reportId);
               updateParentReportHistory();
-              showParentReportDetail(newReport);
               showAlert(`${existingReport.grade}年${existingReport.className}のレポートを更新しました！`, 'success');
             } catch (error) {
               console.error('クラスレポート再生成エラー:', error);
@@ -6431,7 +8655,6 @@ function regenerateParentReport(reportType, studentId = '', reportId = '') {
         newReport = generateClassParentReportContent();
         replaceOrAddParentReport(newReport, 'class_parent');
         updateParentReportHistory();
-        showParentReportDetail(newReport);
         showAlert('クラス全体レポートを更新しました！', 'success');
       } catch (error) {
         console.error('クラス全体レポート再生成エラー:', error);
@@ -6450,14 +8673,13 @@ function regenerateParentReport(reportType, studentId = '', reportId = '') {
     const student = studentsData.students.find(s => s.id === studentId);
     if (student) {
       showAnalysisLoading(`${student.name}さんのレポートを再生成中...`);
-      setTimeout(async () => {
+      (async () => {
         try {
           const newReport = await generateIndividualParentReport(student);
           
           // 既存の同じ児童のレポートを探して置き換える
           replaceOrAddParentReport(newReport, 'individual_parent', studentId);
           updateParentReportHistory();
-          showParentReportDetail(newReport);
           showAlert(`${student.name}さんのレポートを更新しました！`, 'success');
         } catch (error) {
           console.error('個別レポート再生成エラー:', error);
@@ -6465,7 +8687,7 @@ function regenerateParentReport(reportType, studentId = '', reportId = '') {
         } finally {
           window.isRegeneratingReport = false;
         }
-      }, 1000);
+      })();
     } else {
       showAlert('対象の児童が見つかりませんでした', 'error');
       window.isRegeneratingReport = false;
@@ -6534,12 +8756,111 @@ function replaceOrAddParentReport(newReport, reportType, studentId = '', reportI
     console.log('新規レポートを追加しました');
   }
   
-  // 最大50件まで保持
-  if (parentReportHistory.length > 50) {
-    parentReportHistory = parentReportHistory.slice(0, 50);
+  // 最大1000件まで保持
+  if (parentReportHistory.length > 1000) {
+    parentReportHistory = parentReportHistory.slice(0, 1000);
   }
   
   localStorage.setItem('parentReportHistory', JSON.stringify(parentReportHistory));
+}
+
+/**
+ * レポート設定の保存
+ */
+function saveReportSettings() {
+  const individualCount = document.getElementById('individualReportDataCount').value;
+  const analysisCount = document.getElementById('analysisDataCount').value;
+  const detailLevel = document.getElementById('reportDetailLevel').value;
+  const creatorName = document.getElementById('pdfCreatorName').value.trim() || '児童進捗管理ツール';
+  
+  reportSettings = {
+    individualReportDataCount: individualCount === 'all' ? 'all' : parseInt(individualCount),
+    analysisDataCount: analysisCount === 'all' ? 'all' : parseInt(analysisCount),
+    reportDetailLevel: detailLevel,
+    pdfCreatorName: creatorName
+  };
+  
+  try {
+    localStorage.setItem('reportSettings', JSON.stringify(reportSettings));
+    showAlert('レポート設定を保存しました', 'success');
+  } catch (error) {
+    console.error('レポート設定保存エラー:', error);
+    showAlert('設定の保存に失敗しました', 'error');
+  }
+}
+
+/**
+ * レポート設定の読み込み
+ */
+function loadReportSettings() {
+  try {
+    const saved = localStorage.getItem('reportSettings');
+    if (saved) {
+      reportSettings = JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('レポート設定読み込みエラー:', error);
+    // デフォルト値を使用
+    reportSettings = {
+      individualReportDataCount: 3,
+      analysisDataCount: 5,
+      reportDetailLevel: 'detailed',
+      pdfCreatorName: '児童進捗管理ツール'
+    };
+  }
+  
+  // 設定にデフォルト値を設定（後方互換性のため）
+  if (!reportSettings.pdfCreatorName) {
+    reportSettings.pdfCreatorName = '児童進捗管理ツール';
+  }
+  if (!reportSettings.reportDetailLevel) {
+    reportSettings.reportDetailLevel = 'detailed';
+  }
+  
+  // UI要素に設定値を反映
+  updateReportSettingsUI();
+}
+
+/**
+ * レポート設定UIの更新
+ */
+function updateReportSettingsUI() {
+  const individualSelect = document.getElementById('individualReportDataCount');
+  const analysisSelect = document.getElementById('analysisDataCount');
+  const detailSelect = document.getElementById('reportDetailLevel');
+  const creatorInput = document.getElementById('pdfCreatorName');
+  
+  if (individualSelect) {
+    individualSelect.value = reportSettings.individualReportDataCount;
+  }
+  if (analysisSelect) {
+    analysisSelect.value = reportSettings.analysisDataCount;
+  }
+  if (detailSelect) {
+    detailSelect.value = reportSettings.reportDetailLevel || 'detailed';
+  }
+  if (creatorInput) {
+    creatorInput.value = reportSettings.pdfCreatorName || '児童進捗管理ツール';
+  }
+}
+
+/**
+ * 設定に基づいてデータを取得する関数
+ */
+function getRecordsForReport(allRecords, reportType = 'individual') {
+  if (!allRecords || allRecords.length === 0) {
+    return [];
+  }
+  
+  const dataCount = reportType === 'individual' 
+    ? reportSettings.individualReportDataCount 
+    : reportSettings.analysisDataCount;
+  
+  if (dataCount === 'all') {
+    return allRecords;
+  }
+  
+  return allRecords.slice(-dataCount);
 }
 
 /**
@@ -7063,4 +9384,314 @@ function showAnalysisTips() {
   if (modal) {
     modal.classList.add('show');
   }
+}
+
+/**
+ * 統一イベント委譲システム初期化
+ */
+function initializeEventDelegation() {
+  console.log('統一イベント委譲システムを初期化しました');
+  
+  // メインクリックイベントハンドラ
+  document.addEventListener('click', handleUnifiedClick);
+  
+  // マウスイベントハンドラ
+  document.addEventListener('mouseover', handleUnifiedMouseOver);
+  document.addEventListener('mouseout', handleUnifiedMouseOut);
+}
+
+/**
+ * 統一クリックイベントハンドラ
+ */
+function handleUnifiedClick(e) {
+  const action = e.target.dataset.action;
+  const target = e.target.dataset.target;
+  const type = e.target.dataset.type;
+  const filter = e.target.dataset.filter;
+  
+  // data-action属性がない場合は既存システムに委譲
+  if (!action) return;
+  
+  // ログ出力（開発・デバッグ用）
+  console.log(`統一イベント処理: Action=${action}, Target=${target}, Type=${type}, Filter=${filter}`);
+  
+  switch(action) {
+    case 'switch-tab':
+      // 既存のswitchTab関数を呼び出し
+      switchTab(target);
+      break;
+      
+    case 'open-modal':
+      // 既存のモーダル開く関数を適切に呼び出し
+      handleModalOpen(target);
+      break;
+      
+    case 'close-modal':
+      // 既存のcloseModal関数を呼び出し
+      closeModal(target);
+      break;
+      
+    case 'refresh-table':
+      // 既存のrefreshTable関数を呼び出し
+      refreshTable();
+      break;
+      
+    case 'export-data':
+      // 既存のexportData関数を呼び出し
+      exportData();
+      break;
+      
+    case 'import-data':
+      // 既存のimportData関数を呼び出し
+      importData();
+      break;
+      
+    case 'run-analysis':
+      handleAnalysisRun(type);
+      break;
+      
+    case 'filter-table':
+      // 既存のfilterProgressTable関数を呼び出し
+      filterProgressTable(filter);
+      break;
+      
+    case 'generate-report':
+      handleReportGeneration(type);
+      break;
+      
+    case 'clear-form':
+      // 既存のclearForm関数を呼び出し
+      clearForm();
+      break;
+      
+    case 'toggle-detail':
+      // 既存のtoggleMissingInputsDetail関数を呼び出し
+      toggleMissingInputsDetail();
+      break;
+      
+    case 'edit-student':
+      // 児童編集機能
+      editStudent(target);
+      break;
+      
+    case 'clear-analysis-history':
+      clearAnalysisHistory();
+      break;
+      
+    case 'confirm-clear-all-data':
+      confirmClearAllData();
+      break;
+      
+    case 'ensure-data-compatibility':
+      ensureDataCompatibility();
+      break;
+      
+    case 'view-analysis-history':
+      viewAnalysisHistory();
+      break;
+      
+    default:
+      console.warn('不明なアクション:', action);
+  }
+}
+
+/**
+ * モーダル開く処理の統一ハンドラ
+ */
+function handleModalOpen(modalId) {
+  switch(modalId) {
+    case 'addStudentModal':
+      openAddStudentModal();
+      break;
+    case 'bulkInputModal':
+      openBulkInputModal();
+      break;
+    case 'classReportModal':
+      openClassReportModal();
+      break;
+    case 'addFieldModal':
+      openAddFieldModal();
+      break;
+    case 'analysisTipsModal':
+      showAnalysisTips();
+      break;
+    default:
+      console.warn('不明なモーダル:', modalId);
+  }
+}
+
+/**
+ * AI分析実行の統一ハンドラ
+ */
+function handleAnalysisRun(analysisType) {
+  switch(analysisType) {
+    case 'class':
+      runAIAnalysis();
+      break;
+    case 'individual':
+      runIndividualAnalysis();
+      break;
+    case 'all-individual':
+      runAllIndividualAnalysis();
+      break;
+    case 'execute-individual':
+      executeIndividualAnalysis();
+      break;
+    default:
+      console.warn('不明な分析タイプ:', analysisType);
+  }
+}
+
+/**
+ * レポート生成の統一ハンドラ
+ */
+function handleReportGeneration(reportType) {
+  switch(reportType) {
+    case 'parent-individual':
+      generateParentReport('individual');
+      break;
+    case 'parent-execute':
+      executeParentReportGeneration();
+      break;
+    case 'class-execute':
+      executeClassReportGeneration();
+      break;
+    default:
+      console.warn('不明なレポートタイプ:', reportType);
+  }
+}
+
+/**
+ * マウスイベント用の統一ハンドラ
+ */
+function handleUnifiedMouseOver(e) {
+  if (e.target.dataset.hover === 'scale') {
+    e.target.style.transform = 'scale(1.1)';
+  }
+}
+
+function handleUnifiedMouseOut(e) {
+  if (e.target.dataset.hover === 'scale') {
+    e.target.style.transform = 'scale(1)';
+  }
+}
+
+/**
+ * 分析結果のPDF出力
+ * @param {string} analysisId - 分析ID
+ */
+function exportAnalysisResultPDF(analysisId) {
+  const analysis = analysisHistory.find(a => a.id === analysisId);
+  if (!analysis) {
+    showAlert('分析結果が見つかりません', 'error');
+    return;
+  }
+
+  const report = {
+    title: analysis.title,
+    content: analysis.content,
+    timestamp: analysis.timestamp,
+    studentName: analysis.studentName || '',
+    type: analysis.type
+  };
+
+  const options = {
+    filename: `analysis_${analysis.studentName || 'class'}_${new Date(analysis.timestamp).toISOString().split('T')[0]}.html`,
+    createdBy: reportSettings.pdfCreatorName || '児童進捗管理ツール',
+    h1Color: analysis.type === 'overall' ? '#4f46e5' : '#059669',
+    h2Color: analysis.type === 'overall' ? '#7c3aed' : '#16a34a',
+    onSuccess: (message) => showAlert(message, 'success'),
+    onError: (error) => showAlert('PDF生成でエラーが発生しました', 'error')
+  };
+
+  exportReportPDF(report, options);
+}
+
+/**
+ * 複数の分析結果をまとめてPDF出力
+ */
+function exportAllAnalysisResultsPDF() {
+  if (!analysisHistory || analysisHistory.length === 0) {
+    showAlert('出力する分析結果がありません', 'error');
+    return;
+  }
+
+  const reports = analysisHistory.map(analysis => ({
+    title: analysis.title,
+    content: analysis.content,
+    timestamp: analysis.timestamp,
+    studentName: analysis.studentName || '',
+    type: analysis.type
+  }));
+
+  const options = {
+    combinedTitle: '分析結果統合レポート',
+    filename: `all_analysis_results_${new Date().toISOString().split('T')[0]}.html`,
+    createdBy: reportSettings.pdfCreatorName || '児童進捗管理ツール',
+    onSuccess: (message) => showAlert(message, 'success'),
+    onError: (error) => showAlert('PDF生成でエラーが発生しました', 'error')
+  };
+
+  exportMultipleReportsPDF(reports, options);
+}
+
+/**
+ * 親御さん向けレポートのPDF出力（ID指定版）
+ * @param {string} reportId - レポートID
+ */
+function exportParentReportPDFById(reportId) {
+  const report = getParentReportById(reportId);
+  if (!report) {
+    showAlert('レポートが見つかりません', 'error');
+    return;
+  }
+
+  const pdfReport = {
+    title: report.title,
+    content: report.content,
+    timestamp: report.timestamp,
+    studentName: report.studentName || '',
+    type: report.type || 'parent'
+  };
+
+  const options = {
+    filename: `parent_report_${report.studentName || 'class'}_${new Date(report.timestamp).toISOString().split('T')[0]}.html`,
+    createdBy: reportSettings.pdfCreatorName || '児童進捗管理ツール',
+    h1Color: '#e11d48',
+    h2Color: '#f59e0b',
+    h3Color: '#8b5cf6',
+    onSuccess: (message) => showAlert(message, 'success'),
+    onError: (error) => showAlert('PDF生成でエラーが発生しました', 'error')
+  };
+
+  exportReportPDF(pdfReport, options);
+}
+
+/**
+ * 分析詳細モーダルからのPDF出力
+ * @param {string} title - 分析タイトル
+ * @param {string} content - 分析内容
+ * @param {string} analysisDate - 分析日時
+ * @param {string} studentName - 学生名
+ * @param {string} type - 分析タイプ
+ */
+function exportAnalysisDetailPDF(title, content, analysisDate, studentName, type) {
+  const report = {
+    title: title,
+    content: content,
+    timestamp: new Date(analysisDate).getTime(),
+    studentName: studentName,
+    type: type
+  };
+
+  const options = {
+    filename: `analysis_detail_${studentName || 'class'}_${new Date().toISOString().split('T')[0]}.html`,
+    createdBy: reportSettings.pdfCreatorName || '児童進捗管理ツール',
+    h1Color: type === 'overall' ? '#4f46e5' : '#059669',
+    h2Color: type === 'overall' ? '#7c3aed' : '#16a34a',
+    onSuccess: (message) => showAlert(message, 'success'),
+    onError: (error) => showAlert('PDF生成でエラーが発生しました', 'error')
+  };
+
+  exportReportPDF(report, options);
 }

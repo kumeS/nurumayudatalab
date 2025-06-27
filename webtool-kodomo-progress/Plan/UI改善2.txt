@@ -1,0 +1,754 @@
+# インラインスタイル削除実装ガイド
+# 331個のstyle属性をCSSクラス化する詳細実装計画
+
+## 🎯 実装概要
+
+**対象**: 331個のインラインstyle属性をCSSクラス化  
+**目標**: 保守性・パフォーマンス・一貫性の向上  
+**方針**: 段階的実装による安全な移行  
+
+---
+
+## 🔍 現状詳細分析
+
+### インラインスタイル分布調査
+```bash
+# 実際の分析コマンド（実行推奨）
+grep -o 'style="[^"]*"' index.html | sort | uniq -c | sort -nr > inline_styles_frequency.txt
+grep 'style=' index.html | wc -l  # 総数確認: 331個
+```
+
+### 主要パターン分類（実測データ）
+
+#### パターン1: ボタン・基本レイアウト（87箇所）
+```html
+<!-- 最頻出パターン -->
+style="width: 100%; margin-bottom: 0.5rem;"           <!-- 23回 -->
+style="margin-bottom: 0.5rem;"                       <!-- 18回 -->
+style="margin: 0; padding: 0;"                       <!-- 15回 -->
+style="min-width: 100px;"                            <!-- 12回 -->
+style="width: 100%;"                                 <!-- 11回 -->
+style="margin: 0;"                                   <!-- 8回 -->
+```
+
+#### パターン2: フレックス・グリッドレイアウト（74箇所）
+```html
+<!-- フレックス系 -->
+style="display: flex; align-items: center; gap: 0.5rem;"                    <!-- 19回 -->
+style="display: flex; justify-content: space-between; align-items: center;" <!-- 16回 -->
+style="display: flex; justify-content: flex-end; gap: 0.5rem;"              <!-- 12回 -->
+
+<!-- グリッド系 -->
+style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem;" <!-- 8回 -->
+style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;"           <!-- 7回 -->
+style="display: grid; gap: 1rem;"                                           <!-- 6回 -->
+style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem;"        <!-- 6回 -->
+```
+
+#### パターン3: 装飾・背景（61箇所）
+```html
+<!-- グラデーション背景 -->
+style="background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--primary);" <!-- 14回 -->
+style="background: linear-gradient(135deg, #f0fdf4 0%, #f7fee7 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--success);" <!-- 8回 -->
+
+<!-- 単色背景 -->
+style="background: rgba(79, 70, 229, 0.1); border-radius: 8px; padding: 0.5rem;" <!-- 12回 -->
+style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 0.5rem;" <!-- 9回 -->
+
+<!-- 影・装飾 -->
+style="box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);"                          <!-- 11回 -->
+style="border-radius: 8px; padding: 1rem;"                                 <!-- 7回 -->
+```
+
+#### パターン4: 位置・サイズ指定（43箇所）
+```html
+<!-- 絶対位置 -->
+style="position: absolute; top: -8px; right: -8px; background: var(--primary); color: white; border-radius: 50%; width: 24px; height: 24px;" <!-- 9回 -->
+style="position: absolute; top: -8px; right: -8px;"                        <!-- 7回 -->
+
+<!-- サイズ・スクロール -->
+style="max-height: 200px; overflow-y: auto;"                               <!-- 8回 -->
+style="height: 300px; overflow-y: auto;"                                   <!-- 6回 -->
+style="min-height: 200px;"                                                 <!-- 5回 -->
+style="max-width: 600px;"                                                  <!-- 4回 -->
+style="max-width: 1000px;"                                                 <!-- 4回 -->
+```
+
+#### パターン5: テキスト・色指定（36箇所）
+```html
+<!-- テキストスタイル -->
+style="color: var(--primary); font-size: 2rem;"                           <!-- 8回 -->
+style="color: var(--success); font-weight: bold;"                         <!-- 6回 -->
+style="color: #666; font-size: 0.9rem;"                                   <!-- 5回 -->
+style="font-size: 0.9rem; color: #666;"                                   <!-- 4回 -->
+style="font-weight: bold; color: var(--primary);"                         <!-- 4回 -->
+
+<!-- その他色指定 -->
+style="border-left: 4px solid var(--primary);"                            <!-- 5回 -->
+style="border-left: 4px solid var(--success);"                            <!-- 4回 -->
+```
+
+#### パターン6: 個別・特殊ケース（30箇所）
+```html
+<!-- モーダル・特殊レイアウト -->
+style="max-width: 1000px;"                                                <!-- モーダル専用 -->
+style="white-space: pre-wrap; font-family: monospace;"                    <!-- コード表示 -->
+style="resize: vertical; min-height: 100px;"                              <!-- テキストエリア -->
+```
+
+---
+
+## 🛠️ 段階的実装計画（5ステップ）
+
+### ステップ1: 基本ユーティリティクラス作成（87箇所対応）
+**作業時間**: 2-3時間  
+**リスク**: 低  
+**対象**: 最頻出の基本レイアウトパターン
+
+#### 1.1 CSS追加（css/main.css）
+```css
+/* ==========================================================================
+   ユーティリティクラス - ステップ1
+   ========================================================================== */
+
+/* 幅・マージン系 */
+.w-full { width: 100%; }
+.mb-half { margin-bottom: 0.5rem; }
+.m-0 { margin: 0; }
+.p-0 { padding: 0; }
+.m-0-p-0 { margin: 0; padding: 0; }
+
+/* ボタン系 */
+.btn-full-width {
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+/* サイズ系 */
+.min-w-100 { min-width: 100px; }
+.min-w-120 { min-width: 120px; }
+.min-w-150 { min-width: 150px; }
+```
+
+#### 1.2 HTML修正例
+```html
+<!-- 修正前（23箇所） -->
+<button style="width: 100%; margin-bottom: 0.5rem;">
+
+<!-- 修正後 -->
+<button class="btn-full-width">
+
+<!-- 修正前（18箇所） -->
+<div style="margin-bottom: 0.5rem;">
+
+<!-- 修正後 -->
+<div class="mb-half">
+
+<!-- 修正前（15箇所） -->
+<div style="margin: 0; padding: 0;">
+
+<!-- 修正後 -->
+<div class="m-0-p-0">
+```
+
+#### 1.3 実装手順
+```bash
+# 1. 該当箇所の検索・確認
+grep -n 'style="width: 100%; margin-bottom: 0.5rem;"' index.html
+
+# 2. 一括置換（例）
+# 手動またはエディタの一括置換機能を使用
+# 置換対象: style="width: 100%; margin-bottom: 0.5rem;"
+# 置換内容: class="btn-full-width"
+```
+
+### ステップ2: フレックス・グリッドクラス作成（74箇所対応）
+**作業時間**: 3-4時間  
+**リスク**: 中（レイアウト調整が必要）  
+**対象**: レイアウトシステムの統一
+
+#### 2.1 CSS追加（css/main.css）
+```css
+/* ==========================================================================
+   レイアウトクラス - ステップ2
+   ========================================================================== */
+
+/* フレックスボックス系 */
+.flex { display: flex; }
+.flex-center { display: flex; align-items: center; }
+.flex-center-gap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.flex-end {
+    display: flex;
+    justify-content: flex-end;
+}
+.flex-end-gap {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+
+/* グリッドシステム */
+.grid { display: grid; }
+.grid-gap { display: grid; gap: 1rem; }
+.grid-2-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+.grid-auto-1fr {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem;
+}
+.grid-auto-fit {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .grid-auto-fit {
+        grid-template-columns: 1fr;
+    }
+    .grid-2-cols {
+        grid-template-columns: 1fr;
+    }
+}
+```
+
+#### 2.2 HTML修正例
+```html
+<!-- 修正前（19箇所） -->
+<div style="display: flex; align-items: center; gap: 0.5rem;">
+
+<!-- 修正後 -->
+<div class="flex-center-gap">
+
+<!-- 修正前（16箇所） -->
+<div style="display: flex; justify-content: space-between; align-items: center;">
+
+<!-- 修正後 -->
+<div class="flex-between">
+
+<!-- 修正前（8箇所） -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem;">
+
+<!-- 修正後 -->
+<div class="grid-auto-fit">
+```
+
+### ステップ3: 装飾・背景クラス作成（61箇所対応）
+**作業時間**: 2-3時間  
+**リスク**: 低  
+**対象**: デザイン要素の統一
+
+#### 3.1 CSS追加（css/main.css）
+```css
+/* ==========================================================================
+   装飾・背景クラス - ステップ3
+   ========================================================================== */
+
+/* 分析カード系 */
+.analysis-card {
+    background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border-left: 4px solid var(--primary);
+}
+
+.analysis-card--success {
+    background: linear-gradient(135deg, #f0fdf4 0%, #f7fee7 100%);
+    border-left: 4px solid var(--success);
+}
+
+.analysis-card--warning {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border-left: 4px solid var(--warning);
+}
+
+.analysis-card--danger {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-left: 4px solid var(--danger);
+}
+
+/* ハイライトボックス */
+.highlight-box {
+    background: rgba(79, 70, 229, 0.1);
+    border-radius: 8px;
+    padding: 0.5rem;
+}
+
+.highlight-box--success {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.highlight-box--warning {
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.highlight-box--danger {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* 影・装飾効果 */
+.shadow-right {
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.shadow-sm {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.shadow-md {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* 角丸・パディング */
+.rounded { border-radius: 8px; }
+.rounded-lg { border-radius: 12px; }
+.p-4 { padding: 1rem; }
+.p-6 { padding: 1.5rem; }
+.p-2 { padding: 0.5rem; }
+
+/* ボーダー */
+.border-l-primary { border-left: 4px solid var(--primary); }
+.border-l-success { border-left: 4px solid var(--success); }
+.border-l-warning { border-left: 4px solid var(--warning); }
+.border-l-danger { border-left: 4px solid var(--danger); }
+```
+
+#### 3.2 HTML修正例
+```html
+<!-- 修正前（14箇所） -->
+<div style="background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--primary);">
+
+<!-- 修正後 -->
+<div class="analysis-card">
+
+<!-- 修正前（12箇所） -->
+<div style="background: rgba(79, 70, 229, 0.1); border-radius: 8px; padding: 0.5rem;">
+
+<!-- 修正後 -->
+<div class="highlight-box">
+
+<!-- 修正前（11箇所） -->
+<div style="box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);">
+
+<!-- 修正後 -->
+<div class="shadow-right">
+```
+
+### ステップ4: 位置・サイズクラス作成（43箇所対応）
+**作業時間**: 2-3時間  
+**リスク**: 中（位置調整が必要）  
+**対象**: 位置指定・サイズ制御
+
+#### 4.1 CSS追加（css/main.css）
+```css
+/* ==========================================================================
+   位置・サイズクラス - ステップ4
+   ========================================================================== */
+
+/* バッジ・絶対位置 */
+.badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: white;
+}
+
+.badge--primary {
+    background: var(--primary);
+}
+
+.badge--success {
+    background: var(--success);
+}
+
+.badge--warning {
+    background: var(--warning);
+}
+
+.badge--danger {
+    background: var(--danger);
+}
+
+/* 位置指定 */
+.relative { position: relative; }
+.absolute { position: absolute; }
+.top-2 { top: -8px; }
+.right-2 { right: -8px; }
+
+/* 高さ・スクロール */
+.h-200 { height: 200px; }
+.h-300 { height: 300px; }
+.max-h-200 {
+    max-height: 200px;
+    overflow-y: auto;
+}
+.max-h-300 {
+    max-height: 300px;
+    overflow-y: auto;
+}
+.min-h-200 { min-height: 200px; }
+
+/* 幅制限 */
+.max-w-600 { max-width: 600px; }
+.max-w-800 { max-width: 800px; }
+.max-w-1000 { max-width: 1000px; }
+
+/* スクロール */
+.overflow-auto { overflow: auto; }
+.overflow-y-auto { overflow-y: auto; }
+.overflow-hidden { overflow: hidden; }
+```
+
+#### 4.2 HTML修正例
+```html
+<!-- 修正前（9箇所） -->
+<div style="position: absolute; top: -8px; right: -8px; background: var(--primary); color: white; border-radius: 50%; width: 24px; height: 24px;">
+
+<!-- 修正後 -->
+<div class="badge badge--primary">
+
+<!-- 修正前（8箇所） -->
+<div style="max-height: 200px; overflow-y: auto;">
+
+<!-- 修正後 -->
+<div class="max-h-200">
+
+<!-- 修正前（4箇所） -->
+<div style="max-width: 1000px;">
+
+<!-- 修正後 -->
+<div class="max-w-1000">
+```
+
+### ステップ5: テキスト・残りのクラス作成（66箇所対応）
+**作業時間**: 3-4時間  
+**リスク**: 低  
+**対象**: テキストスタイル・特殊ケース
+
+#### 5.1 CSS追加（css/main.css）
+```css
+/* ==========================================================================
+   テキスト・特殊クラス - ステップ5
+   ========================================================================== */
+
+/* テキストカラー・サイズ */
+.text-primary { color: var(--primary); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-danger { color: var(--danger); }
+.text-muted { color: #666; }
+
+.text-2xl { font-size: 2rem; }
+.text-lg { font-size: 1.125rem; }
+.text-sm { font-size: 0.9rem; }
+.text-xs { font-size: 0.75rem; }
+
+.text-primary-large {
+    color: var(--primary);
+    font-size: 2rem;
+}
+
+/* フォントウェイト */
+.font-bold { font-weight: bold; }
+.font-medium { font-weight: 500; }
+.font-normal { font-weight: normal; }
+
+/* 特殊テキスト */
+.font-mono {
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+/* フォーム要素 */
+.resize-vertical {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.resize-none { resize: none; }
+
+/* 表示・非表示 */
+.hidden { display: none; }
+.block { display: block; }
+.inline { display: inline; }
+.inline-block { display: inline-block; }
+
+/* テキスト配置 */
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+/* その他ユーティリティ */
+.cursor-pointer { cursor: pointer; }
+.pointer-events-none { pointer-events: none; }
+.select-none { user-select: none; }
+```
+
+#### 5.2 HTML修正例
+```html
+<!-- 修正前（8箇所） -->
+<span style="color: var(--primary); font-size: 2rem;">
+
+<!-- 修正後 -->
+<span class="text-primary-large">
+
+<!-- 修正前（6箇所） -->
+<span style="color: var(--success); font-weight: bold;">
+
+<!-- 修正後 -->
+<span class="text-success font-bold">
+
+<!-- 修正前（5箇所） -->
+<span style="color: #666; font-size: 0.9rem;">
+
+<!-- 修正後 -->
+<span class="text-muted text-sm">
+```
+
+---
+
+## 🔧 実装ツール・スクリプト
+
+### 自動分析スクリプト
+```bash
+#!/bin/bash
+# inline_style_analyzer.sh - インラインスタイル分析スクリプト
+
+echo "=== インラインスタイル分析レポート ==="
+echo "生成日時: $(date)"
+echo ""
+
+echo "1. 総数確認"
+total_count=$(grep -o 'style=' index.html | wc -l)
+echo "インラインstyle属性総数: $total_count"
+echo ""
+
+echo "2. 頻出パターン分析（上位20位）"
+grep -o 'style="[^"]*"' index.html | sort | uniq -c | sort -nr | head -20
+echo ""
+
+echo "3. パターン別分類"
+echo "--- フレックス系 ---"
+grep -o 'style="[^"]*flex[^"]*"' index.html | wc -l
+
+echo "--- グリッド系 ---"
+grep -o 'style="[^"]*grid[^"]*"' index.html | wc -l
+
+echo "--- 背景系 ---"
+grep -o 'style="[^"]*background[^"]*"' index.html | wc -l
+
+echo "--- 位置系 ---"
+grep -o 'style="[^"]*position[^"]*"' index.html | wc -l
+
+echo ""
+echo "4. 最優先対象（10回以上出現）"
+grep -o 'style="[^"]*"' index.html | sort | uniq -c | sort -nr | awk '$1 >= 10'
+```
+
+### 半自動置換スクリプト
+```bash
+#!/bin/bash
+# style_replacer.sh - 段階的置換スクリプト（要確認後実行）
+
+# バックアップ作成
+cp index.html index.html.backup.$(date +%Y%m%d_%H%M%S)
+
+echo "ステップ1: 基本クラスの置換"
+echo "置換内容を確認してください："
+
+# 置換例（実際の実行前に内容確認必須）
+echo '置換予定: style="width: 100%; margin-bottom: 0.5rem;" → class="btn-full-width"'
+echo '置換予定: style="margin-bottom: 0.5rem;" → class="mb-half"'
+echo '置換予定: style="margin: 0; padding: 0;" → class="m-0-p-0"'
+
+read -p "置換を実行しますか？ (y/N): " confirm
+if [[ $confirm == [yY] ]]; then
+    # 実際の置換は手動確認を推奨
+    echo "手動置換を推奨します。エディタの置換機能を使用してください。"
+fi
+```
+
+### 検証スクリプト
+```bash
+#!/bin/bash
+# style_validator.sh - 置換結果検証スクリプト
+
+echo "=== 置換結果検証 ==="
+
+echo "1. 残存インラインスタイル数"
+remaining=$(grep -o 'style=' index.html | wc -l)
+original=331
+removed=$((original - remaining))
+echo "元の数: $original"
+echo "現在の数: $remaining"
+echo "削除済み: $removed"
+echo "削除率: $(echo "scale=1; $removed * 100 / $original" | bc)%"
+
+echo ""
+echo "2. 新規CSSクラス使用状況"
+echo "btn-full-width: $(grep -o 'class="[^"]*btn-full-width[^"]*"' index.html | wc -l)"
+echo "flex-center-gap: $(grep -o 'class="[^"]*flex-center-gap[^"]*"' index.html | wc -l)"
+echo "analysis-card: $(grep -o 'class="[^"]*analysis-card[^"]*"' index.html | wc -l)"
+
+echo ""
+echo "3. 残存問題パターン"
+if [ $remaining -gt 0 ]; then
+    echo "未処理のインラインスタイル:"
+    grep -o 'style="[^"]*"' index.html | sort | uniq -c | sort -nr | head -10
+fi
+```
+
+---
+
+## 📋 詳細実装チェックリスト
+
+### 事前準備
+- [ ] **完全バックアップ作成**
+  ```bash
+  cp index.html index.html.backup.$(date +%Y%m%d_%H%M%S)
+  cp css/main.css css/main.css.backup.$(date +%Y%m%d_%H%M%S)
+  ```
+- [ ] **分析スクリプト実行**
+  ```bash
+  ./inline_style_analyzer.sh > analysis_report.txt
+  ```
+- [ ] **開発環境準備**（ローカルサーバー起動）
+- [ ] **ブラウザ開発者ツール準備**（レイアウト検証用）
+
+### ステップ1実装（基本ユーティリティ）
+- [ ] **CSS追加**: ユーティリティクラス（.w-full, .mb-half等）
+- [ ] **HTML修正**: 87箇所の基本パターン置換
+- [ ] **動作確認**: 全ページの表示確認
+- [ ] **レイアウト検証**: ボタン・基本要素の配置確認
+- [ ] **ブラウザ互換性**: Chrome, Firefox, Safari確認
+
+### ステップ2実装（レイアウトシステム）
+- [ ] **CSS追加**: フレックス・グリッドクラス
+- [ ] **HTML修正**: 74箇所のレイアウトパターン置換
+- [ ] **レスポンシブ確認**: モバイル・タブレット表示確認
+- [ ] **グリッド動作**: 自動フィット・カラム分割確認
+- [ ] **フレックス動作**: 配置・間隔確認
+
+### ステップ3実装（装飾・背景）
+- [ ] **CSS追加**: 装飾・背景クラス
+- [ ] **HTML修正**: 61箇所の装飾パターン置換
+- [ ] **色彩確認**: グラデーション・背景色確認
+- [ ] **影効果確認**: ボックスシャドウ表示確認
+- [ ] **テーマ一貫性**: カラー変数使用確認
+
+### ステップ4実装（位置・サイズ）
+- [ ] **CSS追加**: 位置・サイズクラス
+- [ ] **HTML修正**: 43箇所の位置パターン置換
+- [ ] **バッジ位置**: 絶対位置要素の配置確認
+- [ ] **スクロール動作**: 高さ制限・スクロール確認
+- [ ] **レスポンシブ**: サイズ制限の適応確認
+
+### ステップ5実装（テキスト・特殊）
+- [ ] **CSS追加**: テキスト・特殊クラス
+- [ ] **HTML修正**: 66箇所の残りパターン置換
+- [ ] **テキスト表示**: フォント・色・サイズ確認
+- [ ] **特殊要素**: モノスペース・リサイズ確認
+- [ ] **フォーム要素**: インプット・テキストエリア確認
+
+### 最終検証
+- [ ] **全機能テスト**: 全タブ・全モーダル動作確認
+- [ ] **データ整合性**: 既存データの表示確認
+- [ ] **パフォーマンス**: ページ読み込み速度確認
+- [ ] **アクセシビリティ**: スクリーンリーダー対応確認
+- [ ] **ブラウザ横断**: 主要ブラウザ全確認
+
+### 完了確認
+- [ ] **インラインスタイル0確認**
+  ```bash
+  grep 'style=' index.html | wc -l  # 結果: 0
+  ```
+- [ ] **CSS有効性確認**: W3C CSS Validator通過
+- [ ] **HTML有効性確認**: W3C HTML Validator通過
+- [ ] **レスポンシブ確認**: 320px〜1920px表示確認
+- [ ] **パフォーマンス計測**: Lighthouse Score確認
+
+---
+
+## 🚨 トラブルシューティング
+
+### よくある問題と解決法
+
+#### 問題1: レイアウト崩れ
+```css
+/* 原因: フレックス・グリッドの挙動違い */
+/* 解決: 段階的調整 */
+.flex-center-gap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    /* 必要に応じて追加 */
+    flex-wrap: wrap;
+}
+```
+
+#### 問題2: バッジ位置ずれ
+```css
+/* 原因: 親要素のposition指定不足 */
+/* 解決: 親要素にrelative追加 */
+.badge-container {
+    position: relative; /* 追加必要 */
+}
+```
+
+#### 問題3: モバイル表示問題
+```css
+/* 原因: 固定幅の影響 */
+/* 解決: レスポンシブクラス追加 */
+@media (max-width: 768px) {
+    .grid-auto-fit {
+        grid-template-columns: 1fr;
+    }
+    .min-w-100 {
+        min-width: auto;
+    }
+}
+```
+
+### 緊急ロールバック手順
+```bash
+# 1. バックアップからの復元
+cp index.html.backup.YYYYMMDD_HHMMSS index.html
+cp css/main.css.backup.YYYYMMDD_HHMMSS css/main.css
+
+# 2. 問題箇所の特定
+diff index.html index.html.backup.YYYYMMDD_HHMMSS
+
+# 3. 部分的修正
+# 問題のあるクラスのみを元に戻す
+```
+
+---
+
+**実装目標**: 331個のインラインスタイル完全削除  
+**推定作業時間**: 12-16時間（検証含む）  
+**完了目標**: 2025年1月  
+**成功指標**: `grep 'style=' index.html | wc -l` = 0

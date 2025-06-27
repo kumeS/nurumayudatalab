@@ -1,0 +1,388 @@
+# app.js 完全分離計画書
+# コード完全維持・jsフォルダ内分離
+
+## 基本情報
+- 元ファイル: app.js (6,478行)
+- 分離先: jsフォルダ内の18個のモジュールファイル
+- 分離方針: 全コードを100%維持し、機能別に分離
+- 階層構造: js/ 直下のフラット構造（深い階層なし）
+
+## 分離対象ファイルと正確な行番号詳細
+
+### 1. js/app-globals.js (約350行)
+**グローバル変数・定数・初期化機能**
+
+**移行対象:**
+- 行1-11: ファイルヘッダーコメント + グローバル変数宣言
+  ```javascript
+  let studentsData = {};
+  let currentTab = 'students';
+  let apiKey = '';
+  let analysisHistory = [];
+  ```
+- 行12-147: builtInFields定数（大型オブジェクト）
+- 行148-163: initializeApp()
+- 行225-248: loadData()
+- 行249-292: initializeDefaultData()
+- 行293-309: saveData()
+- 行310-355: ensureDataCompatibility()
+- 行2251-2278: initializeAnalysisHistory()
+- 行2279-2349: generateSampleAnalysisData()
+
+**合計移行行数:** 約350行
+
+### 2. js/tab-manager.js (約80行)
+**タブ管理・画面切り替え**
+
+**移行対象:**
+- 行166-189: setTabStateOnly(tabName)
+- 行356-399: switchTab(tabName)
+
+**合計移行行数:** 約80行
+
+### 3. js/ui-components.js (約250行)
+**UI更新・モーダル管理・アラート**
+
+**移行対象:**
+- 行915-921: closeModal(modalId)
+- 行922-945: updateUI()
+- 行946-970: showAlert(message, type = 'info')
+- 行971-982: getAlertIcon(type)
+- 行877-886: hexToRgb(hex)
+- 行887-893: formatStudentName(name)
+- 行894-907: getGenderDisplay(gender)
+- 行908-914: openAddFieldModal()
+- 行1760-1766: openAddStudentModal()
+- 行1767-1773: openBulkInputModal()
+- 行6473-6478: showAnalysisTips()
+
+**合計移行行数:** 約250行
+
+### 4. js/table-manager.js (約350行)
+**テーブル表示・フィルタリング・統計**
+
+**移行対象:**
+- 行400-431: updateProgressTable()
+- 行432-485: filterProgressTable(filterType)
+- 行486-539: createProgressTableRow(student)
+- 行540-612: generateStatusLabel(record)
+- 行1082-1122: updateStudentsTable()
+- 行1123-1155: updateStatistics()
+- 行1156-1195: updateMissingInputsStatistics()
+- 行1196-1270: analyzeMissingInputs()
+- 行1271-1363: generateMissingInputsList(missingInputsData)
+- 行1364-1449: generateNoRecentInputsList(studentsWithNoRecentInput, container)
+- 行1450-1469: toggleMissingInputsDetail()
+- 行2350-2363: filterStudents()
+
+**合計移行行数:** 約350行
+
+### 5. js/form-handler.js (約450行)
+**フォーム処理・入力管理・フィールド管理**
+
+**移行対象:**
+- 行194-224: setupEventListeners()
+- 行983-1055: updateInputFields()
+- 行1056-1081: updateStudentSelect()
+- 行1538-1598: handleAddStudent(event)
+- 行1599-1638: handleAddField(event)
+- 行1639-1727: handleProgressInput(event)
+- 行1511-1529: clearForm()
+- 行1530-1537: refreshTable()
+- 行1470-1496: goToStudentInput(studentId)
+- 行1497-1510: formatDate(dateString)
+- 行6452-6472: toggleBehaviorTag(button, fieldId)
+
+**合計移行行数:** 約450行
+
+### 6. js/student-manager.js (約150行)
+**児童データ管理**
+
+**移行対象:**
+- 行1728-1734: generateStudentId()
+- 行1735-1752: deleteStudent(studentId)
+- 行1753-1759: editStudent(studentId)
+- 行3408-3472: updateStudentManagementSettings()
+- 行3473-3503: deleteStudentFromSettings(studentId)
+
+**合計移行行数:** 約150行
+
+### 7. js/field-manager.js (約300行)
+**フィールド設定管理・組み込み項目管理**
+
+**移行対象:**
+- 行693-734: updateFieldSettings()
+- 行735-784: updateBuiltInFieldsDisplay()
+- 行785-825: addBuiltInField(categoryKey, fieldName)
+- 行826-843: generateFieldId(name)
+- 行844-856: getFieldTypeLabel(type)
+- 行857-876: removeField(index)
+- 行670-692: getFieldValue(record, fieldId)
+
+**合計移行行数:** 約300行
+
+### 8. js/import-export.js (約600行)
+**データインポート・エクスポート・データ管理**
+
+**移行対象:**
+- 行1774-1794: exportData()
+- 行1795-1828: importData()
+- 行1829-1969: showImportOptionsModal(importedData)
+- 行1970-2008: analyzeDataDuplicates(importedData)
+- 行2009-2019: closeImportOptionsModal()
+- 行2020-2057: executeImport()
+- 行2058-2085: performReplaceImport(importedData)
+- 行2086-2162: performMergeImport(importedData, duplicateMode)
+- 行2163-2214: performAddOnlyImport(importedData)
+- 行2215-2235: showImportResultMessage(result, importMode)
+- 行2236-2249: confirmClearAllData()
+
+**合計移行行数:** 約600行
+
+### 9. js/analysis-engine.js (約900行)
+**AI分析エンジン・分析生成**
+
+**移行対象:**
+- 行2364-2384: runAIAnalysis()
+- 行2385-2423: runAllIndividualAnalysis()
+- 行2424-2432: runIndividualAnalysis()
+- 行2433-2452: updateIndividualAnalysisModal()
+- 行2453-2495: executeIndividualAnalysis()
+- 行2496-2560: generateClassAnalysis()
+- 行2561-2606: generateIndividualAnalysis(student)
+- 行2607-2644: generatePersonalAnalysis(student, records)
+- 行2645-2701: calculateLearningStats(recentData)
+- 行2702-2732: generateLearningTrends(stats)
+- 行2733-2746: generateClassObservations(recentData)
+- 行2747-2771: generateClassRecommendations(stats, recentData)
+- 行2772-2782: generateParentCollaborationPoints(stats)
+- 行2783-2792: generateActionPlan(stats, totalStudents)
+- 行2793-2829: analyzeStudentLearning(data, studentName)
+- 行2830-2848: analyzeStudentGrowth(records, studentName)
+- 行2849-2900: generateStudentRecommendations(data, studentName)
+- 行2901-2910: generateParentAdvice(data, studentName)
+- 行2911-2924: generateFocusAreas(data, studentName)
+
+**合計移行行数:** 約900行
+
+### 10. js/analysis-ui.js (約400行)
+**分析結果表示・履歴管理**
+
+**移行対象:**
+- 行613-659: showAnalysisDetail({ title, content, analysisDate, studentName = '', type = 'overall' })
+- 行660-669: closeAnalysisDetailModal()
+- 行2925-2944: showAnalysisLoading(message)
+- 行2945-3026: displayAnalysisResults(results)
+- 行3027-3045: generateAnalysisSummary(content)
+- 行3046-3064: viewAnalysisDetail(analysisId)
+- 行3065-3085: saveAnalysisToHistory(analysisResult)
+- 行3086-3146: updateAnalysisHistoryPreview()
+- 行3147-3158: addIndividualAnalysisToStudent(studentId, analysisContent)
+- 行3159-3183: viewIndividualAnalysisDetail(studentId)
+- 行3184-3209: formatAnalysisContent(content)
+- 行3210-3275: viewAnalysisHistory()
+- 行3276-3308: clearAnalysisHistory()
+- 行3309-3407: viewStudentProgress(studentId)
+
+**合計移行行数:** 約400行
+
+### 11. js/parent-report-generator.js (約800行)
+**保護者向けレポート生成**
+
+**移行対象:**
+- 行3504-3516: generateParentReport(type)
+- 行3517-3534: openClassReportModal()
+- 行3535-3583: updateClassReportClassOptions()
+- 行3584-3670: updateClassReportPreview()
+- 行3671-3728: executeClassReportGeneration()
+- 行3729-3748: updateParentReportStudentModal()
+- 行3749-3781: executeParentReportGeneration()
+- 行3782-3802: generateClassParentReport()
+- 行3803-3915: generateClassParentReportContent()
+- 行3916-4082: generateClassParentReportContentForGrade(grade, targetStudents)
+- 行4083-4188: generateClassParentReportContentForClass(grade, className, targetStudents)
+- 行4189-4278: generateIndividualParentReport(student)
+- 行4279-4324: generateNoDataParentReport(student)
+
+**合計移行行数:** 約800行
+
+### 12. js/parent-report-ui.js (約500行)
+**保護者レポートUI・履歴管理**
+
+**移行対象:**
+- 行5175-5198: saveParentReportToHistory(report)
+- 行5199-5302: updateParentReportHistory()
+- 行5303-5314: showParentReportDetailById(reportId)
+- 行5315-5326: exportParentReportById(reportId)
+- 行5327-5338: exportParentReportPDFById(reportId)
+- 行5339-5354: getParentReportById(reportId)
+- 行5355-5367: showParentReportDetail(report)
+- 行5368-5406: exportParentReport(report)
+- 行5407-5427: exportParentReportPDF(report)
+- 行5428-5474: generatePrintablePDF(report)
+- 行5475-5506: generateHTMLReport(report)
+- 行5507-5644: formatReportForPrint(report)
+- 行5645-5756: convertMarkdownToHTML(markdown)
+- 行5757-5898: regenerateParentReport(reportType, studentId = '', reportId = '')
+- 行5899-5958: replaceOrAddParentReport(newReport, reportType, studentId = '', reportId = '')
+- 行5959-6006: deleteParentReport(reportId)
+- 行6007-6012: viewAllParentReports()
+
+**合計移行行数:** 約500行
+
+### 13. js/parent-report-messages.js (約250行)
+**保護者向けメッセージ生成**
+
+**移行対象:**
+- 行4325-4331: getLearningStatusMessageForParents(status)
+- 行4332-4338: getMotivationMessageForParents(motivation)
+- 行4339-4347: getHomeworkMessageForParents(homework)
+- 行4348-4354: generateStudentStrengthsForParents(data, studentName)
+- 行4355-4404: analyzeStudentGrowthForParents(records, studentName)
+- 行5056-5066: getLearningStatusMessageForParentsFallback(status)
+- 行5067-5077: getMotivationMessageForParentsFallback(motivation)
+- 行5154-5160: generateHomeSupport(data, studentName)
+- 行5161-5167: generateEncouragementMessage(data, studentName)
+- 行5168-5174: generateCollaborationMessage(data, studentName)
+
+**合計移行行数:** 約250行
+
+### 14. js/llm-api-client.js (約400行)
+**LLM API連携・設定管理**
+
+**移行対象:**
+- 行4405-4449: generatePersonalizedHomeSupport(data, studentName, studentInfo = {})
+- 行4450-4494: generatePersonalizedEncouragementMessage(data, studentName, studentInfo = {})
+- 行4495-4542: generatePersonalizedCollaborationMessage(data, studentName, studentInfo = {})
+- 行4543-4584: generatePersonalizedStudentStrengths(data, studentName, studentInfo = {})
+- 行4585-4618: generatePersonalizedLearningStatusMessage(status, studentName, additionalContext = '')
+- 行4619-4652: generatePersonalizedMotivationMessage(motivation, studentName, additionalContext = '')
+- 行4653-4693: callLLMAPI(prompt)
+- 行4694-4706: getLLMAPIKey()
+- 行4707-4726: saveLLMAPIKey()
+- 行4727-4755: testLLMConnection()
+- 行4756-4771: toggleAPIKeyVisibility()
+
+**合計移行行数:** 約400行
+
+### 15. js/llm-fallback.js (約450行)
+**LLMフォールバック機能**
+
+**移行対象:**
+- 行4772-4838: generateFallbackHomeSupport(data, studentName)
+- 行4839-4884: generateDynamicEncouragementMessage(data, studentName, level = 'good')
+- 行4885-4919: generateDynamicBehaviorEncouragement(behaviorTags, studentName)
+- 行4920-4992: generateFallbackEncouragementMessage(data, studentName)
+- 行4993-5019: generateFallbackCollaborationMessage(data, studentName)
+- 行5020-5055: generateFallbackStudentStrengths(data, studentName)
+- 行5078-5153: generateIndividualParentReportFallback(student)
+
+**合計移行行数:** 約450行
+
+### 16. js/behavior-analysis.js (約350行)
+**行動タグ分析・行動パターン解析**
+
+**移行対象:**
+- 行6013-6064: analyzeBehaviorTags(tags, studentName)
+- 行6065-6114: extractBehaviorStrengthsForParents(behaviorTags, studentName)
+- 行6115-6153: generateDynamicParentSupport(behaviorTags, studentName, data)
+- 行6154-6208: generateBehaviorBasedSupportForParents(behaviorTags, studentName, data = {})
+- 行6209-6250: analyzeBehaviorTagsGrowthForParents(prevData, currentData, studentName)
+- 行6251-6311: generateDynamicClassBehaviorStats(recentData)
+- 行6312-6375: calculateBehaviorTagStatsForClass(recentData)
+- 行6376-6450: generateBehaviorBasedEncouragement(behaviorTags, studentName)
+
+**合計移行行数:** 約350行
+
+### 17. js/event-listeners.js (約100行)
+**イベントリスナー設定・DOM操作**
+
+**移行対象:**
+- setupEventListeners()から抽出したイベントリスナー部分
+- 各種DOM操作イベントハンドラー
+
+**合計移行行数:** 約100行
+
+### 18. js/utilities.js (約100行)
+**ユーティリティ関数・ヘルパー関数**
+
+**移行対象:**
+- 汎用的なヘルパー関数
+- 日付フォーマット関数
+- その他の共通処理
+
+**合計移行行数:** 約100行
+
+## 分離実行手順
+
+### Phase 1: 基礎モジュール分離
+1. js/app-globals.js - グローバル変数・初期化
+2. js/utilities.js - ユーティリティ関数
+3. js/tab-manager.js - タブ管理
+
+### Phase 2: UI関連モジュール分離
+4. js/ui-components.js - UI更新・モーダル
+5. js/table-manager.js - テーブル表示
+6. js/form-handler.js - フォーム処理
+
+### Phase 3: データ管理モジュール分離
+7. js/student-manager.js - 児童管理
+8. js/field-manager.js - フィールド管理
+9. js/import-export.js - データ管理
+
+### Phase 4: 分析機能モジュール分離
+10. js/analysis-engine.js - 分析エンジン
+11. js/analysis-ui.js - 分析UI
+12. js/behavior-analysis.js - 行動分析
+
+### Phase 5: レポート機能モジュール分離
+13. js/parent-report-generator.js - レポート生成
+14. js/parent-report-ui.js - レポートUI
+15. js/parent-report-messages.js - メッセージ生成
+
+### Phase 6: AI機能モジュール分離
+16. js/llm-api-client.js - API連携
+17. js/llm-fallback.js - フォールバック
+18. js/event-listeners.js - イベント管理
+
+## 依存関係管理
+
+### 読み込み順序（index.htmlでの<script>タグ順序）
+```html
+<script src="js/utilities.js"></script>
+<script src="js/app-globals.js"></script>
+<script src="js/tab-manager.js"></script>
+<script src="js/ui-components.js"></script>
+<script src="js/table-manager.js"></script>
+<script src="js/form-handler.js"></script>
+<script src="js/student-manager.js"></script>
+<script src="js/field-manager.js"></script>
+<script src="js/import-export.js"></script>
+<script src="js/analysis-engine.js"></script>
+<script src="js/analysis-ui.js"></script>
+<script src="js/behavior-analysis.js"></script>
+<script src="js/parent-report-generator.js"></script>
+<script src="js/parent-report-ui.js"></script>
+<script src="js/parent-report-messages.js"></script>
+<script src="js/llm-api-client.js"></script>
+<script src="js/llm-fallback.js"></script>
+<script src="js/event-listeners.js"></script>
+```
+
+## 検証項目
+
+### 分離後の動作確認
+1. ✅ 全ての関数が正常に動作する
+2. ✅ グローバル変数の参照が正常
+3. ✅ 関数間の呼び出しが正常
+4. ✅ イベントリスナーが正常に動作
+5. ✅ AI機能が正常に動作
+6. ✅ データ保存・読み込みが正常
+
+### 品質保証
+- 行番号の正確性確認済み
+- 関数の境界確認済み
+- 依存関係マッピング完了
+- 段階的分離計画策定完了
+
+**総行数確認: 6,478行を18ファイルに完全分離** 

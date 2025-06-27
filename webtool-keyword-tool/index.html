@@ -340,10 +340,14 @@
         </div>
         <div class="step">
           <span class="step-number">2</span>
-          <strong>実行ボタン:</strong> 重複するキーワードが自動的に削除されます
+          <strong>除外キーワード入力:</strong> 除外したいキーワードをスペース区切りで入力（オプション）
         </div>
         <div class="step">
           <span class="step-number">3</span>
+          <strong>実行ボタン:</strong> 重複するキーワードが自動的に削除され、除外キーワードも除去されます
+        </div>
+        <div class="step">
+          <span class="step-number">4</span>
           <strong>結果の加工:</strong> 以下の方法で整形できます
           <ul>
             <li>250バイト単位に分割: 広告入稿用</li>
@@ -352,13 +356,17 @@
           </ul>
         </div>
         <div class="step">
-          <span class="step-number">4</span>
+          <span class="step-number">5</span>
           <strong>コピー:</strong> 整形結果をクリップボードにコピーできます
         </div>
       </div>
     </div>
 
     <textarea id="kwInput" placeholder="例: パンプス レディース ローヒール パンプス 幅広 ..."></textarea><br>
+    
+    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">除外キーワード（オプション）</h3>
+    <textarea id="excludeInput" placeholder="例: 除外したいキーワード1 除外したいキーワード2 ..." style="height: 4rem;"></textarea><br>
+    
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
       <div>
         <button id="execBtn"><i class="fas fa-play"></i> 実行</button>
@@ -371,7 +379,12 @@
   <!-- モーダル追加 -->
   <div id="modal">
     <div id="modalContent">
-      <h2 class="modal-heading">重複削除後のキーワード</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 class="modal-heading" style="margin: 0;">重複削除後のキーワード</h2>
+        <div id="countInfo" style="font-size: 0.9rem; color: #666; font-weight: normal;">
+          文字数: <span id="charCount">0</span> | バイト数: <span id="byteCount">0</span>
+        </div>
+      </div>
       <div class="output-container">
         <textarea readonly id="resultText" class="output-text"></textarea>
         <div class="output-actions">
@@ -398,16 +411,55 @@
   </div>
 
   <script>
-  // ▼ クリック 1：重複除去してモーダル表示
+  // ▼ ローカルストレージから入力データを復元
+  function loadSavedData() {
+    const savedKeywords = localStorage.getItem('keywordTool_keywords');
+    const savedExclude = localStorage.getItem('keywordTool_exclude');
+    
+    if (savedKeywords) {
+      document.getElementById('kwInput').value = savedKeywords;
+    }
+    if (savedExclude) {
+      document.getElementById('excludeInput').value = savedExclude;
+    }
+  }
+
+  // ▼ 入力データをローカルストレージに保存
+  function saveInputData() {
+    const keywords = document.getElementById('kwInput').value;
+    const exclude = document.getElementById('excludeInput').value;
+    
+    localStorage.setItem('keywordTool_keywords', keywords);
+    localStorage.setItem('keywordTool_exclude', exclude);
+  }
+
+  // ▼ ページ読み込み時に保存データを復元
+  document.addEventListener('DOMContentLoaded', loadSavedData);
+
+  // ▼ 入力時に自動保存
+  document.getElementById('kwInput').addEventListener('input', saveInputData);
+  document.getElementById('excludeInput').addEventListener('input', saveInputData);
+
+  // ▼ クリック 1：重複除去と除外キーワード処理してモーダル表示
   document.getElementById('execBtn').addEventListener('click', () => {
     const raw = document.getElementById('kwInput').value.trim();
     if (!raw) { alert('キーワードを入力してください'); return; }
 
-    // 重複除去（元の並び順を保持）
+    // 除外キーワードを取得
+    const excludeRaw = document.getElementById('excludeInput').value.trim();
+    const excludeSet = new Set();
+    if (excludeRaw) {
+      excludeRaw.split(/\s+/).forEach(w => excludeSet.add(w));
+    }
+
+    // 重複除去（元の並び順を保持）+ 除外キーワード削除
     const uniq = [];
     const seen = new Set();
     raw.split(/\s+/).forEach(w => {
-      if (!seen.has(w)) { seen.add(w); uniq.push(w); }
+      if (!seen.has(w) && !excludeSet.has(w)) { 
+        seen.add(w); 
+        uniq.push(w); 
+      }
     });
     const result = uniq.join(' ');
 
@@ -415,6 +467,10 @@
     document.getElementById('resultText').value = result;
     document.getElementById('outArea').textContent = '';
     document.getElementById('copyOutContainer').style.display = 'none';
+    
+    // 文字数とバイト数を更新
+    updateCount(result);
+    
     document.getElementById('modal').style.display = 'block';
     
     // コピーボタンのクラスをリセット
@@ -427,6 +483,7 @@
   // ▼ 入力エリアをクリア
   document.getElementById('clearBtn').addEventListener('click', () => {
     document.getElementById('kwInput').value = '';
+    document.getElementById('excludeInput').value = '';
   });
 
   // ▼ モーダルを閉じる
@@ -455,6 +512,14 @@
         btn.classList.remove('copy-success');
       }, 2000);
     });
+  }
+
+  // ▼ 文字数・バイト数を更新する関数
+  function updateCount(text) {
+    const charCount = text.length;
+    const byteCount = new TextEncoder().encode(text).length;
+    document.getElementById('charCount').textContent = charCount;
+    document.getElementById('byteCount').textContent = byteCount;
   }
 
   // ▼ 250 / 500 バイト単位で分割
