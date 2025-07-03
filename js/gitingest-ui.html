@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gitingest - Prompt-friendly codebase</title>
+    <style>
+        /* リセットとベース設定 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f8f8;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* ヘッダー */
+        .header {
+            background-color: white;
+            border-bottom: 2px solid #000;
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            letter-spacing: -0.5px;
+        }
+        
+        .logo .git {
+            color: #000;
+        }
+        
+        .logo .ingest {
+            color: #ff1744;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .new-badge {
+            background-color: #ff1744;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+        }
+        
+        .llm-txt {
+            color: #333;
+            font-size: 15px;
+        }
+        
+        .github-link {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            color: #000;
+            font-size: 15px;
+        }
+        
+        .github-icon {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .star-count {
+            color: #f5a623;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 15px;
+        }
+        
+        /* メインコンテンツ */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 55px 20px 35px;
+        }
+        
+        .title-section {
+            text-align: center;
+            margin-bottom: 45px;
+            position: relative;
+            max-width: 920px;
+        }
+        
+        .title {
+            font-size: 70px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            line-height: 0.92;
+            letter-spacing: -3px;
+            color: #000;
+        }
+        
+        .subtitle {
+            font-size: 19px;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        /* 装飾的な星 */
+        .sparkle {
+            position: absolute;
+            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.08));
+        }
+        
+        .sparkle-red {
+            width: 40px;
+            height: 40px;
+            top: -5px;
+            left: -75px;
+            transform: rotate(-15deg);
+        }
+        
+        .sparkle-blue {
+            width: 40px;
+            height: 40px;
+            bottom: 45px;
+            right: -75px;
+            transform: rotate(20deg);
+        }
+        
+        .sparkle svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* フォームコンテナ */
+        .form-container {
+            background-color: #f5e6d3;
+            border: 2px solid #000;
+            border-radius: 20px;
+            padding: 38px;
+            width: 100%;
+            max-width: 900px;
+            position: relative;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .input-row {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+        
+        .url-input {
+            flex: 1;
+            padding: 15px 18px;
+            font-size: 16px;
+            border: 2px solid #000;
+            border-radius: 10px;
+            background-color: white;
+            outline: none;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+        
+        .url-input::placeholder {
+            color: #999;
+        }
+        
+        .ingest-button {
+            padding: 15px 32px;
+            font-size: 17px;
+            font-weight: 600;
+            background-color: #ffb347;
+            color: #000;
+            border: 2px solid #000;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            box-shadow: 0 3px 0 #000;
+            position: relative;
+            top: 0;
+        }
+        
+        .ingest-button:hover {
+            top: -1px;
+            box-shadow: 0 4px 0 #000;
+        }
+        
+        .ingest-button:active {
+            top: 2px;
+            box-shadow: 0 1px 0 #000;
+        }
+        
+        /* フィルターオプション */
+        .filter-options {
+            display: flex;
+            gap: 28px;
+            align-items: center;
+            margin-bottom: 22px;
+            flex-wrap: wrap;
+        }
+        
+        .exclude-section {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+        
+        .dropdown {
+            padding: 9px 14px 9px 14px;
+            font-size: 15px;
+            border: 2px solid #000;
+            border-radius: 7px 0 0 7px;
+            border-right: none;
+            background-color: white;
+            cursor: pointer;
+            outline: none;
+            min-width: 95px;
+        }
+        
+        .dropdown::after {
+            content: ' ▾';
+            font-size: 11px;
+        }
+        
+        .exclude-input {
+            padding: 9px 14px;
+            font-size: 15px;
+            border: 2px solid #000;
+            border-radius: 0 7px 7px 0;
+            background-color: #e8f4fd;
+            color: #2196f3;
+            width: 130px;
+            outline: none;
+        }
+        
+        .slider-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+        
+        .slider-label {
+            font-size: 15px;
+            white-space: nowrap;
+            color: #333;
+        }
+        
+        .slider-container {
+            flex: 1;
+            height: 20px;
+            background-color: white;
+            border: 2px solid #000;
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+            min-width: 170px;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+        
+        .slider-fill {
+            height: 16px;
+            background-color: #ff1744;
+            border-radius: 8px;
+            width: 30%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: width 0.1s ease;
+        }
+        
+        .slider-thumb {
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border: 2px solid #000;
+            border-radius: 50%;
+            cursor: grab;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+            transition: box-shadow 0.15s ease;
+        }
+        
+        .slider-thumb:hover {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .slider-thumb:active {
+            cursor: grabbing;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        }
+        
+        .slider-value {
+            font-weight: 600;
+            color: #000;
+            font-size: 15px;
+        }
+        
+        .checkbox-section {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #000;
+            border-radius: 3px;
+            cursor: pointer;
+            background-color: white;
+            position: relative;
+            transition: background-color 0.15s ease;
+        }
+        
+        .checkbox-label {
+            font-size: 15px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        /* サンプルリポジトリ */
+        .sample-repos {
+            margin-top: 22px;
+        }
+        
+        .sample-label {
+            font-size: 15px;
+            margin-bottom: 11px;
+            color: #333;
+        }
+        
+        .repo-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .repo-button {
+            padding: 9px 18px;
+            font-size: 15px;
+            background-color: #fff;
+            border: 2px solid #000;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            box-shadow: 0 2px 0 #000;
+            position: relative;
+            top: 0;
+        }
+        
+        .repo-button:hover {
+            top: -1px;
+            box-shadow: 0 3px 0 #000;
+            background-color: #f8f8f8;
+        }
+        
+        .repo-button:active {
+            top: 1px;
+            box-shadow: 0 1px 0 #000;
+        }
+        
+        /* 装飾的な星（左下） */
+        .sparkle-green {
+            position: absolute;
+            bottom: -45px;
+            left: -45px;
+            width: 50px;
+            height: 50px;
+            transform: rotate(-20deg);
+            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.08));
+        }
+        
+        /* フッター */
+        .footer-note {
+            text-align: center;
+            margin-top: 38px;
+            font-size: 15px;
+            color: #666;
+        }
+        
+        .footer {
+            background-color: white;
+            border-top: 2px solid #000;
+            padding: 18px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .footer-left {
+            display: flex;
+            gap: 22px;
+            align-items: center;
+        }
+        
+        .footer-link {
+            text-decoration: none;
+            color: #333;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            transition: color 0.15s ease;
+        }
+        
+        .footer-link:hover {
+            color: #000;
+        }
+        
+        .footer-icon {
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="logo">
+            <span class="git">Git</span><span class="ingest">ingest</span>
+        </div>
+        <div class="header-right">
+            <div>
+                <span class="new-badge">NEW!</span>
+                <span class="llm-txt">/llm.txt</span>
+            </div>
+            <a href="#" class="github-link">
+                <svg class="github-icon" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                GitHub
+            </a>
+            <span class="star-count">⭐ 10.5k</span>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="main-content">
+        <div class="title-section">
+            <div class="sparkle sparkle-red">
+                <svg viewBox="0 0 40 40">
+                    <path d="M20 2 L24 18 L40 20 L24 24 L20 38 L18 24 L2 20 L18 18 Z" fill="#ff1744"/>
+                    <path d="M20 2 L24 18 L40 20 L24 24 L20 38 L18 24 L2 20 L18 18 Z" fill="none" stroke="#000" stroke-width="2"/>
+                </svg>
+            </div>
+            <h1 class="title">Prompt-friendly<br>codebase</h1>
+            <p class="subtitle">
+                Turn any Git repository into a simple text digest of its codebase.<br>
+                This is useful for feeding a codebase into any LLM.
+            </p>
+            <div class="sparkle sparkle-blue">
+                <svg viewBox="0 0 40 40">
+                    <path d="M20 2 L24 18 L40 20 L24 24 L20 38 L18 24 L2 20 L18 18 Z" fill="#4dd0e1"/>
+                    <path d="M20 2 L24 18 L40 20 L24 24 L20 38 L18 24 L2 20 L18 18 Z" fill="none" stroke="#000" stroke-width="2"/>
+                </svg>
+            </div>
+        </div>
+
+        <div class="form-container">
+            <div class="input-row">
+                <input type="text" class="url-input" placeholder="https://github.com/...">
+                <button class="ingest-button">Ingest</button>
+            </div>
+
+            <div class="filter-options">
+                <div class="exclude-section">
+                    <select class="dropdown">
+                        <option>Exclude</option>
+                    </select>
+                    <input type="text" class="exclude-input" value="*.md, src/">
+                </div>
+
+                <div class="slider-section">
+                    <span class="slider-label">Include files under:</span>
+                    <div class="slider-container" id="slider">
+                        <div class="slider-fill" id="sliderFill">
+                            <div class="slider-thumb" id="sliderThumb"></div>
+                        </div>
+                    </div>
+                    <span class="slider-label slider-value" id="sliderValue">50kB</span>
+                </div>
+
+                <div class="checkbox-section">
+                    <div class="checkbox" id="privateRepo"></div>
+                    <label class="checkbox-label" for="privateRepo">
+                        Private Repository
+                        <span class="new-badge">NEW!</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="sample-repos">
+                <p class="sample-label">Try these example repositories:</p>
+                <div class="repo-buttons">
+                    <button class="repo-button">Gitingest</button>
+                    <button class="repo-button">FastAPI</button>
+                    <button class="repo-button">Flask</button>
+                    <button class="repo-button">Excalidraw</button>
+                    <button class="repo-button">ApiAnalytics</button>
+                </div>
+            </div>
+
+            <div class="sparkle sparkle-green">
+                <svg viewBox="0 0 50 50">
+                    <path d="M25 2 L29 21 L48 25 L29 29 L25 48 L21 29 L2 25 L21 21 Z" fill="#4caf50"/>
+                    <path d="M25 2 L29 21 L48 25 L29 29 L25 48 L21 29 L2 25 L21 21 Z" fill="none" stroke="#000" stroke-width="2"/>
+                </svg>
+            </div>
+        </div>
+
+        <p class="footer-note">You can also replace 'hub' with 'ingest' in any GitHub URL.</p>
+    </main>
+
+    <!-- フッター -->
+    <footer class="footer">
+        <div class="footer-left">
+            <a href="#" class="footer-link">
+                <span class="footer-icon">🧩</span> Extension
+            </a>
+            <a href="#" class="footer-link">
+                <span class="footer-icon">🐍</span> Python package
+            </a>
+        </div>
+        <a href="#" class="footer-link">
+            <span class="footer-icon">💬</span> Discord
+        </a>
+    </footer>
+
+    <script>
+        // スライダーの実装
+        const slider = document.getElementById('slider');
+        const sliderFill = document.getElementById('sliderFill');
+        const sliderThumb = document.getElementById('sliderThumb');
+        const sliderValue = document.getElementById('sliderValue');
+        
+        let isDragging = false;
+        
+        // ファイルサイズの値を対数的に配置
+        const sizes = ['1kB', '5kB', '10kB', '25kB', '50kB', '100kB', '250kB', '500kB', '1MB', '2MB', '5MB', '10MB'];
+        let currentIndex = 4; // デフォルトは50kB
+        
+        function updateSlider(percentage) {
+            // パーセンテージを0-100に制限
+            percentage = Math.max(0, Math.min(100, percentage));
+            
+            // パーセンテージからインデックスを計算
+            currentIndex = Math.round((sizes.length - 1) * percentage / 100);
+            
+            // 実際のパーセンテージを再計算（スナップ効果）
+            const actualPercentage = (currentIndex / (sizes.length - 1)) * 100;
+            
+            // スライダーの表示を更新
+            sliderFill.style.width = actualPercentage + '%';
+            sliderValue.textContent = sizes[currentIndex];
+        }
+        
+        function handleSliderMove(e) {
+            if (!isDragging) return;
+            
+            const rect = slider.getBoundingClientRect();
+            const x = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+            let percentage = ((x - rect.left) / rect.width) * 100;
+            
+            updateSlider(percentage);
+        }
+        
+        // マウスイベント
+        sliderThumb.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            e.preventDefault();
+            document.body.style.cursor = 'grabbing';
+        });
+        
+        document.addEventListener('mousemove', handleSliderMove);
+        
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.style.cursor = 'default';
+            }
+        });
+        
+        // タッチイベント（モバイル対応）
+        sliderThumb.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            e.preventDefault();
+        });
+        
+        document.addEventListener('touchmove', handleSliderMove);
+        
+        document.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+        
+        // スライダーコンテナをクリックしたときの処理
+        slider.addEventListener('click', (e) => {
+            // つまみをクリックした場合は無視
+            if (e.target === sliderThumb) return;
+            
+            const rect = slider.getBoundingClientRect();
+            const percentage = ((e.clientX - rect.left) / rect.width) * 100;
+            updateSlider(percentage);
+        });
+        
+        // チェックボックスの実装
+        const checkbox = document.getElementById('privateRepo');
+        const checkboxLabel = document.querySelector('.checkbox-label');
+        let isChecked = false;
+        
+        function toggleCheckbox() {
+            isChecked = !isChecked;
+            if (isChecked) {
+                checkbox.style.backgroundColor = '#000';
+                checkbox.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" style="position: absolute; top: 3px; left: 3px;"><path d="M1.5 7 L5.5 11 L12.5 3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            } else {
+                checkbox.style.backgroundColor = 'white';
+                checkbox.innerHTML = '';
+            }
+        }
+        
+        checkbox.addEventListener('click', toggleCheckbox);
+        checkboxLabel.addEventListener('click', (e) => {
+            if (e.target !== checkbox) {
+                toggleCheckbox();
+            }
+        });
+        
+        // 初期状態のスライダー位置を設定
+        updateSlider(30); // 50kBの位置に設定
+    </script>
+</body>
+</html>

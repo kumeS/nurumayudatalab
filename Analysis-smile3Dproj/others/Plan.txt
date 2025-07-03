@@ -1,0 +1,114 @@
+# Smile 3D Project - Implementation Plan
+
+## Project Overview
+Web-based system for generating SMILE/MOL files from text input using LLM, with 3D molecular visualization and MS fragmentation prediction.
+
+## Technical Stack
+- Frontend: HTML5, CSS, JavaScript (pure, no frameworks)
+- LLM API: io.net API (Llama-4) via https://nurumayu-worker.skume-bioinfo.workers.dev/
+- 3D Visualization: 3Dmol.js library
+- Design Reference: gitingest-ui.html
+
+## Implementation Steps
+
+### Phase 1: Core SMILE/MOL Generation
+**Objective**: Create LLM-powered molecular structure generation from text input
+
+#### 1.1 UI Setup
+- Create main HTML file based on gitingest-ui.html design
+- Implement input form for compound description text
+- Add loading states and error handling UI
+- Style with clean, modern CSS following reference design
+
+#### 1.2 LLM Integration
+- Adapt llm.js for molecular structure generation
+- Create prompts for SMILE/MOL file generation from compound descriptions
+- Implement response parsing specifically for molecular data
+- Add validation for generated SMILE/MOL format
+
+#### 1.3 Output Display
+- Create text area for displaying generated SMILE/MOL data
+- Add copy-to-clipboard functionality
+- Implement download functionality for .mol files
+
+### Phase 2: 3D Molecular Visualization
+**Objective**: Integrate 3Dmol.js for interactive 3D molecular display
+
+#### 2.1 3Dmol.js Integration
+- Include 3Dmol.js library in the project
+- Create dedicated viewer container in UI
+- Initialize 3D viewer with proper styling
+
+#### 2.2 SMILE to 3D Conversion
+- Implement SMILE string parsing for 3D visualization
+- Configure 3Dmol.js rendering options (stick, sphere, cartoon views)
+- Add interactive controls (zoom, rotate, style selection)
+
+#### 2.3 User Experience Enhancement
+- Add toggle between 2D structure and 3D view
+- Implement view presets (ball-and-stick, space-filling, wireframe)
+- Add molecule information panel (molecular weight, formula)
+
+### Phase 3: MS Fragmentation Prediction
+**Objective**: Predict mass spectrometry fragmentation patterns using LLM
+
+#### 3.1 Fragmentation Analysis
+- Create LLM prompts for MS fragmentation prediction
+- Implement fragmentation pattern analysis based on molecular structure
+- Parse and display fragmentation results
+
+#### 3.2 Visualization Enhancement
+- Highlight fragmentation sites on 3D structure
+- Create fragmentation pathway visualization
+- Add interactive fragmentation point selection
+
+#### 3.3 Results Export
+- Generate fragmentation reports
+- Export fragmentation data in standard formats
+- Add comparison tools for different fragmentation patterns
+
+## File Structure
+```
+/
+├── index.html              # Main application file
+├── styles/
+│   └── main.css           # Application styles
+├── scripts/
+│   ├── llm.js             # LLM API integration (existing)
+│   ├── molecular.js       # Molecular structure handling
+│   ├── viewer3d.js        # 3Dmol.js integration
+│   └── fragmentation.js   # MS fragmentation logic
+├── lib/
+│   └── 3dmol.min.js       # 3Dmol.js library
+└── assets/
+    └── examples/          # Sample molecules for testing
+```
+
+## Development Milestones
+
+### Milestone 1: Basic SMILE Generation (Week 1)
+- Functional text-to-SMILE conversion
+- Basic UI with input/output areas
+- Working LLM integration
+
+### Milestone 2: 3D Visualization (Week 2)
+- 3Dmol.js integration complete
+- Interactive 3D molecular viewer
+- Multiple visualization modes
+
+### Milestone 3: MS Fragmentation (Week 3)
+- Fragmentation prediction working
+- Visual fragmentation indicators
+- Complete user workflow
+
+## Testing Strategy
+- Unit testing for molecular data parsing
+- Visual testing for 3D rendering accuracy
+- User acceptance testing for workflow completeness
+- Cross-browser compatibility testing
+
+## Deployment Considerations
+- Static file hosting (no server required)
+- CDN integration for 3Dmol.js
+- Performance optimization for large molecules
+- Mobile responsiveness for touch interactions

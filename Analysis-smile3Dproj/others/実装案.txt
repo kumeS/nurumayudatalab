@@ -1,0 +1,18 @@
+## Smile 3D Project
+
+LLMで、テキスト入力で、代謝物・化合物のsmileあるいはmolファイルを作成するウェブシステム
+システムは、gitingest-ui.htmlのデザインを参考にして、html5、css、jsのみ実装する。LLMを最大限利用する。
+LLM APIは、io.netのAPIで、llama-4を利用する。
+llm.jsを参照してください、https://nurumayu-worker.skume-bioinfo.workers.dev/経由でAPIを使用します。
+
+LLMで、作成したsmileあるいはmolは、3Dmol.jsで3D表示したい。
+
+Step 1
+LLMで、作成したsmileあるいはmolファイルを作成する。
+
+Step 2
+3Dmol.jsで3D表示したい。
+
+Step 3 
+作成された構造に対して、LLMで、MSでの開裂が起こりやすいポイントを予測したい。
+

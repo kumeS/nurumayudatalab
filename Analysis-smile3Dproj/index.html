@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nurumayu Smile 3D Project - Molecular Structure Generator</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">
+            <span class="smile">Nurumayu Smile</span><span class="threed"> 3D Project</span>
+        </div>
+        <div class="header-right">
+            <span class="llm-txt">Powered by Nurumayu Data Lab</span>
+        </div>
+    </div>
+
+    <!-- Process Indicators (Hidden by default) -->
+    <div class="process-indicators" id="process-indicators" style="display: none; position: fixed; top: 10px; right: 10px; z-index: 1000; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <!-- Step 1: Molecular Generation -->
+        <div class="step-indicator" id="step-molecular" data-step="molecular" 
+             title="LLM: Llama-4-Maverick-17B | API: nurumayu-worker.skume-bioinfo.workers.dev | Process: Text → SMILES + Molecular Properties"
+             style="display: none; margin: 5px 0; padding: 5px; background: #e3f2fd; border-radius: 4px; font-size: 12px;">
+            🧪 Molecular Generation via LLM
+        </div>
+        
+        <!-- Step 2: 3D Visualization -->
+        <div class="step-indicator" id="step-visualization" data-step="visualization"
+             title="Libraries: 3Dmol.js (WebGL) + RDKit.js (2D) | Process: SMILES → 2D/3D Molecular Structure Rendering"
+             style="display: none; margin: 5px 0; padding: 5px; background: #f3e5f5; border-radius: 4px; font-size: 12px;">
+            🔬 3D Visualization Engine
+        </div>
+        
+        <!-- Step 3: Fragmentation Analysis -->
+        <div class="step-indicator" id="step-fragmentation" data-step="fragmentation"
+             title="Database: MoNA API (200K+ spectra) + LLM Integration | Process: Multi-stage MS/MS Fragmentation Analysis"
+             style="display: none; margin: 5px 0; padding: 5px; background: #e8f5e8; border-radius: 4px; font-size: 12px;">
+            📊 MS Fragmentation Analysis
+            <div class="sub-steps" style="margin-left: 10px; margin-top: 3px;">
+                <div class="sub-step" id="substep-database" style="display: none; font-size: 10px; color: #666;">
+                    📋 Database Search (MoNA API)
+                </div>
+                <div class="sub-step" id="substep-llm" style="display: none; font-size: 10px; color: #666;">
+                    🤖 LLM Integration (Llama-4)
+                </div>
+                <div class="sub-step" id="substep-prediction" style="display: none; font-size: 10px; color: #666;">
+                    ⚗️ Fragment Prediction
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container">
+            <!-- Input Section -->
+            <div class="input-section">
+                <h2>Generate Molecular Structure</h2>
+                <p class="description">Enter a description of the compound or metabolite to generate SMILE/MOL structure</p>
+                
+                <div class="input-area">
+                    <textarea id="compound-input" placeholder="Enter compound description (e.g., 'caffeine', 'glucose', 'aspirin', '2-methylpropanoic acid')"></textarea>
+                    <div class="input-controls">
+                        <button id="generate-btn" class="primary-btn">Generate Structure</button>
+                        <button id="sample-btn" class="secondary-btn sample-btn" title="Insert random sample compound">Sample</button>
+                        <button id="clear-btn" class="secondary-btn clear-btn" title="Clear input and results">Clear</button>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="loading" class="loading-state" style="display: none;">
+                    <div class="spinner"></div>
+                    <span>Generating molecular structure...</span>
+                </div>
+
+                <!-- Error State -->
+                <div id="error" class="error-state" style="display: none;">
+                    <div class="error-message"></div>
+                    <button id="retry-btn" class="secondary-btn">Retry</button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="results" style="display: none;">
+                <div class="results-grid">
+                    <!-- SMILE/MOL Output -->
+                    <div class="output-panel">
+                        <div class="panel-header">
+                            <h3>SMILE Structure</h3>
+                            <div class="panel-controls">
+                                <button id="copy-smile" class="action-btn copy-btn" title="Copy SMILE notation to clipboard">
+                                    📋 <span class="btn-text">Copy SMILE</span>
+                                </button>
+                                <button id="download-mol" class="action-btn save-btn" title="Download molecule as MOL file">
+                                    💾 <span class="btn-text">Save MOL</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="output-content">
+                            <textarea id="smile-output" readonly></textarea>
+                            <div class="molecule-info">
+                                <span id="molecular-formula"></span>
+                                <span id="molecular-weight"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Structure Viewer -->
+                    <div class="viewer-panel">
+                        <div class="panel-header">
+                            <h3>Molecular Structure</h3>
+                            <div class="viewer-controls">
+                                <select id="view-mode">
+                                    <option value="2d">2D Structure</option>
+                                    <option value="3d">3D Structure</option>
+                                </select>
+                                <select id="view-style">
+                                    <option value="stick">Stick</option>
+                                    <option value="sphere">Ball & Stick</option>
+                                    <option value="cartoon">Cartoon</option>
+                                </select>
+                                <button id="reset-view" class="icon-btn" title="Reset View">Reset</button>
+            
+                            </div>
+                        </div>
+                        <div class="viewer-container-wrapper">
+                            <div id="viewer-2d" class="viewer-container visible"></div>
+                            <div id="viewer-3d" class="viewer-container hidden"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fragmentation Section -->
+                <div class="fragmentation-section" id="fragmentation" style="display: none;">
+                    <div class="panel-header">
+                        <h3>MS Fragmentation Prediction</h3>
+                        <button id="predict-fragmentation" class="primary-btn">Predict Fragmentation</button>
+                    </div>
+                    
+                    <div id="fragmentation-loading" class="loading-state" style="display: none;">
+                        <div class="spinner"></div>
+                        <span>Analyzing fragmentation patterns...</span>
+                    </div>
+
+                    <div id="fragmentation-results" class="fragmentation-results" style="display: none;">
+                        <div class="fragmentation-list">
+                            <!-- Fragmentation results will be populated here -->
+                        </div>
+                        <div class="fragmentation-export">
+                            <button id="show-analysis-details" class="secondary-btn">分析詳細を表示</button>
+                            <button id="export-fragmentation" class="secondary-btn">Export Results</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Details Modal -->
+    <div id="analysis-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>LLM分析・DB参照詳細</h3>
+                <button id="close-modal" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="analysis-tabs">
+                    <button class="tab-btn active" data-tab="llm-analysis">LLM分析プロセス</button>
+                    <button class="tab-btn" data-tab="db-queries">DB検索結果</button>
+                    <button class="tab-btn" data-tab="database-links">Database Links</button>
+                    <button class="tab-btn" data-tab="data-sources">データソース</button>
+                </div>
+                
+                <div class="tab-content">
+                    <!-- LLM Analysis Tab -->
+                    <div id="llm-analysis" class="tab-panel active">
+                        <h4>使用モデル・設定</h4>
+                        <div class="analysis-info">
+                            <p><strong>モデル:</strong> <span id="model-info">meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8</span></p>
+                            <p><strong>Temperature:</strong> <span id="temperature-info">0.4</span></p>
+                            <p><strong>Max Tokens:</strong> <span id="tokens-info">2000</span></p>
+                            <p><strong>API Endpoint:</strong> <span id="api-info">https://nurumayu-worker.skume-bioinfo.workers.dev/</span></p>
+                        </div>
+                        
+                        <h4>プロンプト設計</h4>
+                        <div class="prompt-display">
+                            <textarea id="system-prompt" readonly rows="8"></textarea>
+                        </div>
+                        
+                        <h4>生レスポンス</h4>
+                        <div class="response-display">
+                            <textarea id="raw-response" readonly rows="10"></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- DB Queries Tab -->
+                    <div id="db-queries" class="tab-panel">
+                        <h4>実行されたDB検索</h4>
+                        <div id="query-results"></div>
+                    </div>
+                    
+                    <!-- Database Links Tab -->
+                    <div id="database-links" class="tab-panel">
+                        <h4>External Database Links</h4>
+                        <div id="database-links-content">
+                            <!-- Database links will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Data Sources Tab -->
+                    <div id="data-sources" class="tab-panel">
+                        <h4>参照データソース</h4>
+                        <div class="data-source-list">
+                            <div class="source-item">
+                                <h5>MoNA (MassBank of North America)</h5>
+                                <p><strong>URL:</strong> <a href="https://mona.fiehnlab.ucdavis.edu/" target="_blank">https://mona.fiehnlab.ucdavis.edu/</a></p>
+                                <p><strong>データ数:</strong> 200,000+ mass spectra</p>
+                                <p><strong>アクセス方法:</strong> REST API</p>
+                                <p><strong>用途:</strong> 実験MS/MSスペクトル照合、構造類似性検索</p>
+                            </div>
+                            
+                            <div class="source-item">
+                                <h5>MassBank Europe</h5>
+                                <p><strong>URL:</strong> <a href="https://massbank.eu/" target="_blank">https://massbank.eu/</a></p>
+                                <p><strong>データ数:</strong> 50,000+ curated spectra</p>
+                                <p><strong>アクセス方法:</strong> 静的データファイル (GitHub)</p>
+                                <p><strong>用途:</strong> 高品質MSスペクトル参照</p>
+                            </div>
+                            
+                            <div class="source-item">
+                                <h5>ChemSpider</h5>
+                                <p><strong>URL:</strong> <a href="https://www.chemspider.com/" target="_blank">https://www.chemspider.com/</a></p>
+                                <p><strong>データ数:</strong> 100M+ chemical structures</p>
+                                <p><strong>アクセス方法:</strong> MassSpec API</p>
+                                <p><strong>用途:</strong> 分子量・分子式による検索</p>
+                            </div>
+                            
+                            <div class="source-item">
+                                <h5>NIST MS Database</h5>
+                                <p><strong>URL:</strong> <a href="https://chemdata.nist.gov/" target="_blank">https://chemdata.nist.gov/</a></p>
+                                <p><strong>データ数:</strong> 394K+ EI spectra, 2.4M+ MS/MS spectra</p>
+                                <p><strong>アクセス方法:</strong> DIMSpec Toolkit</p>
+                                <p><strong>用途:</strong> 標準MSスペクトル参照</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Nurumayu Smile 3D Project - Molecular Structure Generator powered by Nurumayu Data Lab and 3Dmol.js</p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="scripts/performance.js"></script>
+    
+    <!-- 3D Visualization Libraries (loaded first to ensure availability) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.4/3Dmol-min.js" 
+            onload="console.log('✅ 3Dmol.js loaded successfully')" 
+            onerror="console.error('❌ Failed to load 3Dmol.js')"></script>
+    <script src="https://unpkg.com/@rdkit/rdkit/Code/MinimalLib/dist/RDKit_minimal.js"
+            onload="console.log('✅ RDKit loaded successfully')" 
+            onerror="console.error('❌ Failed to load RDKit')"></script>
+
+    <!-- Core Application Scripts -->
+    <script src="scripts/molecular.js"></script>
+    <script src="scripts/viewer3d.js"></script>
+    
+    <!-- Fragmentation Analysis Modules (Modular Architecture) -->
+    <script src="scripts/fragmentation-utils.js"></script>
+    <script src="scripts/fragmentation-database.js"></script>
+    <script src="scripts/fragmentation-llm.js"></script>
+    <script src="scripts/fragmentation-ui.js"></script>
+    <script src="scripts/fragmentation-core.js"></script>
+    <script src="scripts/fragmentation.js"></script>
+    <script>
+        // Minimal initialization - delegate to modules
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing application...');
+            
+            // Initialize molecular app first
+            if (typeof initializeMolecularApp === 'function') {
+                try {
+                    initializeMolecularApp();
+                    console.log('Molecular app initialized');
+                } catch (error) {
+                    console.error('Failed to initialize molecular app:', error);
+                }
+            }
+            
+            // Initialize 3D viewer with improved retry mechanism
+            function init3DViewer() {
+                if (typeof $3Dmol !== 'undefined' && typeof initialize3DViewer === 'function') {
+                    try {
+                        initialize3DViewer();
+                        console.log('✅ 3D viewer initialized successfully');
+                        return true;
+                    } catch (error) {
+                        console.error('❌ Failed to initialize 3D viewer:', error);
+                        return false;
+                    }
+                } else {
+                    console.warn('⏳ 3D viewer initialization deferred - library not ready');
+                    return false;
+                }
+            }
+            
+            // Try immediate initialization
+            if (!init3DViewer()) {
+                // Retry with progressive delays
+                let attempts = 0;
+                const maxAttempts = 10;
+                
+                function retryInit() {
+                    attempts++;
+                    if (init3DViewer()) {
+                        console.log(`✅ 3D viewer initialized after ${attempts} attempts`);
+                        return;
+                    }
+                    
+                    if (attempts < maxAttempts) {
+                        const delay = Math.min(500 * attempts, 5000); // Progressive delay up to 5 seconds
+                        console.log(`⏳ Retrying 3D viewer initialization in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
+                        setTimeout(retryInit, delay);
+                    } else {
+                        console.error('❌ Failed to initialize 3D viewer after maximum attempts');
+                        // Show user-friendly error message
+                        const viewer3D = document.getElementById('viewer-3d');
+                        if (viewer3D) {
+                            viewer3D.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">3D viewer initialization failed. Please refresh the page.</div>';
+                        }
+                    }
+                }
+                
+                retryInit();
+            }
+            
+            // Setup view mode change handler
+            const viewModeSelect = document.getElementById('view-mode');
+            if (viewModeSelect && typeof changeViewMode === 'function') {
+                viewModeSelect.addEventListener('change', changeViewMode);
+            }
+            
+            // Setup view style change handler
+            const viewStyleSelect = document.getElementById('view-style');
+            if (viewStyleSelect && typeof changeViewStyle === 'function') {
+                viewStyleSelect.addEventListener('change', changeViewStyle);
+            }
+            
+            // Setup reset view handler
+            const resetViewBtn = document.getElementById('reset-view');
+            if (resetViewBtn && typeof resetView === 'function') {
+                resetViewBtn.addEventListener('click', resetView);
+            }
+            
+            // Setup fragmentation prediction handler
+            const predictFragBtn = document.getElementById('predict-fragmentation');
+            if (predictFragBtn) {
+                predictFragBtn.addEventListener('click', function() {
+                    console.log('🎯 Fragmentation button clicked!');
+                    if (window.FragmentationCore && typeof window.FragmentationCore.predictFragmentation === 'function') {
+                        console.log('Calling FragmentationCore.predictFragmentation...');
+                        window.FragmentationCore.predictFragmentation();
+                    } else if (typeof window.predictFragmentation === 'function') {
+                        console.log('Calling global predictFragmentation...');
+                        window.predictFragmentation();
+                    } else {
+                        console.error('predictFragmentation function not available!');
+                        alert('フラグメンテーション解析機能が利用できません。ページをリロードしてください。');
+                    }
+                });
+                console.log('✅ Fragmentation button event listener attached');
+            } else {
+                console.warn('⚠️ Fragmentation button not found');
+            }
+            
+            // Setup analysis details modal handler (with dynamic button detection)
+            function setupAnalysisDetailsHandler() {
+                const detailsBtn = document.getElementById('show-analysis-details');
+                if (detailsBtn && !detailsBtn._listenerAttached) {
+                    detailsBtn.addEventListener('click', function() {
+                        console.log('🔍 Analysis details button clicked!');
+                        if (typeof window.showAnalysisDetails === 'function') {
+                            console.log('Calling showAnalysisDetails...');
+                            window.showAnalysisDetails();
+                        } else {
+                            console.error('showAnalysisDetails function not available!');
+                            alert('分析詳細表示機能が利用できません。');
+                        }
+                    });
+                    detailsBtn._listenerAttached = true;
+                    console.log('✅ Analysis details button event listener attached');
+                } else if (!detailsBtn) {
+                    // Try again after a short delay since the button is created dynamically
+                    setTimeout(setupAnalysisDetailsHandler, 500);
+                }
+            }
+            
+            // Initial call
+            setupAnalysisDetailsHandler();
+            
+            // Initialize process indicators
+            initializeProcessIndicators();
+            
+            console.log('Application initialized successfully');
+        });
+        
+        // Process Indicators Management
+        function initializeProcessIndicators() {
+            console.log('✅ Process indicators initialized');
+        }
+        
+        // Show process step indicator
+        function showProcessStep(stepName, subStep = null) {
+            const indicators = document.getElementById('process-indicators');
+            const stepElement = document.getElementById(`step-${stepName}`);
+            
+            if (indicators && stepElement) {
+                // Show main container
+                indicators.style.display = 'block';
+                
+                // Show specific step
+                stepElement.style.display = 'block';
+                
+                // Show sub-step if specified
+                if (subStep) {
+                    const subStepElement = document.getElementById(`substep-${subStep}`);
+                    if (subStepElement) {
+                        subStepElement.style.display = 'block';
+                    }
+                }
+                
+                console.log(`📍 Process step shown: ${stepName}${subStep ? ` → ${subStep}` : ''}`);
+            }
+        }
+        
+        // Hide process step indicator
+        function hideProcessStep(stepName, subStep = null) {
+            const stepElement = document.getElementById(`step-${stepName}`);
+            
+            if (stepElement) {
+                if (subStep) {
+                    const subStepElement = document.getElementById(`substep-${subStep}`);
+                    if (subStepElement) {
+                        subStepElement.style.display = 'none';
+                    }
+                } else {
+                    stepElement.style.display = 'none';
+                    
+                    // Hide all sub-steps when hiding main step
+                    const subSteps = stepElement.querySelectorAll('.sub-step');
+                    subSteps.forEach(sub => sub.style.display = 'none');
+                }
+                
+                // Hide main container if no steps are visible
+                const indicators = document.getElementById('process-indicators');
+                const visibleSteps = indicators.querySelectorAll('.step-indicator[style*="display: block"]');
+                if (visibleSteps.length === 0) {
+                    indicators.style.display = 'none';
+                }
+                
+                console.log(`📍 Process step hidden: ${stepName}${subStep ? ` → ${subStep}` : ''}`);
+            }
+        }
+        
+        // Hide all process indicators
+        function hideAllProcessSteps() {
+            const indicators = document.getElementById('process-indicators');
+            if (indicators) {
+                indicators.style.display = 'none';
+                
+                // Hide all individual steps
+                const steps = indicators.querySelectorAll('.step-indicator, .sub-step');
+                steps.forEach(step => step.style.display = 'none');
+                
+                console.log('📍 All process steps hidden');
+            }
+        }
+        
+        // Export functions to global scope
+        window.showProcessStep = showProcessStep;
+        window.hideProcessStep = hideProcessStep;
+        window.hideAllProcessSteps = hideAllProcessSteps;
+    </script>
+</body>
+</html>

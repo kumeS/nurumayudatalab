@@ -1,0 +1,147 @@
+## PCAなどの次元圧縮の結果をloadingsパッケージで処理するAPIを経由して得られた結果をLLMで結果解釈を行うウェブシステムの実装。
+
+**技術仕様確定:**
+- フロントエンド: HTML5 + CSS + JavaScript（Vanilla JS）のみ
+- UIデザイン: gitingest-ui.htmlのデザインを参考
+- LLM API: io.net API経由でllama-4を利用
+- エンドポイント: https://nurumayu-worker.skume-bioinfo.workers.dev/
+- モデル: meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8
+
+ブラウザUI上でユーザーがCSVファイルをアップロードし、loadings-web-api-sample-mainにデータを送って、解析を実行する。
+解析結果をLLMで最大限活用して多角的に解釈し、図表とともに高度な統計解釈を表示する。
+
+既存APIエンドポイント:
+- GET /pca (biplot画像生成)
+- GET /correlation-coefficien/{number} (因子負荷量分布)
+- GET /p-value/{number} (p値分布)
+
+拡張予定:
+- CSVアップロード対応
+- パラメータ設定機能
+- loadingsパッケージの全機能活用
+
+## loadings-web-api-sample-main エンドポイント拡張計画
+
+### 既存エンドポイント（変更なし）
+- GET /pca → biplot画像生成（固定fastingデータ）
+- GET /correlation-coefficien/{number} → 因子負荷量分布（固定fastingデータ）
+- GET /p-value/{number} → p値分布（固定fastingデータ）
+
+### 新規追加エンドポイント
+
+#### CSVアップロード系
+- **POST /upload/csv** → CSVファイルアップロード、データ検証、一時保存
+  - Request: multipart/form-data (csvファイル)
+  - Response: JSON (データID, 列情報, 基本統計)
+
+- **POST /analyze/pca-custom** → カスタムデータでPCA解析
+  - Request: JSON (データID, scale, center, パラメータ)
+  - Response: PNG画像 + JSON統計情報
+
+- **POST /analyze/correlation-custom/{number}** → カスタムデータで因子負荷量
+  - Request: JSON (データID, 成分番号)
+  - Response: PNG画像
+
+- **POST /analyze/pvalue-custom/{number}** → カスタムデータでp値分布
+  - Request: JSON (データID, 成分番号)  
+  - Response: PNG画像
+
+#### データ処理系
+- **POST /data/summary** → データ要約統計
+  - Request: JSON (データID)
+  - Response: JSON (基本統計量, 欠損値情報, データ品質)
+
+- **POST /data/validate** → CSVデータ検証
+  - Request: JSON (データID)
+  - Response: JSON (検証結果, エラー情報, 推奨事項)
+
+#### 高度解析系  
+- **POST /analyze/multivariate** → 多変量解析（PCA以外）
+  - Request: JSON (データID, 手法, パラメータ)
+  - 手法: FA(因子分析), CA(対応分析), CCA(正準相関)
+  - Response: JSON + 画像URL
+
+- **POST /analyze/loading-test** → 因子負荷量検定（全成分）
+  - Request: JSON (データID, 検定オプション)
+  - Response: JSON (全成分の検定結果)
+
+#### 結果統合系
+- **POST /results/combine** → 複数解析結果の統合
+  - Request: JSON (解析ID配列)
+  - Response: JSON (統合結果, 比較情報)
+
+- **GET /results/{analysisId}** → 解析結果取得
+  - Response: JSON (解析結果, メタデータ, 画像URL)
+
+#### ユーティリティ系
+- **GET /data/example** → サンプルCSVダウンロード
+  - Response: CSV (fasting以外のサンプルデータ)
+
+- **POST /export/report** → 解析レポートエクスポート
+  - Request: JSON (解析ID, フォーマット)
+  - Response: PDF/HTML レポート
+
+### APIエンドポイント実装ファイル構成
+- **plumber.R** → 既存エンドポイント + ルーティング
+- **upload-endpoints.R** → CSVアップロード関連
+- **analysis-endpoints.R** → 解析系エンドポイント  
+- **data-utils.R** → データ処理ユーティリティ
+- **export-utils.R** → エクスポート機能
+
+metabolightsのIDがあれば、metabolights APIよりメタデータを取得してLLMと統合解釈する。
+
+Step 1
+ユーザーがUIで、csvを投げる。
+
+Step 2
+解析条件の設定を行う。
+
+Step 3
+loadings-web-api-sample-mainの拡張APIに投げる。
+- POST /upload/csv → CSVデータアップロード
+- POST /analyze/pca-custom → カスタムPCA解析実行
+- POST /analyze/loading-test → 因子負荷量検定実行
+
+Step 4  
+解析結果を受け取る。
+- PCA解析結果（biplot画像、固有値、因子負荷量）
+- 統計検定結果（p値、相関係数、有意性）
+- データ品質情報（欠損値、外れ値、推奨事項）
+- 複数画像（成分別因子負荷量、p値分布）
+
+Step 5
+解析結果に対して、io.net LLM API（llama-4）を実行して、多層的な結果解釈を行う。
+- 統計解析結果の数値的解釈
+- PCAの主成分の意味づけ
+- 因子負荷量の生物学的含意
+- p値の統計的有意性評価
+- データの品質と信頼性評価
+
+**LLM活用ポイント:**
+- 複数の視点での解釈（統計学・生物学・実験科学）
+- 結果の限界と注意点の指摘
+- 次の分析ステップの提案
+- 既知の研究パターンとの比較
+
+Step 6
+metabolightsのIDがあれば、metabolights APIよりメタデータを取得する。
+メタデータ手動入力オプションも提供。
+- 実験条件
+- サンプル群情報
+- 測定手法
+- 生物学的背景
+
+Step 7
+メタデータと統計解析結果を統合してLLMで高度な実験解釈を実行。
+- 実験デザインの妥当性評価
+- 生物学的コンテキストでの結果解釈
+- 代謝パスウェイとの関連性示唆
+- 追加実験の提案
+
+Step 8
+結果をグラフィカルに示すUX工夫とLLM活用の最大化。
+- インタラクティブな可視化
+- LLMによる図表の動的解釈
+- 論文検索API連携での文献根拠提示
+- 総合的な実験レポート自動生成
+- 研究仮説の生成と検証提案

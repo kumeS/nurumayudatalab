@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Integration Test - PCA Analysis System</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f8f8f8;
+        }
+        .test-section {
+            background: white;
+            border: 2px solid #000;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .test-button {
+            background-color: #ffb347;
+            color: #000;
+            border: 2px solid #000;
+            border-radius: 8px;
+            padding: 12px 24px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-weight: 600;
+        }
+        .test-button:hover {
+            background-color: #ff9f1a;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; }
+        img {
+            max-width: 100%;
+            border: 2px solid #000;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 API Integration Test</h1>
+    <p>Plumber APIサーバーとの統合テストを実行します。</p>
+    
+    <div class="test-section">
+        <h2>1. サーバー起動テスト</h2>
+        <button class="test-button" onclick="startServer()">APIサーバー起動</button>
+        <div id="server-result" class="result info">準備完了</div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. ヘルスチェックテスト</h2>
+        <button class="test-button" onclick="testHealth()">ヘルスチェック実行</button>
+        <div id="health-result" class="result info">未実行</div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. PCA解析テスト</h2>
+        <button class="test-button" onclick="testPCA()">PCA解析実行</button>
+        <div id="pca-result" class="result info">未実行</div>
+        <div id="pca-image"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. カスタム解析テスト</h2>
+        <button class="test-button" onclick="testCustomAnalysis()">カスタム解析実行</button>
+        <div id="custom-result" class="result info">未実行</div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8002';
+        
+        function updateResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${type}`;
+        }
+
+        function startServer() {
+            updateResult('server-result', 'APIサーバーは手動で起動してください: Rscript api-test.R', 'info');
+        }
+
+        async function testHealth() {
+            try {
+                updateResult('health-result', 'ヘルスチェック実行中...', 'info');
+                const response = await fetch(`${API_BASE}/health`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    updateResult('health-result', 
+                        `✅ ヘルスチェック成功\nAPI Status: ${data.status}\nEndpoints: ${data.available_endpoints?.length || 0}個`, 
+                        'success');
+                } else {
+                    updateResult('health-result', `❌ ヘルスチェック失敗: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                updateResult('health-result', `❌ 接続エラー: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPCA() {
+            try {
+                updateResult('pca-result', 'PCA解析実行中...', 'info');
+                const response = await fetch(`${API_BASE}/pca`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const imageUrl = URL.createObjectURL(blob);
+                    
+                    document.getElementById('pca-image').innerHTML = 
+                        `<img src="${imageUrl}" alt="PCA Biplot">`;
+                    
+                    updateResult('pca-result', 
+                        `✅ PCA解析成功\n画像サイズ: ${(blob.size/1024).toFixed(2)}KB`, 
+                        'success');
+                } else {
+                    updateResult('pca-result', `❌ PCA解析失敗: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                updateResult('pca-result', `❌ 接続エラー: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCustomAnalysis() {
+            try {
+                updateResult('custom-result', 'カスタム解析テスト中...', 'info');
+                
+                // データ例の取得テスト
+                const exampleResponse = await fetch(`${API_BASE}/data/example`);
+                if (exampleResponse.ok) {
+                    updateResult('custom-result', 
+                        '✅ カスタム解析準備完了\nサンプルデータ取得成功', 
+                        'success');
+                } else {
+                    updateResult('custom-result', `❌ サンプルデータ取得失敗: ${exampleResponse.status}`, 'error');
+                }
+            } catch (error) {
+                updateResult('custom-result', `❌ 接続エラー: ${error.message}`, 'error');
+            }
+        }
+
+        // 初期メッセージ
+        updateResult('server-result', 'APIサーバーを起動してからテストを開始してください', 'info');
+    </script>
+</body>
+</html> 

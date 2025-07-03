@@ -1,0 +1,256 @@
+# LLM統合統計解析Webシステム実装計画
+
+## プロジェクト概要
+PCAなどの次元圧縮結果をloadingsパッケージで処理し、LLMで結果解釈を行うWebシステムの実装
+
+## 現在のコードベース状況分析
+
+### 既存のAPI (loadings-web-api-sample-main)
+- **技術スタック**: R + Plumber + loadingsパッケージ
+- **デプロイ**: Docker + Hugging Face Spaces
+- **既存エンドポイント**:
+  - `/pca`: biplot画像生成
+  - `/correlation-coefficien/{number}`: 因子負荷量分布
+  - `/p-value/{number}`: p値分布
+- **制限事項**: 固定のfastingデータのみ、CSVアップロード機能なし
+
+### UI参考実装 (gitingest-ui.html)
+- モダンなデザイン: ヘッダー + メインコンテンツ + フォーム
+- レスポンシブ対応
+- ファイルアップロード機能なし（要追加）
+
+## 実装計画
+
+### Phase 1: 基盤システム構築 (週1-2)
+
+#### 1.1 APIエンドポイント拡張
+**ファイル**: `loadings-web-api-sample-main/src/plumber.R`
+
+**新規エンドポイント**:
+```r
+# CSVデータアップロード + PCA解析
+POST /analyze/pca
+- multipart/form-data でCSVファイル受信
+- パラメータ: scale, center, ncomp
+- レスポンス: JSON (画像URL + 統計情報)
+
+# 多変量解析オプション
+POST /analyze/multivariate
+- 解析手法選択: PCA, FA, CA, CCA
+- パラメータ設定可能
+
+# データ要約統計
+POST /data/summary
+- CSVアップロード
+- 基本統計量 + 欠損値情報
+```
+
+#### 1.2 フロントエンド基盤構築
+**新規ファイル**: `index.html`
+
+gitingest-ui.htmlをベースに以下機能を追加:
+- CSVファイルドラッグ&ドロップ
+- 解析パラメータ設定フォーム
+- 結果表示エリア
+- プログレスインジケーター
+
+**技術要素**:
+- HTML5 File API
+- Fetch API for REST連携
+- CSS Grid/Flexbox レイアウト
+- JavaScript ES6+
+
+### Phase 2: LLM統合機能 (週3-4)
+
+#### 2.1 LLM解釈エンジン
+**新規ファイル**: `llm-interpreter.js`
+
+**機能**:
+```javascript
+// 統計結果解釈
+async function interpretStatistics(analysisResults) {
+  // OpenAI API or Claude API連携
+  // プロンプト: PCA結果 + 因子負荷量 + p値
+  // 出力: 日本語での解釈 + 推奨次ステップ
+}
+
+// 生物学的意味づけ
+async function biologicalInterpretation(results, metadata) {
+  // メタデータ統合
+  // 既知の生物学的パスウェイとの関連解析
+}
+```
+
+#### 2.2 APIエンドポイント（LLM連携）
+```r
+# 解析結果 + LLM解釈
+POST /interpret/statistics
+- PCA結果JSON受信
+- LLMプロンプト生成
+- 解釈結果返却
+
+# 生物学的解釈
+POST /interpret/biological  
+- メタデータ統合
+- パスウェイ解析示唆
+```
+
+### Phase 3: メタデータ統合 (週5-6)
+
+#### 3.1 MetaboLights API連携
+**新規ファイル**: `metabolights-connector.js`
+
+```javascript
+// MetaboLights ID から実験メタデータ取得
+async function fetchMetabolightsData(studyId) {
+  // API: https://www.ebi.ac.uk/metabolights/webservice/
+  // メタデータ抽出: 実験条件、サンプル情報、測定手法
+}
+```
+
+#### 3.2 メタデータフォーム
+- 手動入力オプション
+- 実験デザイン情報
+- サンプル群情報
+- 測定条件
+
+### Phase 4: 高度な解釈機能 (週7-8)
+
+#### 4.1 論文検索連携
+**統合API候補**:
+- PubMed API (無料)
+- Semantic Scholar API
+- Consensus AI API (有料だが高品質)
+
+```javascript
+async function searchRelevantPapers(keywords, analysisType) {
+  // キーワード抽出: 主成分の特徴 + 生物学的パスウェイ
+  // 関連論文検索 + 要約生成
+}
+```
+
+#### 4.2 総合解釈レポート生成
+- 統計解析結果
+- 生物学的意味づけ
+- 関連研究の示唆
+- 次の実験提案
+
+### Phase 5: UX改善・実用化 (週9-10)
+
+#### 5.1 インタラクティブ可視化
+```javascript
+// D3.js or Plotly.js使用
+- インタラクティブなbiplot
+- 因子負荷量のドリルダウン
+- サンプル群の色分け表示
+```
+
+#### 5.2 レスポンシブデザイン完成
+- モバイル対応
+- タブレット最適化
+- アクセシビリティ対応
+
+#### 5.3 エラーハンドリング強化
+- CSVフォーマット検証
+- API障害時のフォールバック
+- ユーザーフレンドリーなエラーメッセージ
+
+## 技術アーキテクチャ
+
+### バックエンド
+- **言語**: R (Plumber)
+- **分析**: loadingsパッケージ
+- **デプロイ**: Docker + Hugging Face Spaces
+- **拡張**: CSVパース、パラメータ処理
+
+### フロントエンド  
+- **基盤**: HTML5 + Vanilla JavaScript
+- **スタイル**: CSS3 (gitingest-ui.htmlベース)
+- **API通信**: Fetch API
+- **可視化**: D3.js or Chart.js
+
+### LLM統合
+- **API**: OpenAI GPT-4 or Anthropic Claude
+- **代替**: Hugging Face Transformers (オープンソース)
+- **プロンプト**: 日本語対応、統計解析専門
+
+### 外部API連携
+- **MetaboLights**: 実験メタデータ
+- **PubMed/Semantic Scholar**: 論文検索
+- **Consensus AI**: 高度な文献解析 (optional)
+
+## ディレクトリ構造 (完成形)
+
+```
+Analysis-LoadingsPackage/
+├── frontend/
+│   ├── index.html              # メインUI
+│   ├── css/
+│   │   └── style.css          # gitingest-ui.htmlベース
+│   ├── js/
+│   │   ├── main.js            # メインロジック
+│   │   ├── llm-interpreter.js # LLM連携
+│   │   ├── metabolights-connector.js
+│   │   └── visualization.js   # 可視化機能
+│   └── assets/
+├── backend/ (loadings-web-api-sample-main改良版)
+│   ├── src/
+│   │   ├── plumber.R          # 拡張済みAPI
+│   │   ├── data-processor.R   # CSV処理
+│   │   ├── llm-integration.R  # LLM連携ロジック
+│   │   └── utils.R            # ユーティリティ
+│   ├── Dockerfile
+│   └── docker-compose.yaml
+├── docs/
+│   ├── API.md                 # API仕様書
+│   └── USER_GUIDE.md          # ユーザーガイド
+└── tests/
+    ├── sample_data/           # テスト用CSV
+    └── api_tests.R            # APIテスト
+```
+
+## 成果物
+
+### 最小実用版 (MVP)
+1. CSVアップロード + PCA解析
+2. 基本的なLLM解釈
+3. 結果のグラフィカル表示
+
+### フル機能版
+1. 多変量解析オプション
+2. MetaboLights連携
+3. 論文検索統合
+4. 総合解釈レポート
+5. インタラクティブ可視化
+
+## リスク・制約事項
+
+### 技術的リスク
+- LLM API の利用料金
+- Hugging Face Spaces のリソース制限
+- R + JavaScriptの統合複雑性
+
+### 対策
+- LLMはローカルモデルも選択肢に
+- Docker最適化でリソース効率化
+- API設計の単純化
+
+## 開発優先順位
+
+**高優先度** (MVP必須):
+1. CSVアップロード機能
+2. 拡張PCA API
+3. 基本UI実装
+4. LLM基本解釈
+
+**中優先度** (実用性向上):
+5. MetaboLights連携
+6. インタラクティブ可視化
+7. メタデータ統合解釈
+
+**低優先度** (付加価値):
+8. 論文検索連携
+9. 高度なUX機能
+10. モバイル最適化
+
+この計画により、段階的に機能を実装しながら、最終的に要求仕様を満たすLLM統合統計解析Webシステムが完成します。 

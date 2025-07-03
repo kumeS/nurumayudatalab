@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCA Analysis System - AI統合統計解析プラットフォーム</title>
+    <style>
+        /* リセットとベース設定 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f8f8;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* ヘッダー */
+        .header {
+            background-color: white;
+            border-bottom: 2px solid #000;
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            letter-spacing: -0.5px;
+        }
+        
+        .logo .pca {
+            color: #000;
+        }
+        
+        .logo .analysis {
+            color: #ff1744;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .ai-badge {
+            background-color: #ff1744;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .llm-txt {
+            color: #333;
+            font-size: 15px;
+        }
+        
+        /* メインコンテンツ */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+        
+        .title-section {
+            text-align: center;
+            margin-bottom: 40px;
+            max-width: 920px;
+            position: relative;
+        }
+        
+        /* 装飾的なアイコン */
+        .deco-icon {
+            position: absolute;
+            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.08));
+            z-index: 1;
+        }
+        
+        .deco-icon-dna {
+            width: 50px;
+            height: 50px;
+            top: -10px;
+            left: -80px;
+            transform: rotate(-15deg);
+        }
+        
+        .deco-icon-molecule {
+            width: 45px;
+            height: 45px;
+            bottom: 20px;
+            right: -85px;
+            transform: rotate(20deg);
+        }
+        
+        .deco-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .title {
+            font-size: 65px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            line-height: 0.92;
+            letter-spacing: -3px;
+            color: #000;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        
+        .feature-badges {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .feature-badge {
+            background-color: #e8f4fd;
+            color: #0066cc;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid #b3d9ff;
+        }
+        
+        /* タブナビゲーション */
+        .tab-container {
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 30px;
+        }
+        
+        .tab-nav {
+            display: flex;
+            background-color: #fff;
+            border: 2px solid #000;
+            border-radius: 12px 12px 0 0;
+            overflow: hidden;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            background-color: #f0f0f0;
+            color: #666;
+            border: none;
+            border-right: 2px solid #000;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.12s ease;
+            box-shadow: 0 3px 0 #ccc;
+            position: relative;
+            top: 0;
+        }
+        
+        .tab-button:last-child {
+            border-right: none;
+        }
+        
+        .tab-button.active {
+            background-color: #ffb347;
+            color: #000;
+            box-shadow: 0 3px 0 #e69500;
+            top: -1px;
+        }
+        
+        .tab-button:hover:not(.active) {
+            background-color: #e0e0e0;
+            top: -1px;
+            box-shadow: 0 4px 0 #bbb;
+        }
+        
+        .tab-button:active {
+            top: 2px;
+            box-shadow: 0 1px 0 #ccc;
+        }
+        
+        /* タブコンテンツ */
+        .tab-content {
+            background-color: #f5e6d3;
+            border: 2px solid #000;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            padding: 30px;
+            min-height: 500px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tab-content::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            right: 20px;
+            width: 30px;
+            height: 30px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30"><circle cx="15" cy="8" r="3" fill="%234caf50" stroke="%23000" stroke-width="1"/><circle cx="8" cy="22" r="3" fill="%234caf50" stroke="%23000" stroke-width="1"/><circle cx="22" cy="22" r="3" fill="%234caf50" stroke="%23000" stroke-width="1"/><line x1="15" y1="11" x2="11" y2="19" stroke="%23000" stroke-width="1"/><line x1="15" y1="11" x2="19" y2="19" stroke="%23000" stroke-width="1"/><line x1="11" y1="22" x2="19" y2="22" stroke="%23000" stroke-width="1"/></svg>') center/contain no-repeat;
+            opacity: 0.3;
+            z-index: 0;
+        }
+        
+        .tab-pane {
+            display: none;
+        }
+        
+        .tab-pane.active {
+            display: block;
+        }
+        
+        /* アップロードセクション */
+        .upload-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #000;
+        }
+        
+        .upload-area {
+            border: 3px dashed #000;
+            border-radius: 20px;
+            padding: 50px;
+            text-align: center;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upload-area:hover {
+            border-color: #ffb347;
+            background-color: #fffaf5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1), inset 0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+        
+        .upload-area.dragover {
+            border-color: #ff1744;
+            background-color: #fff5f5;
+            transform: scale(1.02);
+            box-shadow: 0 6px 12px rgba(255, 23, 68, 0.2);
+        }
+        
+        .upload-icon {
+            font-size: 64px;
+            color: #ffb347;
+            margin-bottom: 20px;
+            filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.1));
+        }
+        
+        .upload-text {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-button {
+            background-color: #ffb347;
+            color: #000;
+            border: 2px solid #000;
+            border-radius: 10px;
+            padding: 15px 32px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            box-shadow: 0 3px 0 #000;
+            position: relative;
+            top: 0;
+            font-size: 17px;
+        }
+        
+        .upload-button:hover {
+            background-color: #ff9f1a;
+            top: -1px;
+            box-shadow: 0 4px 0 #000;
+        }
+        
+        .upload-button:active {
+            top: 2px;
+            box-shadow: 0 1px 0 #000;
+        }
+        
+        /* 設定パネル */
+        .settings-panel {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .setting-group {
+            margin-bottom: 20px;
+        }
+        
+        .setting-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .setting-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* 結果表示エリア */
+        .results-container {
+            margin-top: 30px;
+        }
+        
+        .result-section {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .result-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #000;
+        }
+        
+        .result-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .result-status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .result-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .result-status.processing {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .result-content {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .image-container {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .image-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .image-description {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* LLM解釈セクション */
+        .llm-interpretation {
+            background-color: #e8f4fd;
+            border: 2px solid #0066cc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .llm-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .llm-icon {
+            width: 24px;
+            height: 24px;
+            background-color: #0066cc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .llm-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0066cc;
+        }
+        
+        .llm-content {
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .llm-content h4 {
+            margin-top: 15px;
+            margin-bottom: 8px;
+            color: #0066cc;
+        }
+        
+        .llm-content ul {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+        
+        /* 解釈セクション用スタイル */
+        .interpretation-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #0066cc;
+            border-radius: 5px;
+        }
+        
+        .interpretation-section h4 {
+            margin: 0 0 10px 0;
+            color: #0066cc;
+            font-size: 16px;
+        }
+        
+        .section-content p {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        
+        .fallback-section {
+            border-left-color: #ffc107;
+        }
+        
+        .fallback-section h4 {
+            color: #856404;
+        }
+        
+        .confidence-score {
+            margin-left: auto;
+        }
+        
+        /* ローディングアニメーション */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #ff1744;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* アクションボタン */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: 2px solid #000;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            box-shadow: 0 3px 0 #000;
+            position: relative;
+            top: 0;
+            font-size: 15px;
+        }
+        
+        .btn:hover {
+            top: -1px;
+            box-shadow: 0 4px 0 #000;
+        }
+        
+        .btn:active {
+            top: 2px;
+            box-shadow: 0 1px 0 #000;
+        }
+        
+        .btn-primary {
+            background-color: #ffb347;
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            background-color: #ff9f1a;
+        }
+        
+        .btn-secondary {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            top: 0 !important;
+            box-shadow: 0 3px 0 #ccc !important;
+        }
+        
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .header {
+                padding: 10px 20px;
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .title {
+                font-size: 42px;
+                letter-spacing: -2px;
+            }
+            
+            .deco-icon {
+                display: none;
+            }
+            
+            .tab-nav {
+                flex-direction: column;
+            }
+            
+            .tab-button {
+                border-right: none;
+                border-bottom: 1px solid #000;
+                box-shadow: none;
+                border-radius: 0;
+            }
+            
+            .tab-button:last-child {
+                border-bottom: none;
+            }
+            
+            .tab-button.active {
+                box-shadow: none;
+                top: 0;
+            }
+            
+            .tab-button:hover:not(.active) {
+                box-shadow: none;
+                top: 0;
+            }
+            
+            .image-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .upload-area {
+                padding: 30px 20px;
+            }
+            
+            .tab-content {
+                padding: 20px;
+            }
+        }
+        
+        /* ユーティリティクラス */
+        .hidden {
+            display: none !important;
+        }
+        
+        .mt-20 {
+            margin-top: 20px;
+        }
+        
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .text-success {
+            color: #28a745;
+        }
+        
+        .text-error {
+            color: #dc3545;
+        }
+        
+        .text-warning {
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <!-- ヘッダー -->
+    <div class="header">
+        <div class="logo">
+            <span class="pca">PCA</span>
+            <span class="analysis">Analysis</span>
+        </div>
+        <div class="header-right">
+            <span class="ai-badge">AI</span>
+            <span class="llm-txt">LLM統合解析システム</span>
+        </div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="main-content">
+        <!-- タイトルセクション -->
+        <div class="title-section">
+            <div class="deco-icon deco-icon-dna">
+                <svg viewBox="0 0 50 50">
+                    <path d="M10 5 Q25 15 40 5 Q25 25 10 15 Q25 35 40 25 Q25 45 10 35" stroke="#ff1744" stroke-width="3" fill="none"/>
+                    <path d="M40 5 Q25 15 10 5 Q25 25 40 15 Q25 35 10 25 Q25 45 40 35" stroke="#ff1744" stroke-width="3" fill="none"/>
+                    <circle cx="10" cy="5" r="2" fill="#ff1744"/>
+                    <circle cx="40" cy="5" r="2" fill="#ff1744"/>
+                    <circle cx="10" cy="15" r="2" fill="#ff1744"/>
+                    <circle cx="40" cy="15" r="2" fill="#ff1744"/>
+                    <circle cx="10" cy="25" r="2" fill="#ff1744"/>
+                    <circle cx="40" cy="25" r="2" fill="#ff1744"/>
+                    <circle cx="10" cy="35" r="2" fill="#ff1744"/>
+                    <circle cx="40" cy="35" r="2" fill="#ff1744"/>
+                    <circle cx="10" cy="45" r="2" fill="#ff1744"/>
+                    <circle cx="40" cy="45" r="2" fill="#ff1744"/>
+                </svg>
+            </div>
+            <h1 class="title">AI統合PCA解析</h1>
+            <p class="subtitle">
+                loadingsパッケージによる高度な統計解析と<br>
+                LLMによる多角的な結果解釈を提供する統合プラットフォーム
+            </p>
+            <div class="feature-badges">
+                <span class="feature-badge">CSVアップロード</span>
+                <span class="feature-badge">カスタム解析</span>
+                <span class="feature-badge">LLM解釈</span>
+                <span class="feature-badge">高度な可視化</span>
+                <span class="feature-badge">レポート出力</span>
+            </div>
+            <div class="deco-icon deco-icon-molecule">
+                <svg viewBox="0 0 45 45">
+                    <circle cx="22.5" cy="8" r="4" fill="#4dd0e1" stroke="#000" stroke-width="2"/>
+                    <circle cx="8" cy="22.5" r="4" fill="#4dd0e1" stroke="#000" stroke-width="2"/>
+                    <circle cx="37" cy="22.5" r="4" fill="#4dd0e1" stroke="#000" stroke-width="2"/>
+                    <circle cx="22.5" cy="37" r="4" fill="#4dd0e1" stroke="#000" stroke-width="2"/>
+                    <circle cx="22.5" cy="22.5" r="3" fill="#ffb347" stroke="#000" stroke-width="2"/>
+                    <line x1="22.5" y1="12" x2="22.5" y2="19.5" stroke="#000" stroke-width="2"/>
+                    <line x1="12" y1="22.5" x2="19.5" y2="22.5" stroke="#000" stroke-width="2"/>
+                    <line x1="33" y1="22.5" x2="25.5" y2="22.5" stroke="#000" stroke-width="2"/>
+                    <line x1="22.5" y1="33" x2="22.5" y2="25.5" stroke="#000" stroke-width="2"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- タブコンテナ -->
+        <div class="tab-container">
+            <div class="tab-nav">
+                <button class="tab-button active" data-tab="upload">データアップロード</button>
+                <button class="tab-button" data-tab="analysis">解析実行</button>
+                <button class="tab-button" data-tab="results">結果・解釈</button>
+                <button class="tab-button" data-tab="export">エクスポート</button>
+            </div>
+            
+            <div class="tab-content">
+                <!-- データアップロードタブ -->
+                <div class="tab-pane active" id="upload-pane">
+                    <div class="upload-section">
+                        <h2 class="section-title">CSVファイルアップロード</h2>
+                        <div class="upload-area" id="upload-area">
+                            <div class="upload-icon">📁</div>
+                            <div class="upload-text">
+                                CSVファイルをドラッグ&ドロップ<br>
+                                または下のボタンでファイルを選択
+                            </div>
+                            <input type="file" id="file-input" class="file-input" accept=".csv">
+                            <button class="upload-button" onclick="document.getElementById('file-input').click()">
+                                ファイルを選択
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="file-info" class="result-section hidden">
+                        <div class="result-header">
+                            <h3 class="result-title">ファイル情報</h3>
+                            <span class="result-status success">アップロード完了</span>
+                        </div>
+                        <div id="file-details"></div>
+                    </div>
+
+                    <div id="data-summary" class="result-section hidden">
+                        <div class="result-header">
+                            <h3 class="result-title">データ概要</h3>
+                        </div>
+                        <div id="summary-content"></div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" onclick="downloadSampleData()">
+                            サンプルデータダウンロード
+                        </button>
+                        <button class="btn btn-primary hidden" id="proceed-analysis" onclick="switchTab('analysis')">
+                            解析に進む
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 解析実行タブ -->
+                <div class="tab-pane" id="analysis-pane">
+                    <div class="settings-panel">
+                        <h2 class="section-title">解析設定</h2>
+                        
+                        <div class="setting-group">
+                            <label class="setting-label">PCA設定</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="scale-data" checked>
+                                    <label for="scale-data">データの標準化 (Scale)</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="center-data" checked>
+                                    <label for="center-data">データの中心化 (Center)</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="setting-label" for="num-components">主成分数 (オプション)</label>
+                            <input type="number" id="num-components" class="setting-input" placeholder="自動選択" min="1">
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="setting-label">追加解析</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="loading-test" checked>
+                                    <label for="loading-test">因子負荷量検定</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="multivariate-analysis">
+                                    <label for="multivariate-analysis">多変量解析</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" id="run-analysis" onclick="runAnalysis()" disabled>
+                            解析実行
+                        </button>
+                        <button class="btn btn-secondary" onclick="resetAnalysis()">
+                            設定リセット
+                        </button>
+                        <button class="btn btn-info" onclick="testAPIConnection()">
+                            🔗 API接続テスト
+                        </button>
+                        <button class="btn btn-success" onclick="runCompleteAPITest()">
+                            🧪 完全API統合テスト
+                        </button>
+                    </div>
+
+                    <div id="analysis-progress" class="result-section hidden">
+                        <div class="result-header">
+                            <h3 class="result-title">解析進行状況</h3>
+                            <span class="result-status processing">実行中</span>
+                        </div>
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span>解析を実行しています...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 結果・解釈タブ -->
+                <div class="tab-pane" id="results-pane">
+                    <div id="analysis-results"></div>
+                </div>
+
+                <!-- エクスポートタブ -->
+                <div class="tab-pane" id="export-pane">
+                    <div class="section-title">結果エクスポート</div>
+                    <div class="settings-panel">
+                        <div class="setting-group">
+                            <label class="setting-label">エクスポート形式</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="radio" id="export-json" name="export-format" value="json" checked>
+                                    <label for="export-json">JSON形式</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="radio" id="export-html" name="export-format" value="html">
+                                    <label for="export-html">HTMLレポート</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="radio" id="export-csv" name="export-format" value="csv">
+                                    <label for="export-csv">CSV形式</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="include-images" checked>
+                                <label for="include-images">画像を含む</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="exportResults()" disabled id="export-btn">
+                            レポートダウンロード
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportData()" disabled id="export-data-btn">
+                            データダウンロード
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="llm.js"></script>
+    <script>
+        // グローバル変数
+        let currentDataId = null;
+        let analysisResults = {};
+        let currentAnalysisId = null;
+        
+        // API設定
+        const API_BASE_URL = 'http://localhost:7860'; // loadings-web-api-sample-mainのURL (Docker設定に合わせる)
+        
+        // DOM要素の取得
+        const fileInput = document.getElementById('file-input');
+        const uploadArea = document.getElementById('upload-area');
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabPanes = document.querySelectorAll('.tab-pane');
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            checkAPIHealth();
+        });
+        
+        // イベントリスナー設定
+        function setupEventListeners() {
+            // ファイルアップロード
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // ドラッグ&ドロップ
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleDrop);
+            
+            // タブ切り替え
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.getAttribute('data-tab');
+                    switchTab(tabId);
+                });
+            });
+        }
+        
+        // タブ切り替え
+        function switchTab(tabId) {
+            // タブボタンの状態更新
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-tab') === tabId) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // タブコンテンツの表示切り替え
+            tabPanes.forEach(pane => {
+                pane.classList.remove('active');
+                if (pane.id === tabId + '-pane') {
+                    pane.classList.add('active');
+                }
+            });
+        }
+        
+        // API健康状態チェック
+        async function checkAPIHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                if (response.ok) {
+                    console.log('API接続確認完了');
+                } else {
+                    console.warn('API接続に問題があります');
+                }
+            } catch (error) {
+                console.error('API接続エラー:', error);
+            }
+        }
+        
+        // ファイル選択処理
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                uploadFile(file);
+            }
+        }
+        
+        // ドラッグオーバー処理
+        function handleDragOver(event) {
+            event.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+        
+        // ドラッグリーブ処理
+        function handleDragLeave(event) {
+            event.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+        
+        // ドロップ処理
+        function handleDrop(event) {
+            event.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                uploadFile(files[0]);
+            }
+        }
+        
+        // ファイルアップロード
+        async function uploadFile(file) {
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                alert('CSVファイルを選択してください');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                showLoading('ファイルをアップロード中...');
+                
+                const response = await fetch(`${API_BASE_URL}/upload/csv`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                hideLoading();
+                
+                if (result.status === 'success') {
+                    currentDataId = result.data_id;
+                    displayFileInfo(result);
+                    displayDataSummary(result.data_summary);
+                    document.getElementById('proceed-analysis').classList.remove('hidden');
+                    document.getElementById('run-analysis').disabled = false;
+                } else {
+                    alert('エラー: ' + result.message);
+                }
+            } catch (error) {
+                hideLoading();
+                console.error('アップロードエラー:', error);
+                alert('アップロードに失敗しました');
+            }
+        }
+        
+        // ファイル情報表示
+        function displayFileInfo(result) {
+            const fileInfoDiv = document.getElementById('file-info');
+            const detailsDiv = document.getElementById('file-details');
+            
+            detailsDiv.innerHTML = `
+                <p><strong>ファイル名:</strong> ${result.file_info.filename}</p>
+                <p><strong>アップロード時刻:</strong> ${result.file_info.upload_time}</p>
+                <p><strong>データID:</strong> ${result.data_id}</p>
+                <p><strong>除去された行数:</strong> ${result.data_summary.removed_rows}</p>
+            `;
+            
+            fileInfoDiv.classList.remove('hidden');
+        }
+        
+        // データ概要表示
+        function displayDataSummary(summary) {
+            const summaryDiv = document.getElementById('data-summary');
+            const contentDiv = document.getElementById('summary-content');
+            
+            contentDiv.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    <div>
+                        <h4>データ次元</h4>
+                        <p>行数: ${summary.dimensions.rows}</p>
+                        <p>列数: ${summary.dimensions.columns}</p>
+                    </div>
+                    <div>
+                        <h4>データ品質</h4>
+                        <p>欠損値: ${summary.data_quality.missing_percentage}%</p>
+                        <p>推奨事項: ${summary.data_quality.recommendation.length}件</p>
+                    </div>
+                    <div>
+                        <h4>列名</h4>
+                        <p style="font-size: 12px; word-break: break-all;">${summary.column_names.join(', ')}</p>
+                    </div>
+                </div>
+            `;
+            
+            summaryDiv.classList.remove('hidden');
+        }
+        
+        // 解析実行
+        async function runAnalysis() {
+            if (!currentDataId) {
+                alert('先にデータをアップロードしてください');
+                return;
+            }
+            
+            const scale = document.getElementById('scale-data').checked;
+            const center = document.getElementById('center-data').checked;
+            const components = document.getElementById('num-components').value;
+            
+            try {
+                showAnalysisProgress();
+                
+                // PCA解析実行
+                const pcaResponse = await fetch(`${API_BASE_URL}/analyze/pca-custom`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        data_id: currentDataId,
+                        scale: scale,
+                        center: center,
+                        components: components ? parseInt(components) : null
+                    })
+                });
+                
+                const pcaResult = await pcaResponse.json();
+                
+                if (pcaResult.status === 'success') {
+                    currentAnalysisId = pcaResult.analysis_id;
+                    analysisResults.pca = pcaResult;
+                    
+                    // 因子負荷量検定実行（オプション）
+                    if (document.getElementById('loading-test').checked) {
+                        const loadingResponse = await fetch(`${API_BASE_URL}/analyze/loading-test`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                data_id: currentDataId
+                            })
+                        });
+                        
+                        const loadingResult = await loadingResponse.json();
+                        if (loadingResult.status === 'success') {
+                            analysisResults.loading_test = loadingResult;
+                        }
+                    }
+                    
+                    hideAnalysisProgress();
+                    await displayResults();
+                    await generateLLMInterpretation();
+                    switchTab('results');
+                    
+                    // エクスポートボタン有効化
+                    document.getElementById('export-btn').disabled = false;
+                    document.getElementById('export-data-btn').disabled = false;
+                } else {
+                    hideAnalysisProgress();
+                    alert('解析エラー: ' + pcaResult.message);
+                }
+            } catch (error) {
+                hideAnalysisProgress();
+                console.error('解析エラー:', error);
+                alert('解析に失敗しました');
+            }
+        }
+        
+        // 解析進行状況表示
+        function showAnalysisProgress() {
+            const progressElement = document.getElementById('analysis-progress') || createAnalysisProgressElement();
+            progressElement.classList.remove('hidden');
+            progressElement.style.display = 'block';
+            
+            // プログレスバーアニメーション
+            const progressBar = progressElement.querySelector('.progress-bar');
+            if (progressBar) {
+                progressBar.style.width = '0%';
+                animateProgressBar(progressBar, 0, 100, 8000); // 8秒で完了
+            }
+        }
+        
+        function hideAnalysisProgress() {
+            const progressElement = document.getElementById('analysis-progress');
+            if (progressElement) {
+                progressElement.classList.add('hidden');
+                progressElement.style.display = 'none';
+            }
+        }
+        
+        // 解析進行要素作成
+        function createAnalysisProgressElement() {
+            const existingElement = document.getElementById('analysis-progress');
+            if (existingElement) return existingElement;
+            
+            const progressElement = document.createElement('div');
+            progressElement.id = 'analysis-progress';
+            progressElement.className = 'hidden';
+            progressElement.style.cssText = `
+                margin: 20px 0;
+                padding: 20px;
+                background-color: #f0f8ff;
+                border: 2px solid #0066cc;
+                border-radius: 8px;
+                text-align: center;
+                font-family: inherit;
+            `;
+            
+            progressElement.innerHTML = `
+                <h4 style="margin: 0 0 15px 0; color: #0066cc;">🔬 PCA解析実行中</h4>
+                <div class="progress-container" style="
+                    width: 100%;
+                    height: 20px;
+                    background-color: #e0e0e0;
+                    border-radius: 10px;
+                    margin: 10px 0;
+                    overflow: hidden;
+                ">
+                    <div class="progress-bar" style="
+                        height: 100%;
+                        background: linear-gradient(90deg, #0066cc, #4CAF50);
+                        border-radius: 10px;
+                        width: 0%;
+                        transition: width 0.3s ease;
+                    "></div>
+                </div>
+                <div class="progress-text" style="
+                    font-size: 14px;
+                    color: #666;
+                    margin-top: 10px;
+                ">データ検証 → PCA計算 → 可視化生成 → AI解釈</div>
+            `;
+            
+            // 適切な場所に挿入
+            const fileInfoDiv = document.getElementById('file-info');
+            if (fileInfoDiv) {
+                fileInfoDiv.insertAdjacentElement('afterend', progressElement);
+            } else {
+                document.querySelector('.container').appendChild(progressElement);
+            }
+            
+            return progressElement;
+        }
+        
+        // プログレスバーアニメーション
+        function animateProgressBar(progressBar, start, end, duration) {
+            const startTime = Date.now();
+            const difference = end - start;
+            
+            function step() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const currentValue = start + (difference * progress);
+                
+                progressBar.style.width = currentValue + '%';
+                
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                }
+            }
+            
+            requestAnimationFrame(step);
+        }
+        
+        // 完全API統合テスト
+        async function runCompleteAPITest() {
+            try {
+                showLoading('完全API統合テストを実行中...');
+                
+                console.log('🧪 API統合テスト開始');
+                
+                // 1. ヘルスチェック
+                console.log('1️⃣ ヘルスチェック...');
+                const healthResponse = await fetch(`${API_BASE_URL}/health`);
+                if (!healthResponse.ok) {
+                    throw new Error(`ヘルスチェック失敗: HTTP ${healthResponse.status}`);
+                }
+                const healthData = await healthResponse.json();
+                console.log('✅ ヘルスチェック成功:', healthData);
+                
+                // 2. テストデータでPCA解析
+                console.log('2️⃣ テストデータでPCA解析...');
+                const testData = generateTestCSVData();
+                const formData = new FormData();
+                const blob = new Blob([testData], { type: 'text/csv' });
+                formData.append('file', blob, 'test_data.csv');
+                
+                const uploadResponse = await fetch(`${API_BASE_URL}/upload/csv`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!uploadResponse.ok) {
+                    throw new Error(`アップロード失敗: HTTP ${uploadResponse.status}`);
+                }
+                
+                const uploadResult = await uploadResponse.json();
+                console.log('✅ テストデータアップロード成功:', uploadResult);
+                
+                // 3. PCA解析実行
+                console.log('3️⃣ PCA解析実行...');
+                const pcaResponse = await fetch(`${API_BASE_URL}/analyze/pca-custom`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        data_id: uploadResult.data_id,
+                        scale: true,
+                        center: true,
+                        components: null
+                    })
+                });
+                
+                if (!pcaResponse.ok) {
+                    throw new Error(`PCA解析失敗: HTTP ${pcaResponse.status}`);
+                }
+                
+                const pcaResult = await pcaResponse.json();
+                console.log('✅ PCA解析成功:', pcaResult);
+                
+                hideLoading();
+                
+                // 結果表示
+                const testResultsHtml = `
+                    <div style="margin: 20px 0; padding: 20px; background-color: #e8f5e8; border: 2px solid #4CAF50; border-radius: 8px;">
+                        <h3 style="color: #2E7D32; margin: 0 0 15px 0;">🧪 API統合テスト完了</h3>
+                        <p><strong>✅ ヘルスチェック:</strong> 成功</p>
+                        <p><strong>✅ ファイルアップロード:</strong> データID ${uploadResult.data_id}</p>
+                        <p><strong>✅ PCA解析:</strong> ${pcaResult.results?.summary?.num_components || 'N/A'}成分解析完了</p>
+                        <p><strong>統計情報:</strong> Kaiser基準 ${pcaResult.statistical_info?.kaiser_components || 'N/A'}成分</p>
+                        <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                            すべてのAPIエンドポイントが正常に動作しています。実際のデータで解析を開始できます。
+                        </p>
+                    </div>
+                `;
+                
+                const analysisResultsDiv = document.getElementById('analysis-results');
+                analysisResultsDiv.innerHTML = testResultsHtml;
+                
+                alert('🎉 API統合テスト完了！\nすべての機能が正常に動作しています。');
+                
+            } catch (error) {
+                hideLoading();
+                console.error('❌ API統合テストエラー:', error);
+                alert(`❌ API統合テスト失敗: ${error.message}\n\nAPIサーバーが起動しているか確認してください。`);
+            }
+        }
+        
+        // テストCSVデータ生成
+        function generateTestCSVData() {
+            const samples = ['Sample1', 'Sample2', 'Sample3', 'Sample4', 'Sample5'];
+            const variables = ['Var1', 'Var2', 'Var3', 'Var4', 'Var5', 'Var6'];
+            
+            let csv = variables.join(',') + '\n';
+            
+            for (let i = 0; i < samples.length; i++) {
+                const row = variables.map(() => (Math.random() * 100).toFixed(2));
+                csv += row.join(',') + '\n';
+            }
+            
+            return csv;
+        }
+        
+        // 結果表示
+        async function displayResults() {
+            const resultsDiv = document.getElementById('analysis-results');
+            const pcaResult = analysisResults.pca;
+            
+            let html = `
+                <div class="result-section">
+                    <div class="result-header">
+                        <h3 class="result-title">PCA解析結果</h3>
+                        <span class="result-status success">完了</span>
+                    </div>
+                    <div class="result-content">
+                        <div class="image-grid">
+                            <div class="image-container">
+                                <img src="${pcaResult.results.biplot_image}" alt="PCA Biplot">
+                                <div class="image-title">PCAバイプロット</div>
+                                <div class="image-description">サンプルと変数の関係を2次元で可視化</div>
+                            </div>
+            `;
+            
+            // 成分別画像表示
+            Object.keys(pcaResult.results.component_images).forEach(component => {
+                const images = pcaResult.results.component_images[component];
+                html += `
+                    <div class="image-container">
+                        <img src="${images.loading_plot}" alt="${component} Loading Plot">
+                        <div class="image-title">${component} 因子負荷量</div>
+                        <div class="image-description">変数の${component}への寄与度</div>
+                    </div>
+                    <div class="image-container">
+                        <img src="${images.pvalue_plot}" alt="${component} P-value Plot">
+                        <div class="image-title">${component} P値分布</div>
+                        <div class="image-description">統計的有意性の評価</div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <h4>統計情報</h4>
+                            <p><strong>解析した主成分数:</strong> ${pcaResult.results.summary.num_components}</p>
+                            <p><strong>Kaiser基準による推奨成分数:</strong> ${pcaResult.statistical_info.kaiser_components}</p>
+                            <p><strong>累積寄与率80%達成成分数:</strong> ${pcaResult.statistical_info.components_80_percent}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        // LLM解釈生成
+        async function generateLLMInterpretation() {
+            if (!analysisResults.pca) return;
+            
+            try {
+                showLoading('AI解釈を生成中...');
+                
+                const interpretationPrompt = createInterpretationPrompt();
+                
+                // LLM API呼び出し（統計解析特化）
+                const messages = [
+                    {
+                        role: "system",
+                        content: "あなたは統計解析とPCA（主成分分析）の専門家です。提供されたPCA解析結果を多角的に解釈し、実用的な洞察を提供してください。"
+                    },
+                    {
+                        role: "user", 
+                        content: interpretationPrompt
+                    }
+                ];
+                
+                // 新しいLLM統計解析機能を使用
+                const interpretation = await generateStatisticalInterpretation(analysisResults);
+                
+                hideLoading();
+                displayStructuredInterpretation(interpretation);
+            } catch (error) {
+                hideLoading();
+                console.error('LLM解釈エラー:', error);
+                alert('AI解釈の生成に失敗しました: ' + error.message);
+            }
+        }
+        
+        // 統計解析特化LLM API呼び出し
+        async function callStatisticalLLMAPI(messages) {
+            const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+            
+            const requestData = {
+                model: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+                temperature: 0.3, // 統計解析では一貫性を重視
+                stream: false,
+                max_completion_tokens: 2000,
+                messages: messages
+            };
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`LLM API呼び出しに失敗しました: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                    return formatStatisticalResponse(data.choices[0].message.content);
+                } else if (data.answer) {
+                    return formatStatisticalResponse(data.answer);
+                } else {
+                    throw new Error('LLMレスポンスに期待されるフィールドがありません');
+                }
+            } catch (error) {
+                console.error('LLM API呼び出しエラー:', error);
+                throw new Error(`AI解釈の生成に失敗しました: ${error.message}`);
+            }
+        }
+        
+        // 統計解析レスポンスのフォーマット
+        function formatStatisticalResponse(content) {
+            // マークダウン形式をHTMLに変換
+            let html = content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            
+            // リスト形式の変換
+            html = html.replace(/^(\d+)\.\s*(.*?)(?=\n|$)/gm, '<li>$2</li>');
+            html = html.replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>');
+            
+            return `<p>${html}</p>`;
+        }
+        
+        // 解釈プロンプト作成
+        function createInterpretationPrompt() {
+            const pcaResult = analysisResults.pca;
+            const stats = pcaResult.statistical_info;
+            
+            return `以下のPCA解析結果を多角的に解釈してください：
+
+データ情報:
+- 主成分数: ${pcaResult.results.summary.num_components}
+- Kaiser基準推奨成分数: ${stats.kaiser_components}
+- 累積寄与率80%達成成分数: ${stats.components_80_percent}
+- 第1主成分寄与率: ${(stats.explained_variance_ratio[0] * 100).toFixed(2)}%
+
+解釈の観点:
+1. 統計学的観点（主成分の数値的意味、寄与率の解釈）
+2. 生物学的観点（可能性のある生物学的含意）
+3. 実験科学的観点（実験デザインと結果の関連性）
+4. 次のステップの提案
+
+各観点について具体的で実用的な解釈を提供してください。`;
+        }
+        
+        // 構造化LLM解釈表示
+        function displayStructuredInterpretation(interpretation) {
+            const resultsDiv = document.getElementById('analysis-results');
+            
+            const confidenceColor = interpretation.confidence_score > 0.7 ? '#28a745' : 
+                                   interpretation.confidence_score > 0.5 ? '#ffc107' : '#dc3545';
+            
+            const llmHtml = `
+                <div class="llm-interpretation">
+                    <div class="llm-header">
+                        <div class="llm-icon">🤖</div>
+                        <h3 class="llm-title">AI統合解釈</h3>
+                        <div class="confidence-score" style="
+                            background-color: ${confidenceColor};
+                            color: white;
+                            padding: 4px 8px;
+                            border-radius: 12px;
+                            font-size: 12px;
+                            font-weight: 600;
+                        ">
+                            信頼度: ${Math.round(interpretation.confidence_score * 100)}%
+                        </div>
+                    </div>
+                    <div class="llm-content">
+                        ${renderInterpretationSections(interpretation)}
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML += llmHtml;
+        }
+        
+        // 解釈セクションのレンダリング
+        function renderInterpretationSections(interpretation) {
+            let html = '';
+            
+            // 統計学的解釈
+            if (interpretation.statistical_interpretation) {
+                html += `
+                    <div class="interpretation-section">
+                        <h4>📊 統計学的解釈</h4>
+                        <div class="section-content">
+                            <p><strong>概要:</strong> ${interpretation.statistical_interpretation.summary}</p>
+                            <p><strong>主成分:</strong> ${interpretation.statistical_interpretation.principal_components}</p>
+                            <p><strong>寄与率:</strong> ${interpretation.statistical_interpretation.variance_explained}</p>
+                            <p><strong>統計的有意性:</strong> ${interpretation.statistical_interpretation.statistical_significance}</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // 生物学的解釈
+            if (interpretation.biological_interpretation) {
+                html += `
+                    <div class="interpretation-section">
+                        <h4>🧬 生物学的解釈</h4>
+                        <div class="section-content">
+                            <p><strong>生物学的意味:</strong> ${interpretation.biological_interpretation.biological_meaning}</p>
+                            <p><strong>パスウェイ関連:</strong> ${interpretation.biological_interpretation.pathway_implications}</p>
+                            <p><strong>機能的洞察:</strong> ${interpretation.biological_interpretation.functional_insights}</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // 実験評価
+            if (interpretation.experimental_evaluation) {
+                html += `
+                    <div class="interpretation-section">
+                        <h4>🔬 実験科学的評価</h4>
+                        <div class="section-content">
+                            <p><strong>実験デザイン:</strong> ${interpretation.experimental_evaluation.design_assessment}</p>
+                            <p><strong>データ品質:</strong> ${interpretation.experimental_evaluation.data_quality}</p>
+                            <p><strong>制限事項:</strong> ${interpretation.experimental_evaluation.limitations}</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // 実用的推奨
+            if (interpretation.practical_recommendations) {
+                html += `
+                    <div class="interpretation-section">
+                        <h4>💡 実用的推奨事項</h4>
+                        <div class="section-content">
+                            <p><strong>次のステップ:</strong> ${interpretation.practical_recommendations.next_steps}</p>
+                            <p><strong>追加解析:</strong> ${interpretation.practical_recommendations.additional_analyses}</p>
+                            <p><strong>注意点:</strong> ${interpretation.practical_recommendations.interpretive_cautions}</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // フォールバック時の生応答表示
+            if (interpretation.raw_response && interpretation.parsing_status === 'fallback_used') {
+                html += `
+                    <div class="interpretation-section fallback-section">
+                        <h4>⚠️ 生成された解釈（構造化失敗）</h4>
+                        <div class="section-content" style="max-height: 300px; overflow-y: auto; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">
+                            <pre style="white-space: pre-wrap; word-wrap: break-word;">${interpretation.raw_response}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return html;
+        }
+        
+        // サンプルデータダウンロード
+        async function downloadSampleData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/data/example`);
+                const blob = await response.blob();
+                
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'sample_data.csv';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                console.error('サンプルデータダウンロードエラー:', error);
+                alert('サンプルデータのダウンロードに失敗しました');
+            }
+        }
+        
+        // 結果エクスポート
+        async function exportResults() {
+            if (!currentAnalysisId) {
+                alert('先に解析を実行してください');
+                return;
+            }
+            
+            const format = document.querySelector('input[name="export-format"]:checked').value;
+            const includeImages = document.getElementById('include-images').checked;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/export/report`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        analysis_id: currentAnalysisId,
+                        format: format,
+                        include_images: includeImages
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    // レポートダウンロード処理
+                    const reportData = JSON.stringify(result.report, null, 2);
+                    const blob = new Blob([reportData], { type: 'application/json' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `analysis_report_${currentAnalysisId}.${format}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('エクスポートエラー: ' + result.message);
+                }
+            } catch (error) {
+                console.error('エクスポートエラー:', error);
+                alert('エクスポートに失敗しました');
+            }
+        }
+        
+        // データエクスポート
+        async function exportData() {
+            if (!currentDataId) {
+                alert('先にデータをアップロードしてください');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/export/data/${currentDataId}?include_analysis=true`);
+                const blob = await response.blob();
+                
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `analysis_data_${currentDataId}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                console.error('データエクスポートエラー:', error);
+                alert('データエクスポートに失敗しました');
+            }
+        }
+        
+        // 設定リセット
+        function resetAnalysis() {
+            document.getElementById('scale-data').checked = true;
+            document.getElementById('center-data').checked = true;
+            document.getElementById('num-components').value = '';
+            document.getElementById('loading-test').checked = true;
+            document.getElementById('multivariate-analysis').checked = false;
+        }
+        
+        // ローディング表示
+        function showLoading(message) {
+            const loadingElement = document.getElementById('loading-overlay') || createLoadingOverlay();
+            const messageElement = loadingElement.querySelector('.loading-message');
+            if (messageElement) {
+                messageElement.textContent = message;
+            }
+            loadingElement.style.display = 'flex';
+            console.log('Loading:', message);
+        }
+        
+        // ローディング非表示
+        function hideLoading() {
+            const loadingElement = document.getElementById('loading-overlay');
+            if (loadingElement) {
+                loadingElement.style.display = 'none';
+            }
+            console.log('Loading complete');
+        }
+        
+        // ローディングオーバーレイ作成
+        function createLoadingOverlay() {
+            const overlay = document.createElement('div');
+            overlay.id = 'loading-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.7);
+                display: none;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+                font-family: inherit;
+            `;
+            
+            overlay.innerHTML = `
+                <div style="
+                    background-color: white;
+                    padding: 30px;
+                    border-radius: 12px;
+                    text-align: center;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                    border: 2px solid #000;
+                ">
+                    <div class="spinner" style="
+                        width: 40px;
+                        height: 40px;
+                        border: 4px solid #f3f3f3;
+                        border-top: 4px solid #ff1744;
+                        border-radius: 50%;
+                        animation: spin 1s linear infinite;
+                        margin: 0 auto 15px;
+                    "></div>
+                    <div class="loading-message" style="
+                        font-size: 16px;
+                        font-weight: 600;
+                        color: #333;
+                    ">処理中...</div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            return overlay;
+        }
+        
+        // API接続テスト
+        async function testAPIConnection() {
+            try {
+                showLoading('API接続をテスト中...');
+                const response = await fetch(`${API_BASE_URL}/health`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    hideLoading();
+                    alert(`✅ API接続成功！\nステータス: ${data.status}\n利用可能エンドポイント: ${data.available_endpoints?.length || 0}個`);
+                    return true;
+                } else {
+                    hideLoading();
+                    alert(`❌ API接続失敗: HTTP ${response.status}`);
+                    return false;
+                }
+            } catch (error) {
+                hideLoading();
+                console.error('API接続エラー:', error);
+                alert(`❌ API接続エラー: ${error.message}\n\nAPI サーバーが起動しているか確認してください:\ncd loadings-web-api-sample-main\ndocker compose up -d`);
+                return false;
+            }
+        }
+    </script>
+    
+    <!-- LLM統合スクリプト -->
+    <script src="llm.js"></script>
+</body>
+</html> 
