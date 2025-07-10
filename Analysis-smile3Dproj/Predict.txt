@@ -1,0 +1,48 @@
+「Predict Fragmentation」機能の実装内容：
+
+  現在実装されている「Predict Fragmentation」機能は以下の通りです：
+
+  1. 現在の実装状況
+
+  - 現在はモックデータを使用：fragmentation-core.js:26-94でモックの断片化結
+  果を生成
+  - LLMによる実際の分析はまだ未実装：fragmentation-llm.jsにLLM
+  API呼び出し機能はあるが、実際には使用されていない
+
+  2. 実装されている機能
+
+  モジュール構成：
+
+  - fragmentation-core.js: メイン制御とモックデータ生成
+  - fragmentation-llm.js: LLM API呼び出し（準備済み、未使用）
+  - fragmentation-database.js: データベース検索（準備済み）
+  - fragmentation-ui.js: UI表示制御
+  - fragmentation-utils.js: 化学計算ユーティリティ
+
+  現在の処理フロー：
+
+  1. ユーザーが「Predict Fragmentation」ボタンをクリック
+  2. predictFragmentation()関数が呼び出される
+  3. 現在の分子のSMILESを取得
+  4. モックデータを生成（実際のLLM分析なし）
+  5. 結果をUIに表示
+
+  3. 3D表示の問題
+
+  調査の結果、3D表示が機能しない主な原因は：
+
+以下を解決してください。
+  1. ライブラリの読み込み順序: index.html:226でCDNから3Dmol.jsを読み込み
+  2. 初期化の遅延: viewer3d.js:255-275で遅延初期化を実装
+  3. WebGL要件: 3D表示にはWebGLサポートが必要
+
+  4. 実際のLLM統合について
+
+  実際のLLM統合は実施てください。
+   - LLM API エンドポイント:
+  https://nurumayu-worker.skume-bioinfo.workers.dev/
+  - モデル: meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8
+  - 統合データベース検索機能も準備済み
+
+  結論: 現在は開発中の段階で、LLM統合分析はまだ実装されておらず、モックデー
+  タによる表示テストのみ実行されています。

@@ -116,10 +116,6 @@ async function generateMolecularStructure() {
         return;
     }
 
-    // Show process indicator for molecular generation
-    if (typeof window.showProcessStep === 'function') {
-        window.showProcessStep('molecular');
-    }
 
     showLoading(true);
     hideError();
@@ -211,19 +207,9 @@ Important guidelines:
         console.error('Molecular generation error:', error);
         showError(`Failed to generate molecular structure: ${error.message}`);
         
-        // Hide process indicator on error
-        if (typeof window.hideProcessStep === 'function') {
-            window.hideProcessStep('molecular');
-        }
     } finally {
         showLoading(false);
         
-        // Hide process indicator when molecular generation completes
-        setTimeout(() => {
-            if (typeof window.hideProcessStep === 'function') {
-                window.hideProcessStep('molecular');
-            }
-        }, 2000); // Keep visible for 2 seconds to show completion
     }
 }
 

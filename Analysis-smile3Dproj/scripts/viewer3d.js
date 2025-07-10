@@ -58,33 +58,14 @@ function initialize3DMolViewer() {
         return false;
     }
 
-    // Enhanced 3Dmol.js library detection with retry mechanism
+    // Enhanced 3Dmol.js library detection
     if (typeof $3Dmol === 'undefined') {
-        console.warn('3Dmol.js library not loaded - attempting to wait for library...');
-        
-        // Try to wait for library to load
-        let attempts = 0;
-        const maxAttempts = 10;
-        
-        const checkLibrary = () => {
-            attempts++;
-            if (typeof $3Dmol !== 'undefined') {
-                console.log('3Dmol.js loaded after', attempts, 'attempts');
-                return true;
-            } else if (attempts >= maxAttempts) {
-                console.error('3Dmol.js failed to load after', maxAttempts, 'attempts');
-                showViewer3DError('3D visualization library failed to load. Please refresh the page.');
-                return false;
-            } else {
-                setTimeout(checkLibrary, 500);
-                return false;
-            }
-        };
-        
-        if (!checkLibrary()) {
-            return false;
-        }
+        console.error('❌ 3Dmol.js library not loaded');
+        showViewer3DError('3D visualization library not loaded. Please refresh the page.');
+        return false;
     }
+    
+    console.log('✅ 3Dmol.js library detected');
 
     // Enhanced WebGL support check
     if (!checkWebGLSupport()) {
@@ -227,10 +208,6 @@ function setupViewer3DEventHandlers() {
 
 // Display 3D molecule from SMILE string with enhanced error handling
 async function display3DMolecule(smileString) {
-    // Show process indicator for 3D visualization
-    if (typeof window.showProcessStep === 'function') {
-        window.showProcessStep('visualization');
-    }
     console.log('🎯 Attempting to display 3D molecule:', smileString);
     
     // Enhanced validation
@@ -307,20 +284,10 @@ async function display3DMolecule(smileString) {
         // Offer user choice instead of auto-switching
         showNotification('3D visualization failed. You can switch to 2D view manually or try again.', 'warning');
         
-        // Hide process indicator on error
-        if (typeof window.hideProcessStep === 'function') {
-            window.hideProcessStep('visualization');
-        }
         
     } finally {
         showViewerLoading(false);
         
-        // Hide process indicator when visualization completes
-        setTimeout(() => {
-            if (typeof window.hideProcessStep === 'function') {
-                window.hideProcessStep('visualization');
-            }
-        }, 2000);
     }
 }
 
@@ -1714,6 +1681,30 @@ function retry3DVisualization() {
     }
 }
 
+// Global retry function for molecular 3D
+function retryMolecular3D() {
+    console.log('🔄 Retrying molecular 3D display...');
+    
+    if (current2DStructure) {
+        // Clear 3D container first
+        const viewer3DContainer = document.getElementById('viewer-3d');
+        if (viewer3DContainer) {
+            viewer3DContainer.innerHTML = '';
+        }
+        
+        // Reinitialize and retry
+        initialize3DMolViewer();
+        display3DMolecule(current2DStructure).catch(error => {
+            console.error('Retry failed:', error);
+        });
+    } else {
+        console.warn('No molecular structure available to retry');
+    }
+}
+
+// Export retry function to global scope
+window.retryMolecular3D = retryMolecular3D;
+
 // Enhanced notification system with types
 function showNotification(message, type = 'info') {
     // Remove any existing notifications
@@ -2255,12 +2246,62 @@ async function displayMolecularStructure(smileString) {
     // Store current structure
     current2DStructure = smileString;
     
-    // Display based on current view mode
-    if (currentViewMode === '2d') {
-        console.log('Displaying in 2D mode');
+    // Always try both 2D and 3D display for better UX
+    console.log('🔬 Attempting both 2D and 3D display...');
+    
+    // Display 2D first (more reliable)
+    try {
         await display2DMolecule(smileString);
-    } else {
-        console.log('Displaying in 3D mode');
+        console.log('✅ 2D display successful');
+    } catch (error) {
+        console.error('❌ 2D display failed:', error);
+    }
+    
+    // Always attempt 3D display
+    try {
+        console.log('🧬 Attempting 3D display...');
+        await display3DMolecule(smileString);
+        console.log('✅ 3D display successful');
+    } catch (error) {
+        console.error('❌ 3D display failed:', error);
+        
+        // Show error in 3D viewer container
+        const viewer3DContainer = document.getElementById('viewer-3d');
+        if (viewer3DContainer) {
+            viewer3DContainer.innerHTML = `
+                <div style="
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                    color: #dc3545;
+                    text-align: center;
+                    padding: 20px;
+                ">
+                    <div style="font-size: 32px; margin-bottom: 10px;">⚠️</div>
+                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">3D Visualization Error</div>
+                    <div style="font-size: 12px; color: #6c757d; line-height: 1.4; max-width: 250px;">
+                        ${error.message || 'Failed to load 3D structure'}
+                    </div>
+                    <button onclick="window.retryMolecular3D ? window.retryMolecular3D() : console.log('Retry function not available')" style="
+                        margin-top: 10px;
+                        padding: 6px 12px;
+                        background: #007bff;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 11px;
+                    ">Try Again</button>
+                </div>
+            `;
+        }
+    }
+    
+    // Set display mode based on success
+    if (currentViewMode === '3d') {
+        console.log('3D mode selected');
         await display3DMolecule(smileString);
     }
     

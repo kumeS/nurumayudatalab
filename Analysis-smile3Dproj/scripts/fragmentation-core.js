@@ -41,10 +41,6 @@ async function predictFragmentation(smiles) {
         window.showFragmentationLoading(true);
     }
     
-    // Show process indicator for fragmentation analysis
-    if (typeof window.showProcessStep === 'function') {
-        window.showProcessStep('fragmentation');
-    }
     
     try {
         console.log('🤖 Starting LLM-based fragmentation analysis...');
@@ -84,12 +80,6 @@ async function predictFragmentation(smiles) {
             window.showFragmentationLoading(false);
         }
         
-        // Hide process indicator when fragmentation analysis completes
-        setTimeout(() => {
-            if (typeof window.hideProcessStep === 'function') {
-                window.hideProcessStep('fragmentation');
-            }
-        }, 3000); // Keep visible for 3 seconds to show completion
     }
 }
 
@@ -103,10 +93,6 @@ async function callFragmentationLLMAPI(smiles) {
         if (typeof window.searchMoNADatabase === 'function') {
             console.log('📊 Searching database for experimental data...');
             
-            // Show database search step
-            if (typeof window.showProcessStep === 'function') {
-                window.showProcessStep('fragmentation', 'database');
-            }
             
             const molecule = {
                 smile: smiles,
@@ -180,29 +166,66 @@ Provide accurate fragmentation predictions based on known fragmentation patterns
         }
     ];
     
-    // Step 3: Call LLM API
+    // Step 3: Call LLM API with detailed logging
     console.log('🤖 Calling LLM API...');
     
-    // Show LLM integration step
-    if (typeof window.showProcessStep === 'function') {
-        window.showProcessStep('fragmentation', 'llm');
-    }
+    const requestBody = {
+        model: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
+        messages: messages,
+        temperature: 0.4,
+        max_completion_tokens: 2000,
+        stream: false
+    };
+    
+    // Log request details for debugging
+    console.log('📤 LLM API Request Details:');
+    console.log('URL:', 'https://nurumayu-worker.skume-bioinfo.workers.dev/');
+    console.log('Method: POST');
+    console.log('Headers:', { 'Content-Type': 'application/json' });
+    console.log('Body:', JSON.stringify(requestBody, null, 2));
+    
     const response = await fetch('https://nurumayu-worker.skume-bioinfo.workers.dev/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            model: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
-            messages: messages,
-            temperature: 0.4,
-            max_tokens: 2000,
-            stream: false
-        })
+        body: JSON.stringify(requestBody)
     });
 
+    // Log response details
+    console.log('📥 LLM API Response Details:');
+    console.log('Status:', response.status, response.statusText);
+    console.log('Headers:', Object.fromEntries(response.headers.entries()));
+    
     if (!response.ok) {
-        throw new Error(`LLM API error: ${response.status} ${response.statusText}`);
+        let errorDetails = `${response.status} ${response.statusText}`;
+        let errorData = null;
+        
+        try {
+            const responseText = await response.text();
+            console.log('❌ Error Response Body:', responseText);
+            
+            try {
+                errorData = JSON.parse(responseText);
+                if (errorData.error) {
+                    errorDetails += ` - ${JSON.stringify(errorData.error)}`;
+                }
+            } catch (parseError) {
+                console.log('Error response is not JSON:', parseError);
+                errorDetails += ` - Raw response: ${responseText.substring(0, 200)}`;
+            }
+        } catch (e) {
+            console.error('Failed to read error response:', e);
+        }
+        
+        console.error('🚨 LLM API Error Details:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorData: errorData,
+            requestBody: requestBody
+        });
+        
+        throw new Error(`LLM API error: ${errorDetails}`);
     }
 
     const data = await response.json();
@@ -236,10 +259,6 @@ Provide accurate fragmentation predictions based on known fragmentation patterns
         parsed.rawLLMResponse = content;
         parsed.experimentalData = experimentalData;
         
-        // Show prediction step
-        if (typeof window.showProcessStep === 'function') {
-            window.showProcessStep('fragmentation', 'prediction');
-        }
         
         console.log('✅ LLM analysis completed successfully');
         return parsed;

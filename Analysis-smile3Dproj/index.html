@@ -17,40 +17,6 @@
         </div>
     </div>
 
-    <!-- Process Indicators (Hidden by default) -->
-    <div class="process-indicators" id="process-indicators" style="display: none; position: fixed; top: 10px; right: 10px; z-index: 1000; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-        <!-- Step 1: Molecular Generation -->
-        <div class="step-indicator" id="step-molecular" data-step="molecular" 
-             title="LLM: Llama-4-Maverick-17B | API: nurumayu-worker.skume-bioinfo.workers.dev | Process: Text → SMILES + Molecular Properties"
-             style="display: none; margin: 5px 0; padding: 5px; background: #e3f2fd; border-radius: 4px; font-size: 12px;">
-            🧪 Molecular Generation via LLM
-        </div>
-        
-        <!-- Step 2: 3D Visualization -->
-        <div class="step-indicator" id="step-visualization" data-step="visualization"
-             title="Libraries: 3Dmol.js (WebGL) + RDKit.js (2D) | Process: SMILES → 2D/3D Molecular Structure Rendering"
-             style="display: none; margin: 5px 0; padding: 5px; background: #f3e5f5; border-radius: 4px; font-size: 12px;">
-            🔬 3D Visualization Engine
-        </div>
-        
-        <!-- Step 3: Fragmentation Analysis -->
-        <div class="step-indicator" id="step-fragmentation" data-step="fragmentation"
-             title="Database: MoNA API (200K+ spectra) + LLM Integration | Process: Multi-stage MS/MS Fragmentation Analysis"
-             style="display: none; margin: 5px 0; padding: 5px; background: #e8f5e8; border-radius: 4px; font-size: 12px;">
-            📊 MS Fragmentation Analysis
-            <div class="sub-steps" style="margin-left: 10px; margin-top: 3px;">
-                <div class="sub-step" id="substep-database" style="display: none; font-size: 10px; color: #666;">
-                    📋 Database Search (MoNA API)
-                </div>
-                <div class="sub-step" id="substep-llm" style="display: none; font-size: 10px; color: #666;">
-                    🤖 LLM Integration (Llama-4)
-                </div>
-                <div class="sub-step" id="substep-prediction" style="display: none; font-size: 10px; color: #666;">
-                    ⚗️ Fragment Prediction
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Main Content -->
     <div class="main-content">
@@ -404,88 +370,8 @@
             // Initial call
             setupAnalysisDetailsHandler();
             
-            // Initialize process indicators
-            initializeProcessIndicators();
-            
             console.log('Application initialized successfully');
         });
-        
-        // Process Indicators Management
-        function initializeProcessIndicators() {
-            console.log('✅ Process indicators initialized');
-        }
-        
-        // Show process step indicator
-        function showProcessStep(stepName, subStep = null) {
-            const indicators = document.getElementById('process-indicators');
-            const stepElement = document.getElementById(`step-${stepName}`);
-            
-            if (indicators && stepElement) {
-                // Show main container
-                indicators.style.display = 'block';
-                
-                // Show specific step
-                stepElement.style.display = 'block';
-                
-                // Show sub-step if specified
-                if (subStep) {
-                    const subStepElement = document.getElementById(`substep-${subStep}`);
-                    if (subStepElement) {
-                        subStepElement.style.display = 'block';
-                    }
-                }
-                
-                console.log(`📍 Process step shown: ${stepName}${subStep ? ` → ${subStep}` : ''}`);
-            }
-        }
-        
-        // Hide process step indicator
-        function hideProcessStep(stepName, subStep = null) {
-            const stepElement = document.getElementById(`step-${stepName}`);
-            
-            if (stepElement) {
-                if (subStep) {
-                    const subStepElement = document.getElementById(`substep-${subStep}`);
-                    if (subStepElement) {
-                        subStepElement.style.display = 'none';
-                    }
-                } else {
-                    stepElement.style.display = 'none';
-                    
-                    // Hide all sub-steps when hiding main step
-                    const subSteps = stepElement.querySelectorAll('.sub-step');
-                    subSteps.forEach(sub => sub.style.display = 'none');
-                }
-                
-                // Hide main container if no steps are visible
-                const indicators = document.getElementById('process-indicators');
-                const visibleSteps = indicators.querySelectorAll('.step-indicator[style*="display: block"]');
-                if (visibleSteps.length === 0) {
-                    indicators.style.display = 'none';
-                }
-                
-                console.log(`📍 Process step hidden: ${stepName}${subStep ? ` → ${subStep}` : ''}`);
-            }
-        }
-        
-        // Hide all process indicators
-        function hideAllProcessSteps() {
-            const indicators = document.getElementById('process-indicators');
-            if (indicators) {
-                indicators.style.display = 'none';
-                
-                // Hide all individual steps
-                const steps = indicators.querySelectorAll('.step-indicator, .sub-step');
-                steps.forEach(step => step.style.display = 'none');
-                
-                console.log('📍 All process steps hidden');
-            }
-        }
-        
-        // Export functions to global scope
-        window.showProcessStep = showProcessStep;
-        window.hideProcessStep = hideProcessStep;
-        window.hideAllProcessSteps = hideAllProcessSteps;
     </script>
 </body>
 </html>
