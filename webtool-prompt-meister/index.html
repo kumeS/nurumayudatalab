@@ -367,6 +367,20 @@
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    .variable-section {
+      margin-bottom: 1rem;
+    }
+
+    .variable-textarea {
+      width: 100%;
+      height: 150px;
+      padding: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      resize: vertical;
+    }
   </style>
 </head>
 <body>
@@ -385,16 +399,7 @@
         </div>
         
         <div class="textarea-container">
-          <textarea id="basePrompt" class="main-textarea" placeholder="ベースプロンプトを入力してください...
-
-例:
-あなたは{role}として、{task}を実行してください。
-以下の条件を満たしてください：
-- {condition1}
-- {condition2}
-
-入力言語: {input_language}
-出力言語: 日本語"></textarea>
+          <textarea id="basePrompt" class="main-textarea" placeholder="日本で販売する商品の仕入れ先候補の選定を目的として1688の商品ページ情報を要約してください。 # 商品と会社の情報を全体的にまとめる # 以下に指示するポイントについては端的にまとめて別記してください。 ##まとめポイントとして知りたいこと １、商品情報 数量ごとの価格 MOQ 素材 仕様 商品の評価 販売実績など仕入れに際しての懸念点 ２，会社の営業年数、工場か転売している商社か、従業員数、評価、評判、返品率、リピート率信頼度を測れる指標と平均値とのギャップ 平均値に対して良いか悪いかを表にして表示 # 各指数の平均値は以下の方法で取得、把握してください。 1688のデータ分析ツール（1688数据分析、阿里指数、生意参谋） 過去の1688のサプライヤー評価データ 1688内での競争環境 #商品ページ情報 &quot;&quot;&quot; {product_page} &quot;&quot;&quot; #会社概要ページ &quot;&quot;&quot; {company_profile} &quot;&quot;&quot; # サプライヤー情報 &quot;&quot;&quot; {supplier_info} &quot;&quot;&quot; #出力形式：日本語でスレッド上に表示"></textarea>
           <div id="baseCharCount" class="char-count">0文字</div>
         </div>
       </div>
@@ -405,34 +410,23 @@
           <span class="panel-title">変数定義</span>
         </div>
         
-        <div class="settings-panel">
-          <div class="setting-item">
-            <label>入力言語:</label>
-            <select id="inputLanguage">
-              <option value="中国語">中国語</option>
-              <option value="英語">英語</option>
-              <option value="日本語" selected>日本語</option>
-              <option value="韓国語">韓国語</option>
-            </select>
-          </div>
-          
-          <div class="setting-item">
-            <label>出力言語:</label>
-            <select id="outputLanguage">
-              <option value="日本語" selected>日本語</option>
-              <option value="英語">英語</option>
-              <option value="中国語">中国語</option>
-              <option value="韓国語">韓国語</option>
-            </select>
-          </div>
-        </div>
+        <!-- Remove the settings-panel with language selects -->
         
-        <button class="add-variable" onclick="promptMeister.addVariable()">
-          <i class="fas fa-plus"></i> 変数を追加
-        </button>
+        <!-- Remove add-variable button -->
         
         <div id="variablesContainer">
-          <!-- 変数入力フィールドが動的に生成される -->
+          <div class="variable-section">
+            <label for="product_page">商品ページ情報:</label>
+            <textarea id="product_page" class="variable-textarea" placeholder="商品ページ情報を貼り付けてください"></textarea>
+          </div>
+          <div class="variable-section">
+            <label for="company_profile">会社概要ページ:</label>
+            <textarea id="company_profile" class="variable-textarea" placeholder="会社概要情報を貼り付けてください"></textarea>
+          </div>
+          <div class="variable-section">
+            <label for="supplier_info">サプライヤー情報:</label>
+            <textarea id="supplier_info" class="variable-textarea" placeholder="サプライヤー情報を貼り付けてください"></textarea>
+          </div>
         </div>
       </div>
     </div>

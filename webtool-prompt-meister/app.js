@@ -12,20 +12,21 @@ class PromptMeister {
     this.initializeElements();
     this.initializeEventListeners();
     this.loadStoredData();
-    this.addDefaultVariables();
+    // Remove addDefaultVariables as variables are fixed
   }
   
   initializeElements() {
     this.basePrompt = document.getElementById('basePrompt');
     this.baseCharCount = document.getElementById('baseCharCount');
-    this.variablesContainer = document.getElementById('variablesContainer');
     this.outputArea = document.getElementById('outputArea');
     this.loadingIndicator = document.getElementById('loadingIndicator');
-    this.inputLanguage = document.getElementById('inputLanguage');
-    this.outputLanguage = document.getElementById('outputLanguage');
     this.generateBtn = document.getElementById('generateBtn');
     this.copyBtn = document.getElementById('copyBtn');
     this.executeBtn = document.getElementById('executeBtn');
+    // Add fixed variable elements
+    this.productPage = document.getElementById('product_page');
+    this.companyProfile = document.getElementById('company_profile');
+    this.supplierInfo = document.getElementById('supplier_info');
   }
   
   initializeEventListeners() {
@@ -34,17 +35,14 @@ class PromptMeister {
       this.saveData();
     });
     
-    this.inputLanguage.addEventListener('change', () => {
-      this.saveData();
-      this.generatePrompt();
+    // Remove language change listeners
+    
+    // Add listeners for fixed variables
+    [this.productPage, this.companyProfile, this.supplierInfo].forEach(el => {
+      el.addEventListener('input', () => this.generatePrompt());
     });
     
-    this.outputLanguage.addEventListener('change', () => {
-      this.saveData();
-      this.generatePrompt();
-    });
-    
-    // リアルタイムプレビュー
+    // Real-time preview
     this.basePrompt.addEventListener('input', () => {
       clearTimeout(this.previewTimeout);
       this.previewTimeout = setTimeout(() => {
@@ -53,99 +51,30 @@ class PromptMeister {
     });
   }
   
-  addDefaultVariables() {
-    const defaultVars = [
-      { name: 'role', value: '専門コンサルタント' },
-      { name: 'task', value: 'タスクを記述してください' },
-      { name: 'condition1', value: '条件1を記述してください' },
-      { name: 'condition2', value: '条件2を記述してください' },
-      { name: 'input_language', value: this.inputLanguage.value }
-    ];
-    
-    defaultVars.forEach(variable => {
-      this.addVariable(variable.name, variable.value);
-    });
-  }
-  
-  addVariable(name = '', value = '') {
-    const variableId = Date.now() + Math.random();
-    const variableDiv = document.createElement('div');
-    variableDiv.className = 'variable-input';
-    variableDiv.dataset.id = variableId;
-    
-    variableDiv.innerHTML = `
-      <input type="text" class="variable-name" placeholder="変数名" value="${name}" 
-             onchange="promptMeister.updateVariable('${variableId}', 'name', this.value)">
-      <input type="text" class="variable-value" placeholder="変数の値" value="${value}"
-             onchange="promptMeister.updateVariable('${variableId}', 'value', this.value)"
-             oninput="promptMeister.generatePrompt()">
-      <button class="remove-variable" onclick="promptMeister.removeVariable('${variableId}')">
-        <i class="fas fa-trash"></i>
-      </button>
-    `;
-    
-    this.variablesContainer.appendChild(variableDiv);
-    
-    // 変数データに追加
-    this.variables.push({
-      id: variableId,
-      name: name,
-      value: value
-    });
-    
-    this.saveData();
-    this.generatePrompt();
-  }
-  
-  removeVariable(variableId) {
-    const variableDiv = document.querySelector(`[data-id="${variableId}"]`);
-    if (variableDiv) {
-      variableDiv.remove();
-    }
-    
-    // 変数データから削除
-    this.variables = this.variables.filter(v => v.id != variableId);
-    
-    this.saveData();
-    this.generatePrompt();
-  }
-  
-  updateVariable(variableId, field, value) {
-    const variable = this.variables.find(v => v.id == variableId);
-    if (variable) {
-      variable[field] = value;
-      
-      // input_language変数の場合は、言語選択も更新
-      if (variable.name === 'input_language' && field === 'value') {
-        this.inputLanguage.value = value;
-      }
-    }
-    
-    this.saveData();
-    this.generatePrompt();
-  }
+  // Remove addDefaultVariables, addVariable, removeVariable, updateVariable
   
   generatePrompt() {
     let prompt = this.basePrompt.value;
     let hasVariables = false;
     
-    // 変数を置換
-    this.variables.forEach(variable => {
-      if (variable.name && variable.value) {
-        const regex = new RegExp(`\\{${variable.name}\\}`, 'g');
-        if (prompt.includes(`{${variable.name}}`)) {
-          hasVariables = true;
-          prompt = prompt.replace(regex, variable.value);
-        }
+    // Replace fixed variables
+    const fixedVars = {
+      product_page: this.productPage.value,
+      company_profile: this.companyProfile.value,
+      supplier_info: this.supplierInfo.value
+    };
+    
+    Object.entries(fixedVars).forEach(([name, value]) => {
+      const regex = new RegExp(`\\{${name}\\}`, 'g');
+      if (prompt.includes(`{${name}}`)) {
+        hasVariables = true;
+        prompt = prompt.replace(regex, value);
       }
     });
     
-    // 言語設定を追加
-    if (!prompt.includes('出力言語') && this.outputLanguage.value !== '日本語') {
-      prompt += `\n\n出力言語: ${this.outputLanguage.value}`;
-    }
+    // Remove language addition code
     
-    // 未置換の変数をハイライト
+    // Highlight unresolved variables
     const unresolved = prompt.match(/\{[^}]+\}/g);
     if (unresolved) {
       unresolved.forEach(variable => {
@@ -154,10 +83,10 @@ class PromptMeister {
       });
     }
     
-    this.generatedPrompt = prompt.replace(/<[^>]*>/g, ''); // HTMLタグを除去してクリップボード用に保存
+    this.generatedPrompt = prompt.replace(/<[^>]*>/g, ''); // Remove HTML tags for clipboard
     this.outputArea.innerHTML = prompt || 'ベースプロンプトを入力してください...';
     
-    // プレビューモードのスタイリング
+    // Preview mode styling
     if (hasVariables || unresolved) {
       this.outputArea.classList.add('preview-mode');
     } else {
@@ -286,11 +215,12 @@ ${prompt}
   clearAll() {
     if (confirm('すべてのデータをクリアしますか？')) {
       this.basePrompt.value = '';
-      this.variablesContainer.innerHTML = '';
-      this.variables = [];
+      this.productPage.value = '';
+      this.companyProfile.value = '';
+      this.supplierInfo.value = '';
       this.outputArea.innerHTML = 'ここに生成されたプロンプトが表示されます...';
       this.updateCharCount();
-      this.addDefaultVariables();
+      this.generatePrompt();
       this.saveData();
       this.showNotification('データをクリアしました', 'success');
     }
@@ -304,9 +234,9 @@ ${prompt}
   saveData() {
     const data = {
       basePrompt: this.basePrompt.value,
-      variables: this.variables,
-      inputLanguage: this.inputLanguage.value,
-      outputLanguage: this.outputLanguage.value,
+      product_page: this.productPage.value,
+      company_profile: this.companyProfile.value,
+      supplier_info: this.supplierInfo.value,
       lastUpdated: new Date().toISOString()
     };
     
@@ -319,14 +249,9 @@ ${prompt}
       try {
         const data = JSON.parse(stored);
         this.basePrompt.value = data.basePrompt || '';
-        this.inputLanguage.value = data.inputLanguage || '日本語';
-        this.outputLanguage.value = data.outputLanguage || '日本語';
-        
-        if (data.variables && data.variables.length > 0) {
-          this.variables = data.variables;
-          this.renderVariables();
-        }
-        
+        this.productPage.value = data.product_page || '';
+        this.companyProfile.value = data.company_profile || '';
+        this.supplierInfo.value = data.supplier_info || '';
         this.updateCharCount();
         this.generatePrompt();
       } catch (error) {
@@ -335,28 +260,7 @@ ${prompt}
     }
   }
   
-  renderVariables() {
-    this.variablesContainer.innerHTML = '';
-    
-    this.variables.forEach(variable => {
-      const variableDiv = document.createElement('div');
-      variableDiv.className = 'variable-input';
-      variableDiv.dataset.id = variable.id;
-      
-      variableDiv.innerHTML = `
-        <input type="text" class="variable-name" placeholder="変数名" value="${variable.name}" 
-               onchange="promptMeister.updateVariable('${variable.id}', 'name', this.value)">
-        <input type="text" class="variable-value" placeholder="変数の値" value="${variable.value}"
-               onchange="promptMeister.updateVariable('${variable.id}', 'value', this.value)"
-               oninput="promptMeister.generatePrompt()">
-        <button class="remove-variable" onclick="promptMeister.removeVariable('${variable.id}')">
-          <i class="fas fa-trash"></i>
-        </button>
-      `;
-      
-      this.variablesContainer.appendChild(variableDiv);
-    });
-  }
+  // Remove renderVariables
   
   showNotification(message, type = 'info') {
     const notification = document.createElement('div');
