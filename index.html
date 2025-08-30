@@ -156,8 +156,11 @@
       -webkit-backdrop-filter: blur(10px);
     }
     
-    .mobile-menu.active {
-      transform: translateX(0);
+    #mobileMenu.mobile-menu.active,
+    #mobileMenu.active {
+      transform: translateX(0) !important;
+      left: 0 !important;
+      position: fixed !important;
     }
     
     /* Mobile menu overlay */
@@ -440,10 +443,10 @@
   <nav id="navbar" class="navbar fixed top-0 left-0 right-0 z-50 py-3 px-4 md:px-6">
     <div class="container mx-auto flex items-center justify-between">
       <div class="flex items-center">
-        <button id="menuToggle" class="md:hidden mr-4 text-gray-600 hover:text-gray-800 focus:outline-none">
+        <button id="menuToggle" class="md:hidden mr-4 text-gray-600 hover:text-gray-800 focus:outline-none p-4 flex items-center justify-center" style="min-width: 44px; min-height: 44px; margin-top: -30px;">
           <i class="fas fa-bars text-xl"></i>
         </button>
-        <a href="/" class="flex items-center">
+        <a href="index.html" class="flex items-center">
           <span class="text-2xl font-bold nuruma-gradient">NURUMAYU Data Lab</span>
         </a>
       </div>
@@ -452,7 +455,7 @@
         <a href="#" class="text-gray-600 hover:text-gray-800 font-medium">ホーム</a>
         <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium">ツール一覧</a>
         <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium">ラボについて</a>
-        <a href="#contact" class="text-gray-600 hover:text-gray-800 font-medium">お問い合わせ</a>
+        <a href="mailto:otoiawase20250416@aiknowledgeworks.net?subject=[ぬるま湯データラボ 問い合わせ・NURUMAYU Data Lab Inquiry]" class="text-gray-600 hover:text-gray-800 font-medium">お問い合わせ</a>
         <a href="Analysis.html" class="text-gray-600 hover:text-gray-800 font-medium">Analysis</a>
       </div>
       
@@ -467,7 +470,7 @@
         <a href="#" class="text-gray-600 hover:text-gray-800 font-medium py-2">ホーム</a>
         <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium py-2">ツール一覧</a>
         <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium py-2">ラボについて</a>
-        <a href="#contact" class="text-gray-600 hover:text-gray-800 font-medium py-2">お問い合わせ</a>
+        <a href="mailto:otoiawase20250416@aiknowledgeworks.net?subject=[ぬるま湯データラボ 問い合わせ・NURUMAYU Data Lab Inquiry]" class="text-gray-600 hover:text-gray-800 font-medium py-2">お問い合わせ</a>
         <a href="Analysis.html" class="text-gray-600 hover:text-gray-800 font-medium py-2">Analysis</a>
       </div>
     </div>
@@ -481,14 +484,14 @@
       <div class="flex flex-col items-center text-center">
         <h1 class="text-4xl md:text-6xl font-extrabold mb-6 relative">
           <div class="title-wrapper">
-            <span class="nuruma-gradient">ぬるま湯データラボ</span>
+            <a href="index.html" class="nuruma-gradient" style="text-decoration: none;">
+              <span class="nuruma-gradient">ぬるま湯データラボ</span>
+            </a>
             <div class="title-highlight"></div>
           </div>
         </h1>
         <p class="text-lg md:text-xl text-gray-600 max-w-2xl mb-8">
-          業務・生活系・データ分析の効率化ウェブツール集<br>
-          様々な研究開発で培ったノウハウを活用して、<br>
-          ぬるっとやるツールをお届けします。
+          業務・生活系・データ分析の効率化ウェブツール集。様々な研究開発で培ったノウハウを活用して、ぬるっとやるツールをお届けします。
         </p>
                 
         <div class="flex flex-wrap justify-center gap-4 mb-8">
@@ -498,7 +501,7 @@
           <a href="#about" class="bg-white text-gray-700 hover:bg-gray-100 transition px-4 py-2 rounded-md font-medium">
             <i class="fas fa-flask mr-2"></i>ぬるま湯データラボについて
           </a>
-          <a href="#contact" class="bg-blue-500 text-white hover:bg-blue-600 transition px-4 py-2 rounded-md font-medium">
+          <a href="mailto:otoiawase20250416@aiknowledgeworks.net?subject=[ぬるま湯データラボ 問い合わせ・NURUMAYU Data Lab Inquiry]" class="bg-blue-500 text-white hover:bg-blue-600 transition px-4 py-2 rounded-md font-medium">
             <i class="fas fa-envelope mr-2"></i>お問い合わせ
           </a>
         </div>
@@ -887,54 +890,74 @@
       const mobileMenu = document.getElementById('mobileMenu');
       const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
       
-      menuToggle.addEventListener('click', () => {
-        mobileMenu.classList.toggle('active');
-        mobileMenuOverlay.classList.toggle('active');
-      });
+      if (menuToggle && mobileMenu && mobileMenuOverlay) {
+        menuToggle.addEventListener('click', () => {
+          console.log('Mobile menu toggle clicked');
+          mobileMenu.classList.toggle('active');
+          mobileMenuOverlay.classList.toggle('active');
+          console.log('Active classes toggled:', {
+            mobileMenuActive: mobileMenu.classList.contains('active'),
+            overlayActive: mobileMenuOverlay.classList.contains('active')
+          });
+        });
+        console.log('Mobile menu event listener setup complete');
+      } else {
+        console.error('Mobile menu elements not found:', {
+          menuToggle: !!menuToggle,
+          mobileMenu: !!mobileMenu,
+          mobileMenuOverlay: !!mobileMenuOverlay
+        });
+      }
       
       // Close mobile menu when clicking overlay
-      mobileMenuOverlay.addEventListener('click', () => {
-        mobileMenu.classList.remove('active');
-        mobileMenuOverlay.classList.remove('active');
-      });
-      
-      // Close mobile menu when clicking outside
-      document.addEventListener('click', (e) => {
-        if (mobileMenu.classList.contains('active') && 
-            !mobileMenu.contains(e.target) && 
-            e.target !== menuToggle) {
+      if (mobileMenuOverlay && mobileMenu) {
+        mobileMenuOverlay.addEventListener('click', () => {
           mobileMenu.classList.remove('active');
           mobileMenuOverlay.classList.remove('active');
-        }
-      });
+        });
+      }
+      
+      // Close mobile menu when clicking outside
+      if (mobileMenu && menuToggle && mobileMenuOverlay) {
+        document.addEventListener('click', (e) => {
+          if (mobileMenu.classList.contains('active') && 
+              !mobileMenu.contains(e.target) && 
+              e.target !== menuToggle) {
+            mobileMenu.classList.remove('active');
+            mobileMenuOverlay.classList.remove('active');
+          }
+        });
+      }
             
       // Search functionality
       const toolSearch = document.getElementById('toolSearch');
       const noResults = document.getElementById('noResults');
       
-      toolSearch.addEventListener('input', () => {
-        const searchTerm = toolSearch.value.toLowerCase().trim();
-        const tools = document.querySelectorAll('#toolGrid .tool-card');
-        let matchFound = false;
-        
-        tools.forEach(tool => {
-          const title = tool.dataset.title;
-          const description = tool.dataset.description;
+      if (toolSearch && noResults) {
+        toolSearch.addEventListener('input', () => {
+          const searchTerm = toolSearch.value.toLowerCase().trim();
+          const tools = document.querySelectorAll('#toolGrid .tool-card');
+          let matchFound = false;
           
-          if (title.includes(searchTerm) || description.includes(searchTerm) || searchTerm === '') {
-            tool.style.display = 'flex';
-            matchFound = true;
+          tools.forEach(tool => {
+            const title = tool.dataset.title;
+            const description = tool.dataset.description;
+            
+            if (title.includes(searchTerm) || description.includes(searchTerm) || searchTerm === '') {
+              tool.style.display = 'flex';
+              matchFound = true;
+            } else {
+              tool.style.display = 'none';
+            }
+          });
+          
+          if (matchFound) {
+            noResults.classList.add('hidden');
           } else {
-            tool.style.display = 'none';
+            noResults.classList.remove('hidden');
           }
         });
-        
-        if (matchFound) {
-          noResults.classList.add('hidden');
-        } else {
-          noResults.classList.remove('hidden');
-        }
-      });
+      }
     }
 
     //--------------------------------------------------------------

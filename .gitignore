@@ -3,6 +3,13 @@ webtool_kodomo_progress
 webtool-furniture-showroom
 
 
+webtool-ec-calc-amazon
+webtool-ec-calc-amazon-ex
+webtool-ec-calc-ebay-ex
+webtool-ec-performance-amazon
+
+
+
 # OS generated files
 .DS_Store
 .DS_Store?
