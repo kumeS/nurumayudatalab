@@ -148,39 +148,7 @@
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
     
-    /* Mobile menu */
-    .mobile-menu {
-      transition: transform var(--transition-speed) ease;
-      transform: translateX(-100%);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-    
-    #mobileMenu.mobile-menu.active,
-    #mobileMenu.active {
-      transform: translateX(0) !important;
-      left: 0 !important;
-      position: fixed !important;
-    }
-    
-    /* Mobile menu overlay */
-    .mobile-menu-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(0, 0, 0, 0.3);
-      z-index: 39;
-      opacity: 0;
-      visibility: hidden;
-      transition: all var(--transition-speed) ease;
-    }
-    
-    .mobile-menu-overlay.active {
-      opacity: 1;
-      visibility: visible;
-    }
+
     
     /* Search styles */
     .search-container {
@@ -249,6 +217,34 @@
     @keyframes float {
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-10px); }
+    }
+
+    /* Navigation styles */
+    nav ul {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    
+    nav a {
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+    
+    nav a:hover {
+      color: var(--primary);
+    }
+    
+    /* ハンバーガーボタンをデスクトップで非表示 */
+    .hamburger {
+      display: none;
+    }
+    
+    .overlay {
+      display: none;
     }
 
     /* Mobile-first responsive design */
@@ -349,17 +345,7 @@
         font-size: 1.875rem !important;
       }
       
-      /* モバイルメニューの改善 */
-      .mobile-menu {
-        width: 100%;
-        max-width: 300px;
-      }
-      
-      .mobile-menu a {
-        padding: 1rem;
-        border-bottom: 1px solid #f0f0f0;
-        font-size: 1.1rem;
-      }
+
       
       /* セクションの余白調整 */
       #tools, #about, #overview, #contact {
@@ -376,7 +362,132 @@
       .wave-divider {
         height: 40px;
       }
+      
+      /* Mobile navigation */
+      .hamburger {
+        display: block;
+        width: 30px;
+        height: 30px;
+        position: relative;
+        cursor: pointer;
+        z-index: 1010;
+        margin-right: 0;
+        padding: 10px;
+        box-sizing: content-box;
+        margin: -10px;
+      }
+      
+      .hamburger span {
+        display: block;
+        position: absolute;
+        height: 3px;
+        width: 100%;
+        background: var(--text-primary);
+        border-radius: 3px;
+        opacity: 1;
+        left: 0;
+        transform: rotate(0deg);
+        transition: .25s ease-in-out;
+      }
+      
+      .hamburger span:nth-child(1) {
+        top: 0px;
+      }
+      
+      .hamburger span:nth-child(2) {
+        top: 9px;
+      }
+      
+      .hamburger span:nth-child(3) {
+        top: 18px;
+      }
+      
+      .hamburger.active span:nth-child(1) {
+        top: 9px;
+        transform: rotate(135deg);
+      }
+      
+      .hamburger.active span:nth-child(2) {
+        opacity: 0;
+        left: -60px;
+      }
+      
+      .hamburger.active span:nth-child(3) {
+        top: 9px;
+        transform: rotate(-135deg);
+      }
+      
+      #mobile-nav {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 80%;
+        max-width: 300px;
+        height: 100vh;
+        background: white;
+        box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+        transition: 0.3s ease;
+        padding-top: 70px;
+        z-index: 1000;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      #mobile-nav.active {
+        right: 0;
+      }
+      
+      #mobile-nav ul {
+        flex-direction: column;
+        gap: 0;
+        padding: 0;
+        margin: 0;
+      }
+      
+      #mobile-nav ul li {
+        width: 100%;
+      }
+      
+      #mobile-nav ul li a {
+        padding: 15px 20px;
+        display: block;
+        border-bottom: 1px solid #eee;
+        font-size: 1.1rem;
+        position: relative;
+      }
+      
+      #mobile-nav ul li a::after {
+        content: "›";
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.4rem;
+        opacity: 0.5;
+      }
+      
+      .overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 990;
+        -webkit-backdrop-filter: blur(2px);
+        backdrop-filter: blur(2px);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+      
+      .overlay.active {
+        display: block;
+        opacity: 1;
+      }
     }
+
+
 
     /* Very small screens (iPhone SE, etc.) */
     @media (max-width: 375px) {
@@ -443,40 +554,29 @@
   <nav id="navbar" class="navbar fixed top-0 left-0 right-0 z-50 py-3 px-4 md:px-6">
     <div class="container mx-auto flex items-center justify-between">
       <div class="flex items-center">
-        <button id="menuToggle" class="md:hidden mr-4 text-gray-600 hover:text-gray-800 focus:outline-none p-4 flex items-center justify-center" style="min-width: 44px; min-height: 44px; margin-top: -30px;">
-          <i class="fas fa-bars text-xl"></i>
-        </button>
         <a href="index.html" class="flex items-center">
           <span class="text-2xl font-bold nuruma-gradient">NURUMAYU Data Lab</span>
         </a>
       </div>
       
-      <div class="hidden md:flex space-x-6 mx-4">
-        <a href="#" class="text-gray-600 hover:text-gray-800 font-medium">ホーム</a>
-        <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium">ツール一覧</a>
-        <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium">ラボについて</a>
-        <a href="mailto:otoiawase20250416@aiknowledgeworks.net?subject=[ぬるま湯データラボ 問い合わせ・NURUMAYU Data Lab Inquiry]" class="text-gray-600 hover:text-gray-800 font-medium">お問い合わせ</a>
-        <a href="Analysis.html" class="text-gray-600 hover:text-gray-800 font-medium">Analysis</a>
+      <div class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
       </div>
-      
-      <div class="flex items-center space-x-4">
-      </div>
+      <nav id="mobile-nav">
+        <ul>
+          <li><a href="#" class="text-gray-600 hover:text-gray-800 font-medium">ホーム</a></li>
+          <li><a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium">ツール一覧</a></li>
+          <li><a href="#about" class="text-gray-600 hover:text-gray-800 font-medium">ラボについて</a></li>
+          <li><a href="mailto:otoiawase20250416@aiknowledgeworks.net?subject=[ぬるま湯データラボ 問い合わせ・NURUMAYU Data Lab Inquiry]" class="text-gray-600 hover:text-gray-800 font-medium">お問い合わせ</a></li>
+          <li><a href="Analysis.html" class="text-gray-600 hover:text-gray-800 font-medium">Analysis</a></li>
+        </ul>
+      </nav>
+      <div class="overlay"></div>
     </div>
   </nav>
-  
-  <!-- Mobile Menu (Hidden by default) -->
-      <div id="mobileMenu" class="mobile-menu fixed top-0 left-0 bottom-0 z-40 w-64 bg-white shadow-lg pt-16 px-4 md:hidden">
-      <div class="flex flex-col space-y-4">
-        <a href="#" class="text-gray-600 hover:text-gray-800 font-medium py-2">ホーム</a>
-        <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium py-2">ツール一覧</a>
-        <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium py-2">ラボについて</a>
-        <a href="mailto:otoiawase20250416@aiknowledgeworks.net?subject=[ぬるま湯データラボ 問い合わせ・NURUMAYU Data Lab Inquiry]" class="text-gray-600 hover:text-gray-800 font-medium py-2">お問い合わせ</a>
-        <a href="Analysis.html" class="text-gray-600 hover:text-gray-800 font-medium py-2">Analysis</a>
-      </div>
-    </div>
-  
-  <!-- Mobile Menu Overlay -->
-  <div id="mobileMenuOverlay" class="mobile-menu-overlay md:hidden"></div>
+
   
   <!-- Hero Section -->
   <header class="header-bg pt-24 pb-12 px-4">
@@ -885,49 +985,29 @@
         }
       });
       
-      // Mobile menu toggle
-      const menuToggle = document.getElementById('menuToggle');
-      const mobileMenu = document.getElementById('mobileMenu');
-      const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+      // Mobile menu functionality (contact.htmlベース)
+      const hamburger = document.querySelector('.hamburger');
+      const mobileNav = document.getElementById('mobile-nav');
+      const overlay = document.querySelector('.overlay');
+      const navLinks = document.querySelectorAll('#mobile-nav a');
       
-      if (menuToggle && mobileMenu && mobileMenuOverlay) {
-        menuToggle.addEventListener('click', () => {
-          console.log('Mobile menu toggle clicked');
-          mobileMenu.classList.toggle('active');
-          mobileMenuOverlay.classList.toggle('active');
-          console.log('Active classes toggled:', {
-            mobileMenuActive: mobileMenu.classList.contains('active'),
-            overlayActive: mobileMenuOverlay.classList.contains('active')
-          });
-        });
-        console.log('Mobile menu event listener setup complete');
-      } else {
-        console.error('Mobile menu elements not found:', {
-          menuToggle: !!menuToggle,
-          mobileMenu: !!mobileMenu,
-          mobileMenuOverlay: !!mobileMenuOverlay
-        });
+      function toggleMenu() {
+        hamburger.classList.toggle('active');
+        mobileNav.classList.toggle('active');
+        overlay.classList.toggle('active');
+        document.body.style.overflow = mobileNav.classList.contains('active') ? 'hidden' : '';
       }
       
-      // Close mobile menu when clicking overlay
-      if (mobileMenuOverlay && mobileMenu) {
-        mobileMenuOverlay.addEventListener('click', () => {
-          mobileMenu.classList.remove('active');
-          mobileMenuOverlay.classList.remove('active');
-        });
-      }
+      hamburger.addEventListener('click', toggleMenu);
+      overlay.addEventListener('click', toggleMenu);
       
-      // Close mobile menu when clicking outside
-      if (mobileMenu && menuToggle && mobileMenuOverlay) {
-        document.addEventListener('click', (e) => {
-          if (mobileMenu.classList.contains('active') && 
-              !mobileMenu.contains(e.target) && 
-              e.target !== menuToggle) {
-            mobileMenu.classList.remove('active');
-            mobileMenuOverlay.classList.remove('active');
+      navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          if (mobileNav.classList.contains('active')) {
+            toggleMenu();
           }
         });
-      }
+      });
             
       // Search functionality
       const toolSearch = document.getElementById('toolSearch');
@@ -999,10 +1079,13 @@
             
             // モバイルメニューが開いている場合は閉じる
             const mobileMenu = document.getElementById('mobileMenu');
-            const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
-            if (mobileMenu.classList.contains('active')) {
+            const overlay = document.querySelector('.overlay');
+            const hamburger = document.querySelector('.hamburger');
+            if (mobileMenu && mobileMenu.classList.contains('active')) {
               mobileMenu.classList.remove('active');
-              mobileMenuOverlay.classList.remove('active');
+              overlay.classList.remove('active');
+              hamburger.classList.remove('active');
+              document.body.style.overflow = '';
             }
           }
         });
@@ -1110,7 +1193,8 @@
       let startX = 0;
       let startY = 0;
       const mobileMenu = document.getElementById('mobileMenu');
-      const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+      const overlay = document.querySelector('.overlay');
+      const hamburger = document.querySelector('.hamburger');
       
       document.addEventListener('touchstart', (e) => {
         startX = e.touches[0].clientX;
@@ -1131,12 +1215,16 @@
           // 右から左へのスワイプでメニューを閉じる
           if (diffX > 50 && mobileMenu.classList.contains('active')) {
             mobileMenu.classList.remove('active');
-            mobileMenuOverlay.classList.remove('active');
+            overlay.classList.remove('active');
+            hamburger.classList.remove('active');
+            document.body.style.overflow = '';
           }
-          // 左から右へのスワイプでメニューを開く（画面左端から開始の場合のみ）
-          else if (diffX < -50 && startX < 50 && !mobileMenu.classList.contains('active')) {
+          // 右から左へのスワイプでメニューを開く（画面右端から開始の場合のみ）
+          else if (diffX < -50 && startX > window.innerWidth - 50 && !mobileMenu.classList.contains('active')) {
             mobileMenu.classList.add('active');
-            mobileMenuOverlay.classList.add('active');
+            overlay.classList.add('active');
+            hamburger.classList.add('active');
+            document.body.style.overflow = 'hidden';
           }
         }
         
