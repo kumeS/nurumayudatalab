@@ -3,194 +3,13 @@
  * io.net APIを活用した複数LLMモデル同時実行ツール
  */
 
-// 利用可能なLLMモデル一覧と特徴
-const AVAILABLE_MODELS = {
-  'deepseek-ai/DeepSeek-R1-0528': {
-    name: 'DeepSeek-R1-0528',
-    description: 'DeepSeek R1をバージョン0528にアップグレードし、計算能力とポストトレーニングアルゴリズムの改善により、数学、プログラミング、論理のベンチマークで優れた推論性能を発揮します。',
-    maxTokens: 12000
-  },
-  'private-meta-llama/Llama-3.3-70B-Instruct': {
-    name: 'Llama-3.3-70B-Instruct (Private)',
-    description: 'Meta社のLlama-3.3-70Bモデルのプライベート版。最適化されたトランスフォーマーアーキテクチャで、高い推論性能を実現します。',
-    maxTokens: 12000
-  },
-  'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8': {
-    name: 'Llama-4-Maverick-17B',
-    description: '17Bパラメータ、128エキスパートMoE構成、FP8量子化。高い推論性能と大規模コンテキスト対応（最大430Kトークン）を実現。',
-    maxTokens: 12000
-  },
-  'Qwen/Qwen3-235B-A22B-FP8': {
-    name: 'Qwen3-235B-A22B',
-    description: '最新世代のQwenシリーズ（DenseおよびMoE）モデルで、推論、命令フォロー、エージェント機能、多言語対応に優れた性能を提供します。235BパラメータのMoEモデル（A22Bエキスパート構成）、FP8量子化と32Kコンテキスト対応。',
-    maxTokens: 12000
-  },
-  'meta-llama/Llama-3.2-90B-Vision-Instruct': {
-    name: 'Llama-3.2-90B-Vision',
-    description: '90Bパラメータでビジョン入力も扱えるマルチモーダルインストラクションモデル。画像とテキストの両方を処理できます。',
-    maxTokens: 12000
-  },
-  'Qwen/Qwen2.5-VL-32B-Instruct': {
-    name: 'Qwen2.5-VL-32B',
-    description: 'Qwen2.5シリーズのビジョン-言語モデル。画像理解とテキスト生成を組み合わせたマルチモーダル処理に対応。',
-    maxTokens: 12000
-  },
-  'google/gemma-3-27b-it': {
-    name: 'Gemma-3-27B-IT',
-    description: 'Gemini技術を基にしたマルチモーダル対応モデルで、テキストと画像の入力を処理しテキスト出力を生成します。',
-    maxTokens: 12000
-  },
-  'meta-llama/Llama-3.3-70B-Instruct': {
-    name: 'Llama-3.3-70B-Instruct',
-    description: '最適化されたトランスフォーマーアーキテクチャを採用し、SFT（教師ありファインチューニング）とRLHF（人間フィードバックによる強化学習）で人間の好みに合わせ指示チューニングを行ったオートレグレッシブ言語モデルです。',
-    maxTokens: 12000
-  },
-  'mistralai/Devstral-Small-2505': {
-    name: 'Devstral-Small-2505',
-    description: 'Mistral AIの開発者向けモデル。コード生成とプログラミング支援に特化した小型モデル。',
-    maxTokens: 10000
-  },
-  'mistralai/Magistral-Small-2506': {
-    name: 'Magistral-Small-2506',
-    description: 'Mistral AIの新世代小型モデル。高性能な推論能力を維持しながら軽量化を実現。',
-    maxTokens: 10000
-  },
-  'Qwen/Qwen2-VL-7B-Instruct': {
-    name: 'Qwen2-VL-7B',
-    description: 'Qwen2シリーズの7Bビジョン-言語モデル。画像理解とテキスト生成を組み合わせた処理に対応。',
-    maxTokens: 10000
-  },
-  'deepseek-ai/DeepSeek-R1': {
-    name: 'DeepSeek-R1',
-    description: '大規模強化学習で訓練された初代推論モデルで、数学、コード、論理タスクにおいてOpenAI-o1と同等の性能を発揮します。',
-    maxTokens: 12000
-  },
-  'databricks/dbrx-instruct': {
-    name: 'DBRX-Instruct',
-    description: 'Databricksがスクラッチから開発したMoEモデルで、少数回の対話（few-shot）インタラクションに最適化されています。',
-    maxTokens: 12000
-  },
-  'deepseek-ai/DeepSeek-R1-Distill-Llama-70B': {
-    name: 'DeepSeek-R1-Distill-Llama-70B',
-    description: 'オープンソースのLlama 3.3 70BをベースにDeepSeek-R1の生成サンプルでファインチューニングし、設定とトークナイザを微調整したモデルです。',
-    maxTokens: 12000
-  },
-  'Qwen/QwQ-32B': {
-    name: 'QwQ-32B',
-    description: '中規模推論モデルで、従来の命令チューニングモデルに比べ難易度の高いタスクでも顕著に性能を向上させます。',
-    maxTokens: 12000
-  },
-  'netease-youdao/Confucius-o1-14B': {
-    name: 'Confucius-o1-14B',
-    description: 'Qwen2.5-14B-Instructをベースに二段階学習戦略を採用し、14Bモデルでo1と同等の思考能力を実現したモデルです。',
-    maxTokens: 10000
-  },
-  'nvidia/AceMath-7B-Instruct': {
-    name: 'AceMath-7B-Instruct',
-    description: 'Chain-of-Thought推論を活用し、英語の数学問題を高精度で解く能力を備えています。',
-    maxTokens: 10000
-  },
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B': {
-    name: 'DeepSeek-R1-Distill-Qwen-32B',
-    description: 'Qwen-32をベースにDeepSeek-R1の生成サンプルでファインチューニングし、設定とトークナイザを微調整したモデルです。',
-    maxTokens: 12000
-  },
-  'neuralmagic/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic': {
-    name: 'Llama-3.1-Nemotron-70B',
-    description: 'NVIDIAがカスタマイズし、ユーザークエリへの応答の有用性を強化した大規模言語モデルです。',
-    maxTokens: 12000
-  },
-  'mistralai/Mistral-Large-Instruct-2411': {
-    name: 'Mistral-Large-Instruct',
-    description: '123Bパラメータの高性能モデルで、長文コンテキスト、ファンクションコール、システムプロンプト機能を強化しています。',
-    maxTokens: 12000
-  },
-  'microsoft/phi-4': {
-    name: 'Phi-4',
-    description: '14Bパラメータの小型モデルながら、複雑な数学的推論を含む高度な推論タスクで優れた性能を発揮します。',
-    maxTokens: 10000
-  },
-  'SentientAGI/Dobby-Mini-Unhinged-Llama-3.1-8B': {
-    name: 'Dobby-Mini-Unhinged',
-    description: 'Llama-3.1-8B-Instructをベースに、自由主義的な"パーソナリティ"を持つユニークなファインチューニングモデルです。',
-    maxTokens: 10000
-  },
-  'watt-ai/watt-tool-70B': {
-    name: 'Watt-Tool-70B',
-    description: 'LLaMa-3.3-70B-Instructをベースに、ツール使用とマルチターンダイアログに特化し、Berkeley Function-Calling Leaderboardで最先端性能を示します。',
-    maxTokens: 12000
-  },
-  'bespokelabs/Bespoke-Stratos-32B': {
-    name: 'Bespoke-Stratos-32B',
-    description: 'Qwen2.5-32B-InstructをBespoke-Stratos-17kデータセットで蒸留し、Berkeley NovaSkyのパイプラインで再調整したモデルです。',
-    maxTokens: 12000
-  },
-  'NovaSky-AI/Sky-T1-32B-Preview': {
-    name: 'Sky-T1-32B-Preview',
-    description: 'Qwen2.5-32B-Instructを17Kデータで訓練した32B推論モデルで、数学とコーディングタスクでo1-previewと同等性能を実現します。',
-    maxTokens: 12000
-  },
-  'tiiuae/Falcon3-10B-Instruct': {
-    name: 'Falcon3-10B-Instruct',
-    description: '推論、言語理解、コード生成、数学タスクにおいて当時の最先端結果を達成し、最大32Kトークンのコンテキスト長をサポートします。',
-    maxTokens: 12000
-  },
-  'THUDM/glm-4-9b-chat': {
-    name: 'GLM-4-9B-Chat',
-    description: 'Zhipu AIのGLM-4シリーズ最新モデルのオープンソース版で、チャット対話に最適化されています。',
-    maxTokens: 10000
-  },
-  'Qwen/Qwen2.5-Coder-32B-Instruct': {
-    name: 'Qwen2.5-Coder-32B',
-    description: 'Qwen2.5をベースに、ソースコード生成やテキスト／コード連携タスク向けに強化したモデルです。',
-    maxTokens: 12000
-  },
-  'CohereForAI/aya-expanse-32b': {
-    name: 'Aya-Expanse-32B',
-    description: '高度な多言語機能を持つオープンウェイト研究リリースモデルです。',
-    maxTokens: 12000
-  },
-  'jinaai/ReaderLM-v2': {
-    name: 'ReaderLM-v2',
-    description: '生のHTMLを高精度でMarkdownやJSONに変換する、29言語対応の専門モデルです。',
-    maxTokens: 10000
-  },
-  'openbmb/MiniCPM3-4B': {
-    name: 'MiniCPM3-4B',
-    description: '32Kのコンテキストウィンドウを持ち、LLMxMapReduce技術により理論上無限の文脈処理を可能にするモデルです。',
-    maxTokens: 10000
-  },
-  'mistralai/Ministral-8B-Instruct-2410': {
-    name: 'Ministral-8B-Instruct',
-    description: 'Mistral Research Licenseの下でリリースされた、同規模モデルを大きく上回る性能を誇るファインチューニング済み言語モデルです。',
-    maxTokens: 10000
-  },
-  'Qwen/Qwen2.5-1.5B-Instruct': {
-    name: 'Qwen2.5-1.5B-Instruct',
-    description: 'Qwenシリーズの最新1.5Bパラメータ指示チューニングモデルです。',
-    maxTokens: 8000
-  },
-  'ozone-ai/0x-lite': {
-    name: '0x-Lite',
-    description: 'Ozone AIが開発した軽量ながら高品質なテキスト生成能力を持つモデルです。',
-    maxTokens: 8000
-  },
-  'microsoft/Phi-3.5-mini-instruct': {
-    name: 'Phi-3.5-Mini-Instruct',
-    description: 'Phi-3データセットをベースにした軽量モデルで、128Kトークンの長文コンテキストをサポートします。',
-    maxTokens: 10000
-  },
-  'ibm-granite/granite-3.1-8b-instruct': {
-    name: 'Granite-3.1-8B-Instruct',
-    description: 'IBMのGranite-3.1-8B-Baseを長文問題向けにファインチューニングしたデータセットで訓練された8Bモデルです。',
-    maxTokens: 10000
-  }
-};
+// 静的モデル定義は削除 - 完全にAPIから動的取得
 
 // グローバル変数
 let currentExecutions = new Map(); // 実行中のタスクを管理
 let nextPanelId = 4; // 次のパネルIDカウンター
 const MAX_PANELS = 6; // 最大パネル数
+let availableModelsFromAPI = {}; // APIから取得した利用可能モデル
 
 // ローカルストレージのキー
 const STORAGE_KEYS = {
@@ -215,53 +34,229 @@ const SAMPLE_PROMPTS = [
 ];
 
 // ページ読み込み時の初期化
-document.addEventListener('DOMContentLoaded', () => {
-  initializeApp();
+document.addEventListener('DOMContentLoaded', async () => {
+  await initializeApp();
 });
 
-function initializeApp() {
-  // DOM要素の取得
-  const elements = {
-    tabs: document.querySelectorAll('.tab'),
-    promptInput: document.getElementById('promptInput'),
-    runAllBtn: document.getElementById('runAllBtn'),
-    stopAllBtn: document.getElementById('stopAllBtn'),
-    clearAllBtn: document.getElementById('clearAllBtn'),
-    randomSelectBtn: document.getElementById('randomSelectBtn'),
-    randomPromptBtn: document.getElementById('randomPromptBtn'),
-    addPanelBtn: document.getElementById('addPanelBtn'),
-    homeBtn: document.getElementById('homeBtn'),
-    loadingIndicator: document.getElementById('loadingIndicator'),
-    executionPage: document.getElementById('execution-page'),
-    modelsPage: document.getElementById('models-page'),
-    toggleGuide: document.querySelector('.toggle-guide'),
-    guideContent: document.querySelector('.guide-content')
-  };
+// 利用可能モデル取得機能
+async function fetchAvailableModels() {
+  try {
+    console.log('🚀 利用可能モデル取得開始...');
+    const response = await fetch('https://nurumayu-worker.skume-bioinfo.workers.dev/models');
 
-  // イベントリスナーの設定
-  setupEventListeners(elements);
-  
-  // モデル選択肢を初期化
-  initializeModelSelectors();
-  
-  // 保存されたプロンプトを復元
-  restoreSavedPrompt();
-  
-  // 保存された結果を復元（パネル復元も含む）
-  const hasRestoredData = restoreResults();
-  
-  // 保存データがない場合のみ初期モデルを自動選択
-  if (!hasRestoredData) {
-    setInitialModelSelection();
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('📥 モデルリスト取得成功:', data);
+
+    // APIレスポンスからモデル情報を抽出
+    if (data && data.data && Array.isArray(data.data)) {
+      availableModelsFromAPI = {};
+
+      data.data.forEach(model => {
+        if (model.id) {
+          // デフォルトの説明を設定
+          let description = `${model.id}モデル - 最新の高性能AIモデル`;
+          let maxTokens = 12000;
+          let name = model.id;
+
+          // モデル名から表示名を生成
+          if (model.id.includes('/')) {
+            name = model.id.split('/').pop();
+          }
+
+          // 特定のモデルに対しての詳細説明を設定（大文字小文字を考慮）
+          const modelIdLower = model.id.toLowerCase();
+          if (modelIdLower.includes('gpt-oss') && modelIdLower.includes('120')) {
+            description = 'OpenAIスタイルの120Bパラメータモデル。高度な推論能力と幅広い知識を持つ大規模言語モデル。';
+            name = 'GPT-OSS-120B';
+          } else if (modelIdLower.includes('gpt-oss') && modelIdLower.includes('20')) {
+            description = 'OpenAIスタイルの20Bパラメータモデル。効率的でバランスの取れた性能を提供する軽量版モデル。';
+            name = 'GPT-OSS-20B';
+          } else if (modelIdLower.includes('gpt-oss')) {
+            description = 'OpenAIスタイルの高性能言語モデル。効率的でバランスの取れた性能を提供。';
+            name = name.toUpperCase();
+          }
+
+          availableModelsFromAPI[model.id] = {
+            name: name,
+            description: description,
+            maxTokens: maxTokens
+          };
+        }
+      });
+
+      console.log(`✅ ${Object.keys(availableModelsFromAPI).length}個のモデルを取得完了`);
+      return true;
+    } else {
+      console.warn('⚠️ 予期しないAPIレスポンス形式:', data);
+      return false;
+    }
+
+  } catch (error) {
+    console.error('❌ モデル取得エラー:', error);
+    console.log('🔄 フォールバック: 静的モデルリストを使用');
+    return false;
   }
+}
+
+async function initializeApp() {
+  try {
+    console.log('🚀 アプリ初期化開始...');
+
+    // DOM要素の取得
+    const elements = {
+      tabs: document.querySelectorAll('.tab'),
+      promptInput: document.getElementById('promptInput'),
+      runAllBtn: document.getElementById('runAllBtn'),
+      stopAllBtn: document.getElementById('stopAllBtn'),
+      clearAllBtn: document.getElementById('clearAllBtn'),
+      randomSelectBtn: document.getElementById('randomSelectBtn'),
+      randomPromptBtn: document.getElementById('randomPromptBtn'),
+      addPanelBtn: document.getElementById('addPanelBtn'),
+      homeBtn: document.getElementById('homeBtn'),
+      loadingIndicator: document.getElementById('loadingIndicator'),
+      executionPage: document.getElementById('execution-page'),
+      modelsPage: document.getElementById('models-page'),
+      toggleGuide: document.querySelector('.toggle-guide'),
+      guideContent: document.querySelector('.guide-content')
+    };
+
+    console.log('📋 DOM要素取得完了');
+
+    // まずイベントリスナーを設定（タブ切り替えなどは即座に使える状態にする）
+    setupEventListeners(elements);
+    console.log('🎯 イベントリスナー設定完了');
+
+    // モデル選択関連のUIを無効化（モデル取得中）
+    disableModelRelatedUI();
+    console.log('⏳ モデル関連UI一時無効化');
+
+    // 必須：APIからモデル取得
+    console.log('🌐 必須モデル取得開始...');
+    const success = await fetchAvailableModels();
+
+    if (!success) {
+      throw new Error('モデル取得に失敗しました');
+    }
+
+    // モデル選択肢を初期化
+    initializeModelSelectors();
+    console.log('🔧 モデルセレクター初期化完了');
+
+    // モデル関連UIを有効化
+    enableModelRelatedUI();
+    console.log('✅ モデル関連UI有効化');
+
+    // 保存されたプロンプトを復元
+    restoreSavedPrompt();
+    console.log('💾 プロンプト復元完了');
   
-  // モデル説明ページを初期化
-  initializeModelDescriptions();
-  
-  // パネルの削除ボタンを適切に表示/非表示
-  updateRemoveButtons();
-  
-  console.log('マルチLLMシステムが初期化されました');
+    // 保存された結果を復元（パネル復元も含む）
+    const hasRestoredData = restoreResults();
+    console.log('📤 結果復元完了');
+
+    // 保存データがない場合のみ初期モデルを自動選択
+    if (!hasRestoredData) {
+      setInitialModelSelection();
+      console.log('🎯 初期モデル選択完了');
+    }
+
+    // モデル説明ページを初期化
+    initializeModelDescriptions();
+    console.log('📖 モデル説明ページ初期化完了');
+
+    // パネルの削除ボタンを適切に表示/非表示
+    updateRemoveButtons();
+    console.log('🗂️ パネルボタン更新完了');
+
+    console.log('✅ マルチLLMシステム初期化完了');
+
+  } catch (error) {
+    console.error('❌ 初期化エラー:', error);
+
+    // エラーをユーザーに表示
+    showErrorMessage('モデル取得に失敗しました。ページを再読み込みしてください。', error);
+  }
+}
+
+// UI制御関数
+function disableModelRelatedUI() {
+  // モデル選択系のUIを無効化
+  const modelSelects = document.querySelectorAll('.model-select');
+  const runButton = document.getElementById('runAllBtn');
+  const randomSelectButton = document.getElementById('randomSelectBtn');
+  const addPanelButton = document.getElementById('addPanelBtn');
+
+  modelSelects.forEach(select => {
+    select.disabled = true;
+    select.innerHTML = '<option value="">モデル取得中...</option>';
+  });
+
+  if (runButton) runButton.disabled = true;
+  if (randomSelectButton) randomSelectButton.disabled = true;
+  if (addPanelButton) addPanelButton.disabled = true;
+
+  console.log('🔒 モデル関連UI無効化完了');
+}
+
+function enableModelRelatedUI() {
+  // モデル選択系のUIを有効化
+  const modelSelects = document.querySelectorAll('.model-select');
+  const runButton = document.getElementById('runAllBtn');
+  const randomSelectButton = document.getElementById('randomSelectBtn');
+  const addPanelButton = document.getElementById('addPanelBtn');
+
+  modelSelects.forEach(select => {
+    select.disabled = false;
+  });
+
+  if (runButton) runButton.disabled = false;
+  if (randomSelectButton) randomSelectButton.disabled = false;
+  if (addPanelButton) addPanelButton.disabled = false;
+
+  console.log('🔓 モデル関連UI有効化完了');
+}
+
+function showErrorMessage(message, error) {
+  const errorContainer = document.createElement('div');
+  errorContainer.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f8d7da;
+    color: #721c24;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    border: 1px solid #f5c6cb;
+    z-index: 10000;
+    font-size: 1.1rem;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  `;
+  errorContainer.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <i class="fas fa-exclamation-triangle"></i>
+      <span>${message}</span>
+      <button onclick="location.reload()" style="
+        background: #721c24;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 10px;
+      ">再読み込み</button>
+    </div>
+  `;
+
+  document.body.appendChild(errorContainer);
+
+  // 詳細エラーログ
+  console.error('詳細エラー情報:', error);
 }
 
 function setupEventListeners(elements) {
@@ -321,13 +316,19 @@ function switchTab(selectedTab, elements) {
 
 function initializeModelSelectors() {
   const selectors = document.querySelectorAll('.model-select');
-  
+
+  // APIから取得したモデルのみ使用（静的リストは削除済み）
+  if (Object.keys(availableModelsFromAPI).length === 0) {
+    console.error('❌ モデルデータが利用できません');
+    return;
+  }
+
   selectors.forEach(selector => {
     // オプションをクリア
     selector.innerHTML = '<option value="">モデルを選択</option>';
-    
-    // モデルを追加
-    Object.entries(AVAILABLE_MODELS).forEach(([id, model]) => {
+
+    // APIから取得したモデルを追加
+    Object.entries(availableModelsFromAPI).forEach(([id, model]) => {
       const option = document.createElement('option');
       option.value = id;
       option.textContent = model.name;
@@ -354,9 +355,9 @@ function updateModelTooltip(selector) {
   const modelId = selector.value;
   const tooltipElement = document.querySelector(`[data-panel-id="${panelId}"] .model-tooltip`);
   const outputElement = document.querySelector(`[data-panel-id="${panelId}"] .panel-output`);
-  
-  if (modelId && AVAILABLE_MODELS[modelId]) {
-    tooltipElement.textContent = AVAILABLE_MODELS[modelId].description;
+
+  if (modelId && availableModelsFromAPI[modelId]) {
+    tooltipElement.textContent = availableModelsFromAPI[modelId].description;
     // モデルが選択されている場合はプロンプト実行の案内に変更
     if (outputElement && outputElement.textContent === 'モデルを選択してプロンプトを実行してください。') {
       outputElement.textContent = 'プロンプトを実行してください。';
@@ -372,66 +373,48 @@ function updateModelTooltip(selector) {
 
 function initializeModelDescriptions() {
   const container = document.getElementById('modelDescriptions');
-  
-  // モデルをシリーズ別に分類
-  const modelGroups = {
-    'DeepSeek系モデル': [
-      'deepseek-ai/DeepSeek-R1-0528',
-      'deepseek-ai/DeepSeek-R1',
-      'deepseek-ai/DeepSeek-R1-Distill-Llama-70B',
-      'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B'
-    ],
-    'Llama系モデル': [
-      'private-meta-llama/Llama-3.3-70B-Instruct',
-      'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
-      'meta-llama/Llama-3.2-90B-Vision-Instruct',
-      'meta-llama/Llama-3.3-70B-Instruct',
-      'neuralmagic/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic',
-      'SentientAGI/Dobby-Mini-Unhinged-Llama-3.1-8B'
-    ],
-    'Qwen系モデル': [
-      'Qwen/Qwen3-235B-A22B-FP8',
-      'Qwen/Qwen2.5-VL-32B-Instruct',
-      'Qwen/Qwen2-VL-7B-Instruct',
-      'Qwen/QwQ-32B',
-      'Qwen/Qwen2.5-Coder-32B-Instruct',
-      'Qwen/Qwen2.5-1.5B-Instruct'
-    ],
-    'Microsoft Phi系モデル': [
-      'microsoft/phi-4',
-      'microsoft/Phi-3.5-mini-instruct'
-    ],
-    'Mistral系モデル': [
-      'mistralai/Devstral-Small-2505',
-      'mistralai/Magistral-Small-2506',
-      'mistralai/Mistral-Large-Instruct-2411',
-      'mistralai/Ministral-8B-Instruct-2410'
-    ],
-    'Google & NVIDIA系モデル': [
-      'google/gemma-3-27b-it',
-      'nvidia/AceMath-7B-Instruct'
-    ],
-    '専門特化モデル': [
-      'watt-ai/watt-tool-70B',
-      'jinaai/ReaderLM-v2'
-    ],
-    '推論特化・実験的モデル': [
-      'netease-youdao/Confucius-o1-14B',
-      'bespokelabs/Bespoke-Stratos-32B',
-      'NovaSky-AI/Sky-T1-32B-Preview',
-      'tiiuae/Falcon3-10B-Instruct'
-    ],
-    'エンタープライズ・産業系モデル': [
-      'databricks/dbrx-instruct',
-      'THUDM/glm-4-9b-chat',
-      'CohereForAI/aya-expanse-32b',
-      'ibm-granite/granite-3.1-8b-instruct'
-    ],
-    '軽量・エッジ向けモデル': [
-      'openbmb/MiniCPM3-4B',
-      'ozone-ai/0x-lite'
-    ]
+
+  // APIから取得したモデルのみ使用
+  if (Object.keys(availableModelsFromAPI).length === 0) {
+    // モデルが利用できない場合のメッセージを表示
+    container.innerHTML = `
+      <div class="usage-guide" style="text-align: center; padding: 2rem;">
+        <h3 style="color: var(--primary);">⚠️ モデル情報取得中</h3>
+        <p style="color: var(--text-secondary);">
+          利用可能なモデル情報を取得しています。<br>
+          しばらくお待ちください...
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  // APIから取得したモデルを動的に分類
+  let modelGroups = {
+    'NEW🆕 最新追加モデル': [],
+    'GPT-OSS系モデル': [],
+    'その他の利用可能モデル': []
   };
+
+  Object.keys(availableModelsFromAPI).forEach(modelId => {
+      const modelIdLower = modelId.toLowerCase();
+      if (modelIdLower.includes('gpt-oss')) {
+        if (modelIdLower.includes('120') || modelIdLower.includes('20')) {
+          modelGroups['NEW🆕 最新追加モデル'].push(modelId);
+        } else {
+          modelGroups['GPT-OSS系モデル'].push(modelId);
+        }
+      } else {
+        modelGroups['その他の利用可能モデル'].push(modelId);
+      }
+    });
+
+  // 空のグループを削除
+  Object.keys(modelGroups).forEach(key => {
+    if (modelGroups[key].length === 0) {
+      delete modelGroups[key];
+    }
+  });
   
   // 各グループを順番に表示
   Object.entries(modelGroups).forEach(([groupName, modelIds]) => {
@@ -465,17 +448,24 @@ function initializeModelDescriptions() {
     
     // グループ内のモデルを表示
     modelIds.forEach(modelId => {
-      if (AVAILABLE_MODELS[modelId]) {
-        const model = AVAILABLE_MODELS[modelId];
+      if (availableModelsFromAPI[modelId]) {
+        const model = availableModelsFromAPI[modelId];
         const modelCard = document.createElement('div');
         modelCard.className = 'usage-guide model-card';
         modelCard.style.marginBottom = '1rem';
         modelCard.style.marginLeft = '1rem';
         modelCard.style.borderLeft = '4px solid var(--primary)';
         modelCard.style.animation = 'slideIn 0.3s ease';
-        
+
+        // NEWタグを表示するかどうか判定
+        const modelIdLower = modelId.toLowerCase();
+        const isNewModel = groupName.includes('NEW') ||
+                          (modelIdLower.includes('gpt-oss') && (modelIdLower.includes('120') || modelIdLower.includes('20')));
+
+        const newTag = isNewModel ? '<span style="background: #ff6b6b; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.7rem; margin-left: 0.5rem;">NEW</span>' : '';
+
         modelCard.innerHTML = `
-          <h4 style="color: var(--primary); margin-top: 0;">${model.name}</h4>
+          <h4 style="color: var(--primary); margin-top: 0;">${model.name}${newTag}</h4>
           <p style="margin: 0.5rem 0;"><code style="background: #f8f9fa; padding: 0.2rem 0.4rem; border-radius: 3px; font-size: 0.8rem;">${modelId}</code></p>
           <p style="margin: 0; color: #555;">${model.description}</p>
         `;
@@ -641,12 +631,18 @@ function setupRemoveButtonEvent(panel) {
 
 function initializeNewPanelSelector(panel) {
   const selector = panel.querySelector('.model-select');
-  
+
+  if (Object.keys(availableModelsFromAPI).length === 0) {
+    selector.innerHTML = '<option value="">モデルデータがありません</option>';
+    selector.disabled = true;
+    return;
+  }
+
   // オプションをクリア
   selector.innerHTML = '<option value="">モデルを選択</option>';
-  
-  // モデルを追加
-  Object.entries(AVAILABLE_MODELS).forEach(([id, model]) => {
+
+  // APIから取得したモデルを追加
+  Object.entries(availableModelsFromAPI).forEach(([id, model]) => {
     const option = document.createElement('option');
     option.value = id;
     option.textContent = model.name;
@@ -679,7 +675,12 @@ function autoSelectUnusedModel(panel) {
   });
   
   // 未選択のモデルから1つをランダム選択
-  const availableModels = Object.keys(AVAILABLE_MODELS).filter(
+  if (Object.keys(availableModelsFromAPI).length === 0) {
+    console.error('❌ モデルデータが利用できません');
+    return;
+  }
+
+  const availableModels = Object.keys(availableModelsFromAPI).filter(
     modelId => !selectedModels.has(modelId)
   );
   
@@ -723,7 +724,13 @@ function updateAllModelSelections() {
 
 function randomSelectModels() {
   const selectors = document.querySelectorAll('.model-select');
-  const modelIds = Object.keys(AVAILABLE_MODELS);
+
+  if (Object.keys(availableModelsFromAPI).length === 0) {
+    console.error('❌ モデルデータが利用できません');
+    return;
+  }
+
+  const modelIds = Object.keys(availableModelsFromAPI);
   const shuffled = [...modelIds].sort(() => Math.random() - 0.5);
   
   selectors.forEach((selector, index) => {
@@ -1248,13 +1255,25 @@ function addNewPanelForRestoreWithId(panelId) {
 }
 
 function setInitialModelSelection() {
-  // 初期選択するモデル（最新の高性能モデルを優先）
-  const initialModels = [
-    'deepseek-ai/DeepSeek-R1-0528', // 最新のDeepSeek R1モデル
-    'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8', // 高性能Llamaモデル
-    'microsoft/phi-4' // 軽量で高性能なモデル
-  ];
-  
+  if (Object.keys(availableModelsFromAPI).length === 0) {
+    console.error('❌ モデルデータが利用できません');
+    return;
+  }
+
+  // APIから取得したモデルの中から適当に3つ選ぶ（gpt-oss系を優先）
+  const availableModelIds = Object.keys(availableModelsFromAPI);
+  const gptOssModels = availableModelIds.filter(id => id.toLowerCase().includes('gpt-oss'));
+  const otherModels = availableModelIds.filter(id => !id.toLowerCase().includes('gpt-oss'));
+
+  // gpt-oss系モデルを優先して、3つまで選択
+  let initialModels = [...gptOssModels.slice(0, 2), ...otherModels.slice(0, 1)].slice(0, 3);
+
+  // まだ3つに足りない場合は他のモデルで補完
+  if (initialModels.length < 3) {
+    const remainingModels = availableModelIds.filter(id => !initialModels.includes(id));
+    initialModels = [...initialModels, ...remainingModels.slice(0, 3 - initialModels.length)];
+  }
+
   const selectors = document.querySelectorAll('.model-select');
   
   selectors.forEach((selector, index) => {
