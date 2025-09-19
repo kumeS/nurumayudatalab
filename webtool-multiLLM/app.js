@@ -393,6 +393,7 @@ function initializeModelDescriptions() {
   let modelGroups = {
     'NEW🆕 最新追加モデル': [],
     'GPT-OSS系モデル': [],
+    'Qwen系モデル': [],
     'その他の利用可能モデル': []
   };
 
@@ -404,6 +405,8 @@ function initializeModelDescriptions() {
         } else {
           modelGroups['GPT-OSS系モデル'].push(modelId);
         }
+      } else if (modelIdLower.includes('qwen')) {
+        modelGroups['Qwen系モデル'].push(modelId);
       } else {
         modelGroups['その他の利用可能モデル'].push(modelId);
       }
@@ -457,17 +460,32 @@ function initializeModelDescriptions() {
         modelCard.style.borderLeft = '4px solid var(--primary)';
         modelCard.style.animation = 'slideIn 0.3s ease';
 
-        // NEWタグを表示するかどうか判定
+        // NEWタグや注意タグを表示するかどうか判定
         const modelIdLower = modelId.toLowerCase();
         const isNewModel = groupName.includes('NEW') ||
                           (modelIdLower.includes('gpt-oss') && (modelIdLower.includes('120') || modelIdLower.includes('20')));
+        const isQwenModel = modelIdLower.includes('qwen');
 
         const newTag = isNewModel ? '<span style="background: #ff6b6b; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.7rem; margin-left: 0.5rem;">NEW</span>' : '';
+        const warningTag = isQwenModel ? '<span style="background: #ffc107; color: #212529; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.7rem; margin-left: 0.5rem;">⚠️ 注意</span>' : '';
+
+        // Qwenモデル用の説明を追加
+        const qwenNotice = isQwenModel ? `
+          <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 0.8rem; margin-top: 0.8rem;">
+            <p style="margin: 0; font-size: 0.85rem; color: #856404;">
+              <i class="fas fa-exclamation-triangle" style="margin-right: 0.5rem;"></i>
+              <strong>Qwenモデル利用時の注意：</strong><br>
+              現在一部のQwenモデルでサーバーエラーが発生する場合があります。<br>
+              エラーが発生した場合は、GPT-OSS系やその他のモデルをお試しください。
+            </p>
+          </div>
+        ` : '';
 
         modelCard.innerHTML = `
-          <h4 style="color: var(--primary); margin-top: 0;">${model.name}${newTag}</h4>
+          <h4 style="color: var(--primary); margin-top: 0;">${model.name}${newTag}${warningTag}</h4>
           <p style="margin: 0.5rem 0;"><code style="background: #f8f9fa; padding: 0.2rem 0.4rem; border-radius: 3px; font-size: 0.8rem;">${modelId}</code></p>
           <p style="margin: 0; color: #555;">${model.description}</p>
+          ${qwenNotice}
         `;
         
         groupContent.appendChild(modelCard);
@@ -524,7 +542,7 @@ function initializeModelDescriptions() {
         io.net API
       </p>
       <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">
-        本システムは<strong>io.net API</strong>を活用して、30種類の最新LLMモデルを提供しています。
+        本システムは<strong>io.net API</strong>を活用して、多数の最新LLMモデルを提供しています。
         io.netは分散型AIネットワークで、高性能なGPUクラスターを通じて
         世界最先端のAIモデルへのアクセスを実現しています。
       </p>
@@ -870,11 +888,14 @@ async function executeModelInPanel(panel, prompt, panelIndex = 0) {
 async function callCloudflareAPI(modelId, prompt, outputElement, signal) {
   // Cloudflare Worker APIのエンドポイント
   const API_ENDPOINT = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
-  
+
+  // Qwenモデルの検出
+  const isQwenModel = modelId.toLowerCase().includes('qwen');
+
   // 大型モデルには特別な設定を適用
   const isLargeModel = modelId.includes('90B') || modelId.includes('70B') || modelId.includes('Large');
   const maxTokens = isLargeModel ? 12000 : 8000; // 大型モデルには更に大きな制限
-  
+
   const requestBody = {
     model: modelId,
     temperature: 0.7,
@@ -887,24 +908,39 @@ async function callCloudflareAPI(modelId, prompt, outputElement, signal) {
       }
     ]
   };
-  
+
   console.log(`🚀 API呼び出し開始: ${modelId}`);
-  
-  const response = await fetch(API_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(requestBody),
-    signal: signal
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`❌ API呼び出しエラー (${modelId}):`, response.status, response.statusText, errorText);
-    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+
+  let response;
+  try {
+    response = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody),
+      signal: signal
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ API呼び出しエラー (${modelId}):`, response.status, response.statusText, errorText);
+
+      // Qwenモデル特有のエラーハンドリング
+      if (isQwenModel) {
+        return handleQwenModelError(modelId, response.status, errorText, outputElement);
+      }
+
+      throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+    }
+  } catch (error) {
+    // Qwenモデルのネットワークエラーやその他のエラーハンドリング
+    if (isQwenModel && error.name !== 'AbortError') {
+      return handleQwenModelError(modelId, null, error.message, outputElement);
+    }
+    throw error;
   }
-  
+
   // stream: false なので直接JSONレスポンスを処理
   const data = await response.json();
   console.log(`📥 API応答受信: ${modelId}, データサイズ:`, JSON.stringify(data).length);
@@ -936,6 +972,136 @@ async function callCloudflareAPI(modelId, prompt, outputElement, signal) {
   } else {
     console.error(`❌ レスポンスにコンテンツが含まれていません:`, data);
     throw new Error('レスポンスにコンテンツが含まれていません');
+  }
+}
+
+// Qwenモデル専用のエラーハンドリング関数
+async function handleQwenModelError(modelId, statusCode, errorText, outputElement) {
+  console.log(`🔧 Qwenモデルエラーハンドリング開始: ${modelId}`);
+
+  let errorMessage = '';
+  let fallbackMessage = '';
+
+  // エラー分類とメッセージ生成
+  if (statusCode === 500) {
+    errorMessage = `${modelId}は現在利用できません（Internal Server Error）`;
+    fallbackMessage = `
+      <div style="padding: 1rem; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; margin: 1rem 0;">
+        <h4 style="color: #856404; margin: 0 0 0.5rem 0;">⚠️ Qwenモデル利用不可</h4>
+        <p style="margin: 0 0 0.5rem 0; color: #856404;">
+          <strong>${modelId}</strong>は現在サーバーエラーのため利用できません。
+        </p>
+        <div style="background: #f8f9fa; padding: 0.8rem; border-radius: 4px; margin-top: 0.8rem;">
+          <p style="margin: 0; font-size: 0.9rem; color: #6c757d;">
+            <i class="fas fa-info-circle"></i>
+            <strong>推奨対応:</strong><br>
+            • 他のモデル（GPT-OSS系など）をお試しください<br>
+            • 時間を置いてから再度お試しください<br>
+            • より単純なプロンプトで試してみてください
+          </p>
+        </div>
+      </div>
+    `;
+  } else if (statusCode === 429) {
+    errorMessage = `${modelId}はレート制限に達しています`;
+    fallbackMessage = `
+      <div style="padding: 1rem; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; margin: 1rem 0;">
+        <h4 style="color: #721c24; margin: 0 0 0.5rem 0;">🚫 レート制限</h4>
+        <p style="margin: 0 0 0.5rem 0; color: #721c24;">
+          <strong>${modelId}</strong>は現在リクエスト数制限に達しています。
+        </p>
+        <div style="background: #f8f9fa; padding: 0.8rem; border-radius: 4px; margin-top: 0.8rem;">
+          <p style="margin: 0; font-size: 0.9rem; color: #6c757d;">
+            <i class="fas fa-clock"></i>
+            <strong>対応方法:</strong><br>
+            • 1-2分待ってから再度お試しください<br>
+            • 他のモデルを選択してください
+          </p>
+        </div>
+      </div>
+    `;
+  } else if (statusCode === 404) {
+    errorMessage = `${modelId}が見つかりません`;
+    fallbackMessage = `
+      <div style="padding: 1rem; background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 8px; margin: 1rem 0;">
+        <h4 style="color: #0c5460; margin: 0 0 0.5rem 0;">❓ モデル未発見</h4>
+        <p style="margin: 0 0 0.5rem 0; color: #0c5460;">
+          <strong>${modelId}</strong>が見つかりませんでした。
+        </p>
+        <div style="background: #f8f9fa; padding: 0.8rem; border-radius: 4px; margin-top: 0.8rem;">
+          <p style="margin: 0; font-size: 0.9rem; color: #6c757d;">
+            <i class="fas fa-search"></i>
+            <strong>確認事項:</strong><br>
+            • モデル名が正しいかご確認ください<br>
+            • 他の利用可能なモデルをお試しください
+          </p>
+        </div>
+      </div>
+    `;
+  } else {
+    // その他のエラー
+    errorMessage = `${modelId}でエラーが発生しました`;
+    fallbackMessage = `
+      <div style="padding: 1rem; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; margin: 1rem 0;">
+        <h4 style="color: #721c24; margin: 0 0 0.5rem 0;">❌ Qwenモデルエラー</h4>
+        <p style="margin: 0 0 0.5rem 0; color: #721c24;">
+          <strong>${modelId}</strong>でエラーが発生しました。
+        </p>
+        <details style="margin-top: 0.8rem;">
+          <summary style="cursor: pointer; color: #0066cc;">詳細エラー情報</summary>
+          <div style="background: #f8f9fa; padding: 0.8rem; border-radius: 4px; margin-top: 0.5rem; font-family: monospace; font-size: 0.8rem; color: #6c757d;">
+            ${errorText || 'エラーの詳細情報が取得できませんでした'}
+          </div>
+        </details>
+        <div style="background: #f8f9fa; padding: 0.8rem; border-radius: 4px; margin-top: 0.8rem;">
+          <p style="margin: 0; font-size: 0.9rem; color: #6c757d;">
+            <i class="fas fa-lightbulb"></i>
+            <strong>対応提案:</strong><br>
+            • 他のモデル（GPT-OSS、Llama、Mistralなど）をお試しください<br>
+            • プロンプトを短くして再試行してください<br>
+            • ページを再読み込みしてみてください
+          </p>
+        </div>
+      </div>
+    `;
+  }
+
+  // コンソールにログ出力
+  console.error(`❌ Qwenモデルエラー (${modelId}): ${errorMessage}`);
+  console.log(`💡 フォールバック表示: ${modelId}`);
+
+  // フォールバック表示をタイピング効果で表示
+  outputElement.innerHTML = '';
+  await typeTextWithMarkdown(outputElement, fallbackMessage);
+
+  // ログに記録（将来の改善のため）
+  logQwenModelError(modelId, statusCode, errorText);
+}
+
+// Qwenモデルエラーのログ記録（統計用）
+function logQwenModelError(modelId, statusCode, errorText) {
+  const errorLog = {
+    timestamp: new Date().toISOString(),
+    modelId: modelId,
+    statusCode: statusCode,
+    errorText: errorText ? errorText.substring(0, 200) : null, // 最初の200文字のみ
+    userAgent: navigator.userAgent
+  };
+
+  // ローカルストレージにエラーログを保存（最大50件）
+  try {
+    const existingLogs = JSON.parse(localStorage.getItem('qwenErrorLogs') || '[]');
+    existingLogs.push(errorLog);
+
+    // 最大50件を保持
+    if (existingLogs.length > 50) {
+      existingLogs.splice(0, existingLogs.length - 50);
+    }
+
+    localStorage.setItem('qwenErrorLogs', JSON.stringify(existingLogs));
+    console.log(`📊 Qwenエラーログ記録: ${existingLogs.length}件`);
+  } catch (error) {
+    console.warn('エラーログの保存に失敗:', error);
   }
 }
 
