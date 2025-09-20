@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function fetchAvailableModels() {
   try {
     console.log('🚀 利用可能モデル取得開始...');
-    const response = await fetch('https://nurumayu-worker.skume-bioinfo.workers.dev/models');
+    const response = await fetch('https://nurumayu-worker-v2.skume-bioinfo.workers.dev/models');
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -887,7 +887,7 @@ async function executeModelInPanel(panel, prompt, panelIndex = 0) {
 
 async function callCloudflareAPI(modelId, prompt, outputElement, signal) {
   // Cloudflare Worker APIのエンドポイント
-  const API_ENDPOINT = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
+  const API_ENDPOINT = 'https://nurumayu-worker-v2.skume-bioinfo.workers.dev/';
 
   // Qwenモデルの検出
   const isQwenModel = modelId.toLowerCase().includes('qwen');
