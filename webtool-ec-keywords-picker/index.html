@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アマゾン検索キーワードジェネレーター - アパレル・雑貨版</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">
+                    <i class="fas fa-amazon"></i>
+                    アマゾン検索キーワードジェネレーター
+                </h1>
+                <p class="subtitle">アパレル・雑貨カテゴリ専用 - AIが効果的な検索キーワードを生成</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- カテゴリ選択 -->
+            <section class="category-section">
+                <div class="card">
+                    <h2 class="section-title">カテゴリを選択</h2>
+                    <div class="category-group">
+                        <label class="category-option">
+                            <input type="radio" name="category" value="apparel" checked>
+                            <span class="category-label">
+                                <i class="fas fa-tshirt"></i>
+                                アパレル
+                            </span>
+                        </label>
+                        <label class="category-option">
+                            <input type="radio" name="category" value="goods">
+                            <span class="category-label">
+                                <i class="fas fa-gift"></i>
+                                雑貨
+                            </span>
+                        </label>
+                        <label class="category-option">
+                            <input type="radio" name="category" value="both">
+                            <span class="category-label">
+                                <i class="fas fa-layer-group"></i>
+                                両方
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <div class="main-layout">
+                <div class="left-panel">
+                    <section class="controls-section">
+                        <div class="card">
+                            <h2 class="section-title">キーワード数を選択</h2>
+                            <div class="button-group">
+                                <button class="btn btn-primary" data-count="3">
+                                    <i class="fas fa-list"></i>
+                                    3個生成
+                                </button>
+                                <button class="btn btn-secondary" data-count="5">
+                                    <i class="fas fa-list-ol"></i>
+                                    5個生成
+                                </button>
+                                <button class="btn btn-accent" data-count="10">
+                                    <i class="fas fa-layer-group"></i>
+                                    10個生成
+                                </button>
+                                <button class="btn btn-special" data-count="20">
+                                    <i class="fas fa-star"></i>
+                                    20個生成
+                                </button>
+                            </div>
+                            
+                            <div class="reset-section">
+                                <button class="btn btn-reset" id="resetBtn">
+                                    <i class="fas fa-refresh"></i>
+                                    リセット（キーワード履歴をクリア）
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="keywords-section" id="keywordsSection" style="display: none;">
+                        <div class="card">
+                            <div class="section-header">
+                                <h2 class="section-title">生成された検索キーワード</h2>
+                                <div class="loading-indicator" id="loadingIndicator" style="display: none;">
+                                    <div class="spinner-container">
+                                        <div class="spinner-circle"></div>
+                                    </div>
+                                    AIがキーワードを生成中...
+                                </div>
+                            </div>
+                            
+                            <!-- 出力窓 -->
+                            <div class="output-window" id="outputWindow">
+                                <div class="output-header">
+                                    <span class="output-title">生成結果</span>
+                                    <button class="btn-clear-output" id="clearOutputBtn">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="output-content" id="outputContent">
+                                    <p class="empty-output">ここに生成されたキーワードが表示されます</p>
+                                </div>
+                            </div>
+                            
+                            <div class="keywords-container" id="keywordsContainer">
+                                <!-- キーワードがここに動的に追加されます -->
+                            </div>
+                            
+                            <div class="action-buttons">
+                                <button class="btn btn-copy" id="copyAllBtn">
+                                    <i class="fas fa-copy"></i>
+                                    すべてコピー
+                                </button>
+                                <button class="btn btn-export" id="exportBtn">
+                                    <i class="fas fa-download"></i>
+                                    エクスポート
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="right-panel">
+                    <section class="history-section">
+                        <div class="card">
+                            <h2 class="section-title">生成履歴</h2>
+                            <div class="history-container" id="historyContainer">
+                                <p class="empty-state">まだキーワードが生成されていません</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <section class="keywords-section" id="keywordsSection" style="display: none;">
+                <div class="card">
+                    <div class="section-header">
+                        <h2 class="section-title">生成された検索キーワード</h2>
+                        <div class="loading-indicator" id="loadingIndicator" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            AIがキーワードを生成中...
+                        </div>
+                    </div>
+                    
+                    <div class="keywords-container" id="keywordsContainer">
+                        <!-- キーワードがここに動的に追加されます -->
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-copy" id="copyAllBtn">
+                            <i class="fas fa-copy"></i>
+                            すべてコピー
+                        </button>
+                        <button class="btn btn-export" id="exportBtn">
+                            <i class="fas fa-download"></i>
+                            エクスポート
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="history-section">
+                <div class="card">
+                    <h2 class="section-title">生成履歴</h2>
+                    <div class="history-container" id="historyContainer">
+                        <p class="empty-state">まだキーワードが生成されていません</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <div class="footer-content">
+                <p>&copy; 2025 アマゾン検索キーワードジェネレーター | AI技術により最適化された検索キーワードを生成</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 通知コンテナ -->
+    <div class="notification-container" id="notificationContainer"></div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
