@@ -11,8 +11,10 @@
 
     gtag('config', 'G-F54LKE733T');
   </script>
-  <title>ぬるっとキーワードマネージャー｜広告・SEO向け重複排除/バイト分割ツール</title>
+  <title>ぬるっとキーワードマネージャーv2｜広告・SEO向け重複排除/バイト分割ツール</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon/nu-circle.svg">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <script src="ng.js"></script>
   <style>
     :root {
       --primary: #ff7e5f;
@@ -314,16 +316,112 @@
       font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
       line-height: 1.6;
     }
+
+    /* 削除キーワード通知エリア */
+    .removed-keywords-box {
+      border-radius: 4px;
+      padding: 1rem;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+      display: none;
+    }
+
+    .removed-keywords-box.show {
+      display: block;
+    }
+
+    /* 重複削除エリア */
+    .duplicate-box {
+      background-color: #d1ecf1;
+      border: 1px solid #bee5eb;
+    }
+
+    .duplicate-header {
+      font-weight: 600;
+      color: #0c5460;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .duplicate-tag {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      background-color: #fff;
+      border: 1px solid #bee5eb;
+      border-radius: 3px;
+      font-size: 0.85rem;
+      color: #0c5460;
+    }
+
+    /* システム除外キーワードエリア */
+    .system-excluded-box {
+      background-color: #fff3cd;
+      border: 1px solid #ffc107;
+    }
+
+    .system-excluded-header {
+      font-weight: 600;
+      color: #856404;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .system-excluded-tag {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      background-color: #fff;
+      border: 1px solid #ffc107;
+      border-radius: 3px;
+      font-size: 0.85rem;
+      color: #856404;
+    }
+
+    /* ユーザー除外キーワードエリア */
+    .user-excluded-box {
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+    }
+
+    .user-excluded-header {
+      font-weight: 600;
+      color: #721c24;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .user-excluded-tag {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      background-color: #fff;
+      border: 1px solid #f5c6cb;
+      border-radius: 3px;
+      font-size: 0.85rem;
+      color: #721c24;
+    }
+
+    .keywords-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
   </style>
 </head>
 <body>
   <div class="header">
     <div class="container">
       <h1 class="title-wrapper">
-        <span class="nuruma-gradient">ぬるっとキーワードマネージャー</span>
+        <span class="nuruma-gradient">ぬるっとキーワードマネージャー v2</span>
         <div class="title-highlight"></div>
       </h1>
-      <p class="subtitle">広告入稿・SEO対策に最適な重複排除・バイト分割ツール</p>
+      <p class="subtitle">広告入稿・SEO対策に最適な重複排除・バイト分割ツール<br>ブランド自動検出削除機能（370以上のブランドなどに対応）</p>
     </div>
   </div>
 
@@ -340,23 +438,38 @@
         </div>
         <div class="step">
           <span class="step-number">2</span>
-          <strong>除外キーワード入力:</strong> 除外したいキーワードをスペース区切りで入力（オプション）
+          <strong>ユーザー指定の除外キーワード入力:</strong> 除外したいキーワードをスペース区切りで入力（オプション）
         </div>
         <div class="step">
           <span class="step-number">3</span>
-          <strong>実行ボタン:</strong> 重複するキーワードが自動的に削除され、除外キーワードも除去されます
+          <strong>実行ボタン:</strong> 以下の処理が自動実行されます
+          <ul>
+            <li><strong>重複削除:</strong> 同じキーワードが複数ある場合、最初の1つだけ残して削除</li>
+            <li><strong>ブランド自動検出削除:</strong> 約370個のブランド・プラットフォーム名を自動検出して削除</li>
+            <li><strong>ユーザー指定除外:</strong> ステップ2で入力した除外キーワードを削除</li>
+          </ul>
         </div>
         <div class="step">
           <span class="step-number">4</span>
+          <strong>削除結果の確認:</strong> 以下の3つのカテゴリーで削除されたキーワードを確認できます
+          <ul>
+            <li><strong>重複削除:</strong> 2回目以降の出現が削除されたキーワード（青色）</li>
+            <li><strong>ぬるっと検出システム:</strong> ブランド名等として自動検出されたキーワード（黄色）</li>
+            <li><strong>ユーザー指定:</strong> あなたが指定した除外キーワード（ピンク色）</li>
+          </ul>
+        </div>
+        <div class="step">
+          <span class="step-number">5</span>
           <strong>結果の加工:</strong> 以下の方法で整形できます
           <ul>
             <li>250バイト単位に分割: 広告入稿用</li>
             <li>500バイト単位に分割: 広告入稿用</li>
             <li>スペース→改行: 改行区切りに変換</li>
+            <li>入力値として戻す: 削除後のキーワードを再編集</li>
           </ul>
         </div>
         <div class="step">
-          <span class="step-number">5</span>
+          <span class="step-number">6</span>
           <strong>コピー:</strong> 整形結果をクリップボードにコピーできます
         </div>
       </div>
@@ -364,7 +477,7 @@
 
     <textarea id="kwInput" placeholder="例: パンプス レディース ローヒール パンプス 幅広 ..."></textarea><br>
     
-    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">除外キーワード（オプション）</h3>
+    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">ユーザー指定の除外キーワード（オプション）</h3>
     <textarea id="excludeInput" placeholder="例: 除外したいキーワード1 除外したいキーワード2 ..." style="height: 4rem;"></textarea><br>
     
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
@@ -389,7 +502,35 @@
         <textarea readonly id="resultText" class="output-text"></textarea>
         <div class="output-actions">
           <button class="copy-btn" id="copyBtn1" onclick="copyText('resultText', 'copyBtn1')"><i class="fas fa-copy"></i> コピー</button>
+          <button class="copy-btn" id="returnToInputBtn" onclick="returnToInput()" style="background: #28a745;"><i class="fas fa-redo"></i> 入力値として戻す</button>
         </div>
+      </div>
+
+      <!-- 重複削除されたキーワード表示エリア -->
+      <div id="duplicateKeywordsBox" class="removed-keywords-box duplicate-box">
+        <div class="duplicate-header">
+          <i class="fas fa-clone"></i>
+          <span>重複削除されたキーワード（<span id="duplicateCount">0</span>個）</span>
+        </div>
+        <div id="duplicateKeywordsContent" class="keywords-content"></div>
+      </div>
+
+      <!-- システム除外キーワード表示エリア -->
+      <div id="systemExcludedKeywordsBox" class="removed-keywords-box system-excluded-box">
+        <div class="system-excluded-header">
+          <i class="fas fa-shield-alt"></i>
+          <span>除外キーワードとして削除（ぬるっと検出システム）（<span id="systemExcludedCount">0</span>個）</span>
+        </div>
+        <div id="systemExcludedKeywordsContent" class="keywords-content"></div>
+      </div>
+
+      <!-- ユーザー除外キーワード表示エリア -->
+      <div id="userExcludedKeywordsBox" class="removed-keywords-box user-excluded-box">
+        <div class="user-excluded-header">
+          <i class="fas fa-user-times"></i>
+          <span>除外キーワードとして削除（ユーザー指定）（<span id="userExcludedCount">0</span>個）</span>
+        </div>
+        <div id="userExcludedKeywordsContent" class="keywords-content"></div>
       </div>
 
       <h3 class="modal-heading">キーワードの整形</h3>
@@ -445,20 +586,48 @@
     const raw = document.getElementById('kwInput').value.trim();
     if (!raw) { alert('キーワードを入力してください'); return; }
 
-    // 除外キーワードを取得
+    // システム除外キーワードセットを構築
+    const systemExcludeSet = new Set();
+    SYSTEM_EXCLUDE_KEYWORDS.forEach(w => systemExcludeSet.add(w));
+
+    // ユーザー除外キーワードセットを構築
+    const userExcludeSet = new Set();
     const excludeRaw = document.getElementById('excludeInput').value.trim();
-    const excludeSet = new Set();
     if (excludeRaw) {
-      excludeRaw.split(/\s+/).forEach(w => excludeSet.add(w));
+      excludeRaw.split(/\s+/).forEach(w => userExcludeSet.add(w));
     }
 
     // 重複除去（元の並び順を保持）+ 除外キーワード削除
     const uniq = [];
     const seen = new Set();
+    const systemExcluded = []; // システム除外されたキーワード
+    const userExcluded = []; // ユーザー除外されたキーワード
+    const duplicates = []; // 重複したキーワード
+
     raw.split(/\s+/).forEach(w => {
-      if (!seen.has(w) && !excludeSet.has(w)) { 
-        seen.add(w); 
-        uniq.push(w); 
+      if (!seen.has(w)) {
+        // システム除外キーワードチェック（優先度1）
+        if (systemExcludeSet.has(w)) {
+          if (!systemExcluded.includes(w)) {
+            systemExcluded.push(w);
+          }
+        }
+        // ユーザー除外キーワードチェック（優先度2）
+        else if (userExcludeSet.has(w)) {
+          if (!userExcluded.includes(w)) {
+            userExcluded.push(w);
+          }
+        }
+        // 通常キーワード
+        else {
+          seen.add(w);
+          uniq.push(w);
+        }
+      } else {
+        // 重複したキーワードを記録（除外キーワードは除く）
+        if (!duplicates.includes(w) && !systemExcludeSet.has(w) && !userExcludeSet.has(w)) {
+          duplicates.push(w);
+        }
       }
     });
     const result = uniq.join(' ');
@@ -467,12 +636,19 @@
     document.getElementById('resultText').value = result;
     document.getElementById('outArea').textContent = '';
     document.getElementById('copyOutContainer').style.display = 'none';
-    
+
     // 文字数とバイト数を更新
     updateCount(result);
-    
+
+    // 削除されたキーワードを表示
+    displayRemovedKeywords(duplicates, systemExcluded, userExcluded);
+
+    // モーダルを表示
     document.getElementById('modal').style.display = 'block';
-    
+
+    // モーダルコンテンツのスクロール位置を最上部にリセット
+    document.getElementById('modalContent').scrollTop = 0;
+
     // コピーボタンのクラスをリセット
     document.getElementById('copyBtn1').classList.remove('copy-success');
     if (document.getElementById('copyBtn2')) {
@@ -520,6 +696,89 @@
     const byteCount = new TextEncoder().encode(text).length;
     document.getElementById('charCount').textContent = charCount;
     document.getElementById('byteCount').textContent = byteCount;
+  }
+
+  // ▼ 削除されたキーワードを表示する関数
+  function displayRemovedKeywords(duplicates, systemExcluded, userExcluded) {
+    // 重複削除されたキーワードを表示
+    const duplicateBox = document.getElementById('duplicateKeywordsBox');
+    const duplicateContent = document.getElementById('duplicateKeywordsContent');
+    const duplicateCount = document.getElementById('duplicateCount');
+
+    duplicateContent.innerHTML = '';
+
+    if (duplicates.length > 0) {
+      duplicateCount.textContent = duplicates.length;
+
+      duplicates.forEach(keyword => {
+        const tag = document.createElement('span');
+        tag.className = 'duplicate-tag';
+        tag.textContent = keyword;
+        duplicateContent.appendChild(tag);
+      });
+
+      duplicateBox.classList.add('show');
+    } else {
+      duplicateBox.classList.remove('show');
+    }
+
+    // システム除外されたキーワードを表示
+    const systemExcludedBox = document.getElementById('systemExcludedKeywordsBox');
+    const systemExcludedContent = document.getElementById('systemExcludedKeywordsContent');
+    const systemExcludedCount = document.getElementById('systemExcludedCount');
+
+    systemExcludedContent.innerHTML = '';
+
+    if (systemExcluded.length > 0) {
+      systemExcludedCount.textContent = systemExcluded.length;
+
+      systemExcluded.forEach(keyword => {
+        const tag = document.createElement('span');
+        tag.className = 'system-excluded-tag';
+        tag.textContent = keyword;
+        systemExcludedContent.appendChild(tag);
+      });
+
+      systemExcludedBox.classList.add('show');
+    } else {
+      systemExcludedBox.classList.remove('show');
+    }
+
+    // ユーザー除外されたキーワードを表示
+    const userExcludedBox = document.getElementById('userExcludedKeywordsBox');
+    const userExcludedContent = document.getElementById('userExcludedKeywordsContent');
+    const userExcludedCount = document.getElementById('userExcludedCount');
+
+    userExcludedContent.innerHTML = '';
+
+    if (userExcluded.length > 0) {
+      userExcludedCount.textContent = userExcluded.length;
+
+      userExcluded.forEach(keyword => {
+        const tag = document.createElement('span');
+        tag.className = 'user-excluded-tag';
+        tag.textContent = keyword;
+        userExcludedContent.appendChild(tag);
+      });
+
+      userExcludedBox.classList.add('show');
+    } else {
+      userExcludedBox.classList.remove('show');
+    }
+  }
+
+  // ▼ 入力値として戻す
+  function returnToInput() {
+    const resultText = document.getElementById('resultText').value;
+
+    // 削除後のキーワードを入力欄に設定
+    document.getElementById('kwInput').value = resultText;
+
+    // ローカルストレージに保存
+    saveInputData();
+
+    // モーダルを閉じる
+    closeModal();
   }
 
   // ▼ 250 / 500 バイト単位で分割
