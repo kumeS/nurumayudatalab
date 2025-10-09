@@ -187,6 +187,7 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
   'スコッチグレイン',
   'scotchgrain',
   'オニツカタイガー',
+  'オニツカ',
   'onitsukatiger',
   'ムーンスター',
   'moonstar',
@@ -468,5 +469,9 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
   'ヘイ',
   '気',
   'スヌーピー',
-  'snoopy'
+  'snoopy',
+  'stretch+',
+  'STRETCH+',
+  '用',
+  '抜群'
 ];

@@ -412,6 +412,45 @@
       margin-top: 0.5rem;
     }
 
+    /* フォントサイズ変更ボタン */
+    .font-size-controls {
+      position: absolute;
+      top: -3rem;
+      right: 0;
+      display: flex;
+      gap: 0.25rem;
+      z-index: 10;
+    }
+
+    .font-size-btn {
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      margin: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #666;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .font-size-btn:hover {
+      background: #f0f0f0;
+      border-color: #999;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .textarea-wrapper {
+      position: relative;
+    }
+
   </style>
 </head>
 <body>
@@ -475,8 +514,15 @@
       </div>
     </div>
 
-    <textarea id="kwInput" placeholder="例: パンプス レディース ローヒール パンプス 幅広 ..."></textarea><br>
-    
+    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">検索キーワード入力欄（必須）</h3>
+    <div class="textarea-wrapper">
+      <div class="font-size-controls">
+        <button class="font-size-btn" id="fontSizeDown" title="フォントサイズを小さく">−</button>
+        <button class="font-size-btn" id="fontSizeUp" title="フォントサイズを大きく">＋</button>
+      </div>
+      <textarea id="kwInput" placeholder="例: パンプス レディース ローヒール パンプス 幅広 ..."></textarea>
+    </div>
+
     <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">ユーザー指定の除外キーワード（オプション）</h3>
     <textarea id="excludeInput" placeholder="例: 除外したいキーワード1 除外したいキーワード2 ..." style="height: 4rem;"></textarea><br>
     
@@ -830,7 +876,7 @@
     const content = document.querySelector('.instruction-content');
     content.classList.toggle('show');
     this.classList.toggle('active');
-    
+
     // テキストを切り替え
     const heading = this.querySelector('h3');
     if (content.classList.contains('show')) {
@@ -839,6 +885,77 @@
       heading.textContent = '使い方を表示';
     }
   });
+
+  // フォントサイズとテキストエリア高さの管理機能
+  (function() {
+    const kwInput = document.getElementById('kwInput');
+    const excludeInput = document.getElementById('excludeInput');
+    const fontSizeUpBtn = document.getElementById('fontSizeUp');
+    const fontSizeDownBtn = document.getElementById('fontSizeDown');
+
+    // ローカルストレージからフォントサイズと高さを読み込む
+    const savedFontSize = localStorage.getItem('keywordTool_fontSize');
+    const savedKwHeight = localStorage.getItem('keywordTool_kwHeight');
+    const savedExcludeHeight = localStorage.getItem('keywordTool_excludeHeight');
+
+    let currentFontSize = savedFontSize ? parseFloat(savedFontSize) : 16; // デフォルト16px
+
+    // 初期フォントサイズを適用
+    function applyFontSize() {
+      kwInput.style.fontSize = currentFontSize + 'px';
+      excludeInput.style.fontSize = currentFontSize + 'px';
+    }
+
+    // フォントサイズを保存
+    function saveFontSize() {
+      localStorage.setItem('keywordTool_fontSize', currentFontSize);
+    }
+
+    // テキストエリアの高さを保存
+    function saveTextareaHeights() {
+      localStorage.setItem('keywordTool_kwHeight', kwInput.style.height);
+      localStorage.setItem('keywordTool_excludeHeight', excludeInput.style.height);
+    }
+
+    // 初期適用
+    applyFontSize();
+
+    // 保存された高さを適用
+    if (savedKwHeight) {
+      kwInput.style.height = savedKwHeight;
+    }
+    if (savedExcludeHeight) {
+      excludeInput.style.height = savedExcludeHeight;
+    }
+
+    // テキストエリアのリサイズを監視して保存
+    const resizeObserver = new ResizeObserver(() => {
+      saveTextareaHeights();
+    });
+
+    resizeObserver.observe(kwInput);
+    resizeObserver.observe(excludeInput);
+
+    // フォントサイズを大きくする
+    fontSizeUpBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (currentFontSize < 32) { // 最大32px
+        currentFontSize += 2;
+        applyFontSize();
+        saveFontSize();
+      }
+    });
+
+    // フォントサイズを小さくする
+    fontSizeDownBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (currentFontSize > 10) { // 最小10px
+        currentFontSize -= 2;
+        applyFontSize();
+        saveFontSize();
+      }
+    });
+  })();
   </script>
 </body>
 </html>
