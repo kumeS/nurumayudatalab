@@ -263,6 +263,13 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
   'baggu',
   'キャスキッドソン',
   'cathkidston',
+  'アミアミ',
+  '神戸レタス',
+  'セスト',
+  'SESTO',
+  'vivian',
+  'メヌエ',
+  'Menue',
 
   // ストリートブランド
   'シュプリーム',
