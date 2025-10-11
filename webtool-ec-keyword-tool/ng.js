@@ -193,6 +193,8 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
   'moonstar',
   'アキレス',
   'achilles',
+  'オリエンタルトラフィック',
+  'ORiental TRaffic',
 
   // バッグブランド
   'サマンサタバサ',
@@ -267,6 +269,7 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
   '神戸レタス',
   'セスト',
   'SESTO',
+  'sesto',
   'vivian',
   'メヌエ',
   'Menue',
