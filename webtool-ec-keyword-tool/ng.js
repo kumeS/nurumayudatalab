@@ -273,6 +273,7 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
   'vivian',
   'メヌエ',
   'Menue',
+  'mardi',
 
   // ストリートブランド
   'シュプリーム',
