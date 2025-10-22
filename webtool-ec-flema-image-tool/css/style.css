@@ -1979,19 +1979,28 @@ body.toolbar-scroll-active #canvasContainer {
 
 /* Desktop-specific improvements */
 body.desktop-mode .main-content {
-  flex-direction: row;
+  flex-direction: row !important;
+  align-items: stretch !important;
 }
 
 body.desktop-mode #canvasContainer {
-  flex: 1;
-  min-width: 0;
+  flex: 1 !important;
+  min-width: 0 !important;
+  height: calc(100vh - var(--header-height)) !important;
+  max-height: none !important;
 }
 
 body.desktop-mode .toolbar {
-  flex: 0 0 360px;
-  max-width: 360px;
-  height: calc(100vh - var(--header-height));
-  overflow-y: auto;
+  flex: 0 0 clamp(280px, 28vw, 360px) !important;
+  max-width: clamp(280px, 28vw, 360px) !important;
+  height: calc(100vh - var(--header-height)) !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  border-top: none !important;
+  border-left: 1px solid rgba(255, 154, 90, 0.25) !important;
+  border-radius: 0 !important;
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.08) !important;
+  padding: 24px 20px !important;
 }
 
 /* Focus visibility for accessibility */

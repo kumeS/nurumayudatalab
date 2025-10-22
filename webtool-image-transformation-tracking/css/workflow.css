@@ -1,0 +1,189 @@
+/* Workflow Canvas Styles */
+
+/* Canvas Container - Lighter background for better visibility */
+#workflowCanvas {
+    position: relative;
+    background: #1a1a2e; /* Dark but not black */
+    background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 50px 50px;
+    background-position: 0 0, 0 0;
+}
+
+/* Make sure canvas is visible and has proper dimensions */
+#workflowCanvas {
+    width: 100%;
+    height: 100%;
+    min-height: 100vh;
+}
+
+/* Vis.js canvas specific styles */
+.vis-network {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.vis-network canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Node Context Menu */
+#nodeContextMenu {
+    min-width: 200px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+}
+
+/* Circle Menu - Ensure visibility */
+#circleMenu {
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+}
+
+#circleMenu:not(.hidden) {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.circle-menu-container {
+    background: rgba(17, 24, 39, 0.9);
+    border-radius: 50%;
+    box-shadow: 0 0 50px rgba(139, 92, 246, 0.5);
+}
+
+.circle-menu-item:hover {
+    background: #4C1D95 !important;
+    border-color: #EC4899 !important;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(75px) rotate(calc(-1 * var(--angle))) scale(1.1) !important;
+}
+
+.circle-menu-center:hover {
+    background: #EC4899 !important;
+    cursor: pointer;
+}
+
+/* Detail Panel */
+.detail-section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detail-section:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: rgba(156, 163, 175, 1);
+    margin-bottom: 8px;
+}
+
+.detail-value {
+    color: white;
+    font-size: 14px;
+}
+
+.detail-image-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.detail-image {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #374151;
+}
+
+.detail-image:hover {
+    transform: scale(1.05);
+    border-color: rgba(147, 51, 234, 0.5);
+}
+
+.detail-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Mini Map */
+#miniMap {
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.8);
+}
+
+/* Floating Toolbar - Better visibility */
+#floatingToolbar {
+    background: rgba(0, 0, 0, 0.9);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Status Bar - Better visibility */
+#statusBar {
+    background: rgba(0, 0, 0, 0.9);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Tooltips */
+.tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(147, 51, 234, 0.5);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(147, 51, 234, 0.7);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #floatingToolbar {
+        flex-direction: row;
+        top: auto;
+        bottom: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    
+    #nodeDetailPanel {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    #miniMap {
+        display: none;
+    }
+}

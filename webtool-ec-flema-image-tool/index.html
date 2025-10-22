@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>FleMa - フリマ専用画像編集</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Fabric.js for advanced canvas manipulation -->
+    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+    <!-- FileSaver.js for file download -->
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <!-- DOMPurify for XSS protection -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- ヘッダー -->
+        <header class="app-header">
+            <button class="btn-menu" id="projectMenuBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h1><i class="fas fa-magic"></i> FleMa</h1>
+            <div class="header-actions">
+                <div class="save-indicator" id="saveIndicator">
+                    <i class="fas fa-check-circle"></i>
+                    <span>保存済</span>
+                </div>
+                <button class="btn-settings" id="layoutToggleBtn" title="PC表示に切り替え" aria-label="PC表示に切り替え">
+                    <i class="fas fa-display"></i>
+                </button>
+                <button class="btn-settings" id="settingsBtn">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <button class="btn-settings" id="undoBtn" title="1つ前の状態に戻る (Ctrl+Z)" aria-label="1つ前の状態に戻る">
+                    <i class="fas fa-rotate-left"></i>
+                </button>
+                <button class="btn-export" id="exportBtn">
+                    <i class="fas fa-download"></i><span> エクスポート</span>
+                </button>
+                <!-- ズームコントロール（ヘッダー版） -->
+                <div class="zoom-controls-header">
+                    <button class="zoom-btn-header" id="zoomOutBtn" title="縮小">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <span class="zoom-value-header" id="zoomValue">100%</span>
+                    <button class="zoom-btn-header" id="zoomInBtn" title="拡大">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                    <button class="zoom-btn-header" id="zoomResetBtn" title="100%表示">
+                        <i class="fas fa-expand-arrows-alt"></i>
+                    </button>
+                    <button class="zoom-btn-header" id="zoomFitBtn" title="画面に合わせる">
+                        <i class="fas fa-compress-arrows-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- プロジェクトメニュー -->
+        <div class="project-menu" id="projectMenu">
+            <div class="project-menu-header">
+                <h3><i class="fas fa-folder"></i> プロジェクト</h3>
+                <button class="btn-close" onclick="closeProjectMenu()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="project-menu-actions">
+                <button class="btn-primary btn-full" onclick="createNewProject()">
+                    <i class="fas fa-plus"></i> 新規プロジェクト
+                </button>
+                <div class="project-count">
+                    <span id="projectCount">0 / 20</span>
+                    <small>保存済み</small>
+                </div>
+            </div>
+            <div class="project-list" id="projectList">
+                <div class="no-projects">プロジェクトがありません</div>
+            </div>
+        </div>
+
+        <!-- メインコンテンツ -->
+        <main class="main-content">
+            <!-- キャンバスエリア -->
+            <div class="canvas-workspace" id="canvasContainer">
+                <canvas id="mainCanvas"></canvas>
+
+                <aside class="image-controls-panel" id="imageControlsPanel" style="display: none;">
+                    <div class="image-controls-header">
+                        <h3><i class="fas fa-sliders-h"></i> 画像調整</h3>
+                        <button class="btn-icon" id="closeImageControlsPanel" aria-label="画像調整を閉じる">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="image-controls-section image-controls-primary">
+                        <button class="btn-secondary btn-full" id="fitImageHeightBtn">
+                            <i class="fas fa-arrows-up-down"></i> 縦いっぱいにフィット
+                        </button>
+                    </div>
+
+                    <div class="image-controls-section">
+                        <h4>クイック補正</h4>
+                        <div class="control-group compact">
+                            <label>
+                                <span><i class="fas fa-sun"></i> 輝度</span>
+                                <span class="value" id="brightnessValue">0</span>
+                            </label>
+                            <input type="range" id="brightness" min="-100" max="100" value="0" step="1">
+                        </div>
+                        <div class="control-group compact">
+                            <label>
+                                <span><i class="fas fa-circle-half-stroke"></i> コントラスト</span>
+                                <span class="value" id="contrastValue">0</span>
+                            </label>
+                            <input type="range" id="contrast" min="0" max="200" value="0" step="1">
+                        </div>
+                        <div class="control-group compact">
+                            <label>
+                                <span><i class="fas fa-palette"></i> 彩度</span>
+                                <span class="value" id="saturationValue">0</span>
+                            </label>
+                            <input type="range" id="saturation" min="0" max="200" value="0" step="1">
+                        </div>
+                        <div class="control-group compact">
+                            <label>
+                                <span><i class="fas fa-droplet"></i> 色相</span>
+                                <span class="value" id="hueValue">0</span>
+                            </label>
+                            <input type="range" id="hue" min="0" max="360" value="0" step="1">
+                        </div>
+                        <button class="btn-secondary btn-full" id="resetFilters">
+                            <i class="fas fa-undo"></i> リセット
+                        </button>
+                    </div>
+
+                    <div class="image-controls-section">
+                        <h4>レイヤー操作</h4>
+                        <div class="btn-stack">
+                            <button class="btn-secondary" id="bringToFrontBtnSide">
+                                <i class="fas fa-arrow-up"></i> 最前面へ
+                            </button>
+                            <button class="btn-secondary" id="bringForwardBtnSide">
+                                <i class="fas fa-chevron-up"></i> 前へ
+                            </button>
+                            <button class="btn-secondary" id="sendBackwardBtnSide">
+                                <i class="fas fa-chevron-down"></i> 後ろへ
+                            </button>
+                            <button class="btn-secondary" id="sendToBackBtnSide">
+                                <i class="fas fa-arrow-down"></i> 最背面へ
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="image-controls-section">
+                        <h4>その他</h4>
+                        <div class="control-group compact">
+                            <label>
+                                <span><i class="fas fa-adjust"></i> 背景削除の感度</span>
+                                <span class="value" id="bgRemovalToleranceValue">50</span>
+                            </label>
+                            <input type="range" id="bgRemovalTolerance" min="10" max="150" value="50" step="5">
+                            <small style="opacity: 0.7;">低い = 厳密、高い = 広範囲</small>
+                        </div>
+                        <button class="btn-secondary btn-full" id="removeBackgroundBtn">
+                            <i class="fas fa-cut"></i> 背景を自動削除 (β)
+                        </button>
+                        <button class="btn-danger btn-full" id="deleteImageBtn">
+                            <i class="fas fa-trash"></i> 画像を削除
+                        </button>
+                    </div>
+                </aside>
+
+                <aside class="text-controls-panel" id="textControlsPanel" style="display: none;">
+                    <div class="text-controls-header">
+                        <h3><i class="fas fa-pen"></i> テキスト調整</h3>
+                        <button class="btn-icon" id="closeTextControlsPanel" aria-label="テキスト調整を閉じる">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="text-controls-section">
+                        <label><span><i class="fas fa-keyboard"></i> テキスト</span></label>
+                        <textarea id="textContent" rows="3" placeholder="テキストを入力..."></textarea>
+                    </div>
+
+                    <div class="text-controls-grid">
+                        <div class="control-group compact">
+                            <label>
+                                <span><i class="fas fa-text-height"></i> サイズ</span>
+                                <span class="value" id="fontSizeValue">160px</span>
+                            </label>
+                            <input type="range" id="fontSize" min="12" max="320" value="160" step="2">
+                        </div>
+                        <div class="control-group compact">
+                            <label><span><i class="fas fa-font"></i> フォント</span></label>
+                            <select id="fontFamily">
+                                <option value="'Noto Sans JP', sans-serif">Noto Sans JP</option>
+                                <option value="Arial, sans-serif">Arial</option>
+                                <option value="'Times New Roman', serif">Times New Roman</option>
+                                <option value="'Courier New', monospace">Courier New</option>
+                                <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                                <option value="Impact, fantasy">Impact</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="text-controls-grid">
+                        <div class="control-group compact">
+                            <label><span><i class="fas fa-fill"></i> 文字色</span></label>
+                            <div class="color-inputs">
+                                <input type="color" id="textColor" value="#333333">
+                                <input type="text" id="textColorHex" value="#333333" maxlength="7">
+                            </div>
+                        </div>
+                        <div class="control-group compact">
+                            <label><span><i class="fas fa-fill-drip"></i> 背景</span></label>
+                            <div class="color-inputs">
+                                <input type="color" id="textBgColor" value="#ffffff">
+                                <input type="text" id="textBgColorHex" value="#ffffff" maxlength="7">
+                            </div>
+                            <label class="checkbox-label small">
+                                <input type="checkbox" id="textBgTransparent" checked>
+                                背景透過
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="text-controls-section">
+                        <label><span><i class="fas fa-align-left"></i> 揃え</span></label>
+                        <div class="btn-chip-group" id="textAlignGroup">
+                            <button class="btn-chip active" data-align="left"><i class="fas fa-align-left"></i></button>
+                            <button class="btn-chip" data-align="center"><i class="fas fa-align-center"></i></button>
+                            <button class="btn-chip" data-align="right"><i class="fas fa-align-right"></i></button>
+                            <button class="btn-chip" data-align="justify"><i class="fas fa-align-justify"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="text-controls-section">
+                        <label><span><i class="fas fa-bold"></i> スタイル</span></label>
+                        <div class="btn-chip-group" id="textStyleGroup">
+                            <button class="btn-chip" data-style="bold"><i class="fas fa-bold"></i></button>
+                            <button class="btn-chip" data-style="italic"><i class="fas fa-italic"></i></button>
+                            <button class="btn-chip" data-style="underline"><i class="fas fa-underline"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="text-controls-grid">
+                        <div class="control-group compact">
+                            <label>
+                                <span><i class="fas fa-rotate"></i> 回転</span>
+                                <span class="value" id="textRotationValue">0°</span>
+                            </label>
+                            <input type="range" id="textRotation" min="-180" max="180" value="0" step="1">
+                        </div>
+                        <div class="control-group compact">
+                            <label>
+                                <span><i class="fas fa-expand"></i> 拡大</span>
+                                <span class="value" id="textScaleValue">100%</span>
+                            </label>
+                            <input type="range" id="textScale" min="50" max="200" value="100" step="5">
+                        </div>
+                        <div class="control-group compact">
+                            <label>
+                                <span><i class="fas fa-layer-group"></i> 不透明度</span>
+                                <span class="value" id="textOpacityValue">100%</span>
+                            </label>
+                            <input type="range" id="textOpacity" min="0" max="100" value="100" step="5">
+                        </div>
+                    </div>
+
+                    <div class="text-controls-section">
+                        <label><span><i class="fas fa-magic"></i> 効果</span></label>
+                        <label class="checkbox-label small">
+                            <input type="checkbox" id="textShadow">
+                            シャドウ
+                        </label>
+                        <label class="checkbox-label small">
+                            <input type="checkbox" id="textStroke">
+                            アウトライン
+                        </label>
+                    </div>
+
+                    <div class="btn-stack">
+                        <button class="btn-secondary" id="textBringToFrontBtn"><i class="fas fa-arrow-up"></i> 最前面へ</button>
+                        <button class="btn-secondary" id="textBringForwardBtn"><i class="fas fa-chevron-up"></i> 前へ</button>
+                        <button class="btn-secondary" id="textSendBackwardBtn"><i class="fas fa-chevron-down"></i> 後ろへ</button>
+                        <button class="btn-secondary" id="textSendToBackBtn"><i class="fas fa-arrow-down"></i> 最背面へ</button>
+                        <button class="btn-secondary" id="duplicateTextBtn"><i class="fas fa-copy"></i> 複製</button>
+                        <button class="btn-danger" id="deleteTextBtn"><i class="fas fa-trash"></i> 削除</button>
+                    </div>
+                </aside>
+            </div>
+
+            <!-- ツールバー -->
+            <div class="toolbar" id="toolbar">
+                <div class="tool-tabs">
+                    <button class="tool-tab active" data-tab="image">
+                        <i class="fas fa-image"></i>
+                        <span>商品画像</span>
+                    </button>
+                    <button class="tool-tab" data-tab="template">
+                        <i class="fas fa-sparkles"></i>
+                        <span>売れる装飾</span>
+                    </button>
+                </div>
+
+                <!-- 画像編集パネル -->
+                <div class="tool-panel active" id="imagePanel">
+                    <h3>商品画像を追加</h3>
+                    <button class="btn-primary btn-full" id="uploadImageBtn">
+                        <i class="fas fa-camera"></i> 商品画像を選択
+                    </button>
+                    <input type="file" id="imageInput" accept="image/*" style="display: none;" multiple>
+                </div>
+
+                <!-- テンプレートパネル -->
+                <div class="tool-panel" id="templatePanel">
+                    <h3>テキストを追加</h3>
+                    <button class="btn-primary btn-full" id="addTextBtn">
+                        <i class="fas fa-plus"></i> テキストを追加
+                    </button>
+                    <h3>① 売れる言葉を選ぶ</h3>
+                    <div class="template-grid">
+                        <button class="template-btn" data-template="新品未使用">新品未使用</button>
+                        <button class="template-btn" data-template="美品">美品</button>
+                        <button class="template-btn" data-template="送料無料">送料無料</button>
+                        <button class="template-btn" data-template="即日発送">即日発送</button>
+                        <button class="template-btn" data-template="値下げ交渉OK">値下げ交渉OK</button>
+                        <button class="template-btn" data-template="値下げ可能">値下げ可能</button>
+                        <button class="template-btn" data-template="限定品">限定品</button>
+                        <button class="template-btn" data-template="早い者勝ち">早い者勝ち</button>
+                        <button class="template-btn" data-template="セール中">セール中</button>
+                        <button class="template-btn" data-template="レア">レア</button>
+                        <button class="template-btn" data-template="お得">お得</button>
+                        <button class="template-btn" data-template="韓国限定">韓国限定</button>
+                        <button class="template-btn" data-template="韓国現地で購入">韓国現地で購入</button>
+                        <button class="template-btn" data-template="正規品">正規品</button>
+                        <button class="template-btn" data-template="韓国正規店で購入">韓国正規店で購入</button>
+                    </div>
+
+                    <h3>② ロゴを追加（オプション）</h3>
+                    <div class="template-grid">
+                        <button class="template-btn" data-logo="nurumayudatalab">
+                            <i class="fas fa-award"></i>
+                            ゆるま湯ロゴ
+                        </button>
+                        <button class="template-btn" data-logo="icon-star">
+                            <i class="fas fa-star"></i>
+                            スター
+                        </button>
+                        <button class="template-btn" data-logo="icon-gem">
+                            <i class="fas fa-gem"></i>
+                            ジュエル
+                        </button>
+                        <button class="template-btn" data-logo="icon-truck">
+                            <i class="fas fa-truck"></i>
+                            トラック
+                        </button>
+                        <button class="template-btn" data-logo="icon-ship">
+                            <i class="fas fa-shipping-fast"></i>
+                            迅速発送
+                        </button>
+                        <button class="template-btn" data-logo="icon-handshake">
+                            <i class="fas fa-handshake"></i>
+                            ハンドシェイク
+                        </button>
+                        <button class="template-btn" data-logo="icon-tags">
+                            <i class="fas fa-tags"></i>
+                            タグ
+                        </button>
+                        <button class="template-btn" data-logo="icon-crown">
+                            <i class="fas fa-crown"></i>
+                            クラウン
+                        </button>
+                        <button class="template-btn" data-logo="icon-bolt">
+                            <i class="fas fa-bolt"></i>
+                            ボルト
+                        </button>
+                        <button class="template-btn" data-logo="icon-percent">
+                            <i class="fas fa-percent"></i>
+                            パーセント
+                        </button>
+                        <button class="template-btn" data-logo="icon-fire">
+                            <i class="fas fa-fire"></i>
+                            ファイア
+                        </button>
+                        <button class="template-btn" data-logo="icon-tag">
+                            <i class="fas fa-tag"></i>
+                            セールタグ
+                        </button>
+                        <button class="template-btn" data-logo="icon-globe">
+                            <i class="fas fa-globe-asia"></i>
+                            グローブ
+                        </button>
+                        <button class="template-btn" data-logo="icon-plane">
+                            <i class="fas fa-plane"></i>
+                            プレーン
+                        </button>
+                        <button class="template-btn" data-logo="icon-certificate">
+                            <i class="fas fa-certificate"></i>
+                            サーティフィケート
+                        </button>
+                        <button class="template-btn" data-logo="icon-store">
+                            <i class="fas fa-store"></i>
+                            ストア
+                        </button>
+                    </div>
+
+                    <h3>③ デザインを変更（オプション）</h3>
+                    <div class="style-template-grid">
+                        <button class="style-template-btn" data-style-template="bold-red">
+                            <span style="color: #ff0000; font-weight: bold; font-size: 18px;">強調赤</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="pop-yellow">
+                            <span style="color: #000; background: #ffeb3b; padding: 2px 8px; font-weight: bold;">ポップ黄色</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="elegant-white">
+                            <span style="color: #fff; background: #333; padding: 2px 8px;">エレガント</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="cute-pink">
+                            <span style="color: #ff1493; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);">キュート</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="simple-black">
+                            <span style="color: #000; font-weight: bold; font-size: 16px;">シンプル黒</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="black-shadow">
+                            <span style="color: #000; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); font-size: 16px;">黒字影付き</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="cute-badge">
+                            <span style="color: #fff; background: #ff6b9d; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 14px;">バッジ風</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="neon-blue">
+                            <span style="color: #00bfff; font-weight: bold; text-shadow: 0 0 10px rgba(0,191,255,0.8); font-size: 16px;">ネオン青</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="gold-luxury">
+                            <span style="color: #ffd700; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); font-size: 16px;">ゴールド</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="green-badge">
+                            <span style="color: #fff; background: #4caf50; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 14px;">グリーン</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="orange-pop">
+                            <span style="color: #ff6600; font-weight: bold; font-size: 18px;">オレンジ強調</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="purple-elegant">
+                            <span style="color: #9c27b0; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); font-size: 16px;">紫エレガント</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="white-outline">
+                            <span style="color: #000; font-weight: bold; -webkit-text-stroke: 2px white; font-size: 16px;">白枠付き</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="red-badge">
+                            <span style="color: #fff; background: #f44336; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 14px;">赤バッジ</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="gradient-rainbow">
+                            <span style="background: linear-gradient(90deg, #ff0080, #ff8c00, #40e0d0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; font-size: 16px;">レインボー</span>
+                        </button>
+                        <button class="style-template-btn" data-style-template="navy-classic">
+                            <span style="color: #fff; background: #001f3f; padding: 2px 8px; font-weight: bold;">ネイビー</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- JavaScriptモジュール読み込み（順番重要） -->
+    <script src="js/utils.js"></script>
+    <script src="js/db.js"></script>
+    <script src="js/project.js"></script>
+    <script src="js/canvas.js"></script>
+    <script src="js/image.js"></script>
+    <script src="js/text.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

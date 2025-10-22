@@ -203,10 +203,18 @@ function syncCanvasViewportSize(options = {}) {
     const upper = canvas.upperCanvasEl;
 
     // キャンバスDOM要素にズーム適用後のサイズを設定
-    [wrapper, lower, upper].forEach((el) => {
+    if (wrapper) {
+        wrapper.style.width = `${scaledWidth}px`;
+        wrapper.style.height = `${scaledHeight}px`;
+    }
+    
+    // lowerとupperはcanvas要素なので、styleとwidth/height属性両方を設定
+    [lower, upper].forEach((el) => {
         if (!el) return;
         el.style.width = `${scaledWidth}px`;
         el.style.height = `${scaledHeight}px`;
+        el.width = scaledWidth;
+        el.height = scaledHeight;
     });
 
     // コンテナのスクロール位置調整（ズーム後のサイズに基づく）
@@ -740,6 +748,8 @@ function centerCanvasInView() {
     if (!canvas) return;
     
     const canvasContainer = document.getElementById('canvasContainer');
+    if (!canvasContainer) return;
+    
     const zoom = canvas.getZoom();
     
     // コンテナの中心座標
@@ -750,14 +760,12 @@ function centerCanvasInView() {
     const canvasCenterX = canvas.width / 2;
     const canvasCenterY = canvas.height / 2;
     
-    // Fabric.jsのabsolutePanを使って正しく中央配置
-    // これによりズーム後の座標変換が正しく維持される
-    const point = new fabric.Point(canvasCenterX, canvasCenterY);
-    canvas.viewportCenterObject({
-        left: canvasCenterX,
-        top: canvasCenterY,
-        getCenterPoint: function() { return point; }
-    });
+    // viewportTransformを直接操作してビューポートを中央配置
+    // viewportCenterObjectは実在するFabricオブジェクトが必要なため、代わりにabsolutePanを使用
+    const vpt = canvas.viewportTransform.slice(); // コピー
+    vpt[4] = containerCenterX - canvasCenterX * zoom;
+    vpt[5] = containerCenterY - canvasCenterY * zoom;
+    canvas.setViewportTransform(vpt);
     
     canvas.requestRenderAll();
 }

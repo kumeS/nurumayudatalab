@@ -1,0 +1,1460 @@
+# 近所ニュース要約レーダー｜要件定義書＋システム仕様書（Cloudflare × io.net × 完全無料構成）
+
+> **データソース（Phase 1 - MVP - 完全無料 $0/月）**
+>
+> * **X API (Free)** - SNS投稿（キーワード検索: 京橋 大阪 OR 都島）+ Cloudflare D1蓄積
+> * **Google News RSS** - ニュース記事（無料、地域フィルタ可能）
+> * **自治体公式RSS** - 大阪市都島区等の公式お知らせ（無料）
+>
+> **Phase 2以降の拡張候補**
+>
+> * **Google Maps Places API** - レビュー・評価（有料、月額$151〜）
+> * **X API Pro** - 地域検索・大量取得（有料、月額$5,000〜）
+> * **Instagram** - 技術的制約により現時点では保留
+>
+> **重要アーキテクチャ戦略:**
+> * X APIは**ユーザーアクセス時に取得し、Cloudflare D1（SQLite）に蓄積**してデータを使い回す
+> * 1時間に1回のみX API呼び出し → D1から高速配信
+> * Free プラン（月間1,500ツイート）で運用可能
+> * 本仕様は公式API・許諾済みフィードのみを使用する合法的アーキテクチャです
+
+---
+
+## 0. 背景・目的
+
+大阪・京橋／都島エリアのニュース・SNS投稿・話題を**公式APIから**横断収集し、LLMで「30秒ダイジェスト」を生成して住民や関係者に分かりやすく提示する。
+
+**Phase 1（MVP - 完全無料 $0/月）**では以下3つの無料データソースを統合：
+1. **X API (Free)** - SNS投稿（キーワード検索）+ Cloudflare D1蓄積で使い回し
+2. **Google News RSS** - 地域ニュース記事（無料）
+3. **自治体公式RSS** - 公式お知らせ（無料）
+
+**Phase 2（成長期）**で有料データソースを追加：
+4. **Google Maps Places API** - レビュー・評価（月額$151〜）
+
+Cloudflare Workers + D1で完結させ、io.net（IO Intelligence）のOpenAI互換エンドポイント（モデル: gpt-oss-120B）で要約を生成する**完全無料MVP**を構築する。
+
+---
+
+## 1. スコープ
+
+### Phase 1（MVP - 完全無料 $0/月）
+
+* **X API (Free)**からキーワード検索（京橋 大阪 OR 都島）でツイート取得（最大100件/リクエスト）
+* **Cloudflare D1（SQLite）**にツイートを蓄積し、以降は高速配信（使い回し戦略）
+* **Google News RSS**から地域ニュース記事を取得（最大10件）
+* **自治体公式RSS**（大阪市都島区等）からお知らせを取得（最大5件）
+* 各ソースのデータを最大20件に統合し、LLMへ投げて3段落＋箇条書き5点＋Sourcesで要約生成
+* 静的フロント（HTML/JS/CSS）で要約とソース別タブ表示（X/News/RSS）
+* キャッシュ/D1蓄積/フェイルセーフの実装
+
+### Phase 2（成長期 - ユーザー増加後）
+
+* **Google Maps Places API**統合 - レビュー・評価（月額$151〜）
+* **X API Basic/Pro**へアップグレード（より多くのツイート取得）
+* クラスタリング・RAG強化
+
+### 非スコープ（MVP）
+
+* Instagram統合（技術的に不可能）
+* 画像/動画の抽出・配信
+* 全文保存の恒久ストレージ
+* ユーザーアカウント
+* 通知（Web Push/メール）
+* 高度なモデレーション
+
+---
+
+## 2. 利用者・ユースケース
+
+* **一般住民/来街者**: その日の出来事・人気スポットのレビューを30秒で把握
+* **商店街・施設運営**: 周辺トピックの俯瞰、レビュー評価、営業時間/混雑の把握
+* **地域団体/学校/保育園**: ダイジェストを内部掲示や連絡の下地に活用
+
+---
+
+## 3. 成果物
+
+1. 稼働システム（Cloudflare Workers + 静的サイト）
+2. APIドキュメント（本仕様書のAPI章）
+3. 運用手順（Wranglerでのdev/deploy、Secrets設定）
+4. Phase 2拡張ロードマップ
+
+---
+
+## 4. 制約・前提
+
+* **規約順守**: 公式API・許諾済みフィードのみ使用。スクレイピング禁止。
+* **法令**: 著作権/引用の公正性、個人情報/プライバシー配慮。
+* **技術**: Edge実行（Workers）上でのRSSパース、Google Maps API統合。
+* **LLM**: io.netのOpenAI互換Chat Completions（モデル gpt-oss-120B）を使用。APIキーはWorkers Secretに保持。
+* **コスト**: Phase 1で月額$150程度（詳細は付録E参照）
+
+---
+
+## 5. 機能要件（FR）
+
+### FR-1: 収集（3データソース）
+
+* **FR-1.1 Google Maps Places API**
+  * Text Search APIで「京橋 大阪」を検索（最大10箇所）
+  * 各場所のPlace Details APIでレビューを取得（最大5件/箇所）
+  * キャッシュTTL: 3600秒（1時間）
+
+* **FR-1.2 Google News RSS**
+  * RSS URL: `https://news.google.com/rss/search?q=京橋+大阪+OR+都島&hl=ja&gl=JP&ceid=JP:ja`
+  * パース後、最大10件を取得
+  * キャッシュTTL: 600秒（10分）
+
+* **FR-1.3 自治体公式RSS**
+  * 大阪市都島区RSS等を登録（URLリスト管理）
+  * 各ソース最大5件、重複URL除外
+  * キャッシュTTL: 1800秒（30分）
+
+### FR-2: データ統合
+
+* FR-2.1 各ソースから取得したデータを統合配列に格納
+* FR-2.2 重複チェック（URL/タイトルのハッシュ）
+* FR-2.3 最大20件に制限（ソース別の重み付け: Maps 50%, News 30%, RSS 20%）
+* FR-2.4 コンテンツ長が50文字未満の場合は除外
+
+### FR-3: 要約
+
+* FR-3.1 統合データを最大15件に圧縮（LLMトークン制限考慮）
+* FR-3.2 LLMに3段落＋箇条書き5点＋Sourcesの日本語要約を要求
+* FR-3.3 Sourcesにはタイトル＋URL＋ソース種別（Maps/News/RSS）を列挙
+
+### FR-4: 表示
+
+* FR-4.1 `/` でトップ画面（エリア入力、要約、ソース別リスト）
+* FR-4.2 ソース別タブ表示（Maps/News/RSS）
+* FR-4.3 Mapsレビューは星評価・投稿者名も表示
+* FR-4.4 要約は等幅フォントで改行維持表示
+
+### FR-5: API
+
+* FR-5.1 `/api/sources` : 全データソースから収集（JSON）
+* FR-5.2 `/api/digest` : 収集＋要約（JSON）
+* FR-5.3 `/api/maps` : Google Mapsレビューのみ（JSON）
+* FR-5.4 `/api/news` : Google News RSSのみ（JSON）
+* FR-5.5 `/api/municipal` : 自治体RSSのみ（JSON）
+
+### FR-6: 例外処理
+
+* FR-6.1 各ソースの取得失敗は独立してスキップ、処理続行
+* FR-6.2 全ソース失敗時は `summary="（データ取得エラー）", sources={}`
+* FR-6.3 要約失敗時は `summary="（要約エラー）"` でもsourcesは返却
+
+### FR-7: 将来のSNS統合準備
+
+* FR-7.1 データソース抽象化レイヤー（プラグイン式）
+* FR-7.2 Phase 2でX API統合時のコード変更を最小化
+* FR-7.3 SNS投稿のモデレーション機能（Phase 2）
+
+---
+
+## 6. 非機能要件（NFR）
+
+* **性能**: `/api/digest` は通常15秒以内（Maps API + RSS + 要約API応答に依存）
+* **可用性**: Workersのリージョン分散に準拠。フェイルセーフで要約が落ちてもリストは返す
+* **拡張性**: データソースの追加/削除がプラグイン式で簡易に可能
+* **セキュリティ**: APIキーはSecret。CORSは同一オリジン（MVP）
+* **ログ/監視**: 各ソースのfetch成功率・件数・レスポンスタイムをコンソールログ（将来はLogpush/Analyticsへ）
+* **アクセシビリティ**: リンクの明確表示、キーボード操作、色コントラスト配慮
+* **コスト管理**: 月額$150以内の運用（詳細は付録E）
+
+---
+
+## 7. 外部インターフェース
+
+### 7.1 Cloudflare Workers 環境変数（Vars/Secrets）
+
+```toml
+[vars]
+# io.net LLM API
+IO_BASE_URL = "https://api.intelligence.io.solutions/api/v1"
+IO_MODEL = "openai/gpt-oss-120b"
+
+# Google Maps Places API
+GOOGLE_MAPS_BASE_URL = "https://places.googleapis.com/v1"
+
+# RSS URLs
+GOOGLE_NEWS_RSS_URL = "https://news.google.com/rss/search?q=京橋+大阪+OR+都島&hl=ja&gl=JP&ceid=JP:ja"
+MUNICIPAL_RSS_URLS = '["https://www.city.osaka.lg.jp/miyakojima/rss/index.xml"]'
+```
+
+**Secrets（wrangler secret put で登録）:**
+* `IO_API_KEY` - io.net APIキー（必須）
+* `GOOGLE_MAPS_API_KEY` - Google Maps APIキー（必須）
+
+### 7.2 API（エンドポイント）
+
+#### `GET /api/sources?area=<string>`
+全データソースから収集（要約なし）
+
+**Response (200):**
+```json
+{
+  "area": "大阪・京橋/都島",
+  "sources": {
+    "googleMaps": {
+      "count": 12,
+      "items": [
+        {
+          "type": "review",
+          "place": "京橋グランシャトー",
+          "rating": 4.5,
+          "text": "駅近で便利...",
+          "author": "田中太郎",
+          "time": "2024-10-10T12:00:00Z",
+          "url": "https://www.google.com/maps/place/?q=place_id:ChIJ..."
+        }
+      ]
+    },
+    "googleNews": {
+      "count": 8,
+      "items": [
+        {
+          "type": "article",
+          "title": "京橋駅周辺で新施設オープン",
+          "url": "https://news.google.com/...",
+          "publishedAt": "2024-10-11T09:00:00Z",
+          "snippet": "大阪市都島区の京橋駅前に..."
+        }
+      ]
+    },
+    "municipalRSS": {
+      "count": 3,
+      "items": [
+        {
+          "type": "announcement",
+          "title": "都島区防災訓練のお知らせ",
+          "url": "https://www.city.osaka.lg.jp/...",
+          "publishedAt": "2024-10-09T10:00:00Z",
+          "description": "10月15日に防災訓練を実施します"
+        }
+      ]
+    }
+  }
+}
+```
+
+**Response (500):** `{"error": "エラーメッセージ"}`
+
+#### `GET /api/digest?area=<string>`
+収集＋要約生成
+
+**Response (200):**
+```json
+{
+  "area": "大阪・京橋/都島",
+  "summary": "（LLM生成の3段落＋箇条書き5点＋Sources）",
+  "sources": {
+    "googleMaps": { /* 同上 */ },
+    "googleNews": { /* 同上 */ },
+    "municipalRSS": { /* 同上 */ }
+  },
+  "generatedAt": "2024-10-12T12:00:00Z"
+}
+```
+
+#### `GET /api/maps?area=<string>`
+Google Mapsレビューのみ取得
+
+#### `GET /api/news?area=<string>`
+Google News RSSのみ取得
+
+#### `GET /api/municipal?area=<string>`
+自治体RSSのみ取得
+
+### 7.3 Google Maps Places API 仕様
+
+**Text Search（場所検索）:**
+```
+POST https://places.googleapis.com/v1/places:searchText
+Headers:
+  X-Goog-Api-Key: {GOOGLE_MAPS_API_KEY}
+  X-Goog-FieldMask: places.id,places.displayName,places.rating
+
+Body:
+{
+  "textQuery": "京橋 大阪",
+  "languageCode": "ja",
+  "maxResultCount": 10
+}
+```
+
+**Place Details（レビュー取得）:**
+```
+GET https://places.googleapis.com/v1/places/{place_id}
+Headers:
+  X-Goog-Api-Key: {GOOGLE_MAPS_API_KEY}
+  X-Goog-FieldMask: reviews
+```
+
+### 7.4 LLM プロンプト仕様
+
+**System Prompt:**
+```
+あなたは地域情報の要約エキスパートです。以下のルールを厳守してください：
+1. 事実のみを記述し、推測や誇張を避ける
+2. すべての情報に出典を明示する
+3. 日本語で自然な文章を生成する
+4. レビュー評価は星評価と共に記載する
+```
+
+**User Prompt Template:**
+```
+エリア: {area}
+
+以下のデータから、最新状況を居住者向けに「3段落＋箇条書き5点」で要約してください。
+
+【Google Maps レビュー】
+{mapsData}
+
+【Google News 記事】
+{newsData}
+
+【自治体お知らせ】
+{municipalData}
+
+最後に"Sources"としてタイトル＋URL＋ソース種別を列挙してください。
+```
+
+**Parameters:**
+* `temperature: 0.2`
+* `max_tokens: 1500`
+
+---
+
+## 8. データモデル（レスポンス詳細）
+
+### SourceItem（共通基底型）
+```typescript
+interface SourceItem {
+  type: 'review' | 'article' | 'announcement';
+  url: string;
+  publishedAt?: string; // ISO 8601
+}
+```
+
+### GoogleMapsReview
+```typescript
+interface GoogleMapsReview extends SourceItem {
+  type: 'review';
+  place: string;
+  rating: number; // 1.0-5.0
+  text: string;
+  author: string;
+  time: string; // ISO 8601
+}
+```
+
+### GoogleNewsArticle
+```typescript
+interface GoogleNewsArticle extends SourceItem {
+  type: 'article';
+  title: string;
+  snippet: string;
+  publishedAt: string;
+}
+```
+
+### MunicipalAnnouncement
+```typescript
+interface MunicipalAnnouncement extends SourceItem {
+  type: 'announcement';
+  title: string;
+  description: string;
+  publishedAt: string;
+}
+```
+
+---
+
+## 9. シーケンス（概略）
+
+```
+Browser -> GET /api/digest?area=京橋
+
+Worker -> Parallel Fetch (Promise.allSettled):
+  ├─ Google Maps Text Search (cache: 1h)
+  │   └─ For each place: Place Details API (cache: 1h)
+  ├─ Google News RSS (cache: 10m)
+  └─ Municipal RSS (cache: 30m)
+
+Worker -> Data Integration:
+  ├─ Dedupe by URL/title hash
+  ├─ Weight distribution (Maps 50%, News 30%, RSS 20%)
+  └─ Limit to 15 items for LLM
+
+Worker -> io.net Chat Completions API:
+  └─ Generate summary (3 paragraphs + 5 bullets + Sources)
+
+Worker -> Return {summary, sources}
+
+Browser -> Render:
+  ├─ Summary card (monospace, pre-wrap)
+  └─ Source tabs (Maps/News/RSS)
+```
+
+---
+
+## 10. 画面仕様（MVP）
+
+### レイアウト構成
+
+* **ヘッダ**
+  * タイトル: 「近所ニュース要約レーダー（京橋/都島）」
+  * エリア入力フィールド
+  * [最新要約] [ソースのみ] ボタン
+  * 注記: 「公式API使用・規約順守」
+
+* **メインコンテンツ**
+  * **カード1: 30秒ダイジェスト**
+    * LLM生成の要約（等幅フォント、pre-wrap）
+    * 生成日時表示
+
+  * **カード2: データソース別表示**
+    * タブUI: [Google Maps] [Google News] [自治体RSS]
+    * **Mapsタブ**: 場所名、星評価、レビュー本文、投稿者、日時
+    * **Newsタブ**: 記事タイトル（リンク）、抜粋、公開日時
+    * **RSSタブ**: お知らせタイトル（リンク）、説明、公開日時
+
+* **フッター**
+  * データ取得元の明示
+  * 最終更新時刻
+  * プライバシーポリシーリンク
+
+### UIコンポーネント例
+
+```html
+<!-- Mapsレビュー表示例 -->
+<div class="review-item">
+  <div class="place-name">京橋グランシャトー</div>
+  <div class="rating">★★★★☆ 4.5</div>
+  <div class="review-text">駅近で便利。スタッフの対応も良い。</div>
+  <div class="author">田中太郎 • 2024年10月10日</div>
+</div>
+
+<!-- Newsアイテム表示例 -->
+<div class="news-item">
+  <div class="news-title"><a href="...">京橋駅周辺で新施設オープン</a></div>
+  <div class="news-snippet">大阪市都島区の京橋駅前に...</div>
+  <div class="news-date">2024年10月11日</div>
+</div>
+```
+
+---
+
+## 11. キャッシュ/レート/バックオフ
+
+* **Google Maps API**: `cf.cacheTtl = 3600`（1時間）
+* **Google News RSS**: `cf.cacheTtl = 600`（10分）
+* **自治体RSS**: `cf.cacheTtl = 1800`（30分）
+* **要約結果**: Cloudflare KVで5分間キャッシュ（オプション）
+* **レート制限**:
+  * Maps API: 1秒あたり100リクエスト（通常は十分）
+  * RSS: 並列フェッチ最大3本、300ms間隔
+* **バックオフ**: API失敗時はExponential Backoff（初回1秒、最大8秒）
+
+---
+
+## 12. エラー/例外シナリオ
+
+* **全ソース取得失敗**: `summary="（データ取得エラー）", sources={}`、HTTP 200
+* **部分的な失敗**: 成功したソースのみ返却、失敗ソースは空配列
+* **LLMエラー**: `summary="（要約生成エラー: <status>）"`、sourcesは返却
+* **API Key不正**: HTTP 500 `{"error": "API Key 設定エラー"}`
+* **タイムアウト**: 各API 10秒でタイムアウト、フォールバック動作
+
+---
+
+## 13. テスト観点（UAT）
+
+### Phase 1（MVP）
+
+* **UT-1**: Google Maps APIから最低1箇所のレビューを取得できる
+* **UT-2**: Google News RSSから最低1件の記事を取得できる
+* **UT-3**: 自治体RSSから最低1件のお知らせを取得できる
+* **UT-4**: 要約が3段落＋箇条書き5点＋Sourcesで生成される
+* **UT-5**: Sourcesに全ソース種別（Maps/News/RSS）が含まれる
+* **UT-6**: 星評価が正しく表示される（1.0-5.0）
+* **UT-7**: 各ソースのリンクがクリック可能でリンク切れがない
+* **UT-8**: 15秒以内に応答（ネットワークとLLM負荷により変動）
+* **UT-9**: 1つのソースが失敗しても他のソースは正常取得
+* **UT-10**: キャッシュが有効に動作（同一リクエストで高速応答）
+
+### Phase 2（将来）
+
+* **UT-11**: X APIからハッシュタグ投稿を取得できる
+* **UT-12**: SNS投稿のモデレーションが動作する
+
+---
+
+## 14. 運用
+
+### 開発環境
+
+```bash
+# プロジェクトセットアップ
+npm install
+
+# ローカル開発サーバー起動
+wrangler dev
+
+# 環境変数設定（ローカル）
+cp .dev.vars.example .dev.vars
+# .dev.varsに以下を記載：
+# IO_API_KEY=your_io_net_key
+# GOOGLE_MAPS_API_KEY=your_google_maps_key
+```
+
+### 本番デプロイ
+
+```bash
+# Secretsを登録
+wrangler secret put IO_API_KEY
+wrangler secret put GOOGLE_MAPS_API_KEY
+
+# デプロイ
+wrangler deploy
+
+# ログ監視
+wrangler tail
+```
+
+### 監視項目
+
+* 各APIの成功率（目標: >99%）
+* レスポンスタイム（目標: 中央値 <10秒）
+* キャッシュヒット率（目標: >70%）
+* LLM要約生成成功率（目標: >95%）
+* 月間API使用量とコスト
+
+---
+
+## 15. リスクと対策
+
+| リスク | 影響度 | 対策 |
+|--------|--------|------|
+| **Google Maps API料金超過** | 高 | キャッシュTTL延長（1h→6h）、月次アラート設定 |
+| **Google News RSS構造変更** | 中 | フォールバック用パーサー実装、定期モニタリング |
+| **自治体RSS更新停止** | 低 | 複数自治体RSSを登録、エラー時はスキップ |
+| **LLM幻覚（ハルシネーション）** | 中 | Sources必須、事実限定プロンプト、将来RAG導入 |
+| **API Key漏洩** | 高 | Secrets管理徹底、定期ローテーション、IP制限 |
+| **コスト予測誤差** | 中 | 月次レビュー、段階的なトラフィック増加 |
+
+---
+
+# 付録A. HTML/JS/CSS（MVP骨子）
+
+## index.html
+
+```html
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>近所ニュース要約レーダー（京橋/都島）</title>
+  <link rel="stylesheet" href="/public/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>近所ニュース要約レーダー（京橋/都島）</h1>
+    <div class="controls">
+      <input id="area" value="大阪・京橋/都島" />
+      <button id="btnDigest">最新要約</button>
+      <button id="btnSources">ソースのみ</button>
+      <span class="tip">※公式API使用・規約順守</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- 要約カード -->
+    <section class="card">
+      <h2>30秒ダイジェスト</h2>
+      <div id="summary" class="mono muted">（ここに要約が表示されます）</div>
+      <div id="generatedAt" class="timestamp"></div>
+    </section>
+
+    <!-- ソース別タブ -->
+    <section class="card">
+      <div class="tabs">
+        <button class="tab active" data-tab="maps">Google Maps</button>
+        <button class="tab" data-tab="news">Google News</button>
+        <button class="tab" data-tab="rss">自治体RSS</button>
+      </div>
+
+      <div id="tab-maps" class="tab-content active">
+        <h3>レビュー・評価</h3>
+        <div id="list-maps"></div>
+      </div>
+
+      <div id="tab-news" class="tab-content">
+        <h3>ニュース記事</h3>
+        <div id="list-news"></div>
+      </div>
+
+      <div id="tab-rss" class="tab-content">
+        <h3>公式お知らせ</h3>
+        <div id="list-rss"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>データ提供: Google Maps API, Google News RSS, 大阪市都島区</p>
+    <p id="lastUpdate"></p>
+  </footer>
+
+  <script src="/public/app.js"></script>
+</body>
+</html>
+```
+
+## styles.css
+
+```css
+:root {
+  --fg: #111;
+  --muted: #667;
+  --border: #e5e7eb;
+  --bg: #fafafa;
+  --accent: #0a58ca;
+  --star: #fbbf24;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  margin: 0;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+header {
+  padding: 20px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.controls input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 260px;
+}
+
+button {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #f3f4f6;
+}
+
+.tip {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+main {
+  max-width: 1000px;
+  margin: 20px auto;
+  padding: 0 16px;
+}
+
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* タブUI */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.tab {
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.tab.active {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* リストアイテム */
+.list-item {
+  padding: 12px 0;
+  border-top: 1px dashed var(--border);
+}
+
+.list-item:first-child {
+  border-top: none;
+}
+
+/* Mapsレビュー */
+.place-name {
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.rating {
+  color: var(--star);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.review-text {
+  color: var(--fg);
+  margin-bottom: 8px;
+}
+
+.author {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Newsアイテム */
+.news-title a {
+  text-decoration: none;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.news-title a:hover {
+  text-decoration: underline;
+}
+
+.news-snippet {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.news-date {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* タイムスタンプ */
+.timestamp {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.mono {
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Noto Sans Mono CJK JP", monospace;
+  line-height: 1.6;
+}
+
+footer {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+```
+
+## app.js
+
+```js
+const areaInput = document.getElementById("area");
+const summaryDiv = document.getElementById("summary");
+const generatedAtDiv = document.getElementById("generatedAt");
+const lastUpdateP = document.getElementById("lastUpdate");
+
+const listMaps = document.getElementById("list-maps");
+const listNews = document.getElementById("list-news");
+const listRss = document.getElementById("list-rss");
+
+const btnDigest = document.getElementById("btnDigest");
+const btnSources = document.getElementById("btnSources");
+
+// タブ切り替え
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    const targetTab = tab.dataset.tab;
+
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+
+    tab.classList.add("active");
+    document.getElementById(`tab-${targetTab}`).classList.add("active");
+  });
+});
+
+// 最新要約取得
+btnDigest.addEventListener("click", runDigest);
+btnSources.addEventListener("click", runSources);
+
+async function runDigest() {
+  const area = areaInput.value.trim() || "大阪・京橋/都島";
+  summaryDiv.textContent = "要約を生成中…";
+  generatedAtDiv.textContent = "";
+
+  try {
+    const res = await fetch(`/api/digest?area=${encodeURIComponent(area)}`);
+    const data = await res.json();
+
+    summaryDiv.textContent = data.summary || "(要約なし)";
+    generatedAtDiv.textContent = `生成日時: ${formatDate(data.generatedAt)}`;
+
+    renderSources(data.sources);
+    lastUpdateP.textContent = `最終更新: ${formatDate(new Date())}`;
+  } catch (err) {
+    summaryDiv.textContent = `エラー: ${err.message}`;
+  }
+}
+
+async function runSources() {
+  const area = areaInput.value.trim() || "大阪・京橋/都島";
+  summaryDiv.textContent = "（要約なし：ソースのみ取得）";
+  generatedAtDiv.textContent = "";
+
+  try {
+    const res = await fetch(`/api/sources?area=${encodeURIComponent(area)}`);
+    const data = await res.json();
+
+    renderSources(data.sources);
+    lastUpdateP.textContent = `最終更新: ${formatDate(new Date())}`;
+  } catch (err) {
+    summaryDiv.textContent = `エラー: ${err.message}`;
+  }
+}
+
+function renderSources(sources) {
+  // Google Maps
+  if (sources.googleMaps?.items?.length > 0) {
+    listMaps.innerHTML = sources.googleMaps.items.map(item => `
+      <div class="list-item">
+        <div class="place-name">${escapeHtml(item.place)}</div>
+        <div class="rating">${renderStars(item.rating)} ${item.rating.toFixed(1)}</div>
+        <div class="review-text">${escapeHtml(item.text)}</div>
+        <div class="author">${escapeHtml(item.author)} • ${formatDate(item.time)}</div>
+      </div>
+    `).join("");
+  } else {
+    listMaps.innerHTML = '<p class="muted">レビューがありません</p>';
+  }
+
+  // Google News
+  if (sources.googleNews?.items?.length > 0) {
+    listNews.innerHTML = sources.googleNews.items.map(item => `
+      <div class="list-item">
+        <div class="news-title"><a href="${item.url}" target="_blank" rel="noopener">${escapeHtml(item.title)}</a></div>
+        <div class="news-snippet">${escapeHtml(item.snippet || '')}</div>
+        <div class="news-date">${formatDate(item.publishedAt)}</div>
+      </div>
+    `).join("");
+  } else {
+    listNews.innerHTML = '<p class="muted">ニュースがありません</p>';
+  }
+
+  // Municipal RSS
+  if (sources.municipalRSS?.items?.length > 0) {
+    listRss.innerHTML = sources.municipalRSS.items.map(item => `
+      <div class="list-item">
+        <div class="news-title"><a href="${item.url}" target="_blank" rel="noopener">${escapeHtml(item.title)}</a></div>
+        <div class="news-snippet">${escapeHtml(item.description || '')}</div>
+        <div class="news-date">${formatDate(item.publishedAt)}</div>
+      </div>
+    `).join("");
+  } else {
+    listRss.innerHTML = '<p class="muted">お知らせがありません</p>';
+  }
+}
+
+function renderStars(rating) {
+  const fullStars = Math.floor(rating);
+  const halfStar = rating % 1 >= 0.5 ? 1 : 0;
+  const emptyStars = 5 - fullStars - halfStar;
+
+  return '★'.repeat(fullStars) + (halfStar ? '☆' : '') + '☆'.repeat(emptyStars);
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"]/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;"
+  }[c]));
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('ja-JP', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+// 初回ロード
+runDigest().catch(err => {
+  summaryDiv.textContent = `読込エラー: ${err.message}`;
+});
+```
+
+---
+
+# 付録B. Cloudflare Workers 実装仕様
+
+## wrangler.toml
+
+```toml
+name = "kyobashi-digest"
+main = "src/worker.js"
+compatibility_date = "2025-10-01"
+
+[vars]
+IO_BASE_URL = "https://api.intelligence.io.solutions/api/v1"
+IO_MODEL = "openai/gpt-oss-120b"
+GOOGLE_MAPS_BASE_URL = "https://places.googleapis.com/v1"
+GOOGLE_NEWS_RSS_URL = "https://news.google.com/rss/search?q=京橋+大阪+OR+都島&hl=ja&gl=JP&ceid=JP:ja"
+MUNICIPAL_RSS_URLS = '["https://www.city.osaka.lg.jp/miyakojima/rss/index.xml"]'
+```
+
+## src/worker.js（概要）
+
+```javascript
+import { parseRSS } from './utils/rssParser';
+import { fetchGoogleMapsReviews } from './sources/googleMaps';
+import { fetchGoogleNews } from './sources/googleNews';
+import { fetchMunicipalRSS } from './sources/municipalRSS';
+import { generateSummary } from './llm/ioNet';
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const area = url.searchParams.get('area') || '大阪・京橋/都島';
+
+    // ルーティング
+    if (url.pathname === '/api/digest') {
+      return handleDigest(area, env);
+    } else if (url.pathname === '/api/sources') {
+      return handleSources(area, env);
+    } else if (url.pathname === '/api/maps') {
+      return handleMapsOnly(area, env);
+    } else if (url.pathname === '/api/news') {
+      return handleNewsOnly(area, env);
+    } else if (url.pathname === '/api/municipal') {
+      return handleMunicipalOnly(area, env);
+    } else if (url.pathname === '/') {
+      return serveStaticFile('index.html');
+    }
+
+    return new Response('Not Found', { status: 404 });
+  }
+};
+
+async function handleSources(area, env) {
+  // 並列取得（Promise.allSettled で一部失敗を許容）
+  const [mapsResult, newsResult, rssResult] = await Promise.allSettled([
+    fetchGoogleMapsReviews(area, env),
+    fetchGoogleNews(area, env),
+    fetchMunicipalRSS(env)
+  ]);
+
+  const sources = {
+    googleMaps: mapsResult.status === 'fulfilled'
+      ? mapsResult.value
+      : { count: 0, items: [] },
+    googleNews: newsResult.status === 'fulfilled'
+      ? newsResult.value
+      : { count: 0, items: [] },
+    municipalRSS: rssResult.status === 'fulfilled'
+      ? rssResult.value
+      : { count: 0, items: [] }
+  };
+
+  return new Response(JSON.stringify({ area, sources }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
+async function handleDigest(area, env) {
+  // 1. ソース収集
+  const sourcesResponse = await handleSources(area, env);
+  const { sources } = await sourcesResponse.json();
+
+  // 2. LLM要約生成
+  const summary = await generateSummary(area, sources, env);
+
+  return new Response(JSON.stringify({
+    area,
+    summary,
+    sources,
+    generatedAt: new Date().toISOString()
+  }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+```
+
+## src/sources/googleMaps.js
+
+```javascript
+export async function fetchGoogleMapsReviews(area, env) {
+  const API_KEY = env.GOOGLE_MAPS_API_KEY;
+  const BASE_URL = env.GOOGLE_MAPS_BASE_URL;
+
+  // 1. Text Search（場所検索）
+  const searchRes = await fetch(`${BASE_URL}/places:searchText`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': API_KEY,
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating'
+    },
+    body: JSON.stringify({
+      textQuery: area,
+      languageCode: 'ja',
+      maxResultCount: 10
+    }),
+    cf: { cacheTtl: 3600 } // 1時間キャッシュ
+  });
+
+  if (!searchRes.ok) {
+    throw new Error(`Maps Search API Error: ${searchRes.status}`);
+  }
+
+  const { places } = await searchRes.json();
+  if (!places || places.length === 0) {
+    return { count: 0, items: [] };
+  }
+
+  // 2. Place Details（レビュー取得）
+  const allReviews = [];
+  for (const place of places.slice(0, 5)) {
+    const detailsRes = await fetch(`${BASE_URL}/${place.id}`, {
+      headers: {
+        'X-Goog-Api-Key': API_KEY,
+        'X-Goog-FieldMask': 'reviews'
+      },
+      cf: { cacheTtl: 3600 }
+    });
+
+    if (detailsRes.ok) {
+      const details = await detailsRes.json();
+      if (details.reviews) {
+        allReviews.push(...details.reviews.map(r => ({
+          type: 'review',
+          place: place.displayName?.text || 'Unknown',
+          rating: r.rating || 0,
+          text: r.text?.text || '',
+          author: r.authorAttribution?.displayName || 'Anonymous',
+          time: r.publishTime,
+          url: `https://www.google.com/maps/place/?q=place_id:${place.id}`
+        })));
+      }
+    }
+  }
+
+  return {
+    count: allReviews.length,
+    items: allReviews.slice(0, 20) // 最大20件
+  };
+}
+```
+
+## src/sources/googleNews.js
+
+```javascript
+import { parseRSS } from '../utils/rssParser';
+
+export async function fetchGoogleNews(area, env) {
+  const rssUrl = env.GOOGLE_NEWS_RSS_URL;
+
+  const res = await fetch(rssUrl, {
+    cf: { cacheTtl: 600 } // 10分キャッシュ
+  });
+
+  if (!res.ok) {
+    throw new Error(`Google News RSS Error: ${res.status}`);
+  }
+
+  const xml = await res.text();
+  const items = parseRSS(xml, 'article', 10);
+
+  return {
+    count: items.length,
+    items
+  };
+}
+```
+
+## src/sources/municipalRSS.js
+
+```javascript
+import { parseRSS } from '../utils/rssParser';
+
+export async function fetchMunicipalRSS(env) {
+  const urls = JSON.parse(env.MUNICIPAL_RSS_URLS);
+  const allItems = [];
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        cf: { cacheTtl: 1800 } // 30分キャッシュ
+      });
+
+      if (res.ok) {
+        const xml = await res.text();
+        const items = parseRSS(xml, 'announcement', 5);
+        allItems.push(...items);
+      }
+    } catch (err) {
+      console.error(`Municipal RSS Error (${url}):`, err);
+    }
+  }
+
+  return {
+    count: allItems.length,
+    items: allItems
+  };
+}
+```
+
+## src/utils/rssParser.js
+
+```javascript
+export function parseRSS(xmlString, type, limit = 10) {
+  // 簡易XMLパーサー（本番ではライブラリ使用推奨）
+  const items = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+
+  let match;
+  while ((match = itemRegex.exec(xmlString)) !== null && items.length < limit) {
+    const itemXml = match[1];
+
+    const title = extractTag(itemXml, 'title');
+    const link = extractTag(itemXml, 'link');
+    const description = extractTag(itemXml, 'description');
+    const pubDate = extractTag(itemXml, 'pubDate');
+
+    if (title && link) {
+      items.push({
+        type,
+        title,
+        url: link,
+        snippet: description,
+        description,
+        publishedAt: pubDate ? new Date(pubDate).toISOString() : null
+      });
+    }
+  }
+
+  return items;
+}
+
+function extractTag(xml, tagName) {
+  const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\/${tagName}>`, 'i');
+  const match = xml.match(regex);
+  return match ? match[1].trim().replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1') : '';
+}
+```
+
+## src/llm/ioNet.js
+
+```javascript
+export async function generateSummary(area, sources, env) {
+  const API_KEY = env.IO_API_KEY;
+  const BASE_URL = env.IO_BASE_URL;
+  const MODEL = env.IO_MODEL;
+
+  // データを整形
+  const mapsData = sources.googleMaps.items.map(r =>
+    `場所: ${r.place}\n評価: ${r.rating}★\nレビュー: ${r.text}\n投稿者: ${r.author}`
+  ).join('\n\n');
+
+  const newsData = sources.googleNews.items.map(n =>
+    `タイトル: ${n.title}\n概要: ${n.snippet}\nURL: ${n.url}`
+  ).join('\n\n');
+
+  const municipalData = sources.municipalRSS.items.map(m =>
+    `タイトル: ${m.title}\n内容: ${m.description}\nURL: ${m.url}`
+  ).join('\n\n');
+
+  const userPrompt = `エリア: ${area}
+
+以下のデータから、最新状況を居住者向けに「3段落＋箇条書き5点」で要約してください。
+
+【Google Maps レビュー】
+${mapsData || '（データなし）'}
+
+【Google News 記事】
+${newsData || '（データなし）'}
+
+【自治体お知らせ】
+${municipalData || '（データなし）'}
+
+最後に"Sources"としてタイトル＋URL＋ソース種別を列挙してください。`;
+
+  const res = await fetch(`${BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        {
+          role: 'system',
+          content: 'あなたは地域情報の要約エキスパートです。事実のみを記述し、すべての情報に出典を明示してください。'
+        },
+        {
+          role: 'user',
+          content: userPrompt
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 1500
+    })
+  });
+
+  if (!res.ok) {
+    return `（要約生成エラー: ${res.status}）`;
+  }
+
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+```
+
+---
+
+# 付録C. 受け入れ基準（詳細）
+
+### Phase 1（MVP）
+
+* **AC-1**: Google Maps APIから最低1箇所のレビューを取得できる
+* **AC-2**: Google News RSSから最低1件の記事を取得できる
+* **AC-3**: 自治体RSSから最低1件のお知らせを取得できる
+* **AC-4**: `/api/digest` の `summary` が3段落＋箇条書き5点＋Sourcesで整形されている
+* **AC-5**: Sourcesに全ソース種別（Maps/News/RSS）が明示されている
+* **AC-6**: レビューの星評価が1.0-5.0で正しく表示される
+* **AC-7**: すべてのリンクがクリック可能でリンク切れがない
+* **AC-8**: 15秒以内に応答（ネットワークとLLM負荷により変動可）
+* **AC-9**: 1つのソースが失敗しても他のソースは正常取得
+* **AC-10**: キャッシュが有効（同一リクエストで2回目は高速）
+* **AC-11**: エラー時はHTTP 200でエラーメッセージ付きJSONを返す
+
+---
+
+# 付録D. 今後の拡張（Phase 2以降）
+
+## Phase 2: SNS統合（X API）
+
+**前提条件:**
+* 収益化達成（月額$5,000のX API Pro プラン契約）
+* モデレーション機能の実装
+
+**実装内容:**
+```javascript
+// src/sources/twitter.js
+export async function fetchTwitterPosts(area, env) {
+  const BEARER_TOKEN = env.TWITTER_BEARER_TOKEN;
+
+  const query = `京橋 OR 都島 place:"大阪" -is:retweet`;
+  const res = await fetch(
+    `https://api.twitter.com/2/tweets/search/recent?query=${encodeURIComponent(query)}&max_results=20`,
+    {
+      headers: {
+        'Authorization': `Bearer ${BEARER_TOKEN}`
+      },
+      cf: { cacheTtl: 300 } // 5分キャッシュ
+    }
+  );
+
+  // モデレーション処理
+  const tweets = await res.json();
+  const filtered = tweets.data.filter(t => !containsNGWords(t.text));
+
+  return {
+    count: filtered.length,
+    items: filtered.map(t => ({
+      type: 'tweet',
+      text: t.text,
+      author: t.author_id,
+      time: t.created_at,
+      url: `https://twitter.com/i/web/status/${t.id}`
+    }))
+  };
+}
+```
+
+## Phase 3: 高度な機能
+
+* **クラスタリング**: 埋め込みベクトル + KMeans で話題整理
+* **RAG統合**: 自治体情報をベクトルDB（Cloudflare Vectorize）に格納
+* **Web Push通知**: 毎朝7時に自動配信
+* **日次アーカイブ**: Cloudflare R2にJSON保存
+
+---
+
+# 付録E. コスト試算とスケーリング戦略
+
+## Phase 1（MVP）コスト見積もり
+
+### 前提条件
+* 月間ユニークユーザー: 1,000人
+* 1ユーザーあたり平均3リクエスト/月
+* 合計リクエスト数: 3,000回/月
+
+### 詳細コスト
+
+| サービス | 使用量 | 単価 | 月額料金 |
+|----------|--------|------|----------|
+| **Google Maps Places API** | | | |
+| - Text Search | 3,000回 | $32/1,000回 | $96 |
+| - Place Details | 15,000回（5箇所×3,000） | $17/1,000回 | $255 |
+| **小計（Maps）** | | | **$351** |
+| - 無料枠適用後 | -$200/月 | | **$151** |
+| **Google News RSS** | 無制限 | 無料 | $0 |
+| **自治体RSS** | 無制限 | 無料 | $0 |
+| **Cloudflare Workers** | 100,000リクエスト/月 | 無料枠 | $0 |
+| **io.net LLM API** | 3,000回要約 | $0.01/回（推定） | $30 |
+| **合計（Phase 1）** | | | **約$181/月** |
+
+### コスト最適化戦略
+
+1. **キャッシュ強化**
+   * Maps APIのTTLを1時間→6時間に延長
+   * Cloudflare KVで要約結果を24時間キャッシュ
+   * **削減効果**: 約40%（$181 → $110/月）
+
+2. **リクエスト制限**
+   * 同一ユーザーの連続リクエストを5分間制限
+   * **削減効果**: 約20%（$181 → $145/月）
+
+3. **段階的スケーリング**
+   * 0-100ユーザー: 無料枠内で運用可能
+   * 100-1,000ユーザー: 月額$50-150
+   * 1,000-10,000ユーザー: 月額$150-500
+   * 10,000+ユーザー: 広告収益/サブスク導入検討
+
+### Phase 2 コスト（X API統合後）
+
+| サービス | 月額料金 |
+|----------|----------|
+| Phase 1コスト | $181 |
+| X API Pro プラン | $5,000 |
+| **合計（Phase 2）** | **$5,181/月** |
+
+**収益化必須**: Phase 2移行には月額$5,000以上の収益基盤が必要
+
+---
+
+# 付録F. Phase 2以降のSNS統合計画
+
+## X API 統合ロードマップ
+
+### マイルストーン1: 収益化（目標: Phase 1から6ヶ月）
+
+* 月間ユーザー数: 10,000人
+* 広告収益 or サブスクリプション: $6,000/月
+* X API Pro プラン契約の意思決定
+
+### マイルストーン2: モデレーション実装（3ヶ月）
+
+```javascript
+// src/moderation/filter.js
+export function moderateTweet(text) {
+  const ngWords = ['禁止ワード1', '禁止ワード2'];
+  const hasNGWord = ngWords.some(w => text.includes(w));
+
+  if (hasNGWord) return null;
+
+  // センチメント分析（将来）
+  const sentiment = analyzeSentiment(text);
+  if (sentiment.score < -0.5) return null; // ネガティブ過ぎる投稿を除外
+
+  return text;
+}
+```
+
+### マイルストーン3: X API統合（2ヶ月）
+
+* ハッシュタグ検索: `#大阪京橋`, `#都島`
+* 地域フィルタ: `place:大阪`
+* リアルタイム性: 5分間隔でポーリング
+
+### Instagram について
+
+**現状評価**: 技術的に地域検索が不可能なため、Phase 2以降も統合見送り
+
+**代替案**:
+* Instagramユーザーによる手動投稿機能（ハッシュタグ `#京橋レーダー` で収集）
+* Instagram公式が地域検索APIを提供した場合に再検討
+
+---
+
+## まとめ
+
+**Phase 1（MVP）**: Google Maps + Google News RSS + 自治体RSS
+* 合法的・低コスト（月額$181）
+* 即座に実装可能
+* 安定した運用
+
+**Phase 2（将来）**: X API統合
+* 収益化後に検討（月額$5,181）
+* モデレーション機能必須
+
+**Instagram**: 現時点では技術的制約により保留
+
+この仕様に基づき、まずPhase 1のMVPを構築し、ユーザーフィードバックを得ながら段階的に機能拡張を進めることを推奨します。

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Workflow Tracker - ビジュアル画像処理ワークフロー</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Vis.js for Network Visualization -->
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/workflow.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 min-h-screen text-white overflow-hidden">
+    <!-- Header -->
+    <header class="bg-black/30 backdrop-blur-lg border-b border-white/10 fixed top-0 left-0 right-0 z-40">
+        <div class="px-6 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-project-diagram text-2xl text-purple-400"></i>
+                    <div>
+                        <h1 class="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                            Image Workflow Tracker
+                        </h1>
+                        <p class="text-xs text-gray-400">ビジュアル画像処理パイプライン</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <!-- Workflow Controls -->
+                    <button id="newWorkflowBtn" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-sm">
+                        <i class="fas fa-plus mr-1"></i>新規
+                    </button>
+                    <button id="saveWorkflowBtn" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-sm">
+                        <i class="fas fa-save mr-1"></i>保存
+                    </button>
+                    <button id="loadWorkflowBtn" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-sm">
+                        <i class="fas fa-folder-open mr-1"></i>読込
+                    </button>
+                    
+                    <div class="w-px h-6 bg-white/20"></div>
+                    
+                    <!-- View Controls -->
+                    <button id="fitViewBtn" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm">
+                        <i class="fas fa-compress-arrows-alt"></i>
+                    </button>
+                    <button id="zoomInBtn" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                    <button id="zoomOutBtn" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    
+                    <div class="w-px h-6 bg-white/20"></div>
+                    
+                    <button id="settingsBtn" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Canvas Area -->
+    <main class="fixed inset-0 pt-16">
+        <div class="relative w-full h-full">
+            <!-- Workflow Canvas -->
+            <div id="workflowCanvas" class="absolute inset-0 bg-gray-950/50">
+                <!-- Network visualization will be rendered here -->
+            </div>
+
+            <!-- Floating Toolbar -->
+            <div id="floatingToolbar" class="absolute top-4 left-4 bg-black/60 backdrop-blur-lg rounded-xl p-2 border border-white/10 space-y-2">
+                <button id="addNodeBtn" class="w-10 h-10 bg-purple-600 hover:bg-purple-700 rounded-lg flex items-center justify-center transition-colors group relative">
+                    <i class="fas fa-plus text-white"></i>
+                    <span class="absolute left-12 bg-black/90 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        ノード追加 (N)
+                    </span>
+                </button>
+                <button id="connectNodesBtn" class="w-10 h-10 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center justify-center transition-colors group relative">
+                    <i class="fas fa-link text-white"></i>
+                    <span class="absolute left-12 bg-black/90 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        接続モード (C)
+                    </span>
+                </button>
+                <button id="deleteBtn" class="w-10 h-10 bg-red-600 hover:bg-red-700 rounded-lg flex items-center justify-center transition-colors group relative">
+                    <i class="fas fa-trash text-white"></i>
+                    <span class="absolute left-12 bg-black/90 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        削除 (Del)
+                    </span>
+                </button>
+                <div class="w-full h-px bg-white/20"></div>
+                <button id="uploadToNodeBtn" class="w-10 h-10 bg-green-600 hover:bg-green-700 rounded-lg flex items-center justify-center transition-colors group relative">
+                    <i class="fas fa-upload text-white"></i>
+                    <span class="absolute left-12 bg-black/90 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        画像アップロード
+                    </span>
+                </button>
+                <button id="mergeNodesBtn" class="w-10 h-10 bg-orange-600 hover:bg-orange-700 rounded-lg flex items-center justify-center transition-colors group relative">
+                    <i class="fas fa-object-group text-white"></i>
+                    <span class="absolute left-12 bg-black/90 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        ノード結合
+                    </span>
+                </button>
+            </div>
+
+            <!-- Mini Map -->
+            <div id="miniMap" class="absolute bottom-4 right-4 w-48 h-32 bg-black/60 backdrop-blur-lg rounded-lg border border-white/20 overflow-hidden">
+                <div class="text-xs text-gray-400 p-1">ミニマップ</div>
+                <div id="miniMapContent" class="w-full h-full"></div>
+            </div>
+
+            <!-- Status Bar -->
+            <div id="statusBar" class="absolute bottom-4 left-4 bg-black/60 backdrop-blur-lg rounded-lg px-4 py-2 border border-white/10">
+                <div class="flex items-center space-x-4 text-xs text-gray-400">
+                    <span>ノード: <span id="nodeCount" class="text-white">0</span></span>
+                    <span>エッジ: <span id="edgeCount" class="text-white">0</span></span>
+                    <span>選択: <span id="selectedCount" class="text-white">0</span></span>
+                    <span id="currentMode" class="text-purple-400">
+                        <i class="fas fa-mouse-pointer mr-1"></i>選択モード
+                    </span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Circle menu will be created dynamically by JavaScript -->
+
+    <!-- Node Detail Panel -->
+    <div id="nodeDetailPanel" class="fixed right-0 top-16 bottom-0 w-96 bg-black/80 backdrop-blur-xl border-l border-white/10 transform translate-x-full transition-transform z-30">
+        <div class="p-6 h-full overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold">ノード詳細</h2>
+                <button id="closeDetailPanel" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div id="nodeDetailContent">
+                <!-- Node details will be populated here -->
+                <div class="text-gray-500 text-center py-12">
+                    <i class="fas fa-mouse-pointer text-4xl mb-4"></i>
+                    <p>ノードを選択してください</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edge Prompt Editor -->
+    <div id="edgePromptModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-gray-900 rounded-xl max-w-2xl w-full border border-white/10">
+                <div class="flex items-center justify-between p-6 border-b border-white/10">
+                    <h3 class="text-xl font-semibold">プロンプト編集</h3>
+                    <button id="closePromptEditor" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                変換スタイル
+                            </label>
+                            <select id="promptStyle" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                                <option value="artistic">アーティスティック</option>
+                                <option value="photorealistic">写実的</option>
+                                <option value="anime">アニメスタイル</option>
+                                <option value="cyberpunk">サイバーパンク</option>
+                                <option value="watercolor">水彩画</option>
+                                <option value="oil-painting">油絵</option>
+                                <option value="sketch">スケッチ</option>
+                                <option value="3d-render">3Dレンダリング</option>
+                                <option value="style-transfer">スタイル転送</option>
+                                <option value="merge">画像結合</option>
+                                <option value="custom">カスタム</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                プロンプト
+                            </label>
+                            <textarea id="promptText" 
+                                      class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500" 
+                                      rows="6" 
+                                      placeholder="変換プロンプトを入力..."></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                画像編集モデル
+                            </label>
+                            <select id="promptModel" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                                <option value="fal-ai/nano-banana" selected>Nano Banana</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex items-center space-x-2">
+                            <label class="block text-sm font-medium text-gray-300">
+                                生成枚数:
+                            </label>
+                            <input type="number" id="promptImageCount" min="1" max="10" value="3" 
+                                   class="w-20 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-purple-500">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button id="cancelPromptBtn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                            キャンセル
+                        </button>
+                        <button id="generateWithLLMBtn" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
+                            <i class="fas fa-magic mr-2"></i>LLMで生成
+                        </button>
+                        <button id="savePromptBtn" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+                            <i class="fas fa-check mr-2"></i>保存して実行
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-gray-900 rounded-xl max-w-md w-full border border-white/10">
+                <div class="flex items-center justify-between p-6 border-b border-white/10">
+                    <h3 class="text-xl font-semibold">設定</h3>
+                    <button id="closeSettingsBtn" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            IO Intelligence API Key
+                        </label>
+                        <input type="password" id="ioApiKey" placeholder="API キーを入力" 
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            Replicate API Key
+                        </label>
+                        <input type="password" id="replicateApiKey" placeholder="Replicate API キーを入力" 
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            画像編集モデル
+                        </label>
+                        <select id="defaultModel" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                            <option value="fal-ai/nano-banana" selected>Nano Banana</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            LLMモデル
+                        </label>
+                        <select id="llmModel" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                            <option value="gpt-o1s-120B">OpenAI GPT-O1S-120B</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="autoSave" class="form-checkbox h-5 w-5 text-purple-600" checked>
+                            <span class="ml-2 text-gray-300">ワークフロー自動保存</span>
+                        </label>
+                    </div>
+                    
+                    <button id="saveSettingsBtn" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
+                        <i class="fas fa-save mr-2"></i>設定を保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden File Input -->
+    <input type="file" id="fileInput" accept="image/*" class="hidden" multiple>
+    <input type="file" id="workflowFileInput" accept=".json" class="hidden">
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/llmService.js"></script>
+    <script src="js/transformationService.js"></script>
+    <script src="js/workflowEngine.js"></script>
+    <script src="js/canvasController.js"></script>
+    <script src="js/workflowApp.js"></script>
+</body>
+</html>

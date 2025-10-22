@@ -1,0 +1,570 @@
+# 近所ニュース要約レーダー｜開発工程（Step by Step）
+
+> **Phase 1（完全無料 $0/月）**: X API Free + Google News RSS + 自治体RSS + Cloudflare D1蓄積
+
+---
+
+## 📋 開発ステップ一覧
+
+### ステップ1: プロジェクトセットアップ（30分）
+
+```bash
+# 1-1. プロジェクト作成
+npm create cloudflare@latest kyobashi-news -- --framework none
+
+# 1-2. 依存関係インストール
+cd kyobashi-news
+npm install
+
+# 1-3. Cloudflare D1データベース作成
+wrangler d1 create kyobashi-tweets-db
+
+# 1-4. wrangler.tomlに設定追加
+```
+
+**wrangler.toml:**
+```toml
+name = "kyobashi-news"
+main = "src/worker.js"
+compatibility_date = "2025-10-01"
+
+[vars]
+IO_BASE_URL = "https://api.intelligence.io.solutions/api/v1"
+IO_MODEL = "openai/gpt-oss-120b"
+GOOGLE_NEWS_RSS_URL = "https://news.google.com/rss/search?q=京橋+大阪+OR+都島&hl=ja&gl=JP&ceid=JP:ja"
+MUNICIPAL_RSS_URLS = '["https://www.city.osaka.lg.jp/miyakojima/rss/index.xml"]'
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kyobashi-tweets-db"
+database_id = "YOUR_DATABASE_ID"  # wrangler d1 create の出力からコピー
+```
+
+---
+
+### ステップ2: D1データベーススキーマ作成（15分）
+
+```bash
+# 2-1. マイグレーションファイル作成
+wrangler d1 migrations create kyobashi-tweets-db create_tweets_table
+```
+
+**migrations/0001_create_tweets_table.sql:**
+```sql
+-- ツイートテーブル
+CREATE TABLE IF NOT EXISTS tweets (
+  id TEXT PRIMARY KEY,
+  text TEXT NOT NULL,
+  author_id TEXT,
+  created_at TEXT NOT NULL,
+  url TEXT NOT NULL,
+  fetched_at INTEGER NOT NULL,
+  INDEX idx_created_at (created_at DESC),
+  INDEX idx_fetched_at (fetched_at DESC)
+);
+
+-- 古いツイート削除用（7日以上前）
+CREATE INDEX idx_cleanup ON tweets(fetched_at);
+```
+
+```bash
+# 2-2. マイグレーション適用（ローカル）
+wrangler d1 migrations apply kyobashi-tweets-db --local
+
+# 2-3. マイグレーション適用（本番は後で）
+wrangler d1 migrations apply kyobashi-tweets-db --remote
+```
+
+---
+
+### ステップ3: RSSパーサー実装（30分）
+
+**src/utils/rssParser.js:**
+```javascript
+export function parseRSS(xmlString, type, limit = 10) {
+  const items = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+
+  let match;
+  while ((match = itemRegex.exec(xmlString)) !== null && items.length < limit) {
+    const itemXml = match[1];
+
+    const title = extractTag(itemXml, 'title');
+    const link = extractTag(itemXml, 'link');
+    const description = extractTag(itemXml, 'description');
+    const pubDate = extractTag(itemXml, 'pubDate');
+
+    if (title && link) {
+      items.push({
+        type,
+        title,
+        url: link,
+        snippet: description,
+        publishedAt: pubDate ? new Date(pubDate).toISOString() : null
+      });
+    }
+  }
+
+  return items;
+}
+
+function extractTag(xml, tagName) {
+  const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\/${tagName}>`, 'i');
+  const match = xml.match(regex);
+  return match ? match[1].trim().replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1') : '';
+}
+```
+
+---
+
+### ステップ4: X API Free統合 + D1蓄積ロジック（1時間）
+
+**src/sources/twitter.js:**
+```javascript
+export async function fetchTwitterWithD1(env) {
+  const BEARER_TOKEN = env.TWITTER_BEARER_TOKEN;
+  const DB = env.DB;
+
+  // 4-1. D1から最近のツイートを取得（7日以内）
+  const cached = await DB.prepare(`
+    SELECT * FROM tweets
+    WHERE fetched_at > ?
+    ORDER BY created_at DESC
+    LIMIT 100
+  `).bind(Date.now() - 7 * 24 * 60 * 60 * 1000).all();
+
+  // 4-2. 1時間以内にフェッチしたデータがあればそれを返す
+  const lastFetch = cached.results[0]?.fetched_at || 0;
+  if (Date.now() - lastFetch < 3600000) { // 1時間
+    return {
+      count: cached.results.length,
+      items: cached.results.map(formatTweet),
+      source: 'cache'
+    };
+  }
+
+  // 4-3. X API Free呼び出し（1時間に1回のみ）
+  const query = '京橋 大阪 OR 都島 -is:retweet';
+  const res = await fetch(
+    `https://api.twitter.com/2/tweets/search/recent?query=${encodeURIComponent(query)}&max_results=100&tweet.fields=created_at,author_id`,
+    {
+      headers: { 'Authorization': `Bearer ${BEARER_TOKEN}` }
+    }
+  );
+
+  if (!res.ok) {
+    console.error(`X API Error: ${res.status}`);
+    // エラー時は既存のキャッシュを返す
+    return {
+      count: cached.results.length,
+      items: cached.results.map(formatTweet),
+      source: 'cache_fallback'
+    };
+  }
+
+  const data = await res.json();
+  const tweets = data.data || [];
+
+  // 4-4. D1に保存（既存データを上書き）
+  const stmt = DB.prepare(
+    'INSERT OR REPLACE INTO tweets (id, text, author_id, created_at, url, fetched_at) VALUES (?, ?, ?, ?, ?, ?)'
+  );
+
+  const batch = tweets.map(t => stmt.bind(
+    t.id,
+    t.text,
+    t.author_id,
+    t.created_at,
+    `https://twitter.com/i/web/status/${t.id}`,
+    Date.now()
+  ));
+
+  await DB.batch(batch);
+
+  // 4-5. 7日以上前のデータを削除
+  await DB.prepare('DELETE FROM tweets WHERE fetched_at < ?')
+    .bind(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    .run();
+
+  return {
+    count: tweets.length,
+    items: tweets.map(t => ({
+      type: 'tweet',
+      text: t.text,
+      author: t.author_id,
+      time: t.created_at,
+      url: `https://twitter.com/i/web/status/${t.id}`
+    })),
+    source: 'api'
+  };
+}
+
+function formatTweet(row) {
+  return {
+    type: 'tweet',
+    text: row.text,
+    author: row.author_id,
+    time: row.created_at,
+    url: row.url
+  };
+}
+```
+
+---
+
+### ステップ5: Google News RSS統合（15分）
+
+**src/sources/googleNews.js:**
+```javascript
+import { parseRSS } from '../utils/rssParser.js';
+
+export async function fetchGoogleNews(env) {
+  const rssUrl = env.GOOGLE_NEWS_RSS_URL;
+
+  const res = await fetch(rssUrl, {
+    cf: { cacheTtl: 600 } // 10分キャッシュ
+  });
+
+  if (!res.ok) {
+    throw new Error(`Google News RSS Error: ${res.status}`);
+  }
+
+  const xml = await res.text();
+  const items = parseRSS(xml, 'article', 10);
+
+  return {
+    count: items.length,
+    items
+  };
+}
+```
+
+---
+
+### ステップ6: 自治体RSS統合（15分）
+
+**src/sources/municipalRSS.js:**
+```javascript
+import { parseRSS } from '../utils/rssParser.js';
+
+export async function fetchMunicipalRSS(env) {
+  const urls = JSON.parse(env.MUNICIPAL_RSS_URLS);
+  const allItems = [];
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        cf: { cacheTtl: 1800 } // 30分キャッシュ
+      });
+
+      if (res.ok) {
+        const xml = await res.text();
+        const items = parseRSS(xml, 'announcement', 5);
+        allItems.push(...items);
+      }
+    } catch (err) {
+      console.error(`Municipal RSS Error (${url}):`, err);
+    }
+  }
+
+  return {
+    count: allItems.length,
+    items: allItems
+  };
+}
+```
+
+---
+
+### ステップ7: LLM要約生成（30分）
+
+**src/llm/ioNet.js:**
+```javascript
+export async function generateSummary(area, sources, env) {
+  const API_KEY = env.IO_API_KEY;
+  const BASE_URL = env.IO_BASE_URL;
+  const MODEL = env.IO_MODEL;
+
+  // データを整形
+  const tweetsData = sources.twitter.items.map(t =>
+    `投稿: ${t.text}\n時刻: ${t.time}`
+  ).join('\n\n');
+
+  const newsData = sources.googleNews.items.map(n =>
+    `タイトル: ${n.title}\n概要: ${n.snippet}\nURL: ${n.url}`
+  ).join('\n\n');
+
+  const municipalData = sources.municipalRSS.items.map(m =>
+    `タイトル: ${m.title}\n内容: ${m.snippet}\nURL: ${m.url}`
+  ).join('\n\n');
+
+  const userPrompt = `エリア: ${area}
+
+以下のデータから、最新状況を居住者向けに「3段落＋箇条書き5点」で要約してください。
+
+【X (Twitter) 投稿】
+${tweetsData || '（データなし）'}
+
+【Google News 記事】
+${newsData || '（データなし）'}
+
+【自治体お知らせ】
+${municipalData || '（データなし）'}
+
+最後に"Sources"としてタイトル＋URL＋ソース種別を列挙してください。`;
+
+  const res = await fetch(`${BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        {
+          role: 'system',
+          content: 'あなたは地域情報の要約エキスパートです。事実のみを記述し、すべての情報に出典を明示してください。'
+        },
+        {
+          role: 'user',
+          content: userPrompt
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 1500
+    })
+  });
+
+  if (!res.ok) {
+    return `（要約生成エラー: ${res.status}）`;
+  }
+
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+```
+
+---
+
+### ステップ8: Workerメインロジック（30分）
+
+**src/worker.js:**
+```javascript
+import { fetchTwitterWithD1 } from './sources/twitter.js';
+import { fetchGoogleNews } from './sources/googleNews.js';
+import { fetchMunicipalRSS } from './sources/municipalRSS.js';
+import { generateSummary } from './llm/ioNet.js';
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const area = url.searchParams.get('area') || '大阪・京橋/都島';
+
+    // ルーティング
+    if (url.pathname === '/api/digest') {
+      return handleDigest(area, env);
+    } else if (url.pathname === '/api/sources') {
+      return handleSources(area, env);
+    } else if (url.pathname === '/') {
+      return new Response(INDEX_HTML, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      });
+    }
+
+    return new Response('Not Found', { status: 404 });
+  }
+};
+
+async function handleSources(area, env) {
+  // 並列取得
+  const [twitterResult, newsResult, rssResult] = await Promise.allSettled([
+    fetchTwitterWithD1(env),
+    fetchGoogleNews(env),
+    fetchMunicipalRSS(env)
+  ]);
+
+  const sources = {
+    twitter: twitterResult.status === 'fulfilled' ? twitterResult.value : { count: 0, items: [] },
+    googleNews: newsResult.status === 'fulfilled' ? newsResult.value : { count: 0, items: [] },
+    municipalRSS: rssResult.status === 'fulfilled' ? rssResult.value : { count: 0, items: [] }
+  };
+
+  return new Response(JSON.stringify({ area, sources }), {
+    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+  });
+}
+
+async function handleDigest(area, env) {
+  const sourcesResponse = await handleSources(area, env);
+  const { sources } = await sourcesResponse.json();
+
+  const summary = await generateSummary(area, sources, env);
+
+  return new Response(JSON.stringify({
+    area,
+    summary,
+    sources,
+    generatedAt: new Date().toISOString()
+  }), {
+    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+  });
+}
+
+const INDEX_HTML = `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>近所ニュース要約レーダー（京橋/都島）</title>
+  <style>
+    body { font-family: system-ui; max-width: 800px; margin: 20px auto; padding: 0 16px; }
+    .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    button { padding: 8px 16px; margin: 8px 4px; cursor: pointer; }
+    .tabs button { border: none; background: #f0f0f0; }
+    .tabs button.active { background: #0a58ca; color: white; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    pre { white-space: pre-wrap; background: #f5f5f5; padding: 12px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>近所ニュース要約レーダー（京橋/都島）</h1>
+  <div class="card">
+    <button onclick="runDigest()">最新要約</button>
+    <button onclick="runSources()">ソースのみ</button>
+  </div>
+
+  <div class="card">
+    <h2>30秒ダイジェスト</h2>
+    <pre id="summary">（ここに要約）</pre>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="active" onclick="showTab('twitter')">X (Twitter)</button>
+      <button onclick="showTab('news')">Google News</button>
+      <button onclick="showTab('rss')">自治体RSS</button>
+    </div>
+    <div id="tab-twitter" class="tab-content active"></div>
+    <div id="tab-news" class="tab-content"></div>
+    <div id="tab-rss" class="tab-content"></div>
+  </div>
+
+  <script>
+    async function runDigest() {
+      document.getElementById('summary').textContent = '要約生成中...';
+      const res = await fetch('/api/digest?area=大阪・京橋/都島');
+      const data = await res.json();
+      document.getElementById('summary').textContent = data.summary;
+      renderSources(data.sources);
+    }
+
+    async function runSources() {
+      const res = await fetch('/api/sources?area=大阪・京橋/都島');
+      const data = await res.json();
+      renderSources(data.sources);
+    }
+
+    function renderSources(sources) {
+      document.getElementById('tab-twitter').innerHTML =
+        sources.twitter.items.map(t => \`<p><strong>\${t.time}</strong>: \${t.text}</p>\`).join('');
+      document.getElementById('tab-news').innerHTML =
+        sources.googleNews.items.map(n => \`<p><a href="\${n.url}">\${n.title}</a></p>\`).join('');
+      document.getElementById('tab-rss').innerHTML =
+        sources.municipalRSS.items.map(r => \`<p><a href="\${r.url}">\${r.title}</a></p>\`).join('');
+    }
+
+    function showTab(tab) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tabs button').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    runDigest();
+  </script>
+</body>
+</html>`;
+```
+
+---
+
+### ステップ9: 環境変数とSecretsの設定（10分）
+
+```bash
+# 9-1. ローカル開発用の.dev.vars作成
+echo "IO_API_KEY=your_io_net_api_key" > .dev.vars
+echo "TWITTER_BEARER_TOKEN=your_twitter_bearer_token" >> .dev.vars
+
+# 9-2. 本番用Secretsを登録
+wrangler secret put IO_API_KEY
+wrangler secret put TWITTER_BEARER_TOKEN
+```
+
+---
+
+### ステップ10: テストとデプロイ（30分）
+
+```bash
+# 10-1. ローカル開発サーバー起動
+wrangler dev
+
+# ブラウザで http://localhost:8787 を開いてテスト
+
+# 10-2. 各エンドポイントのテスト
+curl "http://localhost:8787/api/sources?area=大阪・京橋/都島"
+curl "http://localhost:8787/api/digest?area=大阪・京橋/都島"
+
+# 10-3. 本番デプロイ
+wrangler deploy
+
+# 10-4. 本番URLで動作確認
+curl "https://kyobashi-news.YOUR_SUBDOMAIN.workers.dev/api/digest"
+```
+
+---
+
+## ✅ 完成チェックリスト
+
+- [ ] X API Free からツイートを取得できる
+- [ ] D1にツイートが保存される（2回目のアクセスはキャッシュから高速取得）
+- [ ] Google News RSSから記事を取得できる
+- [ ] 自治体RSSからお知らせを取得できる
+- [ ] LLM要約が3段落＋箇条書き5点＋Sourcesで生成される
+- [ ] フロントエンドでタブ切り替えが動作する
+- [ ] 1時間に1回のみX APIが呼ばれる（ログで確認）
+- [ ] 7日以上前のツイートが自動削除される
+
+---
+
+## 📊 コスト試算
+
+| サービス | 月額料金 |
+|----------|----------|
+| X API (Free) | $0 |
+| Google News RSS | $0 |
+| 自治体RSS | $0 |
+| Cloudflare Workers | $0（無料枠内） |
+| Cloudflare D1 | $0（無料枠内: 5GB/月） |
+| io.net LLM API | $0〜$30（使用量次第） |
+| **合計** | **$0〜$30/月** |
+
+**完全無料MVP達成！** 🎉
+
+---
+
+## 🚀 Phase 2への拡張（将来）
+
+1. **Google Maps Places API追加**（月額$151〜）
+2. **X API Basic/Proへアップグレード**（月額$100〜$5,000）
+3. **Cloudflare R2でアーカイブ保存**
+4. **Web Push通知機能**
+
+---
+
+## 📚 参考リソース
+
+- [Cloudflare Workers ドキュメント](https://developers.cloudflare.com/workers/)
+- [Cloudflare D1 ドキュメント](https://developers.cloudflare.com/d1/)
+- [X API v2 ドキュメント](https://developer.twitter.com/en/docs/twitter-api)
+- [io.net LLM API ドキュメント](https://io.net/docs)
