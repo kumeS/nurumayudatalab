@@ -202,13 +202,11 @@ function syncCanvasViewportSize(options = {}) {
     const lower = canvas.lowerCanvasEl;
     const upper = canvas.upperCanvasEl;
 
-    // 重要: DOM要素には常に論理サイズ（ズーム適用前）のwidthとheightを設定
-    // Fabric.jsの内部ズーム機構(viewportTransform)が拡大縮小を担当
+    // キャンバスDOM要素にズーム適用後のサイズを設定
     [wrapper, lower, upper].forEach((el) => {
         if (!el) return;
-        // ズーム後のサイズではなく、キャンバスの論理サイズを設定
-        el.style.width = `${canvasWidth}px`;
-        el.style.height = `${canvasHeight}px`;
+        el.style.width = `${scaledWidth}px`;
+        el.style.height = `${scaledHeight}px`;
     });
 
     // コンテナのスクロール位置調整（ズーム後のサイズに基づく）
