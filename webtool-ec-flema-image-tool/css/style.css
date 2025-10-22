@@ -1895,10 +1895,33 @@ body.toolbar-scroll-active #canvasContainer {
     padding: 10px;
   }
 
-  /* Restore export button text on mobile (was hidden with font-size: 0) */
+  /* Hide all text in header - icons only on mobile */
+  .app-header h1 {
+    font-size: 0 !important;
+    width: auto;
+    overflow: visible;
+  }
+
+  .app-header h1 i {
+    font-size: 20px !important;
+  }
+
+  /* Hide FleMa text, keep icon */
+  .app-header h1::after {
+    content: none;
+  }
+
+  /* Export button - icon only */
+  .btn-export {
+    font-size: 0 !important;
+  }
+
+  .btn-export i {
+    font-size: 16px !important;
+  }
+
   .btn-export span {
-    display: inline;
-    font-size: 12px;
+    display: none !important;
   }
 
   /* Fix tool tabs height */
@@ -1935,7 +1958,22 @@ body.toolbar-scroll-active #canvasContainer {
 
   /* Improve button spacing in header */
   .header-actions {
-    gap: 10px;
+    gap: 8px;
+  }
+
+  /* Compact header layout on mobile */
+  .app-header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .btn-menu {
+    margin-right: 8px;
+  }
+
+  /* Hide save indicator on mobile */
+  .save-indicator {
+    display: none !important;
   }
 }
 
