@@ -2,9 +2,11 @@
 // プロジェクトデータの永続化
 
 const DB_NAME = 'FleMaDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // 画像履歴機能追加のためバージョンアップ
 const STORE_NAME = 'projects';
+const IMAGE_HISTORY_STORE = 'imageHistory'; // 画像履歴ストア
 const MAX_PROJECTS = 20; // 画像を含むプロジェクトを20件まで保持（共有用）
+const MAX_IMAGE_HISTORY = 50; // 画像履歴を最大50件まで保持
 
 let db = null;
 
@@ -26,13 +28,21 @@ function initIndexedDB() {
         
         request.onupgradeneeded = (event) => {
             db = event.target.result;
-            
+
             // プロジェクトストアを作成
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 const objectStore = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
                 objectStore.createIndex('updatedAt', 'updatedAt', { unique: false });
                 objectStore.createIndex('name', 'name', { unique: false });
-                console.log('Object store created');
+                console.log('Projects object store created');
+            }
+
+            // 画像履歴ストアを作成
+            if (!db.objectStoreNames.contains(IMAGE_HISTORY_STORE)) {
+                const imageStore = db.createObjectStore(IMAGE_HISTORY_STORE, { keyPath: 'id', autoIncrement: true });
+                imageStore.createIndex('uploadedAt', 'uploadedAt', { unique: false });
+                imageStore.createIndex('dataUrl', 'dataUrl', { unique: false });
+                console.log('Image history object store created');
             }
         };
     });
@@ -232,11 +242,112 @@ function generateProjectId() {
 // プロジェクト名を生成
 function generateProjectName() {
     const now = new Date();
-    const dateStr = now.toLocaleDateString('ja-JP', { 
-        month: 'short', 
+    const dateStr = now.toLocaleDateString('ja-JP', {
+        month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
     });
     return `プロジェクト ${dateStr}`;
+}
+
+// ========== 画像履歴管理 ==========
+
+// 画像履歴を保存
+async function saveImageToHistory(imageDataUrl, fileName = '') {
+    if (!db) {
+        await initIndexedDB();
+    }
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([IMAGE_HISTORY_STORE], 'readwrite');
+        const objectStore = transaction.objectStore(IMAGE_HISTORY_STORE);
+
+        const imageData = {
+            dataUrl: imageDataUrl,
+            fileName: fileName,
+            uploadedAt: Date.now()
+        };
+
+        const request = objectStore.add(imageData);
+
+        request.onsuccess = () => {
+            console.log('Image saved to history:', request.result);
+            cleanupOldImageHistory(); // 古い履歴を削除
+            resolve(request.result);
+        };
+
+        request.onerror = () => {
+            console.error('Save image history error:', request.error);
+            reject(request.error);
+        };
+    });
+}
+
+// すべての画像履歴を取得（新しい順）
+async function getAllImageHistory() {
+    if (!db) {
+        await initIndexedDB();
+    }
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([IMAGE_HISTORY_STORE], 'readonly');
+        const objectStore = transaction.objectStore(IMAGE_HISTORY_STORE);
+        const index = objectStore.index('uploadedAt');
+        const request = index.openCursor(null, 'prev'); // 新しい順
+
+        const images = [];
+
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                images.push(cursor.value);
+                cursor.continue();
+            } else {
+                resolve(images);
+            }
+        };
+
+        request.onerror = () => {
+            console.error('Get image history error:', request.error);
+            reject(request.error);
+        };
+    });
+}
+
+// 画像履歴を削除
+async function deleteImageFromHistory(imageId) {
+    if (!db) {
+        await initIndexedDB();
+    }
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([IMAGE_HISTORY_STORE], 'readwrite');
+        const objectStore = transaction.objectStore(IMAGE_HISTORY_STORE);
+        const request = objectStore.delete(imageId);
+
+        request.onsuccess = () => {
+            console.log('Image deleted from history:', imageId);
+            resolve();
+        };
+
+        request.onerror = () => {
+            console.error('Delete image history error:', request.error);
+            reject(request.error);
+        };
+    });
+}
+
+// 古い画像履歴を削除（最大数を超えた場合）
+async function cleanupOldImageHistory() {
+    const images = await getAllImageHistory();
+
+    if (images.length > MAX_IMAGE_HISTORY) {
+        // 古いものから削除
+        const toDelete = images.slice(MAX_IMAGE_HISTORY);
+        for (const image of toDelete) {
+            await deleteImageFromHistory(image.id);
+        }
+        console.log(`Cleaned up ${toDelete.length} old images from history`);
+    }
 }

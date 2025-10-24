@@ -316,9 +316,28 @@ function initializeEventListeners() {
     }
 }
 
+function getInitialLayoutMode() {
+    // 画面幅を最優先（メディアクエリと一致させる）
+    const isSmallScreen = window.innerWidth < 768;
+    const isMobileDevice = isMobile();
+
+    // スマホ判定：モバイルデバイス かつ 画面幅768px未満
+    if (isMobileDevice && isSmallScreen) {
+        return 'mobile';
+    }
+
+    // タブレット・PC、または大画面
+    // localStorageの設定を参考にするが、画面幅が優先
+    if (!isSmallScreen) {
+        const savedMode = localStorage.getItem('layoutMode');
+        return savedMode || 'desktop';
+    }
+
+    return 'desktop';
+}
+
 function initializeLayoutMode() {
-    const savedMode = localStorage.getItem('layoutMode');
-    const initialMode = savedMode === 'desktop' ? 'desktop' : 'mobile';
+    const initialMode = getInitialLayoutMode();
     applyLayoutMode(initialMode);
 
     updateHeaderHeightVariable();

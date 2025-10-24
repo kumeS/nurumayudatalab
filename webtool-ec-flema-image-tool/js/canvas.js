@@ -208,13 +208,12 @@ function syncCanvasViewportSize(options = {}) {
         wrapper.style.height = `${scaledHeight}px`;
     }
     
-    // lowerとupperはcanvas要素なので、styleとwidth/height属性両方を設定
+    // lowerとupperはcanvas要素なので、CSS表示サイズのみ設定
+    // canvas要素のwidth/height属性（描画解像度）は変更しない
     [lower, upper].forEach((el) => {
         if (!el) return;
         el.style.width = `${scaledWidth}px`;
         el.style.height = `${scaledHeight}px`;
-        el.width = scaledWidth;
-        el.height = scaledHeight;
     });
 
     // コンテナのスクロール位置調整（ズーム後のサイズに基づく）

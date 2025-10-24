@@ -46,8 +46,17 @@ function handleImageUpload(e) {
 
         const reader = new FileReader();
 
-        reader.onload = function(event) {
-            fabric.Image.fromURL(event.target.result, function(img) {
+        reader.onload = async function(event) {
+            const imageDataUrl = event.target.result;
+
+            // 画像を履歴に保存
+            try {
+                await saveImageToHistory(imageDataUrl, file.name);
+            } catch (error) {
+                console.error('Failed to save image to history:', error);
+            }
+
+            fabric.Image.fromURL(imageDataUrl, function(img) {
                 // 画像検証
                 if (!img || !img.width || !img.height) {
                     showNotification('画像の読み込みに失敗しました', 'error');

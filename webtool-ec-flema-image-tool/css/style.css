@@ -265,11 +265,21 @@ body {
 
 /* モバイル対応：ズームコントロールを非表示 */
 @media (max-width: 768px) {
+    /* スマホモードでページ全体のスクロール禁止 */
+    body {
+        overflow: hidden;
+        height: 100vh;
+        height: calc(var(--vh, 1vh) * 100);
+    }
+
     .app-container {
         max-width: 100%;
         margin: 0;
         border-radius: 0;
         box-shadow: none;
+        height: 100vh;
+        height: calc(var(--vh, 1vh) * 100);
+        overflow: hidden;
     }
 
     .app-header {
@@ -282,6 +292,9 @@ body {
                  calc(16px + env(safe-area-inset-left, 0px));
         top: env(safe-area-inset-top, 0px);
         flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
     }
 
     .app-header h1 {
@@ -306,6 +319,7 @@ body {
     .header-actions {
         gap: 8px;
         flex-shrink: 0;
+        min-width: min-content;
     }
 
     .btn-settings,
@@ -804,32 +818,82 @@ body.desktop-mode .text-controls-panel .checkbox-label.small input[type="checkbo
 }
 
 @media (max-width: 768px) {
+    /* スマホモード: ツールバーを上、キャンバスを下に配置 */
+    /* column-reverseで順序を逆転（desktop-modeでも強制適用） */
+    .main-content,
+    body.desktop-mode .main-content,
+    body.mobile-mode .main-content {
+        flex-direction: column-reverse !important;
+    }
+
+    /* ツールバーの高さを固定 */
+    .toolbar {
+        height: 40vh;
+        height: calc(var(--vh, 1vh) * 40);
+        max-height: 40vh;
+        max-height: calc(var(--vh, 1vh) * 40);
+        min-height: 250px;
+    }
+
+    /* キャンバスエリアの高さを固定（ヘッダー + ツールバー分を引く） */
+    #canvasContainer {
+        height: calc(60vh - var(--header-height, 96px));
+        height: calc(var(--vh, 1vh) * 60 - var(--header-height, 96px));
+        min-height: 200px;
+        max-height: calc(60vh - var(--header-height, 96px));
+        max-height: calc(var(--vh, 1vh) * 60 - var(--header-height, 96px));
+        position: relative;
+    }
+
+    /* 画像コントロールパネル: ツールバーの位置に切り替えて表示 */
     #canvasContainer.with-image-controls {
-        padding-left: 20px;
-        padding-bottom: 200px;
+        padding: 0;
     }
 
     .image-controls-panel {
-        top: auto;
-        left: 16px;
-        bottom: 16px;
-        width: calc(100% - 32px);
+        position: fixed;
+        top: var(--header-height, 96px);
+        left: 0;
+        bottom: auto;
+        width: 100%;
+        height: 40vh;
+        height: calc(var(--vh, 1vh) * 40);
+        max-height: 40vh;
+        max-height: calc(var(--vh, 1vh) * 40);
+        border-radius: 0;
+        overflow-y: auto;
+        z-index: 100;
     }
 
+    /* テキストコントロールパネル: ツールバーの位置に切り替えて表示 */
     .text-controls-panel {
-        top: auto;
-        right: 16px;
-        bottom: 16px;
-        width: calc(100% - 32px);
+        position: fixed;
+        top: var(--header-height, 96px);
+        left: 0;
+        right: auto;
+        bottom: auto;
+        width: 100%;
+        height: 40vh;
+        height: calc(var(--vh, 1vh) * 40);
+        max-height: 40vh;
+        max-height: calc(var(--vh, 1vh) * 40);
+        border-radius: 0;
+        overflow-y: auto;
+        z-index: 100;
     }
 
     #canvasContainer.with-text-controls {
-        padding-right: 20px;
-        padding-bottom: 180px;
+        padding: 0;
     }
 
     .text-controls-grid {
         grid-template-columns: 1fr;
+    }
+
+    /* 画像/テキストコントロール表示時はツールバーを隠す */
+    #canvasContainer.with-image-controls ~ .toolbar,
+    #canvasContainer.with-text-controls ~ .toolbar {
+        display: none;
     }
 }
 
@@ -1161,25 +1225,30 @@ input[type="color"]::-webkit-color-swatch {
     margin-bottom: 28px;
 }
 
+/* ロゴグリッドは常に2列固定 */
+.logo-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+}
+
 .template-btn {
-    padding: 20px 16px;
+    padding: 10px 12px;
     background: linear-gradient(135deg, white 0%, var(--bg-orange-light) 100%);
     border: 2px solid var(--border-color);
-    border-radius: 14px;
+    border-radius: 12px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-dark);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     transition: all 0.3s ease;
-    min-height: 80px; /* タッチ対応 */
+    min-height: 54px;
 }
 
 .template-btn i {
-    font-size: 28px;
+    font-size: 20px;
     color: var(--primary-orange);
 }
 
