@@ -161,6 +161,26 @@
         </div>
     </div>
 
+    <!-- Edge Detail Panel -->
+    <div id="edgeDetailPanel" class="fixed right-0 top-16 bottom-0 w-96 bg-black/80 backdrop-blur-xl border-l border-white/10 transform translate-x-full transition-transform z-30">
+        <div class="p-6 h-full overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold">エッジ詳細</h2>
+                <button id="closeEdgeDetailPanel" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div id="edgeDetailContent">
+                <!-- Edge details will be populated here -->
+                <div class="text-gray-500 text-center py-12">
+                    <i class="fas fa-link text-4xl mb-4"></i>
+                    <p>エッジを選択してください</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Edge Prompt Editor -->
     <div id="edgePromptModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50">
         <div class="flex items-center justify-center min-h-screen p-4">
@@ -236,6 +256,54 @@
         </div>
     </div>
 
+    <!-- Node Type Selection Modal -->
+    <div id="nodeTypeModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-gray-900 rounded-xl max-w-lg w-full border border-white/10">
+                <div class="flex items-center justify-between p-6 border-b border-white/10">
+                    <h3 class="text-xl font-semibold">ノードタイプを選択</h3>
+                    <button id="closeNodeTypeModal" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-2 gap-4">
+                        <button id="selectInputNode" class="p-6 bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 rounded-xl transition-all text-center group">
+                            <i class="fas fa-upload text-4xl mb-3 group-hover:scale-110 transition-transform"></i>
+                            <div class="text-lg font-semibold mb-2">入力ノード</div>
+                            <div class="text-sm text-blue-200">画像をアップロードできます</div>
+                        </button>
+                        <button id="selectGeneratedNode" class="p-6 bg-gradient-to-br from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700 rounded-xl transition-all text-center group">
+                            <i class="fas fa-magic text-4xl mb-3 group-hover:scale-110 transition-transform"></i>
+                            <div class="text-lg font-semibold mb-2">生成ノード</div>
+                            <div class="text-sm text-purple-200">画像は生成のみ受付</div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Viewer Modal -->
+    <div id="imageViewerModal" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="relative max-w-5xl w-full">
+                <button id="closeImageViewer" class="absolute top-4 right-4 bg-gray-900/80 hover:bg-gray-800 text-white rounded-full w-10 h-10 flex items-center justify-center transition-colors z-10">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+                <div class="bg-gray-900 rounded-xl p-4 border border-white/10">
+                    <img id="viewerImage" src="" alt="" class="w-full h-auto max-h-[80vh] object-contain rounded-lg">
+                    <div class="mt-4 flex items-center justify-between">
+                        <div id="viewerImageName" class="text-sm text-gray-400"></div>
+                        <button id="downloadImageBtn" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+                            <i class="fas fa-download mr-2"></i>ダウンロード
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Settings Modal -->
     <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50">
         <div class="flex items-center justify-center min-h-screen p-4">
@@ -257,10 +325,13 @@
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-2">
-                            Replicate API Key
+                            <i class="fas fa-star text-yellow-500"></i> Replicate API Key (Nano Banana)
                         </label>
                         <input type="password" id="replicateApiKey" placeholder="Replicate API キーを入力" 
                                class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                        <div class="mt-1 text-xs text-gray-400">
+                            <i class="fas fa-info-circle"></i> google/nano-bananaモデル用
+                        </div>
                     </div>
                     
                     <div>
@@ -278,6 +349,29 @@
                         </label>
                         <select id="llmModel" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
                             <option value="gpt-o1s-120B">OpenAI GPT-O1S-120B</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            Aspect Ratio (アスペクト比)
+                        </label>
+                        <select id="aspectRatio" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                            <option value="1:1">1:1 (Square)</option>
+                            <option value="16:9">16:9 (Landscape)</option>
+                            <option value="9:16">9:16 (Portrait)</option>
+                            <option value="4:3">4:3 (Standard)</option>
+                            <option value="3:4">3:4 (Standard Portrait)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            Output Format (出力形式)
+                        </label>
+                        <select id="outputFormat" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                            <option value="png">PNG</option>
+                            <option value="jpg">JPG</option>
                         </select>
                     </div>
                     
@@ -300,7 +394,17 @@
     <input type="file" id="fileInput" accept="image/*" class="hidden" multiple>
     <input type="file" id="workflowFileInput" accept=".json" class="hidden">
 
+    <!-- Progress Indicator -->
+    <div id="progressContainer" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900 rounded-xl p-6 border border-white/20 shadow-2xl z-50 hidden">
+        <div id="progressText" class="text-white text-center mb-4 font-medium">Processing...</div>
+        <div class="w-80 h-3 bg-gray-700 rounded-full overflow-hidden">
+            <div id="progressBar" class="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300 ease-out" style="width: 0%;"></div>
+        </div>
+    </div>
+
     <!-- Scripts -->
+    <!-- Load debug system first for global availability -->
+    <script src="js/debug.js"></script>
     <script src="js/config.js"></script>
     <script src="js/llmService.js"></script>
     <script src="js/transformationService.js"></script>

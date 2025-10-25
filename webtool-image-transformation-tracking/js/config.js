@@ -9,7 +9,9 @@ class Config {
             ioApiKey: '',
             replicateApiKey: '',
             llmModel: 'gpt-o1s-120B',  // OpenAI GPT O1S 120B
-            imageModel: 'fal-ai/nano-banana', // Image Editing Model: Nano Banana
+            imageModel: 'google/nano-banana', // Image Editing Model: Nano Banana (Replicate)
+            aspectRatio: '1:1', // Default aspect ratio
+            outputFormat: 'png', // Default output format (png or jpg)
             autoSave: true,
             maxWorkflows: 50,
             defaultImageCount: 3,
@@ -18,7 +20,7 @@ class Config {
                 llm: '/api/intelligence/chat',
                 image: '/api/image/generation',
                 understand: '/api/image/understand',
-                replicate: 'https://api.replicate.com/v1/predictions'
+                replicateNanoBanana: 'https://api.replicate.com/v1/models/google/nano-banana/predictions'
             }
         };
         this.config = this.load();
@@ -33,6 +35,9 @@ class Config {
             }
         } catch (error) {
             console.error('Failed to load configuration:', error);
+            if (window.debug) {
+                window.debug.error('Config load failed', error);
+            }
         }
         return { ...this.defaults };
     }
@@ -40,9 +45,19 @@ class Config {
     save() {
         try {
             localStorage.setItem(this.storageKey, JSON.stringify(this.config));
+            if (window.debug) {
+                window.debug.debug('Config saved successfully');
+            }
             return true;
         } catch (error) {
             console.error('Failed to save configuration:', error);
+            if (window.debug) {
+                window.debug.error('Config save failed', error);
+            }
+            // Handle quota exceeded
+            if (error.name === 'QuotaExceededError') {
+                alert('ストレージ容量が不足しています。不要なデータを削除してください。');
+            }
             return false;
         }
     }
@@ -101,6 +116,55 @@ class Config {
             return 'replicate';
         }
         return 'io';
+    }
+    
+    /**
+     * Check if IO Intelligence API is configured
+     */
+    hasIOApi() {
+        const ioKey = this.get('ioApiKey');
+        return ioKey && ioKey.trim().length > 0;
+    }
+    
+    /**
+     * Check if Replicate API is configured
+     */
+    hasReplicateApi() {
+        const replicateKey = this.get('replicateApiKey');
+        return replicateKey && replicateKey.trim().length > 0;
+    }
+    
+    /**
+     * Validate configuration
+     */
+    validate() {
+        const errors = [];
+        
+        // Check if at least one API key is configured
+        if (!this.hasIOApi() && !this.hasReplicateApi()) {
+            errors.push('少なくとも1つのAPIキーを設定してください');
+        }
+        
+        // Validate model selections
+        if (!this.get('llmModel')) {
+            errors.push('LLMモデルが選択されていません');
+        }
+        
+        if (!this.get('imageModel')) {
+            errors.push('画像生成モデルが選択されていません');
+        }
+        
+        return {
+            valid: errors.length === 0,
+            errors
+        };
+    }
+    
+    /**
+     * Get validation status
+     */
+    getValidationStatus() {
+        return this.validate();
     }
 }
 

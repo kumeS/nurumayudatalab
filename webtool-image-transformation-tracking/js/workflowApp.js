@@ -553,6 +553,12 @@ class WorkflowApp {
         const llmModel = document.getElementById('llmModel');
         if (llmModel) llmModel.value = config.get('llmModel');
         
+        const aspectRatio = document.getElementById('aspectRatio');
+        if (aspectRatio) aspectRatio.value = config.get('aspectRatio');
+        
+        const outputFormat = document.getElementById('outputFormat');
+        if (outputFormat) outputFormat.value = config.get('outputFormat');
+        
         const autoSave = document.getElementById('autoSave');
         if (autoSave) autoSave.checked = config.get('autoSave');
         
@@ -567,8 +573,10 @@ class WorkflowApp {
         config.setMultiple({
             ioApiKey: document.getElementById('ioApiKey')?.value || '',
             replicateApiKey: document.getElementById('replicateApiKey')?.value || '',
-            imageModel: document.getElementById('defaultModel')?.value || 'fal-ai/nano-banana',
+            imageModel: document.getElementById('defaultModel')?.value || 'google/nano-banana',
             llmModel: document.getElementById('llmModel')?.value || 'gpt-o1s-120B',
+            aspectRatio: document.getElementById('aspectRatio')?.value || '1:1',
+            outputFormat: document.getElementById('outputFormat')?.value || 'png',
             autoSave: document.getElementById('autoSave')?.checked || false
         });
         

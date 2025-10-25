@@ -31,6 +31,7 @@ class WorkflowEngine {
             const node = {
                 id: options.id || this.generateId('node'),
                 type: options.type || 'image',
+                nodeType: options.nodeType || 'input', // 'input' or 'generated'
                 position: options.position || { x: 100, y: 100 },
                 images: options.images || [],
                 metadata: options.metadata || {},
@@ -454,6 +455,46 @@ class WorkflowEngine {
             selectedNodes: this.selectedNodes.size,
             selectedEdges: this.selectedEdges.size
         };
+    }
+    
+    // Helper Functions
+    /**
+     * Check if a node can accept external image uploads
+     * @param {string} nodeId - Node ID
+     * @returns {boolean} - True if node can accept uploads (input nodes only)
+     */
+    canUploadImage(nodeId) {
+        const node = this.nodes.get(nodeId);
+        if (!node) return false;
+        return node.nodeType === 'input';
+    }
+    
+    /**
+     * Get incoming edges for a node
+     * @param {string} nodeId - Node ID
+     * @returns {Array} - Array of incoming edges
+     */
+    getIncomingEdges(nodeId) {
+        return Array.from(this.edges.values()).filter(edge => edge.target === nodeId);
+    }
+    
+    /**
+     * Get outgoing edges for a node
+     * @param {string} nodeId - Node ID
+     * @returns {Array} - Array of outgoing edges
+     */
+    getOutgoingEdges(nodeId) {
+        return Array.from(this.edges.values()).filter(edge => edge.source === nodeId);
+    }
+    
+    /**
+     * Check if a node can generate images (has incoming edges with prompts)
+     * @param {string} nodeId - Node ID
+     * @returns {boolean} - True if node can generate
+     */
+    canGenerateImages(nodeId) {
+        const incomingEdges = this.getIncomingEdges(nodeId);
+        return incomingEdges.length > 0 && incomingEdges.some(edge => edge.prompt && edge.prompt.trim() !== '');
     }
 }
 

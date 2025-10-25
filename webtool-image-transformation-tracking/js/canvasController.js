@@ -15,6 +15,7 @@ class CanvasController {
         this.circleMenu = null;
         this.circleMenuHandlers = new Map(); // Store event handlers for cleanup
         this.rightClickedNodeId = null; // Track right-clicked node
+        this.imageCache = new Map(); // Cache for loaded images
     }
 
     initialize() {
@@ -40,15 +41,13 @@ class CanvasController {
                     e.stopPropagation();
                     
                     // Get the node at this position
-                    const rect = canvas.getBoundingClientRect();
                     const domPosition = { 
-                        x: e.clientX - rect.left, 
-                        y: e.clientY - rect.top 
+                        x: e.clientX, 
+                        y: e.clientY 
                     };
-                    const canvasPosition = this.network.DOMtoCanvas(domPosition);
-                    const nodeId = this.network.getNodeAt(canvasPosition);
+                    const nodeId = this.network.getNodeAt(domPosition);
                     
-                    console.log('Found node:', nodeId, 'at canvas position:', canvasPosition);
+                    console.log('Found node:', nodeId, 'at position:', domPosition);
                     
                     if (nodeId) {
                         this.handleNodeRightClick(nodeId, e);
@@ -237,12 +236,28 @@ class CanvasController {
             ctx.fillStyle = '#1F2937';
             ctx.fillRect(x - imgSize/2, imgY - imgSize/2, imgSize, imgSize);
             
-            // Try to draw actual image
-            const img = new Image();
-            img.onload = () => {
-                ctx.drawImage(img, x - imgSize/2, imgY - imgSize/2, imgSize, imgSize);
-            };
-            img.src = image.thumbnail || image.url;
+            // Draw actual image with caching
+            const imageUrl = image.thumbnail || image.url;
+            if (this.imageCache.has(imageUrl)) {
+                // Use cached image
+                const cachedImg = this.imageCache.get(imageUrl);
+                try {
+                    ctx.drawImage(cachedImg, x - imgSize/2, imgY - imgSize/2, imgSize, imgSize);
+                } catch (error) {
+                    console.error('Error drawing cached image:', error);
+                }
+            } else {
+                // Load and cache image
+                const img = new Image();
+                img.onload = () => {
+                    this.imageCache.set(imageUrl, img);
+                    this.network.redraw(); // Trigger redraw to show loaded image
+                };
+                img.onerror = (error) => {
+                    console.error('Error loading image:', error);
+                };
+                img.src = imageUrl;
+            }
 
             // Image counter
             ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
@@ -329,9 +344,10 @@ class CanvasController {
     }
 
     createCircleMenu() {
-        // Clean up existing menu if present
-        if (this.circleMenu) {
-            this.circleMenu.remove();
+        // Return early if menu already exists
+        if (this.circleMenu && document.body.contains(this.circleMenu)) {
+            console.log('Circle menu already exists, reusing it');
+            return;
         }
 
         // Create circle menu container
@@ -341,7 +357,6 @@ class CanvasController {
         menu.style.zIndex = '10000'; // Ensure high z-index
         menu.innerHTML = `
             <div class="circle-menu-container">
-                <div class="circle-menu-center"></div>
                 <div class="circle-menu-item" data-action="upload" style="--angle: 0deg;">
                     <i class="fas fa-upload"></i>
                     <span>Upload</span>
@@ -377,19 +392,8 @@ class CanvasController {
                     width: 200px;
                     height: 200px;
                     pointer-events: none;
-                }
-                .circle-menu-center {
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    width: 60px;
-                    height: 60px;
-                    background: #374151;
-                    border: 3px solid #EC4899;
+                    background: rgba(0, 0, 0, 0.3);
                     border-radius: 50%;
-                    transform: translate(-50%, -50%);
-                    z-index: 10;
-                    pointer-events: auto;
                 }
                 .circle-menu-item {
                     position: absolute;
@@ -397,8 +401,8 @@ class CanvasController {
                     left: 50%;
                     width: 50px;
                     height: 50px;
-                    background: #1F2937;
-                    border: 2px solid #9333EA;
+                    background: rgba(31, 41, 55, 0.9);
+                    border: 2px solid rgba(147, 51, 234, 0.8);
                     border-radius: 50%;
                     transform: translate(-50%, -50%) rotate(var(--angle)) translateX(70px) rotate(calc(-1 * var(--angle)));
                     display: flex;
@@ -411,10 +415,13 @@ class CanvasController {
                     animation: circleMenuItemAppear 0.3s forwards;
                     animation-delay: calc(var(--angle) / 360 * 0.2s);
                     pointer-events: auto;
+                    backdrop-filter: blur(8px);
                 }
                 .circle-menu-item:hover {
-                    background: #9333EA;
+                    background: rgba(147, 51, 234, 0.95);
+                    border-color: rgba(236, 72, 153, 0.9);
                     transform: translate(-50%, -50%) rotate(var(--angle)) translateX(70px) rotate(calc(-1 * var(--angle))) scale(1.2);
+                    box-shadow: 0 0 20px rgba(147, 51, 234, 0.5);
                 }
                 .circle-menu-item i {
                     font-size: 18px;
@@ -566,6 +573,9 @@ class CanvasController {
     showCircleMenu(nodeId, event) {
         console.log('showCircleMenu called for node:', nodeId, 'event:', event);
         
+        // Hide any existing menu first and clean up handlers
+        this.hideCircleMenu();
+        
         // Ensure circle menu exists
         if (!this.circleMenu || !document.body.contains(this.circleMenu)) {
             console.log('Creating circle menu...');
@@ -596,9 +606,6 @@ class CanvasController {
         
         console.log('Circle menu should now be visible');
 
-        // Remove old handlers
-        this.cleanupCircleMenuHandlers();
-
         // Setup click handlers for menu items
         const items = menu.querySelectorAll('.circle-menu-item');
         items.forEach(item => {
@@ -612,22 +619,10 @@ class CanvasController {
             this.circleMenuHandlers.set(item, handler);
         });
 
-        // Setup click handler for center (close menu)
-        const center = menu.querySelector('.circle-menu-center');
-        if (center) {
-            const centerHandler = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.hideCircleMenu();
-            };
-            center.addEventListener('click', centerHandler);
-            this.circleMenuHandlers.set(center, centerHandler);
-        }
-
         // Hide menu when clicking outside - with delay to prevent immediate closing
         const documentHandler = (e) => {
-            // Don't hide if clicking on menu itself
-            if (!menu.contains(e.target)) {
+            // Don't hide if clicking on menu itself or the canvas during right-click
+            if (!menu.contains(e.target) && e.button !== 2) {
                 this.hideCircleMenu();
             }
         };
@@ -635,16 +630,19 @@ class CanvasController {
         // Store the handler for cleanup
         this.circleMenuHandlers.set(document, documentHandler);
         
-        // Add the document click handler after a delay
+        // Add the document click handler after a delay to prevent immediate closing
         setTimeout(() => {
             document.addEventListener('click', documentHandler, true);
-        }, 100);
+        }, 200);
     }
 
     hideCircleMenu() {
+        // Clean up handlers first to prevent any race conditions
+        this.cleanupCircleMenuHandlers();
+        
         if (this.circleMenu) {
             this.circleMenu.classList.add('hidden');
-            this.cleanupCircleMenuHandlers();
+            this.circleMenu.style.display = 'none';
             
             // Re-enable node dragging
             if (this.network) {
@@ -677,7 +675,7 @@ class CanvasController {
         
         switch(action) {
             case 'upload':
-                this.uploadImageToNode(nodeId);
+                this.promptUploadImageToNode(nodeId);
                 break;
             
             case 'transform':
@@ -1126,6 +1124,9 @@ class CanvasController {
         
         if (workflowEngine.mode === 'connect') {
             this.handleConnection(nodeId);
+        } else {
+            // Single click activates node detail panel (active mode)
+            this.showNodeDetails(nodeId);
         }
     }
 
@@ -1148,17 +1149,26 @@ class CanvasController {
         }
     }
 
+    cancelConnection() {
+        if (this.connectingFrom) {
+            console.log('Cancelling connection from:', this.connectingFrom);
+            this.connectingFrom = null;
+            workflowEngine.setMode('select');
+            this.network.redraw();
+        }
+    }
+
     handleImageDrop(files, position) {
         const node = workflowEngine.createNode({ position });
         
         if (node) {
             files.forEach(file => {
-                this.uploadImageToNode(node.id, file);
+                this.uploadImageFileToNode(node.id, file);
             });
         }
     }
 
-    uploadImageToNode(nodeId, file) {
+    uploadImageFileToNode(nodeId, file) {
         const reader = new FileReader();
         
         reader.onload = (e) => {
@@ -1241,51 +1251,78 @@ class CanvasController {
         `;
     }
 
-    uploadImageToNode(nodeId) {
-        console.log('Uploading image to node:', nodeId);
+    promptUploadImageToNode(nodeId) {
+        console.log('Prompting user to upload image to node:', nodeId);
         
-        // Create file input
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.multiple = true;
-        
-        input.addEventListener('change', async (e) => {
-            const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+        try {
+            // Create file input
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.multiple = true;
             
-            for (const file of files) {
-                const reader = new FileReader();
-                
-                reader.onload = (event) => {
-                    const imageData = {
-                        url: event.target.result,
-                        thumbnail: event.target.result,
-                        metadata: {
-                            name: file.name,
-                            size: file.size,
-                            type: file.type,
-                            uploadedAt: new Date().toISOString()
+            input.addEventListener('change', async (e) => {
+                try {
+                    const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+                    
+                    if (files.length === 0) {
+                        console.warn('No image files selected');
+                        return;
+                    }
+                    
+                    for (const file of files) {
+                        // Check file size (max 20MB)
+                        if (file.size > 20 * 1024 * 1024) {
+                            alert(`File ${file.name} is too large. Maximum size is 20MB.`);
+                            continue;
                         }
-                    };
-                    
-                    // Add image to node
-                    const result = workflowEngine.addImageToNode(nodeId, imageData);
-                    console.log('Image added:', result);
-                    
-                    // Force redraw to show new image
-                    this.network.redraw();
-                };
-                
-                reader.onerror = (error) => {
-                    console.error('Failed to read file:', error);
-                };
-                
-                reader.readAsDataURL(file);
-            }
-        });
-        
-        // Trigger file selection
-        input.click();
+                        
+                        const reader = new FileReader();
+                        
+                        reader.onload = (event) => {
+                            try {
+                                const imageData = {
+                                    url: event.target.result,
+                                    thumbnail: event.target.result,
+                                    metadata: {
+                                        name: file.name,
+                                        size: file.size,
+                                        type: file.type,
+                                        uploadedAt: new Date().toISOString()
+                                    }
+                                };
+                                
+                                // Add image to node
+                                const result = workflowEngine.addImageToNode(nodeId, imageData);
+                                console.log('Image added:', result);
+                                
+                                // Force redraw to show new image
+                                this.network.redraw();
+                            } catch (error) {
+                                console.error('Error processing image:', error);
+                                alert(`Failed to process ${file.name}: ${error.message}`);
+                            }
+                        };
+                        
+                        reader.onerror = (error) => {
+                            console.error('Failed to read file:', error);
+                            alert(`Failed to read file ${file.name}`);
+                        };
+                        
+                        reader.readAsDataURL(file);
+                    }
+                } catch (error) {
+                    console.error('Error handling file selection:', error);
+                    alert(`Error uploading images: ${error.message}`);
+                }
+            });
+            
+            // Trigger file selection
+            input.click();
+        } catch (error) {
+            console.error('Error creating file upload dialog:', error);
+            alert(`Failed to open file upload: ${error.message}`);
+        }
     }
 
     updateCursor(mode) {
@@ -1321,6 +1358,7 @@ class CanvasController {
         this.nodes.clear();
         this.edges.clear();
         this.nodeImageIndexes.clear();
+        this.imageCache.clear();
         this.hideCircleMenu();
     }
 
@@ -1367,6 +1405,8 @@ class CanvasController {
         this.edges = null;
         this.nodeImageIndexes.clear();
         this.nodeImageIndexes = null;
+        this.imageCache.clear();
+        this.imageCache = null;
         
         // Clear any remaining timeouts
         if (this.hideMenuTimeout) {
