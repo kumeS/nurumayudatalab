@@ -183,6 +183,30 @@ class WorkflowApp {
             });
         }
 
+        // Node Type Modal
+        const closeNodeTypeModal = document.getElementById('closeNodeTypeModal');
+        if (closeNodeTypeModal) {
+            closeNodeTypeModal.addEventListener('click', () => {
+                document.getElementById('nodeTypeModal')?.classList.add('hidden');
+            });
+        }
+
+        const selectInputNode = document.getElementById('selectInputNode');
+        if (selectInputNode) {
+            selectInputNode.addEventListener('click', () => {
+                console.log('Input node selected');
+                this.createNodeWithType('input');
+            });
+        }
+
+        const selectGeneratedNode = document.getElementById('selectGeneratedNode');
+        if (selectGeneratedNode) {
+            selectGeneratedNode.addEventListener('click', () => {
+                console.log('Generated node selected');
+                this.createNodeWithType('generated');
+            });
+        }
+
         // File inputs
         const fileInput = document.getElementById('fileInput');
         if (fileInput) {
@@ -232,11 +256,37 @@ class WorkflowApp {
     }
 
     addNewNode() {
-        const centerPosition = window.canvasController?.network?.getViewPosition() || { x: 400, y: 300 };
+        console.log('Opening node type selection modal');
+        // Show node type selection modal instead of creating node directly
+        const modal = document.getElementById('nodeTypeModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            // Store center position for later use
+            const centerPosition = window.canvasController?.network?.getViewPosition() || { x: 400, y: 300 };
+            modal.dataset.positionX = centerPosition.x;
+            modal.dataset.positionY = centerPosition.y;
+        }
+    }
+
+    createNodeWithType(nodeType) {
+        console.log('Creating node with type:', nodeType);
+        const modal = document.getElementById('nodeTypeModal');
+        
+        // Get stored position from modal
+        const x = parseFloat(modal?.dataset.positionX) || 400;
+        const y = parseFloat(modal?.dataset.positionY) || 300;
+        
         const node = workflowEngine.createNode({
-            position: centerPosition
+            position: { x, y },
+            nodeType: nodeType
         });
-        console.log('Created new node:', node.id);
+        
+        console.log('Created new node:', node.id, 'with type:', nodeType);
+        
+        // Hide modal
+        if (modal) {
+            modal.classList.add('hidden');
+        }
     }
 
     toggleConnectMode() {

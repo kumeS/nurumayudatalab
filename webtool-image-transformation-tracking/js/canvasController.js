@@ -177,16 +177,27 @@ class CanvasController {
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 5;
 
-        // Background - different colors for active/inactive
+        // Determine node type and state
+        const nodeType = node.nodeType || 'input'; // Default to input if not specified
         const hasImages = node.images && node.images.length > 0;
         const isActive = hasImages;
+        const canGenerate = nodeType === 'generated' && workflowEngine.canGenerateImages(id);
         
+        console.log(`Rendering node ${id.substr(-6)}: type=${nodeType}, active=${isActive}, canGenerate=${canGenerate}`);
+        
+        // Background - different colors based on node type
         this.roundRect(ctx, x - width/2, y - height/2, width, height, radius);
         if (isActive) {
-            // Active node - purple gradient
             const gradient = ctx.createLinearGradient(x - width/2, y - height/2, x + width/2, y + height/2);
-            gradient.addColorStop(0, selected ? '#6D28D9' : '#4C1D95');
-            gradient.addColorStop(1, selected ? '#7C3AED' : '#5B21B6');
+            if (nodeType === 'input') {
+                // Input nodes - blue gradient
+                gradient.addColorStop(0, selected ? '#1D4ED8' : '#1E3A8A');
+                gradient.addColorStop(1, selected ? '#2563EB' : '#1E40AF');
+            } else {
+                // Generated nodes - purple gradient
+                gradient.addColorStop(0, selected ? '#6D28D9' : '#4C1D95');
+                gradient.addColorStop(1, selected ? '#7C3AED' : '#5B21B6');
+            }
             ctx.fillStyle = gradient;
         } else {
             // Inactive node - dark gray
@@ -198,9 +209,13 @@ class CanvasController {
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
 
-        // Border - more prominent for active nodes
+        // Border - color based on node type
         if (isActive) {
-            ctx.strokeStyle = selected ? '#EC4899' : hover ? '#A78BFA' : '#8B5CF6';
+            if (nodeType === 'input') {
+                ctx.strokeStyle = selected ? '#60A5FA' : hover ? '#3B82F6' : '#2563EB';
+            } else {
+                ctx.strokeStyle = selected ? '#EC4899' : hover ? '#A78BFA' : '#8B5CF6';
+            }
             ctx.lineWidth = selected ? 4 : 3;
         } else {
             ctx.strokeStyle = selected ? '#6B7280' : hover ? '#4B5563' : '#374151';
@@ -214,13 +229,14 @@ class CanvasController {
         this.roundRect(ctx, x - width/2, y - height/2, width, 30, radius, true, false);
         ctx.fill();
 
-        // Title
+        // Title with icon
         ctx.fillStyle = '#FFFFFF';
         ctx.font = 'bold 12px Inter';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const shortId = id.substr(-6);
-        ctx.fillText(`Node ${shortId}`, x, y - height/2 + 15);
+        const icon = nodeType === 'input' ? '📤' : '✨';
+        ctx.fillText(`${icon} Node ${shortId}`, x, y - height/2 + 15);
 
         // Image thumbnail or placeholder
         if (hasImages) {
@@ -311,6 +327,43 @@ class CanvasController {
         ctx.beginPath();
         ctx.arc(x + width/2 - 15, y - height/2 + 15, 5, 0, 2 * Math.PI);
         ctx.fill();
+        
+        // Generate button for generated nodes with incoming edges
+        if (canGenerate && !node.status === 'processing') {
+            const btnWidth = 100;
+            const btnHeight = 24;
+            const btnX = x - btnWidth/2;
+            const btnY = y + height/2 - btnHeight - 8;
+            
+            // Button background
+            ctx.fillStyle = hover ? '#16A34A' : '#15803D';
+            ctx.beginPath();
+            ctx.roundRect(btnX, btnY, btnWidth, btnHeight, 6);
+            ctx.fill();
+            
+            // Button border
+            ctx.strokeStyle = '#22C55E';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            // Button text
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 11px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('✨ Generate', x, btnY + btnHeight/2);
+            
+            // Store button bounds for click detection
+            if (!this.generateButtonBounds) {
+                this.generateButtonBounds = new Map();
+            }
+            this.generateButtonBounds.set(id, {
+                x: btnX,
+                y: btnY,
+                width: btnWidth,
+                height: btnHeight
+            });
+        }
 
         // Return the required structure for vis.js
         // Don't return drawExternalLabel to avoid the error
@@ -455,11 +508,21 @@ class CanvasController {
             if (params.nodes.length > 0) {
                 const nodeId = params.nodes[0];
                 const node = workflowEngine.nodes.get(nodeId);
+                const pos = this.network.getPositions([nodeId])[nodeId];
+                const pointer = params.pointer.canvas;
+                
+                // Check if Generate button was clicked
+                if (this.generateButtonBounds && this.generateButtonBounds.has(nodeId)) {
+                    const bounds = this.generateButtonBounds.get(nodeId);
+                    if (pointer.x >= bounds.x && pointer.x <= bounds.x + bounds.width &&
+                        pointer.y >= bounds.y && pointer.y <= bounds.y + bounds.height) {
+                        console.log('Generate button clicked for node:', nodeId);
+                        this.handleGenerateClick(nodeId);
+                        return;
+                    }
+                }
                 
                 if (node && node.images && node.images.length > 1) {
-                    const pos = this.network.getPositions([nodeId])[nodeId];
-                    const pointer = params.pointer.canvas;
-                    
                     // Check if clicked on navigation arrows
                     const imgSize = 80;
                     const arrowWidth = 20;
@@ -482,8 +545,22 @@ class CanvasController {
                 const edgeId = params.edges[0];
                 this.handleEdgeClick(edgeId, params.event);
             } else {
+                // Empty canvas clicked - close all panels
+                console.log('Empty canvas clicked - closing all panels');
                 workflowEngine.clearSelection();
                 this.hideCircleMenu();
+                
+                // Close node detail panel
+                const nodePanel = document.getElementById('nodeDetailPanel');
+                if (nodePanel) {
+                    nodePanel.classList.add('translate-x-full');
+                }
+                
+                // Close edge detail panel
+                const edgePanel = document.getElementById('edgeDetailPanel');
+                if (edgePanel) {
+                    edgePanel.classList.add('translate-x-full');
+                }
             }
         });
 
@@ -675,6 +752,13 @@ class CanvasController {
         
         switch(action) {
             case 'upload':
+                // Check if node can accept uploads
+                const node = workflowEngine.nodes.get(nodeId);
+                if (node && node.nodeType === 'generated') {
+                    console.warn('Upload blocked for generated node');
+                    alert('生成ノードには手動で画像をアップロードできません。\n入力ノードを使用してください。');
+                    return;
+                }
                 this.promptUploadImageToNode(nodeId);
                 break;
             
@@ -718,7 +802,7 @@ class CanvasController {
                         <label class="block text-sm font-medium text-gray-300 mb-2">
                             Number of output branches
                         </label>
-                        <input type="number" id="branchCount" min="1" max="5" value="3" 
+                        <input type="number" id="branchCount" min="1" max="5" value="1" 
                                class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white">
                     </div>
                     <div class="flex space-x-3">
@@ -923,7 +1007,55 @@ class CanvasController {
         console.log('Duplicated node:', newNode.id);
     }
 
+    setupImageViewerModal() {
+        // Close button
+        const closeBtn = document.getElementById('closeImageViewer');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                console.log('Closing image viewer');
+                document.getElementById('imageViewerModal')?.classList.add('hidden');
+            });
+        }
+        
+        // Download button
+        const downloadBtn = document.getElementById('downloadImageBtn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', () => {
+                console.log('Downloading image');
+                const img = document.getElementById('viewerImage');
+                const imgName = document.getElementById('viewerImageName')?.textContent || 'image.png';
+                
+                if (img && img.src) {
+                    const a = document.createElement('a');
+                    a.href = img.src;
+                    a.download = imgName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+            });
+        }
+    }
+    
+    showImageViewer(imageUrl, imageName, imageMetadata = {}) {
+        console.log('Showing image viewer:', imageName);
+        const modal = document.getElementById('imageViewerModal');
+        const img = document.getElementById('viewerImage');
+        const nameEl = document.getElementById('viewerImageName');
+        
+        if (modal && img) {
+            img.src = imageUrl;
+            if (nameEl) {
+                nameEl.textContent = imageName || 'Image';
+            }
+            modal.classList.remove('hidden');
+        }
+    }
+
     bindEngineEvents() {
+        // Setup image viewer modal
+        this.setupImageViewerModal();
+        
         // Node events
         workflowEngine.on('nodeCreated', (node) => {
             this.addNode(node);
@@ -1118,6 +1250,69 @@ class CanvasController {
     }
 
     // Other methods
+    async handleGenerateClick(nodeId) {
+        console.log('Handling generate for node:', nodeId);
+        const node = workflowEngine.nodes.get(nodeId);
+        if (!node) return;
+        
+        // Get incoming edges with prompts
+        const incomingEdges = workflowEngine.getIncomingEdges(nodeId)
+            .filter(edge => edge.prompt && edge.prompt.trim() !== '');
+        
+        if (incomingEdges.length === 0) {
+            alert('No prompts found on incoming edges');
+            return;
+        }
+        
+        // Update node status
+        workflowEngine.updateNode(nodeId, { status: 'processing' });
+        
+        try {
+            // Process each incoming edge
+            for (const edge of incomingEdges) {
+                console.log('Processing edge:', edge.id, 'with prompt:', edge.prompt);
+                
+                const sourceNode = workflowEngine.nodes.get(edge.source);
+                if (!sourceNode || !sourceNode.images || sourceNode.images.length === 0) {
+                    console.warn('Source node has no images, skipping');
+                    continue;
+                }
+                
+                // Get source image
+                const sourceImage = sourceNode.images[sourceNode.currentIndex || 0];
+                
+                // For demo: create a placeholder generated image
+                // In production, call transformationService here
+                const generatedImageData = {
+                    url: sourceImage.url, // Would be new generated image
+                    thumbnail: sourceImage.url,
+                    metadata: {
+                        name: `Generated_${Date.now()}.png`,
+                        generatedFrom: edge.source,
+                        prompt: edge.prompt,
+                        model: edge.model,
+                        generatedAt: new Date().toISOString()
+                    }
+                };
+                
+                // Add to node
+                workflowEngine.addImageToNode(nodeId, generatedImageData);
+                console.log('Added generated image to node:', nodeId);
+            }
+            
+            // Update status to success
+            workflowEngine.updateNode(nodeId, { status: 'ready' });
+            
+            // Show success message
+            alert(`Generated ${incomingEdges.length} image(s) successfully!`);
+            
+        } catch (error) {
+            console.error('Generation error:', error);
+            workflowEngine.updateNode(nodeId, { status: 'error' });
+            alert('Generation failed: ' + error.message);
+        }
+    }
+
     handleNodeClick(nodeId, event) {
         const multiSelect = event.ctrlKey || event.metaKey;
         workflowEngine.selectNode(nodeId, multiSelect);
@@ -1131,8 +1326,103 @@ class CanvasController {
     }
 
     handleEdgeClick(edgeId, event) {
+        console.log('Edge clicked:', edgeId);
         const multiSelect = event.ctrlKey || event.metaKey;
         workflowEngine.selectEdge(edgeId, multiSelect);
+        
+        // Show edge detail panel
+        this.showEdgeDetails(edgeId);
+    }
+    
+    showEdgeDetails(edgeId) {
+        console.log('Showing edge details for:', edgeId);
+        const panel = document.getElementById('edgeDetailPanel');
+        if (panel) {
+            panel.classList.remove('translate-x-full');
+            this.renderEdgeDetails(edgeId);
+        }
+    }
+    
+    renderEdgeDetails(edgeId) {
+        const edge = workflowEngine.edges.get(edgeId);
+        if (!edge) return;
+        
+        const content = document.getElementById('edgeDetailContent');
+        if (!content) return;
+        
+        const sourceNode = workflowEngine.nodes.get(edge.source);
+        const targetNode = workflowEngine.nodes.get(edge.target);
+        
+        const sourceShortId = edge.source.substr(-6);
+        const targetShortId = edge.target.substr(-6);
+        
+        content.innerHTML = `
+            <div class="detail-section">
+                <div class="detail-label">Edge ID</div>
+                <div class="detail-value font-mono text-sm">${edge.id}</div>
+            </div>
+            
+            <div class="detail-section">
+                <div class="detail-label">Source Node</div>
+                <div class="detail-value">Node ${sourceShortId}</div>
+                <div class="text-xs text-gray-500 mt-1">${edge.source}</div>
+            </div>
+            
+            <div class="detail-section">
+                <div class="detail-label">Target Node</div>
+                <div class="detail-value">Node ${targetShortId}</div>
+                <div class="text-xs text-gray-500 mt-1">${edge.target}</div>
+            </div>
+            
+            <div class="detail-section">
+                <div class="detail-label">Transformation Prompt</div>
+                <div class="detail-value">
+                    ${edge.prompt && edge.prompt.trim() !== '' ? 
+                        `<div class="text-white bg-gray-800 p-3 rounded-lg mt-2">${edge.prompt}</div>` : 
+                        `<div class="text-gray-500 italic">No prompt set</div>`
+                    }
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <div class="detail-label">Style</div>
+                <div class="detail-value">
+                    <span class="px-2 py-1 rounded text-xs bg-purple-600">
+                        ${edge.style || 'custom'}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <div class="detail-label">Model</div>
+                <div class="detail-value">${edge.model || 'Not specified'}</div>
+            </div>
+            
+            <div class="detail-section">
+                <div class="detail-label">Created</div>
+                <div class="detail-value">${new Date(edge.created).toLocaleString('ja-JP')}</div>
+            </div>
+            
+            <div class="mt-6">
+                <button id="editEdgePromptBtn" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
+                    <i class="fas fa-edit mr-2"></i>Edit Prompt
+                </button>
+            </div>
+        `;
+        
+        // Add event listener for edit button
+        setTimeout(() => {
+            const editBtn = document.getElementById('editEdgePromptBtn');
+            if (editBtn) {
+                editBtn.addEventListener('click', () => {
+                    console.log('Edit prompt button clicked for edge:', edgeId);
+                    // Hide edge detail panel
+                    document.getElementById('edgeDetailPanel')?.classList.add('translate-x-full');
+                    // Show edge prompt dialog
+                    this.showEdgePromptMenu(edgeId);
+                });
+            }
+        }, 50);
     }
 
     handleConnection(nodeId) {
@@ -1159,11 +1449,33 @@ class CanvasController {
     }
 
     handleImageDrop(files, position) {
-        const node = workflowEngine.createNode({ position });
+        // Get node at drop position if any
+        const domPosition = this.network.canvasToDOM(position);
+        const nodeId = this.network.getNodeAt(domPosition);
         
-        if (node) {
+        let targetNode;
+        
+        if (nodeId) {
+            // Dropping on existing node
+            targetNode = workflowEngine.nodes.get(nodeId);
+            
+            // Check if node can accept uploads
+            if (targetNode && targetNode.nodeType === 'generated') {
+                console.warn('Drop blocked: Cannot drop images on generated node');
+                alert('生成ノードには手動で画像をアップロードできません。\n入力ノードを使用してください。');
+                return;
+            }
+        } else {
+            // Create new input node at drop position
+            targetNode = workflowEngine.createNode({ 
+                position,
+                nodeType: 'input' // Default to input when dropping images
+            });
+        }
+        
+        if (targetNode) {
             files.forEach(file => {
-                this.uploadImageFileToNode(node.id, file);
+                this.uploadImageFileToNode(targetNode.id, file);
             });
         }
     }
@@ -1211,7 +1523,7 @@ class CanvasController {
         let imagesHtml = '';
         if (node.images && node.images.length > 0) {
             imagesHtml = node.images.map((img, index) => `
-                <div class="detail-image" title="${img.metadata?.name || 'Image ' + (index + 1)}">
+                <div class="detail-image" data-image-url="${img.url}" data-image-name="${img.metadata?.name || 'Image ' + (index + 1)}" title="${img.metadata?.name || 'Image ' + (index + 1)}">
                     <img src="${img.thumbnail || img.url}" alt="Image ${index + 1}" style="width: 100%; height: 100%; object-fit: cover;">
                 </div>
             `).join('');
@@ -1249,10 +1561,36 @@ class CanvasController {
                 <div class="detail-value">${new Date(node.created).toLocaleString('ja-JP')}</div>
             </div>
         `;
+        
+        // Add click event listeners to images after rendering
+        setTimeout(() => {
+            const imageElements = content.querySelectorAll('.detail-image');
+            imageElements.forEach(imgEl => {
+                imgEl.addEventListener('click', () => {
+                    const imageUrl = imgEl.dataset.imageUrl;
+                    const imageName = imgEl.dataset.imageName;
+                    console.log('Detail panel image clicked:', imageName);
+                    this.showImageViewer(imageUrl, imageName);
+                });
+            });
+        }, 50);
     }
 
     promptUploadImageToNode(nodeId) {
         console.log('Prompting user to upload image to node:', nodeId);
+        
+        // Check node type - generated nodes cannot accept uploads
+        const node = workflowEngine.nodes.get(nodeId);
+        if (!node) {
+            console.error('Node not found:', nodeId);
+            return;
+        }
+        
+        if (node.nodeType === 'generated') {
+            console.warn('Upload blocked: Cannot upload to generated node');
+            alert('生成ノードには手動で画像をアップロードできません。\n入力ノードを使用してください。\n\nGenerated nodes only accept AI-generated images. Use an Input node to upload files.');
+            return;
+        }
         
         try {
             // Create file input
