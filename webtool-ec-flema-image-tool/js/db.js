@@ -201,16 +201,40 @@ async function deserializeCanvas(canvas, jsonData) {
 }
 
 // プロジェクトデータを作成
-function createProjectData(id, name, canvas) {
+function createProjectData(id, name, canvasEntries, activeCanvasId) {
+    const canvases = (canvasEntries || []).map((entry, index) => {
+        const fabricCanvas = entry.canvas;
+        const canvasId = entry.id || `canvas-${index + 1}`;
+        const serialized = serializeCanvas(fabricCanvas);
+        const thumbnail = fabricCanvas.toDataURL({ format: 'png', quality: 0.3, multiplier: 0.2 });
+        return {
+            id: canvasId,
+            order: index,
+            width: fabricCanvas.width,
+            height: fabricCanvas.height,
+            backgroundColor: fabricCanvas.backgroundColor || '#ffffff',
+            canvasData: serialized,
+            zoom: fabricCanvas.getZoom ? fabricCanvas.getZoom() : 1,
+            thumbnail: thumbnail
+        };
+    });
+
+    const primaryCanvas = canvases[0] || null;
+    const fallbackWidth = typeof window !== 'undefined' && window.DEFAULT_CANVAS_WIDTH ? window.DEFAULT_CANVAS_WIDTH : 1080;
+    const fallbackHeight = typeof window !== 'undefined' && window.DEFAULT_CANVAS_HEIGHT ? window.DEFAULT_CANVAS_HEIGHT : 1080;
+    const projectThumbnail = primaryCanvas ? primaryCanvas.thumbnail : '';
+
     return {
         id: id,
         name: name,
-        canvasData: serializeCanvas(canvas),
-        canvasWidth: canvas.width,
-        canvasHeight: canvas.height,
+        canvases: canvases,
+        activeCanvasId: activeCanvasId || (primaryCanvas ? primaryCanvas.id : null),
+        canvasData: primaryCanvas ? primaryCanvas.canvasData : null,
+        canvasWidth: primaryCanvas ? primaryCanvas.width : fallbackWidth,
+        canvasHeight: primaryCanvas ? primaryCanvas.height : fallbackHeight,
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        thumbnail: canvas.toDataURL({ format: 'png', quality: 0.3, multiplier: 0.2 })
+        thumbnail: projectThumbnail
     };
 }
 

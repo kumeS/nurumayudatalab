@@ -25,28 +25,95 @@ class WorkflowEngine {
         return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
 
+    /**
+     * Check if a position is occupied by another node
+     * @param {Object} position - {x, y} position to check
+     * @param {number} threshold - Distance threshold for collision detection
+     * @returns {boolean} True if position is occupied
+     */
+    isPositionOccupied(position, threshold = 30) {
+        for (const node of this.nodes.values()) {
+            const dx = node.position.x - position.x;
+            const dy = node.position.y - position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < threshold) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Find an unoccupied position near the target position
+     * Uses spiral pattern to find free space
+     * @param {Object} targetPosition - {x, y} desired position
+     * @param {number} threshold - Distance threshold for collision detection
+     * @returns {Object} {x, y} adjusted position
+     */
+    findUnoccupiedPosition(targetPosition, threshold = 30) {
+        // If target position is free, use it
+        if (!this.isPositionOccupied(targetPosition, threshold)) {
+            return targetPosition;
+        }
+
+        // Spiral search for free position
+        const maxAttempts = 50;
+        const spiralStep = threshold * 1.5; // Step size for spiral
+
+        for (let i = 1; i <= maxAttempts; i++) {
+            const angle = i * 0.5; // Angle increment
+            const radius = i * spiralStep / 5; // Radius grows slowly
+
+            const x = targetPosition.x + Math.cos(angle) * radius;
+            const y = targetPosition.y + Math.sin(angle) * radius;
+
+            const testPosition = { x, y };
+
+            if (!this.isPositionOccupied(testPosition, threshold)) {
+                console.log(`Found unoccupied position after ${i} attempts:`, testPosition);
+                return testPosition;
+            }
+        }
+
+        // Fallback: just offset by a larger amount
+        console.warn('Could not find unoccupied position in spiral, using fallback offset');
+        return {
+            x: targetPosition.x + Math.random() * 100 - 50,
+            y: targetPosition.y + Math.random() * 100 - 50
+        };
+    }
+
     // Node Management
     createNode(options = {}) {
         try {
+            // Determine initial position
+            let initialPosition = options.position || { x: 100, y: 100 };
+
+            // Check if position adjustment is needed (unless explicitly disabled)
+            if (options.adjustPosition !== false) {
+                initialPosition = this.findUnoccupiedPosition(initialPosition);
+            }
+
             const node = {
                 id: options.id || this.generateId('node'),
                 type: options.type || 'image',
                 nodeType: options.nodeType || 'input', // 'input' or 'generated'
-                position: options.position || { x: 100, y: 100 },
+                position: initialPosition,
                 images: options.images || [],
                 metadata: options.metadata || {},
                 status: 'ready',
                 currentIndex: 0,
                 created: new Date().toISOString()
             };
-            
+
             this.nodes.set(node.id, node);
             this.workflow.nodes.push(node.id);
             this.emit('nodeCreated', node);
-            
-            // Debounced save to prevent excessive storage writes
-            this.debouncedSave();
-            
+
+            // Save immediately to ensure data persistence
+            this.saveWorkflow();
+
             return node;
         } catch (error) {
             console.error('Failed to create node:', error);
@@ -78,10 +145,12 @@ class WorkflowEngine {
         // Remove node
         this.nodes.delete(nodeId);
         this.workflow.nodes = this.workflow.nodes.filter(id => id !== nodeId);
-        
+
         this.emit('nodeDeleted', nodeId);
+
+        // Save immediately to ensure data persistence
         this.saveWorkflow();
-        
+
         return true;
     }
 
@@ -99,8 +168,10 @@ class WorkflowEngine {
         
         node.images.push(image);
         this.emit('imageAdded', { nodeId, image });
+
+        // Save immediately to ensure data persistence
         this.saveWorkflow();
-        
+
         return image;
     }
 
@@ -264,11 +335,10 @@ class WorkflowEngine {
     // Workflow Management
     saveWorkflow() {
         this.workflow.modified = new Date().toISOString();
-        
-        if (window.config && window.config.get('autoSave')) {
-            this.saveToStorage();
-        }
-        
+
+        // Always save to storage to ensure data persistence
+        this.saveToStorage();
+
         this.emit('workflowSaved', this.workflow);
     }
     
@@ -314,14 +384,27 @@ class WorkflowEngine {
     }
 
     loadWorkflow(workflowId) {
+        console.log('====== WORKFLOW ENGINE LOAD ======');
+        console.log('Loading workflow ID:', workflowId);
+
         try {
             const workflows = JSON.parse(localStorage.getItem('workflows') || '[]');
+            console.log('Total workflows in storage:', workflows.length);
+
             const workflowData = workflows.find(w => w.id === workflowId);
-            
-            if (!workflowData) return false;
-            
+
+            if (!workflowData) {
+                console.error('❌ Workflow not found:', workflowId);
+                console.log('==================================');
+                return false;
+            }
+
+            console.log('Found workflow:', workflowData.name);
+            console.log('Workflow data has', workflowData.nodes?.length || 0, 'nodes');
+            console.log('Workflow data has', workflowData.edges?.length || 0, 'edges');
+
             this.clearWorkflow();
-            
+
             this.workflow = {
                 id: workflowData.id,
                 name: workflowData.name,
@@ -330,23 +413,38 @@ class WorkflowEngine {
                 nodes: [],
                 edges: []
             };
-            
+
             // Load nodes
+            let loadedNodes = 0;
             workflowData.nodes.forEach(nodeData => {
+                console.log('Loading node:', nodeData.id, 'at position:', nodeData.position);
                 this.nodes.set(nodeData.id, nodeData);
                 this.workflow.nodes.push(nodeData.id);
+                loadedNodes++;
             });
-            
+
             // Load edges
+            let loadedEdges = 0;
             workflowData.edges.forEach(edgeData => {
+                console.log('Loading edge:', edgeData.id);
                 this.edges.set(edgeData.id, edgeData);
                 this.workflow.edges.push(edgeData.id);
+                loadedEdges++;
             });
-            
+
+            console.log('✅ Loaded', loadedNodes, 'nodes and', loadedEdges, 'edges into engine');
+            console.log('Engine nodes Map size:', this.nodes.size);
+            console.log('Engine edges Map size:', this.edges.size);
+            console.log('Emitting workflowLoaded event...');
+
             this.emit('workflowLoaded', this.workflow);
+
+            console.log('==================================');
             return true;
         } catch (error) {
-            console.error('Failed to load workflow:', error);
+            console.error('❌ Failed to load workflow:', error);
+            console.error(error.stack);
+            console.log('==================================');
             return false;
         }
     }

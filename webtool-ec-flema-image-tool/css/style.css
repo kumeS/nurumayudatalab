@@ -402,18 +402,34 @@ body {
     height: calc(var(--vh, 1vh) * 60);
     background: #e0e0e0; /* グレー背景で作業領域を広く見せる */
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
+    gap: 24px;
     overflow: auto; /* スクロール可能にしてキャンバス全体を表示 */
     border-bottom: 2px solid var(--border-color);
-    padding: 20px; /* キャンバス周りのスペースを適度に */
+    padding: 24px 20px 32px; /* キャンバス周りのスペースを適度に */
+}
+
+.canvas-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+}
+
+.canvas-slot {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
 }
 
 #canvasContainer.with-image-controls {
     padding-left: 210px;
 }
 
-#mainCanvas {
+.canvas-slot canvas {
     touch-action: none;
     /* キャンバス出力範囲の影を強調 - 出力範囲が明確に分かる */
     box-shadow:
@@ -427,8 +443,91 @@ body {
     margin: auto; /* 中央配置を確実に */
 }
 
-#mainCanvas.active {
-    display: block;
+.canvas-slot.active canvas {
+    box-shadow:
+        0 0 0 2px rgba(255, 154, 90, 1),
+        0 0 0 4px rgba(255, 154, 90, 0.32),
+        0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.canvas-slot-toolbar {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 3;
+}
+
+.canvas-slot:hover .canvas-slot-toolbar,
+.canvas-slot.active .canvas-slot-toolbar,
+.canvas-slot:focus-within .canvas-slot-toolbar {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.btn-canvas-action {
+    appearance: none;
+    border: none;
+    background: rgba(38, 38, 38, 0.6);
+    color: #ffffff;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.btn-canvas-action:hover,
+.btn-canvas-action:focus-visible {
+    background: rgba(255, 154, 90, 0.95);
+    outline: none;
+}
+
+.btn-canvas-action:active {
+    transform: scale(0.94);
+}
+
+.btn-canvas-action i {
+    font-size: 14px;
+    pointer-events: none;
+}
+
+.btn-add-canvas {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--primary-orange-light) 0%, var(--primary-orange) 100%);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(255, 154, 90, 0.28);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-height: 44px;
+}
+
+.btn-add-canvas i {
+    font-size: 15px;
+}
+
+.btn-add-canvas span {
+    font-size: 14px;
+}
+
+.btn-add-canvas:active {
+    transform: scale(0.97);
+    box-shadow: 0 3px 12px rgba(255, 154, 90, 0.24);
 }
 
 .image-controls-panel {
@@ -685,11 +784,9 @@ body.desktop-mode .text-controls-panel .color-inputs {
     gap: 8px;
 }
 
-body.desktop-mode .text-controls-panel .color-inputs input[type="color"] {
-    width: 32px;
-    height: 32px;
-    padding: 2px;
-    border-radius: 6px;
+body.desktop-mode .text-controls-panel .color-inputs .color-chip {
+    width: 36px;
+    height: 36px;
 }
 
 body.desktop-mode .text-controls-panel .color-inputs input[type="text"] {
@@ -754,13 +851,36 @@ body.desktop-mode .text-controls-panel .checkbox-label.small input[type="checkbo
     gap: 6px;
 }
 
-.text-controls-panel .color-inputs input[type="color"] {
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border: none;
-    background: transparent;
+.text-controls-panel .color-chip {
+    width: 36px;
+    height: 36px;
+    padding: 2px;
+    border: 1px solid rgba(45, 45, 45, 0.3); /* 白でも視認できる枠線 */
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.45));
     cursor: pointer;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+        0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.text-controls-panel .color-chip:focus-visible {
+    outline: 2px solid var(--primary-orange);
+    outline-offset: 3px;
+}
+
+.text-controls-panel .color-chip::-webkit-color-swatch {
+    border: none;
+    border-radius: 6px;
+}
+
+.text-controls-panel .color-chip::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.text-controls-panel .color-chip::-moz-color-swatch {
+    border: none;
+    border-radius: 6px;
 }
 
 .text-controls-panel .color-inputs input[type="text"] {
@@ -768,6 +888,74 @@ body.desktop-mode .text-controls-panel .checkbox-label.small input[type="checkbo
     min-width: 0;
     padding: 8px 10px;
     font-size: 12.5px;
+}
+
+.text-effects-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.effects-toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.effect-controls {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(255, 245, 235, 0.55);
+    border: 1px solid rgba(255, 154, 90, 0.18);
+    transition: opacity 0.2s ease;
+}
+
+.effect-controls.is-disabled {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.effect-control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+.effect-control label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.effect-control .value {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-left: 8px;
+}
+
+.effect-control input[type="range"] {
+    width: 100%;
+}
+
+.effects-typography {
+    display: grid;
+    gap: 10px;
+}
+
+.effects-typography .effect-control {
+    background: rgba(255, 245, 235, 0.55);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 154, 90, 0.18);
+    padding: 8px 10px;
 }
 
 .btn-chip-group {
@@ -976,6 +1164,68 @@ body.desktop-mode .text-controls-panel .checkbox-label.small input[type="checkbo
     text-transform: uppercase;
     letter-spacing: 0.4px;
     margin-bottom: 12px;
+}
+
+.image-url-import {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+}
+
+.image-url-import.is-loading {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.image-url-import.is-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 32px;
+    height: 32px;
+    margin: -16px 0 0 -16px;
+    border: 3px solid rgba(255, 154, 90, 0.3);
+    border-top-color: var(--primary-orange);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+}
+
+.image-url-row {
+    display: flex;
+    gap: 8px;
+}
+
+.image-url-row input[type="url"] {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 13px;
+    transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.image-url-row input[type="url"]:focus {
+    border-color: var(--primary-orange);
+    box-shadow: 0 0 0 3px rgba(255, 154, 90, 0.25);
+    outline: none;
+}
+
+.image-url-row .btn-secondary {
+    flex-shrink: 0;
+    padding: 0 14px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.image-url-hint {
+    font-size: 11.5px;
+    color: var(--text-light);
+    padding-left: 4px;
 }
 
 @keyframes fadeIn {
@@ -1360,7 +1610,7 @@ body.desktop-mode .toolbar {
 
 body.desktop-mode .template-grid,
 body.desktop-mode .style-template-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
 }
 
 body.toolbar-scroll-active #canvasContainer {

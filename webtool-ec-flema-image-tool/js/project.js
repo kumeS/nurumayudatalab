@@ -55,19 +55,19 @@ async function autoSaveCurrentProject() {
     try {
         isSaving = true;  // 保存開始
 
-        const canvas = getCanvas();
-        if (!canvas) return;
+        const canvasEntries = getCanvasCollection();
+        if (!canvasEntries.length) return;
 
-        // オブジェクトが存在する場合のみ保存（空のキャンバスは保存しない）
-        const objects = canvas.getObjects();
-        if (objects.length === 0) return;
+        const hasObjects = canvasEntries.some(entry => entry.canvas && entry.canvas.getObjects().length > 0);
+        if (!hasObjects) return;
 
         const projectId = getCurrentProjectId();
         const existingProject = await loadProject(projectId);
 
         const projectName = existingProject ? existingProject.name : generateProjectName();
+        const activeCanvasId = getActiveCanvasId();
 
-        const projectData = createProjectData(projectId, projectName, canvas);
+        const projectData = createProjectData(projectId, projectName, canvasEntries, activeCanvasId);
         await saveProject(projectData);
 
         // 古いプロジェクトを削除
@@ -89,13 +89,14 @@ async function autoSaveCurrentProject() {
 // 手動保存
 async function saveCurrentProject(projectName) {
     try {
-        const canvas = getCanvas();
-        if (!canvas) return;
+        const canvasEntries = getCanvasCollection();
+        if (!canvasEntries.length) return;
         
         const projectId = getCurrentProjectId();
         const name = projectName || generateProjectName();
+        const activeCanvasId = getActiveCanvasId();
         
-        const projectData = createProjectData(projectId, name, canvas);
+        const projectData = createProjectData(projectId, name, canvasEntries, activeCanvasId);
         await saveProject(projectData);
         
         // 古いプロジェクトを削除
@@ -124,31 +125,15 @@ async function saveCurrentProject(projectName) {
 // プロジェクトを読み込み
 async function loadProjectById(projectId) {
     try {
-        const canvas = getCanvas();
-        if (!canvas) return;
-        
         const projectData = await loadProject(projectId);
         if (!projectData) {
             showNotification('プロジェクトが見つかりません', 'error');
+            resetCanvasWorkspaceToDefault();
             resetCanvasHistory();
             return;
         }
         
-        // キャンバスをクリア
-        canvas.clear();
-        canvas.backgroundColor = '#ffffff';
-        
-        // キャンバスサイズを復元
-        canvas.setDimensions({
-            width: projectData.canvasWidth,
-            height: projectData.canvasHeight
-        });
-        
-        // キャンバスデータを復元
-        await deserializeCanvas(canvas, projectData.canvasData);
-        
-        resetCanvasZoom();
-        canvas.renderAll();
+        await loadCanvasesFromProjectData(projectData);
         resetCanvasHistory();
         
         // 現在のプロジェクトIDを設定
@@ -175,44 +160,32 @@ async function loadProjectById(projectId) {
 // 新規プロジェクト作成
 async function createNewProject() {
     try {
-        const canvas = getCanvas();
-        if (!canvas) return;
-        
-        // 現在のプロジェクトを保存
-        const objects = canvas.getObjects();
-        if (objects.length > 0) {
+        const canvasEntries = getCanvasCollection();
+
+        const hasContent = canvasEntries.some(entry => entry.canvas && entry.canvas.getObjects().length > 0);
+        if (hasContent) {
             const confirmSave = confirm('現在のプロジェクトを保存しますか？');
             if (confirmSave) {
                 await saveCurrentProject();
             }
         }
-        
-        // キャンバスをクリア
-        canvas.clear();
-        canvas.backgroundColor = '#ffffff';
 
-        canvas.setWidth(DEFAULT_CANVAS_WIDTH);
-        canvas.setHeight(DEFAULT_CANVAS_HEIGHT);
-        resetCanvasZoom();
-
+        resetCanvasWorkspaceToDefault();
         resetCanvasHistory();
 
-        // 新しいプロジェクトIDを生成
         const newProjectId = generateProjectId();
         setCurrentProjectId(newProjectId);
-        
-        // UI更新
+
         updateProjectListUI();
         hideTextControls();
         hideImageControls();
-        
+
         showNotification('新しいプロジェクトを作成しました', 'success');
-        
-        // 触覚フィードバック
+
         if (navigator.vibrate) {
             navigator.vibrate(50);
         }
-        
+
     } catch (error) {
         console.error('Create new project error:', error);
         showNotification('新規作成に失敗しました', 'error');
@@ -427,31 +400,17 @@ async function restoreLastProject() {
         const projectId = getCurrentProjectId();
         const projectData = await loadProject(projectId);
         
-        if (projectData && projectData.canvasData) {
-            const canvas = getCanvas();
-            if (canvas) {
-                // キャンバスサイズを復元
-                canvas.setDimensions({
-                    width: projectData.canvasWidth,
-                    height: projectData.canvasHeight
-                });
-                
-                // キャンバスデータを復元
-                await deserializeCanvas(canvas, projectData.canvasData);
-                // 復元直後も初期表示は画面フィットに統一
-                fitCanvasToContainer();
-                canvas.renderAll();
-                resetCanvasHistory();
-                
-                console.log('Last project restored:', projectData.name);
-                showNotification(`「${projectData.name}」を復元しました`, 'success');
-            }
-        }
-        else {
+        if (projectData && (projectData.canvasData || (projectData.canvases && projectData.canvases.length))) {
+            await loadCanvasesFromProjectData(projectData);
+            resetCanvasHistory();
+            fitCanvasToContainer();
+            console.log('Last project restored:', projectData.name);
+            showNotification(`「${projectData.name}」を復元しました`, 'success');
+        } else {
+            resetCanvasWorkspaceToDefault();
             resetCanvasHistory();
         }
         
-        // プロジェクトリストを更新
         updateProjectListUI();
         
     } catch (error) {

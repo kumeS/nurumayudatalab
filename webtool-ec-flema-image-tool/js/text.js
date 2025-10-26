@@ -51,8 +51,17 @@ function addNewText(options = {}) {
     });
     
     canvas.add(text);
+    
+    // テキストを中央に配置
+    if (typeof centerObjectOnCanvas === 'function') {
+        centerObjectOnCanvas(text);
+    } else {
+        canvas.centerObject(text);
+        text.setCoords();
+    }
+    
     canvas.setActiveObject(text);
-    canvas.renderAll();
+    canvas.requestRenderAll();
 
     if (switchToTextTab) {
         switchTab(document.querySelector('[data-tab="template"]'));
@@ -68,6 +77,50 @@ function addNewText(options = {}) {
 
 // テンプレートテキスト追加（最後に選択したスタイルを適用）
 let lastSelectedStyle = null;
+
+// カラーユーティリティ
+function normalizeHexColor(hex) {
+    if (!hex) return '000000';
+    let sanitized = hex.replace('#', '').trim();
+    if (sanitized.length === 3) {
+        sanitized = sanitized.split('').map(ch => ch + ch).join('');
+    }
+    if (sanitized.length !== 6) {
+        return '000000';
+    }
+    return sanitized.toLowerCase();
+}
+
+function hexToRgba(hex, alpha = 1) {
+    const normalized = normalizeHexColor(hex);
+    const r = parseInt(normalized.slice(0, 2), 16);
+    const g = parseInt(normalized.slice(2, 4), 16);
+    const b = parseInt(normalized.slice(4, 6), 16);
+    const clampedAlpha = Math.min(Math.max(alpha, 0), 1);
+    return `rgba(${r},${g},${b},${clampedAlpha})`;
+}
+
+function colorToHexAlpha(color) {
+    try {
+        const fabricColor = new fabric.Color(color);
+        const source = fabricColor.getSource();
+        const [r, g, b, a = 1] = source;
+        const hex = '#' + [r, g, b].map(channel => channel.toString(16).padStart(2, '0')).join('');
+        const alpha = typeof a === 'number' ? Math.min(Math.max(a, 0), 1) : 1;
+        return { hex, alpha };
+    } catch (error) {
+        return { hex: '#000000', alpha: 1 };
+    }
+}
+
+function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
+
+function parseIntOr(value, fallback = 0) {
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? fallback : parsed;
+}
 
 // ロゴSVG追加
 function addLogoText(logoType) {
@@ -178,8 +231,17 @@ function addLogoText(logoType) {
 
     suppressTabSwitchTemporarily(500);
     canvas.add(iconText);
+    
+    // アイコンを中央に配置
+    if (typeof centerObjectOnCanvas === 'function') {
+        centerObjectOnCanvas(iconText);
+    } else {
+        canvas.centerObject(iconText);
+        iconText.setCoords();
+    }
+    
     canvas.setActiveObject(iconText);
-    canvas.renderAll();
+    canvas.requestRenderAll();
 
     showTextControls();
     updateTextControlsUI(iconText);
@@ -270,6 +332,15 @@ function addTemplateText(templateText) {
     
     suppressTabSwitchTemporarily(500);
     canvas.add(text);
+    
+    // テキストを中央に配置
+    if (typeof centerObjectOnCanvas === 'function') {
+        centerObjectOnCanvas(text);
+    } else {
+        canvas.centerObject(text);
+        text.setCoords();
+    }
+    
     canvas.setActiveObject(text);
     
     // 最後に選択したスタイルがあれば適用
@@ -277,7 +348,7 @@ function addTemplateText(templateText) {
         applyStyleTemplateToObject(text, lastSelectedStyle);
     }
     
-    canvas.renderAll();
+    canvas.requestRenderAll();
     
     showTextControls();
     updateTextControlsUI(text);
@@ -636,44 +707,142 @@ function updateTextControlsUI(text) {
     const fontSizeValue = document.getElementById('fontSizeValue');
     if (!fontSizeSlider || !fontSizeValue) return;
 
+    const textContentField = document.getElementById('textContent');
+    const fontFamilySelect = document.getElementById('fontFamily');
+    const textColorInput = document.getElementById('textColor');
+    const textColorHexInput = document.getElementById('textColorHex');
+    const textBgColorInput = document.getElementById('textBgColor');
+    const textBgColorHexInput = document.getElementById('textBgColorHex');
+    const textBgTransparentCheckbox = document.getElementById('textBgTransparent');
+    const textShadowCheckbox = document.getElementById('textShadow');
+    const textShadowControls = document.getElementById('textShadowControls');
+    const textStrokeCheckbox = document.getElementById('textStroke');
+    const textStrokeControls = document.getElementById('textStrokeControls');
+    const textLetterSpacingSlider = document.getElementById('textLetterSpacing');
+    const textLineHeightSlider = document.getElementById('textLineHeight');
+
     const roundedFontSize = Math.round(text.fontSize);
     if (roundedFontSize > parseInt(fontSizeSlider.max, 10)) {
         fontSizeSlider.max = Math.ceil(roundedFontSize / 10) * 10;
     }
 
-    document.getElementById('textContent').value = text.text;
+    textContentField.value = text.text;
     fontSizeSlider.value = roundedFontSize;
     fontSizeValue.textContent = roundedFontSize + 'px';
-    document.getElementById('fontFamily').value = text.fontFamily;
-    document.getElementById('textColor').value = text.fill;
-    document.getElementById('textColorHex').value = text.fill;
-    document.getElementById('textBgColor').value = text.backgroundColor || '#ffffff';
-    document.getElementById('textBgColorHex').value = text.backgroundColor || '#ffffff';
-    document.getElementById('textBgTransparent').checked = text.customData?.bgTransparent ?? !text.backgroundColor;
-    document.getElementById('textShadow').checked = text.customData?.hasShadow ?? false;
-    document.getElementById('textStroke').checked = text.customData?.hasStroke ?? false;
-    
-    // 回転
-    document.getElementById('textRotation').value = text.angle || 0;
-    document.getElementById('textRotationValue').textContent = (text.angle || 0) + '°';
-    
-    // 拡大縮小
-    const scale = (text.scaleX || 1) * 100;
-    document.getElementById('textScale').value = scale;
-    document.getElementById('textScaleValue').textContent = scale.toFixed(0) + '%';
-    
-    // 不透明度
-    const opacity = (text.opacity || 1) * 100;
-    document.getElementById('textOpacity').value = opacity;
-    document.getElementById('textOpacityValue').textContent = opacity.toFixed(0) + '%';
-    
-    // 揃え - 全てのボタンの状態を明示的に設定
-    document.querySelectorAll('[data-align]').forEach(btn => {
-        const isActive = btn.dataset.align === text.textAlign;
-        btn.classList.toggle('active', isActive);
-    });
 
-    // スタイル - 各スタイルの状態を明示的に設定
+    if (fontFamilySelect) {
+        fontFamilySelect.value = text.fontFamily;
+    }
+
+    const fillInfo = typeof text.fill === 'string' ? colorToHexAlpha(text.fill) : { hex: '#333333', alpha: 1 };
+    textColorInput.value = fillInfo.hex;
+    textColorHexInput.value = fillInfo.hex;
+
+    const storedBgColor = text.customData?.backgroundColor || '#ffffff';
+    const backgroundColor = text.backgroundColor || (text.customData?.bgTransparent ? '' : storedBgColor);
+    textBgColorInput.value = backgroundColor || storedBgColor;
+    textBgColorHexInput.value = backgroundColor || storedBgColor;
+    const isBgTransparent = text.customData?.bgTransparent ?? !backgroundColor;
+    text.customData.backgroundColor = backgroundColor || storedBgColor;
+    textBgTransparentCheckbox.checked = isBgTransparent;
+
+    const defaultShadow = {
+        color: '#000000',
+        opacity: 0.4,
+        blur: 6,
+        distance: 3,
+        angle: 45
+    };
+    const customShadow = text.customData?.shadowSettings || {};
+    let resolvedShadow = { ...defaultShadow, ...customShadow };
+    if (text.shadow) {
+        const { hex, alpha } = colorToHexAlpha(text.shadow.color || defaultShadow.color);
+        const offsetX = text.shadow.offsetX || 0;
+        const offsetY = text.shadow.offsetY || 0;
+        const distance = Math.round(Math.sqrt(offsetX * offsetX + offsetY * offsetY));
+        const angle = Math.round((Math.atan2(offsetY, offsetX) * 180 / Math.PI + 360) % 360);
+        resolvedShadow = {
+            color: hex,
+            opacity: alpha,
+            blur: text.shadow.blur ?? defaultShadow.blur,
+            distance,
+            angle
+        };
+    }
+    const hasShadow = !!text.shadow;
+    text.customData = text.customData || {};
+    text.customData.hasShadow = hasShadow;
+    text.customData.shadowSettings = resolvedShadow;
+    textShadowCheckbox.checked = hasShadow;
+    if (textShadowControls) {
+        textShadowControls.classList.toggle('is-disabled', !hasShadow);
+        document.getElementById('textShadowColor').value = resolvedShadow.color;
+        document.getElementById('textShadowOpacity').value = Math.round(resolvedShadow.opacity * 100);
+        document.getElementById('textShadowBlur').value = resolvedShadow.blur;
+        document.getElementById('textShadowOffset').value = resolvedShadow.distance;
+        document.getElementById('textShadowAngle').value = resolvedShadow.angle;
+        document.getElementById('textShadowOpacityValue').textContent = Math.round(resolvedShadow.opacity * 100) + '%';
+        document.getElementById('textShadowBlurValue').textContent = resolvedShadow.blur + 'px';
+        document.getElementById('textShadowOffsetValue').textContent = resolvedShadow.distance + 'px';
+        document.getElementById('textShadowAngleValue').textContent = resolvedShadow.angle + '°';
+    }
+
+    const defaultStroke = { color: '#ffffff', width: 4 };
+    const customStroke = text.customData?.strokeSettings || {};
+    let resolvedStroke = { ...defaultStroke, ...customStroke };
+    const hasStroke = !!text.stroke && text.strokeWidth > 0;
+    if (hasStroke) {
+        resolvedStroke.color = colorToHexAlpha(text.stroke).hex;
+        resolvedStroke.width = parseIntOr(text.strokeWidth, defaultStroke.width);
+    }
+    text.customData.hasStroke = hasStroke;
+    text.customData.strokeSettings = resolvedStroke;
+    textStrokeCheckbox.checked = hasStroke;
+    if (textStrokeControls) {
+        textStrokeControls.classList.toggle('is-disabled', !hasStroke);
+        document.getElementById('textStrokeColor').value = resolvedStroke.color;
+        document.getElementById('textStrokeWidth').value = resolvedStroke.width;
+        document.getElementById('textStrokeWidthValue').textContent = resolvedStroke.width + 'px';
+    }
+
+    if (textLetterSpacingSlider) {
+        const charSpacing = typeof text.charSpacing === 'number' ? Math.round(text.charSpacing) : 0;
+        if (charSpacing > parseInt(textLetterSpacingSlider.max, 10)) {
+            textLetterSpacingSlider.max = charSpacing;
+        }
+        textLetterSpacingSlider.value = charSpacing;
+        document.getElementById('textLetterSpacingValue').textContent = (charSpacing / 100).toFixed(2) + 'em';
+        text.customData.typography = text.customData.typography || {};
+        text.customData.typography.letterSpacing = charSpacing;
+    }
+
+    if (textLineHeightSlider) {
+        const ratio = typeof text.lineHeight === 'number' ? text.lineHeight : 1;
+        const percent = Math.round(ratio * 100);
+        if (percent < parseInt(textLineHeightSlider.min, 10)) {
+            textLineHeightSlider.min = percent;
+        }
+        if (percent > parseInt(textLineHeightSlider.max, 10)) {
+            textLineHeightSlider.max = percent;
+        }
+        textLineHeightSlider.value = percent;
+        document.getElementById('textLineHeightValue').textContent = percent + '%';
+        text.customData.typography = text.customData.typography || {};
+        text.customData.typography.lineHeight = percent;
+    }
+
+    const rotation = text.angle || 0;
+    document.getElementById('textRotation').value = rotation;
+    document.getElementById('textRotationValue').textContent = rotation + '°';
+
+    const scalePercent = (text.scaleX || 1) * 100;
+    document.getElementById('textScale').value = scalePercent;
+    document.getElementById('textScaleValue').textContent = scalePercent.toFixed(0) + '%';
+
+    const opacityPercent = (text.opacity ?? 1) * 100;
+    document.getElementById('textOpacity').value = opacityPercent;
+    document.getElementById('textOpacityValue').textContent = opacityPercent.toFixed(0) + '%';
+
     const boldBtn = document.querySelector('[data-style="bold"]');
     const italicBtn = document.querySelector('[data-style="italic"]');
     const underlineBtn = document.querySelector('[data-style="underline"]');
@@ -689,75 +858,153 @@ function updateSelectedText() {
     if (!selectedObject || selectedObject.type !== 'i-text') return;
     
     const text = selectedObject;
+    text.customData = text.customData || {};
+    text.customData.typography = text.customData.typography || {};
     
+    const content = document.getElementById('textContent').value;
+    const fontSize = parseIntOr(document.getElementById('fontSize').value, text.fontSize);
+    const fontFamily = document.getElementById('fontFamily').value;
+    const fillColor = document.getElementById('textColor').value;
+
     text.set({
-        text: document.getElementById('textContent').value,
-        fontSize: parseInt(document.getElementById('fontSize').value),
-        fontFamily: document.getElementById('fontFamily').value,
-        fill: document.getElementById('textColor').value
+        text: content,
+        fontSize,
+        fontFamily,
+        fill: fillColor
     });
-    
-    document.getElementById('fontSizeValue').textContent = text.fontSize + 'px';
-    
-    // 背景色
+    document.getElementById('fontSizeValue').textContent = fontSize + 'px';
+    document.getElementById('textColorHex').value = fillColor;
+
+    const bgColor = document.getElementById('textBgColor').value;
     const bgTransparent = document.getElementById('textBgTransparent').checked;
     text.customData.bgTransparent = bgTransparent;
+    text.customData.backgroundColor = bgColor;
+    document.getElementById('textBgColorHex').value = bgColor;
     text.set({
-        backgroundColor: bgTransparent ? '' : document.getElementById('textBgColor').value
+        backgroundColor: bgTransparent ? '' : bgColor
     });
-    
-    // 揃え
-    const activeAlign = document.querySelector('[data-align].active');
-    if (activeAlign) {
-        text.set({ textAlign: activeAlign.dataset.align });
-    }
-    
-    // スタイル
-    const isBold = document.querySelector('[data-style="bold"]').classList.contains('active');
-    const isItalic = document.querySelector('[data-style="italic"]').classList.contains('active');
-    const isUnderline = document.querySelector('[data-style="underline"]').classList.contains('active');
-    
+
+    const boldBtn = document.querySelector('[data-style="bold"]');
+    const italicBtn = document.querySelector('[data-style="italic"]');
+    const underlineBtn = document.querySelector('[data-style="underline"]');
+
     text.set({
-        fontWeight: isBold ? 'bold' : 'normal',
-        fontStyle: isItalic ? 'italic' : 'normal',
-        underline: isUnderline
+        fontWeight: boldBtn && boldBtn.classList.contains('active') ? 'bold' : 'normal',
+        fontStyle: italicBtn && italicBtn.classList.contains('active') ? 'italic' : 'normal',
+        underline: underlineBtn ? underlineBtn.classList.contains('active') : false
     });
-    
-    // 影
-    const hasShadow = document.getElementById('textShadow').checked;
+
+    const shadowCheckbox = document.getElementById('textShadow');
+    const shadowControls = document.getElementById('textShadowControls');
+    const hasShadow = shadowCheckbox.checked;
+    const shadowColor = document.getElementById('textShadowColor').value;
+    const shadowOpacity = clamp(parseIntOr(document.getElementById('textShadowOpacity').value, 40) / 100, 0, 1);
+    const shadowBlur = parseIntOr(document.getElementById('textShadowBlur').value, 6);
+    const shadowDistance = parseIntOr(document.getElementById('textShadowOffset').value, 3);
+    const shadowAngle = parseIntOr(document.getElementById('textShadowAngle').value, 45);
+
     text.customData.hasShadow = hasShadow;
-    text.set({
-        shadow: hasShadow ? new fabric.Shadow({
-            color: 'rgba(0,0,0,0.4)',
-            blur: 6,
-            offsetX: 3,
-            offsetY: 3
-        }) : null
-    });
-    
-    // 枠線
-    const hasStroke = document.getElementById('textStroke').checked;
+    text.customData.shadowSettings = {
+        color: shadowColor,
+        opacity: shadowOpacity,
+        blur: shadowBlur,
+        distance: shadowDistance,
+        angle: shadowAngle
+    };
+
+    document.getElementById('textShadowOpacityValue').textContent = Math.round(shadowOpacity * 100) + '%';
+    document.getElementById('textShadowBlurValue').textContent = shadowBlur + 'px';
+    document.getElementById('textShadowOffsetValue').textContent = shadowDistance + 'px';
+    document.getElementById('textShadowAngleValue').textContent = shadowAngle + '°';
+    if (shadowControls) {
+        shadowControls.classList.toggle('is-disabled', !hasShadow);
+    }
+
+    if (hasShadow) {
+        const radians = shadowAngle * Math.PI / 180;
+        const offsetX = Number((shadowDistance * Math.cos(radians)).toFixed(2));
+        const offsetY = Number((shadowDistance * Math.sin(radians)).toFixed(2));
+
+        text.set({
+            shadow: new fabric.Shadow({
+                color: hexToRgba(shadowColor, shadowOpacity),
+                blur: shadowBlur,
+                offsetX,
+                offsetY
+            })
+        });
+    } else {
+        text.set({ shadow: null });
+    }
+
+    const strokeCheckbox = document.getElementById('textStroke');
+    const strokeControls = document.getElementById('textStrokeControls');
+    const hasStroke = strokeCheckbox.checked;
+    const strokeColor = document.getElementById('textStrokeColor').value;
+    const strokeWidth = Math.max(parseIntOr(document.getElementById('textStrokeWidth').value, 4), 0);
+
     text.customData.hasStroke = hasStroke;
-    text.set({
-        stroke: hasStroke ? '#ffffff' : null,
-        strokeWidth: hasStroke ? 4 : 0
-    });
-    
-    // 回転
-    const rotation = parseInt(document.getElementById('textRotation').value);
+    text.customData.strokeSettings = {
+        color: strokeColor,
+        width: strokeWidth
+    };
+
+    document.getElementById('textStrokeWidthValue').textContent = strokeWidth + 'px';
+    if (strokeControls) {
+        strokeControls.classList.toggle('is-disabled', !hasStroke);
+    }
+
+    if (hasStroke) {
+        text.set({
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
+            strokeUniform: true
+        });
+    } else {
+        text.set({
+            stroke: null,
+            strokeWidth: 0
+        });
+    }
+
+    const letterSpacingSlider = document.getElementById('textLetterSpacing');
+    const letterSpacingValueLabel = document.getElementById('textLetterSpacingValue');
+    if (letterSpacingSlider && letterSpacingValueLabel) {
+        const letterSpacing = Math.max(parseIntOr(letterSpacingSlider.value, 0), 0);
+        text.customData.typography.letterSpacing = letterSpacing;
+        text.set({ charSpacing: letterSpacing });
+        letterSpacingValueLabel.textContent = (letterSpacing / 100).toFixed(2) + 'em';
+    }
+
+    const lineHeightSlider = document.getElementById('textLineHeight');
+    const lineHeightValueLabel = document.getElementById('textLineHeightValue');
+    if (lineHeightSlider && lineHeightValueLabel) {
+        const lineHeightPercent = clamp(
+            parseIntOr(lineHeightSlider.value, 100),
+            parseInt(lineHeightSlider.min, 10),
+            parseInt(lineHeightSlider.max, 10)
+        );
+        const lineHeight = lineHeightPercent / 100;
+        text.customData.typography.lineHeight = lineHeightPercent;
+        text.set({ lineHeight });
+        lineHeightValueLabel.textContent = lineHeightPercent + '%';
+    }
+
+    const rotation = parseIntOr(document.getElementById('textRotation').value, 0);
     text.set({ angle: rotation });
     document.getElementById('textRotationValue').textContent = rotation + '°';
-    
-    // 拡大縮小
-    const scale = parseInt(document.getElementById('textScale').value) / 100;
+
+    const scalePercent = Math.max(parseIntOr(document.getElementById('textScale').value, 100), 1);
+    const scale = scalePercent / 100;
     text.set({ scaleX: scale, scaleY: scale });
-    document.getElementById('textScaleValue').textContent = (scale * 100).toFixed(0) + '%';
-    
-    // 不透明度
-    const opacity = parseInt(document.getElementById('textOpacity').value) / 100;
-    text.set({ opacity: opacity });
-    document.getElementById('textOpacityValue').textContent = (opacity * 100).toFixed(0) + '%';
-    
+    document.getElementById('textScaleValue').textContent = scalePercent + '%';
+
+    const opacityPercent = clamp(parseIntOr(document.getElementById('textOpacity').value, 100), 0, 100);
+    const opacity = opacityPercent / 100;
+    text.set({ opacity });
+    document.getElementById('textOpacityValue').textContent = Math.round(opacity * 100) + '%';
+
+    text.setCoords();
     getCanvas().renderAll();
 
     scheduleCanvasHistoryCapture();

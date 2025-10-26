@@ -37,6 +37,9 @@
                 <button class="btn-settings" id="undoBtn" title="1つ前の状態に戻る (Ctrl+Z)" aria-label="1つ前の状態に戻る">
                     <i class="fas fa-rotate-left"></i>
                 </button>
+                <button class="btn-settings" id="redoBtn" title="やり直す (Ctrl+Shift+Z)" aria-label="やり直す">
+                    <i class="fas fa-rotate-right"></i>
+                </button>
                 <button class="btn-export" id="exportBtn" title="エクスポート" aria-label="エクスポート">
                     <i class="fas fa-download"></i>
                 </button>
@@ -85,7 +88,15 @@
         <main class="main-content">
             <!-- キャンバスエリア -->
             <div class="canvas-workspace" id="canvasContainer">
-                <canvas id="mainCanvas"></canvas>
+                <div class="canvas-stack" id="canvasStack">
+                    <div class="canvas-slot active" data-canvas-id="mainCanvas">
+                        <canvas id="mainCanvas"></canvas>
+                    </div>
+                </div>
+                <button class="btn-add-canvas" id="addCanvasBtn" type="button" aria-label="キャンバスを追加">
+                    <i class="fas fa-plus"></i>
+                    <span>キャンバスを追加</span>
+                </button>
 
                 <aside class="image-controls-panel" id="imageControlsPanel" style="display: none;">
                     <div class="image-controls-header">
@@ -134,6 +145,60 @@
                         <button class="btn-secondary btn-full" id="resetFilters">
                             <i class="fas fa-undo"></i> リセット
                         </button>
+                    </div>
+
+                    <div class="image-controls-section">
+                        <h4>回転・反転</h4>
+                        <div class="btn-stack">
+                            <button class="btn-secondary btn-full" id="rotateImage90Btn" title="画像を90度回転 (R)" aria-label="画像を90度回転">
+                                <i class="fas fa-rotate-right"></i> 90度回転
+                            </button>
+                            <button class="btn-secondary" id="flipHorizontalBtn" title="画像を水平反転 (H)" aria-label="画像を水平反転">
+                                <i class="fas fa-left-right"></i> 水平反転
+                            </button>
+                            <button class="btn-secondary" id="flipVerticalBtn" title="画像を垂直反転 (V)" aria-label="画像を垂直反転">
+                                <i class="fas fa-up-down"></i> 垂直反転
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="image-controls-section">
+                        <h4>一部ぼかし</h4>
+                        <div class="control-group compact">
+                            <label>
+                                <span><i class="fas fa-circle-half-stroke"></i> ぼかし半径</span>
+                                <span class="value" id="blurRadiusValue">8px</span>
+                            </label>
+                            <input type="range" id="blurRadius" min="2" max="30" value="8" step="1">
+                            <small style="opacity: 0.7;">個人情報を隠すのに便利</small>
+                        </div>
+                        <div class="btn-stack">
+                            <button class="btn-primary btn-full" id="startPartialBlurBtn" title="ぼかし範囲を選択 (B)" aria-label="ぼかし開始">
+                                <i class="fas fa-square-dashed"></i> ぼかし開始
+                            </button>
+                            <button class="btn-primary" id="applyPartialBlurBtn" style="display: none;" title="ぼかしを適用" aria-label="ぼかし適用">
+                                <i class="fas fa-check"></i> 適用
+                            </button>
+                            <button class="btn-secondary" id="cancelPartialBlurBtn" style="display: none;" title="キャンセル" aria-label="キャンセル">
+                                <i class="fas fa-times"></i> キャンセル
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="image-controls-section">
+                        <h4>トリミング</h4>
+                        <div class="btn-stack">
+                            <button class="btn-primary btn-full" id="startCroppingBtn" title="トリミング範囲を選択 (C)" aria-label="トリミング開始">
+                                <i class="fas fa-crop"></i> トリミング開始
+                            </button>
+                            <button class="btn-primary" id="applyCroppingBtn" style="display: none;" title="トリミングを適用" aria-label="トリミング適用">
+                                <i class="fas fa-check"></i> 適用
+                            </button>
+                            <button class="btn-secondary" id="cancelCroppingBtn" style="display: none;" title="キャンセル" aria-label="キャンセル">
+                                <i class="fas fa-times"></i> キャンセル
+                            </button>
+                        </div>
+                        <small style="opacity: 0.7;">矩形範囲を選択して切り抜き</small>
                     </div>
 
                     <div class="image-controls-section">
@@ -211,30 +276,20 @@
                         <div class="control-group compact">
                             <label><span><i class="fas fa-fill"></i> 文字色</span></label>
                             <div class="color-inputs">
-                                <input type="color" id="textColor" value="#333333">
+                                <input type="color" id="textColor" value="#333333" class="color-chip">
                                 <input type="text" id="textColorHex" value="#333333" maxlength="7">
                             </div>
                         </div>
                         <div class="control-group compact">
                             <label><span><i class="fas fa-fill-drip"></i> 背景</span></label>
                             <div class="color-inputs">
-                                <input type="color" id="textBgColor" value="#ffffff">
+                                <input type="color" id="textBgColor" value="#ffffff" class="color-chip">
                                 <input type="text" id="textBgColorHex" value="#ffffff" maxlength="7">
                             </div>
                             <label class="checkbox-label small">
                                 <input type="checkbox" id="textBgTransparent" checked>
                                 背景透過
                             </label>
-                        </div>
-                    </div>
-
-                    <div class="text-controls-section">
-                        <label><span><i class="fas fa-align-left"></i> 揃え</span></label>
-                        <div class="btn-chip-group" id="textAlignGroup">
-                            <button class="btn-chip active" data-align="left"><i class="fas fa-align-left"></i></button>
-                            <button class="btn-chip" data-align="center"><i class="fas fa-align-center"></i></button>
-                            <button class="btn-chip" data-align="right"><i class="fas fa-align-right"></i></button>
-                            <button class="btn-chip" data-align="justify"><i class="fas fa-align-justify"></i></button>
                         </div>
                     </div>
 
@@ -271,16 +326,83 @@
                         </div>
                     </div>
 
-                    <div class="text-controls-section">
+                    <div class="text-controls-section text-effects-section">
                         <label><span><i class="fas fa-magic"></i> 効果</span></label>
-                        <label class="checkbox-label small">
-                            <input type="checkbox" id="textShadow">
-                            シャドウ
-                        </label>
-                        <label class="checkbox-label small">
-                            <input type="checkbox" id="textStroke">
-                            アウトライン
-                        </label>
+                        <div class="effects-toggle">
+                            <label class="checkbox-label small">
+                                <input type="checkbox" id="textShadow">
+                                シャドウ
+                            </label>
+                            <div class="effect-controls" id="textShadowControls">
+                                <div class="effect-control">
+                                    <span>色</span>
+                                    <input type="color" id="textShadowColor" value="#000000" class="color-chip">
+                                </div>
+                                <div class="effect-control">
+                                    <label>
+                                        <span>濃さ</span>
+                                        <span class="value" id="textShadowOpacityValue">40%</span>
+                                    </label>
+                                    <input type="range" id="textShadowOpacity" min="0" max="100" value="40" step="5">
+                                </div>
+                                <div class="effect-control">
+                                    <label>
+                                        <span>ぼかし</span>
+                                        <span class="value" id="textShadowBlurValue">6px</span>
+                                    </label>
+                                    <input type="range" id="textShadowBlur" min="0" max="50" value="6" step="1">
+                                </div>
+                                <div class="effect-control">
+                                    <label>
+                                        <span>距離</span>
+                                        <span class="value" id="textShadowOffsetValue">3px</span>
+                                    </label>
+                                    <input type="range" id="textShadowOffset" min="0" max="50" value="3" step="1">
+                                </div>
+                                <div class="effect-control">
+                                    <label>
+                                        <span>角度</span>
+                                        <span class="value" id="textShadowAngleValue">45°</span>
+                                    </label>
+                                    <input type="range" id="textShadowAngle" min="0" max="360" value="45" step="1">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="effects-toggle">
+                            <label class="checkbox-label small">
+                                <input type="checkbox" id="textStroke">
+                                アウトライン
+                            </label>
+                            <div class="effect-controls" id="textStrokeControls">
+                                <div class="effect-control">
+                                    <span>色</span>
+                                    <input type="color" id="textStrokeColor" value="#ffffff" class="color-chip">
+                                </div>
+                                <div class="effect-control">
+                                    <label>
+                                        <span>太さ</span>
+                                        <span class="value" id="textStrokeWidthValue">4px</span>
+                                    </label>
+                                    <input type="range" id="textStrokeWidth" min="0" max="20" value="4" step="1">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="effects-typography">
+                            <div class="effect-control">
+                                <label>
+                                    <span>字間</span>
+                                    <span class="value" id="textLetterSpacingValue">0</span>
+                                </label>
+                                <input type="range" id="textLetterSpacing" min="0" max="400" value="0" step="5">
+                            </div>
+                            <div class="effect-control">
+                                <label>
+                                    <span>行間</span>
+                                    <span class="value" id="textLineHeightValue">100%</span>
+                                </label>
+                                <input type="range" id="textLineHeight" min="80" max="200" value="100" step="5">
+                            </div>
+                        </div>
                     </div>
 
                     <div class="btn-stack">
@@ -314,6 +436,15 @@
                         <i class="fas fa-camera"></i> 商品画像を選択
                     </button>
                     <input type="file" id="imageInput" accept="image/*" style="display: none;" multiple>
+                    <div class="image-url-import">
+                        <div class="image-url-row">
+                            <input type="url" id="imageUrlInput" placeholder="https://example.com/image.jpg" inputmode="url" autocomplete="off" spellcheck="false" aria-label="画像URLを入力">
+                            <button class="btn-secondary" id="importImageUrlBtn" type="button">
+                                <i class="fas fa-link"></i> URLから追加
+                            </button>
+                        </div>
+                        <small class="image-url-hint">直接貼り付けた画像URLからインポートできます</small>
+                    </div>
                 </div>
 
                 <!-- テンプレートパネル -->

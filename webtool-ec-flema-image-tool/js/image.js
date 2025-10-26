@@ -1,6 +1,8 @@
 // ========== 画像管理モジュール ==========
 // 画像のアップロード、フィルター適用、削除
 
+const IMAGE_SIZE_LIMIT = 10 * 1024 * 1024; // 10MB
+
 let images = []; // 追加された画像のリスト
 
 // フィルター設定（選択中の画像用）
@@ -11,10 +13,147 @@ let currentFilters = {
     hue: 0
 };
 
+function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+function loadFabricImage(source, options = {}) {
+    return new Promise((resolve, reject) => {
+        fabric.Image.fromURL(source, (img) => {
+            if (!img || !img.width || !img.height) {
+                console.error('Failed to load image:', source);
+                reject(new Error('Invalid image source'));
+                return;
+            }
+            resolve(img);
+        }, {
+            ...options,
+            crossOrigin: 'anonymous'
+        });
+    });
+}
+
+function positionImageOnCanvas(img, options = {}) {
+    const canvas = getCanvas();
+    if (!canvas) {
+        showNotification('キャンバスが初期化されていません', 'error');
+        throw new Error('Canvas not initialized');
+    }
+
+    const {
+        offsetIndex = 0,
+        deferRender = false
+    } = options;
+
+    const zoom = canvas.getZoom ? canvas.getZoom() : 1;
+    const maxW = (canvas.width * 0.85) / zoom;
+    const maxH = (canvas.height * 0.85) / zoom;
+    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+    if (isFinite(scale) && scale > 0) {
+        img.scale(scale);
+    }
+
+    img.set({
+        originX: 'center',
+        originY: 'center',
+        cornerStyle: 'circle',
+        cornerColor: '#ff9a5a',
+        cornerSize: 16,
+        transparentCorners: false,
+        borderColor: '#ff9a5a',
+        centeredRotation: true,
+        objectType: 'uploaded-image'
+    });
+
+    img.filters = [];
+    img.customFilters = {
+        brightness: 0,
+        contrast: 0,
+        saturation: 0,
+        hue: 0
+    };
+
+    images.push(img);
+    canvas.add(img);
+
+    if (canvas.getObjects().length === 1) {
+        if (typeof zoomToFitObject === 'function') {
+            zoomToFitObject(img, 32);
+        }
+    } else {
+        if (typeof centerObjectOnCanvas === 'function') {
+            centerObjectOnCanvas(img);
+        } else {
+            img.set({
+                left: canvas.width / 2,
+                top: canvas.height / 2
+            });
+        }
+        if (offsetIndex > 0) {
+            const offsetAmount = offsetIndex * 30;
+            img.left += offsetAmount;
+            img.top += offsetAmount;
+            img.setCoords();
+        }
+    }
+
+    canvas.setActiveObject(img);
+
+    if (!deferRender) {
+        canvas.renderAll();
+    }
+
+    if (navigator.vibrate) {
+        navigator.vibrate(50);
+    }
+
+    scheduleCanvasHistoryCapture();
+    if (typeof triggerQuickSave === 'function') {
+        triggerQuickSave();
+    }
+
+    return img;
+}
+
+async function addImageFromDataUrl(imageDataUrl, options = {}) {
+    const { fileName = '', skipHistory = false, offsetIndex = 0, deferRender = false } = options;
+
+    if (!skipHistory) {
+        try {
+            await saveImageToHistory(imageDataUrl, fileName);
+        } catch (error) {
+            console.error('Failed to save image to history:', error);
+        }
+    }
+
+    try {
+        const img = await loadFabricImage(imageDataUrl);
+        return positionImageOnCanvas(img, { offsetIndex, deferRender });
+    } catch (error) {
+        console.error('Failed to add image from data URL:', error);
+        showNotification('画像の読み込みに失敗しました', 'error');
+        throw error;
+    }
+}
+
 // 画像アップロード処理
-function handleImageUpload(e) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+async function handleImageUpload(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
     const canvas = getCanvas();
     if (!canvas) {
@@ -22,129 +161,125 @@ function handleImageUpload(e) {
         return;
     }
 
-    // 複数ファイルアップロード時のパフォーマンス最適化
-    const isMultipleFiles = files.length > 1;
-    if (isMultipleFiles) {
-        canvas.renderOnAddRemove = false;
-    }
-
-    let processedCount = 0;
-    const totalFiles = files.length;
-
-    Array.from(files).forEach((file, index) => {
-        // ファイルタイプ検証
+    const validFiles = [];
+    files.forEach(file => {
         if (!file.type.startsWith('image/')) {
             showNotification(`${file.name}は画像ファイルではありません`, 'error');
             return;
         }
-
-        // ファイルサイズ検証（10MB制限）
-        if (file.size > 10 * 1024 * 1024) {
+        if (file.size > IMAGE_SIZE_LIMIT) {
             showNotification(`${file.name}は大きすぎます（最大10MB）`, 'error');
             return;
         }
-
-        const reader = new FileReader();
-
-        reader.onload = async function(event) {
-            const imageDataUrl = event.target.result;
-
-            // 画像を履歴に保存
-            try {
-                await saveImageToHistory(imageDataUrl, file.name);
-            } catch (error) {
-                console.error('Failed to save image to history:', error);
-            }
-
-            fabric.Image.fromURL(imageDataUrl, function(img) {
-                // 画像検証
-                if (!img || !img.width || !img.height) {
-                    showNotification('画像の読み込みに失敗しました', 'error');
-                    return;
-                }
-
-                // 画像の初期スケール
-                // これまで 70% に強制縮小していたため小さく見えていた。
-                // キャンバスより大きい場合のみ縮小し、キャンバスより小さい場合は等倍のままにする。
-                const fitScale = Math.min(canvas.width / img.width, canvas.height / img.height, 1);
-                img.scale(fitScale < 1 ? fitScale : 1);
-                img.set({
-                    left: canvas.width / 2 + (index * 30),
-                    top: canvas.height / 2 + (index * 30),
-                    originX: 'center',
-                    originY: 'center',
-                    cornerStyle: 'circle',
-                    cornerColor: '#ff9a5a',
-                    cornerSize: 16, // スマホ用に大きめ
-                    transparentCorners: false,
-                    borderColor: '#ff9a5a',
-                    centeredRotation: true,
-                    objectType: 'uploaded-image'
-                });
-
-                // フィルター初期化
-                img.filters = [];
-                img.customFilters = {
-                    brightness: 0,
-                    contrast: 0,
-                    saturation: 0,
-                    hue: 0
-                };
-
-                images.push(img);
-                canvas.add(img);
-                canvas.setActiveObject(img);
-
-                // 処理完了カウント
-                processedCount++;
-
-                // 全ファイル処理完了時のみレンダリング
-                if (processedCount === totalFiles) {
-                    if (isMultipleFiles) {
-                        canvas.renderOnAddRemove = true;
-                    }
-                    canvas.renderAll();
-                }
-
-                // 画像追加時の触覚フィードバック（対応デバイスのみ）
-                if (navigator.vibrate) {
-                    navigator.vibrate(50);
-                }
-            }, {
-                crossOrigin: 'anonymous',
-                // Fabric.js エラーハンドリング
-                onError: function(err) {
-                    console.error('Fabric.js image load error:', err);
-                    showNotification('画像の読み込みに失敗しました', 'error');
-
-                    // エラー時もカウントして最終レンダリングを保証
-                    processedCount++;
-                    if (processedCount === totalFiles && isMultipleFiles) {
-                        canvas.renderOnAddRemove = true;
-                        canvas.renderAll();
-                    }
-                }
-            });
-        };
-
-        // FileReader エラーハンドリング
-        reader.onerror = function(error) {
-            console.error('File read error:', error);
-            showNotification(`${file.name}の読み込みに失敗しました`, 'error');
-
-            // エラー時もカウントして最終レンダリングを保証
-            processedCount++;
-            if (processedCount === totalFiles && isMultipleFiles) {
-                canvas.renderOnAddRemove = true;
-                canvas.renderAll();
-            }
-        };
-
-        reader.readAsDataURL(file);
+        validFiles.push(file);
     });
 
-    // ファイル入力をリセット
+    if (!validFiles.length) {
+        e.target.value = '';
+        return;
+    }
+
+    const isMultipleFiles = validFiles.length > 1;
+    if (isMultipleFiles) {
+        canvas.renderOnAddRemove = false;
+    }
+
+    let offsetIndex = 0;
+
+    for (const file of validFiles) {
+        try {
+            const imageDataUrl = await fileToDataUrl(file);
+            await addImageFromDataUrl(imageDataUrl, {
+                fileName: file.name,
+                offsetIndex,
+                deferRender: isMultipleFiles
+            });
+            offsetIndex += 1;
+        } catch (error) {
+            console.error('Image upload failed:', error);
+        }
+    }
+
+    if (isMultipleFiles) {
+        canvas.renderOnAddRemove = true;
+        canvas.renderAll();
+    }
+
     e.target.value = '';
+}
+
+async function handleImageUrlImport() {
+    const input = document.getElementById('imageUrlInput');
+    const importBtn = document.getElementById('importImageUrlBtn');
+    const container = importBtn ? importBtn.closest('.image-url-import') : null;
+
+    if (!input || !importBtn) return;
+
+    const rawUrl = input.value.trim();
+    if (!rawUrl) {
+        showNotification('画像のURLを入力してください', 'warning');
+        return;
+    }
+
+    let parsedUrl;
+    try {
+        parsedUrl = new URL(rawUrl);
+    } catch (error) {
+        showNotification('URLの形式が正しくありません', 'error');
+        return;
+    }
+
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        showNotification('HTTPまたはHTTPSの画像URLを入力してください', 'error');
+        return;
+    }
+
+    importBtn.disabled = true;
+    if (container) {
+        container.classList.add('is-loading');
+    }
+
+    try {
+        const response = await fetch(parsedUrl.href, { mode: 'cors' });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        if (!blob.type.startsWith('image/')) {
+            showNotification('画像ファイルではありません', 'error');
+            return;
+        }
+
+        if (blob.size > IMAGE_SIZE_LIMIT) {
+            showNotification('画像が大きすぎます（最大10MB）', 'error');
+            return;
+        }
+
+        const imageDataUrl = await blobToDataUrl(blob);
+        const fileName = decodeURIComponent(parsedUrl.pathname.split('/').pop() || '') || 'imported-image';
+
+        await addImageFromDataUrl(imageDataUrl, {
+            fileName,
+            offsetIndex: 0,
+            deferRender: false
+        });
+
+        showNotification('URLから画像を追加しました', 'success');
+        input.value = '';
+    } catch (error) {
+        console.error('Image URL import error:', error);
+        if (error.name === 'TypeError' || error.message.includes('Failed to fetch')) {
+            showNotification('画像を取得できませんでした（CORS制限の可能性）', 'error');
+        } else {
+            showNotification('画像の読み込みに失敗しました', 'error');
+        }
+    } finally {
+        importBtn.disabled = false;
+        if (container) {
+            container.classList.remove('is-loading');
+        }
+    }
 }
 
 // フィルター変更処理
@@ -530,6 +665,12 @@ function removeImageBackgroundQuick() {
         const shadowSnapshot = selectedObject.shadow || null;
 
         fabric.Image.fromURL(processedDataUrl, (newImg) => {
+            if (!newImg) {
+                hideLoadingNotification();
+                showNotification('処理済み画像の読み込みに失敗しました', 'error');
+                return;
+            }
+
             newImg.set({
                 ...preserveProps,
                 objectType: 'uploaded-image'
@@ -544,7 +685,7 @@ function removeImageBackgroundQuick() {
                 newImg.shadow = shadowSnapshot;
             }
 
-            canvas.remove(selectedObject);
+            canvas.remove(selectedImage);
             if (objectIndex >= 0) {
                 canvas.insertAt(newImg, objectIndex, false);
             } else {
@@ -596,4 +737,624 @@ function updateImageControlsUI(img) {
 // 画像リスト取得
 function getImages() {
     return images;
+}
+
+// ========== 画像の一部ぼかし機能 ==========
+
+// ぼかし状態管理
+let blurState = {
+    isActive: false,
+    targetImage: null,
+    overlayRect: null,
+    radius: 8,
+    listeners: []
+};
+
+// 一部ぼかしモードを開始
+function startPartialBlur() {
+    const selectedObject = getSelectedObject();
+    if (!selectedObject || selectedObject.objectType !== 'uploaded-image') {
+        showNotification('ぼかしを適用する画像を選択してください', 'error');
+        return;
+    }
+    
+    const canvas = getCanvas();
+    
+    // 既にモードがアクティブな場合は終了
+    if (blurState.isActive) {
+        showNotification('既にぼかしモードがアクティブです', 'info');
+        return;
+    }
+    
+    blurState.isActive = true;
+    blurState.targetImage = selectedObject;
+    
+    // キャンバスの選択を一時的に無効化
+    canvas.selection = false;
+    selectedObject.selectable = false;
+    
+    // 画像の範囲内に矩形を作成
+    const imgBounds = selectedObject.getBoundingRect();
+    const rectWidth = Math.min(imgBounds.width * 0.6, imgBounds.width - 40);
+    const rectHeight = Math.min(imgBounds.height * 0.6, imgBounds.height - 40);
+    
+    blurState.overlayRect = new fabric.Rect({
+        left: imgBounds.left + (imgBounds.width - rectWidth) / 2,
+        top: imgBounds.top + (imgBounds.height - rectHeight) / 2,
+        width: rectWidth,
+        height: rectHeight,
+        fill: 'rgba(100, 100, 255, 0.2)',
+        stroke: '#ff9a5a',
+        strokeWidth: 2,
+        strokeDashArray: [5, 5],
+        selectable: true,
+        hasControls: true,
+        hasBorders: true,
+        lockRotation: true,
+        cornerStyle: 'circle',
+        cornerColor: '#ff9a5a',
+        cornerSize: 12,
+        transparentCorners: false,
+        objectType: 'blur-helper'
+    });
+    
+    canvas.add(blurState.overlayRect);
+    canvas.setActiveObject(blurState.overlayRect);
+    canvas.renderAll();
+    
+    // UIボタンの表示切り替え
+    const startBtn = document.getElementById('startPartialBlurBtn');
+    const applyBtn = document.getElementById('applyPartialBlurBtn');
+    const cancelBtn = document.getElementById('cancelPartialBlurBtn');
+    
+    if (startBtn) startBtn.style.display = 'none';
+    if (applyBtn) applyBtn.style.display = 'inline-block';
+    if (cancelBtn) cancelBtn.style.display = 'inline-block';
+    
+    showNotification('ぼかし範囲を選択して「適用」をクリック', 'info');
+    
+    // 触覚フィードバック
+    if (navigator.vibrate) {
+        navigator.vibrate(30);
+    }
+}
+
+// 一部ぼかしを適用
+function applyPartialBlur() {
+    if (!blurState.isActive || !blurState.overlayRect || !blurState.targetImage) {
+        showNotification('ぼかしモードを開始してください', 'error');
+        return;
+    }
+    
+    const canvas = getCanvas();
+    const selectedImage = blurState.targetImage;
+    const blurRect = blurState.overlayRect;
+    
+    // 処理開始通知
+    showNotification('ぼかしを適用中...', 'info', { duration: Infinity, loading: true });
+    
+    try {
+        const sourceImage = selectedImage._originalElement || selectedImage.getElement();
+        if (!sourceImage) {
+            throw new Error('元画像を取得できませんでした');
+        }
+        
+        const naturalWidth = sourceImage.naturalWidth || sourceImage.width;
+        const naturalHeight = sourceImage.naturalHeight || sourceImage.height;
+        
+        if (!naturalWidth || !naturalHeight) {
+            throw new Error('画像サイズを取得できませんでした');
+        }
+        
+        // オフスクリーンキャンバス作成（ベース画像）
+        const baseCanvas = document.createElement('canvas');
+        baseCanvas.width = naturalWidth;
+        baseCanvas.height = naturalHeight;
+        const baseCtx = baseCanvas.getContext('2d', { willReadFrequently: true });
+        
+        if (!baseCtx) {
+            throw new Error('Canvas contextの取得に失敗しました');
+        }
+        
+        // 元画像を描画
+        baseCtx.drawImage(sourceImage, 0, 0, naturalWidth, naturalHeight);
+        
+        // ぼかし用キャンバス作成
+        const blurCanvas = document.createElement('canvas');
+        blurCanvas.width = naturalWidth;
+        blurCanvas.height = naturalHeight;
+        const blurCtx = blurCanvas.getContext('2d');
+        
+        if (!blurCtx) {
+            throw new Error('Blur canvas contextの取得に失敗しました');
+        }
+        
+        // ぼかし半径を取得
+        const blurRadius = blurState.radius || 8;
+        blurCtx.filter = `blur(${blurRadius}px)`;
+        blurCtx.drawImage(sourceImage, 0, 0, naturalWidth, naturalHeight);
+        
+        // 矩形範囲をローカル座標系に変換
+        const blurRectBounds = blurRect.getBoundingRect();
+        const imgBounds = selectedImage.getBoundingRect();
+        
+        // 画像の変換行列を取得して逆変換
+        const transform = selectedImage.calcTransformMatrix();
+        const invTransform = fabric.util.invertTransform(transform);
+        
+        // 矩形の4隅をローカル座標に変換
+        const corners = [
+            { x: blurRectBounds.left, y: blurRectBounds.top },
+            { x: blurRectBounds.left + blurRectBounds.width, y: blurRectBounds.top },
+            { x: blurRectBounds.left + blurRectBounds.width, y: blurRectBounds.top + blurRectBounds.height },
+            { x: blurRectBounds.left, y: blurRectBounds.top + blurRectBounds.height }
+        ];
+        
+        const localCorners = corners.map(corner => 
+            fabric.util.transformPoint(corner, invTransform)
+        );
+        
+        // 境界ボックスを計算
+        const xs = localCorners.map(p => p.x);
+        const ys = localCorners.map(p => p.y);
+        const minX = Math.max(0, Math.floor(Math.min(...xs)));
+        const minY = Math.max(0, Math.floor(Math.min(...ys)));
+        const maxX = Math.min(naturalWidth, Math.ceil(Math.max(...xs)));
+        const maxY = Math.min(naturalHeight, Math.ceil(Math.max(...ys)));
+        
+        const blurWidth = maxX - minX;
+        const blurHeight = maxY - minY;
+        
+        if (blurWidth <= 0 || blurHeight <= 0) {
+            throw new Error('ぼかし範囲が無効です');
+        }
+        
+        // ぼかし範囲を転写
+        baseCtx.drawImage(
+            blurCanvas,
+            minX, minY, blurWidth, blurHeight,
+            minX, minY, blurWidth, blurHeight
+        );
+        
+        // 新しい画像を生成
+        const processedDataUrl = baseCanvas.toDataURL('image/png');
+        
+        // 元画像のプロパティを保存
+        const objectIndex = canvas.getObjects().indexOf(selectedImage);
+        const preserveProps = {
+            left: selectedImage.left,
+            top: selectedImage.top,
+            originX: selectedImage.originX,
+            originY: selectedImage.originY,
+            angle: selectedImage.angle,
+            scaleX: selectedImage.scaleX,
+            scaleY: selectedImage.scaleY,
+            flipX: selectedImage.flipX,
+            flipY: selectedImage.flipY,
+            opacity: selectedImage.opacity,
+            customFilters: { ...(selectedImage.customFilters || currentFilters) }
+        };
+        
+        const filtersSnapshot = (selectedImage.filters || []).slice();
+        
+        // 新しい画像を作成
+        fabric.Image.fromURL(processedDataUrl, (newImg) => {
+            if (!newImg) {
+                hideLoadingNotification();
+                showNotification('処理済み画像の読み込みに失敗しました', 'error');
+                cancelPartialBlur();
+                return;
+            }
+
+            newImg.set({
+                ...preserveProps,
+                objectType: 'uploaded-image'
+            });
+            
+            newImg.filters = filtersSnapshot;
+            if (filtersSnapshot.length > 0) {
+                newImg.applyFilters();
+            }
+            
+            canvas.remove(selectedImage);
+            if (objectIndex >= 0) {
+                canvas.insertAt(newImg, objectIndex, false);
+            } else {
+                canvas.add(newImg);
+            }
+            
+            canvas.setActiveObject(newImg);
+            updateImageControlsUI(newImg);
+            showImageControls();
+            
+            // ぼかしモードを終了
+            cancelPartialBlur();
+            
+            canvas.requestRenderAll();
+            scheduleCanvasHistoryCapture();
+            triggerQuickSave();
+            
+            hideLoadingNotification();
+            showNotification('ぼかしを適用しました', 'success');
+            
+            // 触覚フィードバック
+            if (navigator.vibrate) {
+                navigator.vibrate(30);
+            }
+        }, { crossOrigin: 'anonymous' });
+        
+    } catch (error) {
+        console.error('Partial blur error:', error);
+        hideLoadingNotification();
+        showNotification('ぼかしの適用に失敗しました: ' + error.message, 'error');
+        cancelPartialBlur();
+    }
+}
+
+// 一部ぼかしをキャンセル
+function cancelPartialBlur() {
+    if (!blurState.isActive) return;
+    
+    const canvas = getCanvas();
+    
+    // オーバーレイ矩形を削除
+    if (blurState.overlayRect) {
+        canvas.remove(blurState.overlayRect);
+        blurState.overlayRect = null;
+    }
+    
+    // ターゲット画像の選択を復元
+    if (blurState.targetImage) {
+        blurState.targetImage.selectable = true;
+    }
+    
+    // キャンバスの選択を復元
+    canvas.selection = true;
+    canvas.discardActiveObject();
+    canvas.renderAll();
+    
+    // 状態をリセット
+    blurState.isActive = false;
+    blurState.targetImage = null;
+    blurState.overlayRect = null;
+    
+    // UIボタンの表示切り替え
+    const startBtn = document.getElementById('startPartialBlurBtn');
+    const applyBtn = document.getElementById('applyPartialBlurBtn');
+    const cancelBtn = document.getElementById('cancelPartialBlurBtn');
+    
+    if (startBtn) startBtn.style.display = 'inline-block';
+    if (applyBtn) applyBtn.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    
+    showNotification('ぼかしモードを終了しました', 'info');
+}
+
+// ========== 画像トリミング機能 ==========
+
+// トリミング状態管理
+let cropState = {
+    isActive: false,
+    targetImage: null,
+    overlayRect: null,
+    originalClipPath: null
+};
+
+// トリミングモードを開始
+function startCropping() {
+    const selectedObject = getSelectedObject();
+    if (!selectedObject || selectedObject.objectType !== 'uploaded-image') {
+        showNotification('トリミングする画像を選択してください', 'error');
+        return;
+    }
+    
+    const canvas = getCanvas();
+    
+    // 既にモードがアクティブな場合は終了
+    if (cropState.isActive) {
+        showNotification('既にトリミングモードがアクティブです', 'info');
+        return;
+    }
+    
+    cropState.isActive = true;
+    cropState.targetImage = selectedObject;
+    cropState.originalClipPath = selectedObject.clipPath;
+    
+    // キャンバスの選択を一時的に無効化
+    canvas.selection = false;
+    selectedObject.selectable = false;
+    
+    // 画像の範囲内に矩形を作成
+    const imgBounds = selectedObject.getBoundingRect();
+    const rectWidth = Math.min(imgBounds.width * 0.8, imgBounds.width - 40);
+    const rectHeight = Math.min(imgBounds.height * 0.8, imgBounds.height - 40);
+    
+    cropState.overlayRect = new fabric.Rect({
+        left: imgBounds.left + (imgBounds.width - rectWidth) / 2,
+        top: imgBounds.top + (imgBounds.height - rectHeight) / 2,
+        width: rectWidth,
+        height: rectHeight,
+        fill: 'rgba(255, 154, 90, 0.2)',
+        stroke: '#ff9a5a',
+        strokeWidth: 3,
+        strokeDashArray: [8, 4],
+        selectable: true,
+        hasControls: true,
+        hasBorders: true,
+        lockRotation: true,
+        cornerStyle: 'circle',
+        cornerColor: '#ff9a5a',
+        cornerSize: 14,
+        transparentCorners: false,
+        objectType: 'crop-helper'
+    });
+    
+    canvas.add(cropState.overlayRect);
+    canvas.setActiveObject(cropState.overlayRect);
+    
+    // プレビュー用のclipPathを設定
+    updateCropPreview();
+    
+    // 矩形の移動・リサイズ時にプレビュー更新
+    const updateHandler = () => updateCropPreview();
+    cropState.overlayRect.on('moving', updateHandler);
+    cropState.overlayRect.on('scaling', updateHandler);
+    cropState.overlayRect.on('modified', updateHandler);
+    
+    canvas.renderAll();
+    
+    // UIボタンの表示切り替え
+    const startBtn = document.getElementById('startCroppingBtn');
+    const applyBtn = document.getElementById('applyCroppingBtn');
+    const cancelBtn = document.getElementById('cancelCroppingBtn');
+    
+    if (startBtn) startBtn.style.display = 'none';
+    if (applyBtn) applyBtn.style.display = 'inline-block';
+    if (cancelBtn) cancelBtn.style.display = 'inline-block';
+    
+    showNotification('トリミング範囲を選択して「適用」をクリック', 'info');
+    
+    // 触覚フィードバック
+    if (navigator.vibrate) {
+        navigator.vibrate(30);
+    }
+}
+
+// トリミングプレビューを更新
+function updateCropPreview() {
+    if (!cropState.isActive || !cropState.overlayRect || !cropState.targetImage) return;
+    
+    const canvas = getCanvas();
+    const rect = cropState.overlayRect;
+    const image = cropState.targetImage;
+    
+    // overlayRectの境界をキャンバス座標で取得
+    const rectBounds = rect.getBoundingRect();
+    
+    // clipPathを作成（absolutePositionedでキャンバス座標系でクリップ）
+    const clipRect = new fabric.Rect({
+        left: rectBounds.left,
+        top: rectBounds.top,
+        width: rectBounds.width,
+        height: rectBounds.height,
+        absolutePositioned: true
+    });
+    
+    image.clipPath = clipRect;
+    canvas.renderAll();
+}
+
+// トリミングを適用
+function applyCropping() {
+    if (!cropState.isActive || !cropState.overlayRect || !cropState.targetImage) {
+        showNotification('トリミングモードを開始してください', 'error');
+        return;
+    }
+    
+    const canvas = getCanvas();
+    const selectedImage = cropState.targetImage;
+    const cropRect = cropState.overlayRect;
+    
+    try {
+        // 矩形範囲をローカル座標系に変換
+        const cropRectBounds = cropRect.getBoundingRect();
+        
+        // 画像の変換行列を取得して逆変換
+        const transform = selectedImage.calcTransformMatrix();
+        const invTransform = fabric.util.invertTransform(transform);
+        
+        // 矩形の4隅をローカル座標に変換
+        const corners = [
+            { x: cropRectBounds.left, y: cropRectBounds.top },
+            { x: cropRectBounds.left + cropRectBounds.width, y: cropRectBounds.top },
+            { x: cropRectBounds.left + cropRectBounds.width, y: cropRectBounds.top + cropRectBounds.height },
+            { x: cropRectBounds.left, y: cropRectBounds.top + cropRectBounds.height }
+        ];
+        
+        const localCorners = corners.map(corner => 
+            fabric.util.transformPoint(corner, invTransform)
+        );
+        
+        // 境界ボックスを計算
+        const xs = localCorners.map(p => p.x);
+        const ys = localCorners.map(p => p.y);
+        
+        const sourceImage = selectedImage._originalElement || selectedImage.getElement();
+        const naturalWidth = sourceImage.naturalWidth || sourceImage.width;
+        const naturalHeight = sourceImage.naturalHeight || sourceImage.height;
+        
+        const cropX = Math.max(0, Math.round(Math.min(...xs)));
+        const cropY = Math.max(0, Math.round(Math.min(...ys)));
+        const cropW = Math.min(naturalWidth - cropX, Math.round(Math.max(...xs) - Math.min(...xs)));
+        const cropH = Math.min(naturalHeight - cropY, Math.round(Math.max(...ys) - Math.min(...ys)));
+        
+        if (cropW <= 0 || cropH <= 0) {
+            throw new Error('トリミング範囲が無効です');
+        }
+        
+        // トリミング領域の中心座標を保存（位置補正用）
+        const centerX = (cropRectBounds.left + cropRectBounds.width / 2);
+        const centerY = (cropRectBounds.top + cropRectBounds.height / 2);
+        
+        // cropX, cropY, width, heightを設定
+        selectedImage.set({
+            cropX: cropX,
+            cropY: cropY,
+            width: cropW,
+            height: cropH
+        });
+        
+        // 位置を補正（中心位置を維持）
+        selectedImage.setPositionByOrigin(
+            { x: centerX, y: centerY },
+            'center',
+            'center'
+        );
+        
+        selectedImage.setCoords();
+        
+        // clipPathを解除
+        selectedImage.clipPath = cropState.originalClipPath;
+        
+        // トリミングモードを終了
+        cancelCropping();
+        
+        canvas.setActiveObject(selectedImage);
+        selectedImage.selectable = true;
+        canvas.renderAll();
+        
+        scheduleCanvasHistoryCapture();
+        triggerQuickSave();
+        
+        showNotification('トリミングしました', 'success');
+        
+        // 触覚フィードバック
+        if (navigator.vibrate) {
+            navigator.vibrate(30);
+        }
+        
+    } catch (error) {
+        console.error('Cropping error:', error);
+        showNotification('トリミングに失敗しました: ' + error.message, 'error');
+        cancelCropping();
+    }
+}
+
+// トリミングをキャンセル
+function cancelCropping() {
+    if (!cropState.isActive) return;
+    
+    const canvas = getCanvas();
+    
+    // オーバーレイ矩形を削除
+    if (cropState.overlayRect) {
+        cropState.overlayRect.off('moving');
+        cropState.overlayRect.off('scaling');
+        cropState.overlayRect.off('modified');
+        canvas.remove(cropState.overlayRect);
+        cropState.overlayRect = null;
+    }
+    
+    // clipPathを復元
+    if (cropState.targetImage) {
+        cropState.targetImage.clipPath = cropState.originalClipPath;
+        cropState.targetImage.selectable = true;
+    }
+    
+    // キャンバスの選択を復元
+    canvas.selection = true;
+    canvas.discardActiveObject();
+    canvas.renderAll();
+    
+    // 状態をリセット
+    cropState.isActive = false;
+    cropState.targetImage = null;
+    cropState.overlayRect = null;
+    cropState.originalClipPath = null;
+    
+    // UIボタンの表示切り替え
+    const startBtn = document.getElementById('startCroppingBtn');
+    const applyBtn = document.getElementById('applyCroppingBtn');
+    const cancelBtn = document.getElementById('cancelCroppingBtn');
+    
+    if (startBtn) startBtn.style.display = 'inline-block';
+    if (applyBtn) applyBtn.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    
+    showNotification('トリミングモードを終了しました', 'info');
+}
+
+// ========== 画像回転・反転機能 ==========
+
+// 画像を90度回転
+function rotateSelectedImage90() {
+    const selectedObject = getSelectedObject();
+    if (!selectedObject || selectedObject.objectType !== 'uploaded-image') {
+        showNotification('回転する画像を選択してください', 'error');
+        return;
+    }
+    
+    const canvas = getCanvas();
+    const currentAngle = selectedObject.angle || 0;
+    selectedObject.set('angle', currentAngle + 90);
+    selectedObject.setCoords();
+    
+    canvas.renderAll();
+    scheduleCanvasHistoryCapture();
+    triggerQuickSave();
+    
+    showNotification('90度回転しました', 'success');
+    
+    // 触覚フィードバック
+    if (navigator.vibrate) {
+        navigator.vibrate(30);
+    }
+}
+
+// 画像を水平反転（左右反転）
+function flipSelectedImageHorizontal() {
+    const selectedObject = getSelectedObject();
+    if (!selectedObject || selectedObject.objectType !== 'uploaded-image') {
+        showNotification('反転する画像を選択してください', 'error');
+        return;
+    }
+    
+    const canvas = getCanvas();
+    selectedObject.set('flipX', !selectedObject.flipX);
+    selectedObject.setCoords();
+    
+    canvas.renderAll();
+    scheduleCanvasHistoryCapture();
+    triggerQuickSave();
+    
+    showNotification('水平反転しました', 'success');
+    
+    // 触覚フィードバック
+    if (navigator.vibrate) {
+        navigator.vibrate(30);
+    }
+}
+
+// 画像を垂直反転（上下反転）
+function flipSelectedImageVertical() {
+    const selectedObject = getSelectedObject();
+    if (!selectedObject || selectedObject.objectType !== 'uploaded-image') {
+        showNotification('反転する画像を選択してください', 'error');
+        return;
+    }
+    
+    const canvas = getCanvas();
+    selectedObject.set('flipY', !selectedObject.flipY);
+    selectedObject.setCoords();
+    
+    canvas.renderAll();
+    scheduleCanvasHistoryCapture();
+    triggerQuickSave();
+    
+    showNotification('垂直反転しました', 'success');
+    
+    // 触覚フィードバック
+    if (navigator.vibrate) {
+        navigator.vibrate(30);
+    }
 }

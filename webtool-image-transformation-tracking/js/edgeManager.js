@@ -131,8 +131,8 @@ class EdgeManager {
         if (!edge || !edge.prompt) {
             throw new Error('エッジまたはプロンプトが見つかりません');
         }
-        
-        const sourceNode = window.workflowEngine?.nodes.get(edge.from);
+
+        const sourceNode = window.workflowEngine?.nodes.get(edge.source);
         if (!sourceNode || sourceNode.images.length === 0) {
             throw new Error('ソースノードに画像がありません');
         }
@@ -148,9 +148,9 @@ class EdgeManager {
                 3, // Number of variations
                 window.config?.get('defaultImageModel') || 'fal-ai/nano-banana'
             );
-            
+
             // Add results to target node
-            const targetNode = window.workflowEngine?.nodes.get(edge.to);
+            const targetNode = window.workflowEngine?.nodes.get(edge.target);
             if (targetNode && results) {
                 results.forEach(result => {
                     window.workflowEngine?.addImageToNode(targetNode.id, result);

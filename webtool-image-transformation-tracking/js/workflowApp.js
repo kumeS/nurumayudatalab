@@ -9,24 +9,23 @@ class WorkflowApp {
 
     initialize() {
         console.log('Initializing Workflow App');
-        
+
         // Initialize canvas controller
         if (!window.canvasController) {
             window.canvasController = new CanvasController();
             window.canvasController.initialize();
         }
-        
+
         this.setupEventListeners();
         this.loadSettings();
+
+        // Auto-restore the last saved workflow
+        this.autoLoadWorkflow();
+
         this.updateStatus();
-        
-        // Initialize with a default node after a short delay
-        setTimeout(() => {
-            const firstNode = workflowEngine.createNode({
-                position: { x: 400, y: 300 }
-            });
-            console.log('Created initial node:', firstNode.id);
-        }, 1000);
+
+        // Removed automatic node creation - users should create nodes manually
+        // to avoid unwanted nodes on application startup
     }
 
     setupEventListeners() {
@@ -71,6 +70,13 @@ class WorkflowApp {
             });
         }
 
+        const transformImageBtn = document.getElementById('transformImageBtn');
+        if (transformImageBtn) {
+            transformImageBtn.addEventListener('click', () => {
+                this.transformSelectedNode();
+            });
+        }
+
         // View controls
         const fitViewBtn = document.getElementById('fitViewBtn');
         if (fitViewBtn) {
@@ -102,6 +108,17 @@ class WorkflowApp {
             });
         }
 
+        // Auto Layout button
+        const autoLayoutBtn = document.getElementById('autoLayoutBtn');
+        if (autoLayoutBtn) {
+            autoLayoutBtn.addEventListener('click', () => {
+                console.log('Auto layout button clicked');
+                if (window.canvasController) {
+                    window.canvasController.autoLayout();
+                }
+            });
+        }
+
         // Workflow controls
         const newWorkflowBtn = document.getElementById('newWorkflowBtn');
         if (newWorkflowBtn) {
@@ -121,6 +138,13 @@ class WorkflowApp {
         if (loadWorkflowBtn) {
             loadWorkflowBtn.addEventListener('click', () => {
                 document.getElementById('workflowFileInput')?.click();
+            });
+        }
+
+        const clearWorkflowBtn = document.getElementById('clearWorkflowBtn');
+        if (clearWorkflowBtn) {
+            clearWorkflowBtn.addEventListener('click', () => {
+                this.clearWorkflow();
             });
         }
 
@@ -146,11 +170,18 @@ class WorkflowApp {
             });
         }
 
-        // Detail panel
+        // Detail panels
         const closeDetailPanel = document.getElementById('closeDetailPanel');
         if (closeDetailPanel) {
             closeDetailPanel.addEventListener('click', () => {
                 document.getElementById('nodeDetailPanel')?.classList.add('translate-x-full');
+            });
+        }
+
+        const closeEdgeDetailPanel = document.getElementById('closeEdgeDetailPanel');
+        if (closeEdgeDetailPanel) {
+            closeEdgeDetailPanel.addEventListener('click', () => {
+                document.getElementById('edgeDetailPanel')?.classList.add('translate-x-full');
             });
         }
 
@@ -183,27 +214,31 @@ class WorkflowApp {
             });
         }
 
-        // Node Type Modal
-        const closeNodeTypeModal = document.getElementById('closeNodeTypeModal');
-        if (closeNodeTypeModal) {
-            closeNodeTypeModal.addEventListener('click', () => {
-                document.getElementById('nodeTypeModal')?.classList.add('hidden');
-            });
-        }
-
-        const selectInputNode = document.getElementById('selectInputNode');
-        if (selectInputNode) {
-            selectInputNode.addEventListener('click', () => {
+        // Node type selection modal
+        const selectInputNodeBtn = document.getElementById('selectInputNode');
+        if (selectInputNodeBtn) {
+            selectInputNodeBtn.addEventListener('click', () => {
                 console.log('Input node selected');
                 this.createNodeWithType('input');
             });
         }
 
-        const selectGeneratedNode = document.getElementById('selectGeneratedNode');
-        if (selectGeneratedNode) {
-            selectGeneratedNode.addEventListener('click', () => {
+        const selectGeneratedNodeBtn = document.getElementById('selectGeneratedNode');
+        if (selectGeneratedNodeBtn) {
+            selectGeneratedNodeBtn.addEventListener('click', () => {
                 console.log('Generated node selected');
                 this.createNodeWithType('generated');
+            });
+        }
+
+        const closeNodeTypeModalBtn = document.getElementById('closeNodeTypeModal');
+        if (closeNodeTypeModalBtn) {
+            closeNodeTypeModalBtn.addEventListener('click', () => {
+                console.log('Closing node type modal');
+                const modal = document.getElementById('nodeTypeModal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
             });
         }
 
@@ -253,37 +288,47 @@ class WorkflowApp {
         workflowEngine.on('modeChanged', (mode) => {
             this.updateModeIndicator(mode);
         });
+
+        // Page unload - force save before leaving
+        window.addEventListener('beforeunload', () => {
+            console.log('Page unloading, forcing workflow save...');
+            if (workflowEngine) {
+                workflowEngine.saveWorkflow();
+            }
+        });
     }
 
     addNewNode() {
         console.log('Opening node type selection modal');
-        // Show node type selection modal instead of creating node directly
+
+        // Show node type selection modal
         const modal = document.getElementById('nodeTypeModal');
         if (modal) {
             modal.classList.remove('hidden');
-            // Store center position for later use
-            const centerPosition = window.canvasController?.network?.getViewPosition() || { x: 400, y: 300 };
-            modal.dataset.positionX = centerPosition.x;
-            modal.dataset.positionY = centerPosition.y;
         }
     }
 
     createNodeWithType(nodeType) {
-        console.log('Creating node with type:', nodeType);
-        const modal = document.getElementById('nodeTypeModal');
-        
-        // Get stored position from modal
-        const x = parseFloat(modal?.dataset.positionX) || 400;
-        const y = parseFloat(modal?.dataset.positionY) || 300;
-        
+        console.log('Creating new node with type:', nodeType);
+
+        // Get viewport center position
+        const centerPosition = window.canvasController?.getViewportCenter() || { x: 400, y: 300 };
+
+        console.log('Creating node at position:', centerPosition);
+
+        // Create node with selected type
         const node = workflowEngine.createNode({
-            position: { x, y },
-            nodeType: nodeType
+            position: { x: centerPosition.x, y: centerPosition.y },
+            nodeType: nodeType,
+            adjustPosition: true // Enable position adjustment to avoid overlaps
         });
-        
-        console.log('Created new node:', node.id, 'with type:', nodeType);
-        
-        // Hide modal
+
+        if (node) {
+            console.log('Created', nodeType, 'node:', node.id, 'at adjusted position:', node.position);
+        }
+
+        // Close modal
+        const modal = document.getElementById('nodeTypeModal');
         if (modal) {
             modal.classList.add('hidden');
         }
@@ -325,38 +370,78 @@ class WorkflowApp {
             alert('Please select at least 2 nodes to merge');
             return;
         }
-        
+
         const mergedNode = workflowEngine.mergeNodes(selection.nodes, {
             mergeType: 'combine',
             prompt: 'Merge and blend images creatively'
         });
-        
+
         if (mergedNode) {
             console.log('Created merged node:', mergedNode.id);
+        }
+    }
+
+    transformSelectedNode() {
+        const selection = workflowEngine.getSelection();
+        if (selection.nodes.length === 0) {
+            alert('変換するノードを選択してください');
+            return;
+        }
+
+        if (selection.nodes.length > 1) {
+            alert('1つのノードのみ選択してください');
+            return;
+        }
+
+        const nodeId = selection.nodes[0];
+        const node = workflowEngine.nodes.get(nodeId);
+
+        if (!node) {
+            alert('ノードが見つかりませんでした');
+            return;
+        }
+
+        // Check if node has images
+        if (!node.images || node.images.length === 0) {
+            alert('画像がありません。先に画像をアップロードしてください。');
+            return;
+        }
+
+        // Show transform dialog via canvas controller
+        if (window.canvasController) {
+            window.canvasController.showTransformDialog(nodeId);
         }
     }
 
     async handleFileSelect(files) {
         try {
             const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-            
+
             if (imageFiles.length === 0) {
                 console.warn('No image files selected');
                 return;
             }
-            
+
             // Get selected node or create new one
             const selection = workflowEngine.getSelection();
             let targetNode;
-            
+
             if (selection.nodes.length > 0) {
                 targetNode = workflowEngine.nodes.get(selection.nodes[0]);
+
+                // Check if target node is a generated node (upload restriction)
+                if (targetNode && targetNode.nodeType === 'generated') {
+                    alert('生成ノードには画像を直接アップロードできません。\n入力ノードを作成してアップロードしてください。');
+                    return;
+                }
             } else {
+                // Create new input node when no node is selected
                 targetNode = workflowEngine.createNode({
-                    position: { x: 400, y: 300 }
+                    position: { x: 400, y: 300 },
+                    nodeType: 'input'  // Explicitly set as input node
                 });
             }
-            
+
             if (!targetNode) {
                 throw new Error('Failed to get or create target node');
             }
@@ -655,37 +740,30 @@ class WorkflowApp {
             alert('Source node must have images');
             return;
         }
-        
-        const style = document.getElementById('promptStyle')?.value;
-        console.log('Generate prompt with LLM for style:', style);
-        
+
+        console.log('Generate prompt with LLM');
+
         // For demo, set a sample prompt
-        const samplePrompts = {
-            artistic: 'Transform into vibrant artistic masterpiece with bold colors',
-            photorealistic: 'Enhance to ultra-realistic photography with perfect lighting',
-            anime: 'Convert to anime style with characteristic features',
-            merge: 'Creatively blend and merge multiple images into cohesive composition'
-        };
-        
+        const defaultPrompt = 'Transform the image creatively';
+
         const promptText = document.getElementById('promptText');
         if (promptText) {
-            promptText.value = samplePrompts[style] || 'Custom transformation';
+            promptText.value = defaultPrompt;
         }
     }
 
     savePrompt() {
         const edgeId = document.getElementById('edgePromptModal')?.dataset.edgeId;
         if (!edgeId) return;
-        
+
         const updates = {
-            style: document.getElementById('promptStyle')?.value,
             prompt: document.getElementById('promptText')?.value,
             model: document.getElementById('promptModel')?.value
         };
-        
+
         workflowEngine.updateEdge(edgeId, updates);
         this.closePromptEditor();
-        
+
         // Execute transformation if configured
         const edge = workflowEngine.edges.get(edgeId);
         if (edge) {
@@ -696,44 +774,81 @@ class WorkflowApp {
     async executeEdgeTransformation(edge) {
         const sourceNode = workflowEngine.nodes.get(edge.source);
         const targetNode = workflowEngine.nodes.get(edge.target);
-        
+
         if (!sourceNode || !targetNode) return;
-        
+
+        // Check if source node has images
+        if (!sourceNode.images || sourceNode.images.length === 0) {
+            alert('ソースノードに画像がありません');
+            return;
+        }
+
         // Update node status
         workflowEngine.updateNode(targetNode.id, { status: 'processing' });
-        
+
         console.log('Execute transformation:', {
             source: sourceNode.id,
             target: targetNode.id,
             prompt: edge.prompt,
             model: edge.model
         });
-        
-        // Simulate transformation
-        setTimeout(() => {
-            // Add dummy result images
-            const resultImages = [];
+
+        try {
+            // Get source image
+            const sourceImage = sourceNode.images[0].url;
+
+            // Get transformation settings
+            const model = edge.model || config.get('imageModel') || 'google/nano-banana';
             const count = parseInt(document.getElementById('promptImageCount')?.value || '3');
-            
-            for (let i = 0; i < count; i++) {
-                resultImages.push({
-                    url: sourceNode.images[0]?.url || '',
+
+            console.log('Calling transformationService with:', {
+                sourceImage: sourceImage.substring(0, 50) + '...',
+                prompt: edge.prompt,
+                count: count,
+                model: model
+            });
+
+            // Call actual transformation service
+            const results = await transformationService.transformImage(
+                sourceImage,
+                edge.prompt,
+                count,
+                model
+            );
+
+            console.log('Transformation completed, got', results.length, 'images');
+
+            // Add generated images to target node
+            results.forEach(result => {
+                workflowEngine.addImageToNode(targetNode.id, {
+                    url: result.url,
+                    thumbnail: result.thumbnail,
                     metadata: {
                         prompt: edge.prompt,
-                        model: edge.model,
-                        generatedAt: new Date().toISOString()
+                        model: model,
+                        generatedAt: result.createdAt,
+                        ...result.metadata
                     }
                 });
-            }
-            
-            // Add images to target node
-            resultImages.forEach(img => {
-                workflowEngine.addImageToNode(targetNode.id, img);
             });
-            
-            // Update node status
+
+            // Update node status to ready
             workflowEngine.updateNode(targetNode.id, { status: 'ready' });
-        }, 2000);
+
+            console.log('Successfully added', results.length, 'images to target node');
+
+        } catch (error) {
+            console.error('Transformation failed:', error);
+
+            // Update node status to error with error message
+            workflowEngine.updateNode(targetNode.id, {
+                status: 'error',
+                errorMessage: error.message || 'Unknown error occurred'
+            });
+
+            // Show error to user
+            alert(`画像生成に失敗しました: ${error.message}`);
+        }
     }
 
     updateStatus() {
@@ -752,14 +867,177 @@ class WorkflowApp {
     updateModeIndicator(mode) {
         const indicator = document.getElementById('currentMode');
         if (!indicator) return;
-        
+
         const modeText = {
             select: '<i class="fas fa-mouse-pointer mr-1"></i>選択モード',
             connect: '<i class="fas fa-link mr-1"></i>接続モード',
             delete: '<i class="fas fa-trash mr-1"></i>削除モード'
         };
-        
+
         indicator.innerHTML = modeText[mode] || modeText.select;
+    }
+
+    /**
+     * Show edge detail panel
+     * @param {string} edgeId - Edge ID to display details for
+     */
+    showEdgeDetail(edgeId) {
+        const edge = workflowEngine.edges.get(edgeId);
+        if (!edge) return;
+
+        const panel = document.getElementById('edgeDetailPanel');
+        const content = document.getElementById('edgeDetailContent');
+
+        if (!panel || !content) return;
+
+        // Get source and target nodes
+        const sourceNode = workflowEngine.nodes.get(edge.source);
+        const targetNode = workflowEngine.nodes.get(edge.target);
+
+        // Build edge detail HTML
+        const html = `
+            <div class="space-y-4">
+                <div class="bg-gray-800/50 rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-gray-400 mb-2">接続情報</h3>
+                    <div class="space-y-2">
+                        <div>
+                            <span class="text-xs text-gray-500">ソース:</span>
+                            <div class="text-sm text-white">${sourceNode ? 'Node ' + sourceNode.id.substr(-6) : '不明'}</div>
+                        </div>
+                        <div>
+                            <span class="text-xs text-gray-500">ターゲット:</span>
+                            <div class="text-sm text-white">${targetNode ? 'Node ' + targetNode.id.substr(-6) : '不明'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-800/50 rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-gray-400 mb-2">プロンプト設定</h3>
+                    <div class="space-y-2">
+                        <div>
+                            <span class="text-xs text-gray-500">スタイル:</span>
+                            <div class="text-sm text-white">${edge.style || '未設定'}</div>
+                        </div>
+                        <div>
+                            <span class="text-xs text-gray-500">モデル:</span>
+                            <div class="text-sm text-white">${edge.model || '未設定'}</div>
+                        </div>
+                        <div>
+                            <span class="text-xs text-gray-500">プロンプト:</span>
+                            <div class="text-sm text-white whitespace-pre-wrap">${edge.prompt || 'プロンプトが設定されていません'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="window.app.editEdgePrompt('${edgeId}')"
+                        class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
+                    <i class="fas fa-edit mr-2"></i>プロンプトを編集
+                </button>
+            </div>
+        `;
+
+        content.innerHTML = html;
+
+        // Close node detail panel if open
+        document.getElementById('nodeDetailPanel')?.classList.add('translate-x-full');
+
+        // Show edge detail panel
+        panel.classList.remove('translate-x-full');
+    }
+
+    /**
+     * Edit edge prompt (triggered from edge detail panel)
+     * @param {string} edgeId - Edge ID to edit
+     */
+    editEdgePrompt(edgeId) {
+        const edge = workflowEngine.edges.get(edgeId);
+        if (!edge) return;
+
+        // Open prompt editor modal with edge data
+        const modal = document.getElementById('edgePromptModal');
+        if (!modal) return;
+
+        modal.dataset.edgeId = edgeId;
+
+        // Populate form with current edge data
+        const promptText = document.getElementById('promptText');
+        if (promptText) promptText.value = edge.prompt || '';
+
+        const promptModel = document.getElementById('promptModel');
+        if (promptModel) promptModel.value = edge.model || 'google/nano-banana';
+
+        modal.classList.remove('hidden');
+    }
+
+    /**
+     * Auto-load the most recent workflow from localStorage
+     */
+    autoLoadWorkflow() {
+        console.log('====== AUTO LOAD WORKFLOW ======');
+
+        try {
+            const workflowsJson = localStorage.getItem('workflows');
+            console.log('LocalStorage workflows key exists:', !!workflowsJson);
+
+            const workflows = JSON.parse(workflowsJson || '[]');
+            console.log('Found', workflows.length, 'workflows in localStorage');
+
+            if (workflows.length === 0) {
+                console.log('No saved workflows found - starting with empty workflow');
+                console.log('================================');
+                return;
+            }
+
+            // Get the most recent workflow (last one in array)
+            const latestWorkflow = workflows[workflows.length - 1];
+
+            console.log('Latest workflow ID:', latestWorkflow.id);
+            console.log('Latest workflow name:', latestWorkflow.name);
+            console.log('Latest workflow has', latestWorkflow.nodes?.length || 0, 'nodes');
+            console.log('Latest workflow has', latestWorkflow.edges?.length || 0, 'edges');
+
+            if (latestWorkflow.nodes && latestWorkflow.nodes.length > 0) {
+                console.log('First node:', latestWorkflow.nodes[0]);
+            }
+
+            // Load workflow into engine
+            console.log('Calling workflowEngine.loadWorkflow()...');
+            const success = workflowEngine.loadWorkflow(latestWorkflow.id);
+
+            if (success) {
+                console.log('✅ Workflow restored successfully');
+                console.log('WorkflowEngine now has', workflowEngine.nodes.size, 'nodes');
+                console.log('WorkflowEngine now has', workflowEngine.edges.size, 'edges');
+
+                // The workflowLoaded event will automatically trigger canvasController.loadWorkflow()
+                // No need to call it explicitly - that was causing double-loading issues
+                console.log('The workflowLoaded event will handle canvas updates automatically');
+
+                this.updateStatus();
+            } else {
+                console.warn('❌ Failed to restore workflow');
+            }
+        } catch (error) {
+            console.error('❌ Error auto-loading workflow:', error);
+            console.error(error.stack);
+        }
+
+        console.log('================================');
+    }
+
+    /**
+     * Clear entire workflow (for clear button)
+     */
+    clearWorkflow() {
+        const confirmed = confirm('すべてのノードとエッジをクリアしてもよろしいですか？\nこの操作は取り消せません。');
+
+        if (confirmed) {
+            workflowEngine.clearWorkflow();
+            // The workflowCleared event will trigger canvasController.clearCanvas()
+            // but we'll also update the status
+            this.updateStatus();
+            console.log('Workflow cleared');
+        }
     }
 }
 

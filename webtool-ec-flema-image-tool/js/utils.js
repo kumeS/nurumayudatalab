@@ -1,6 +1,29 @@
 // ========== ユーティリティモジュール ==========
 // 汎用機能とヘルパー関数
 
+// Fabric.js の textBaseline 警告対策（`alphabetical` → `alphabetic` 正規化）
+if (window.fabric?.Text?.prototype?._setTextStyles) {
+    fabric.Text.prototype._setTextStyles = function(ctx, decl, style) {
+        ctx.textBaseline = 'alphabetic';
+
+        if (this.path) {
+            switch (this.pathAlign) {
+                case 'center':
+                    ctx.textBaseline = 'middle';
+                    break;
+                case 'ascender':
+                    ctx.textBaseline = 'top';
+                    break;
+                case 'descender':
+                    ctx.textBaseline = 'bottom';
+                    break;
+            }
+        }
+
+        ctx.font = this._getFontDeclaration(decl, style);
+    };
+}
+
 // タブ切り替え
 function switchTab(activeTab) {
     document.querySelectorAll('.tool-tab').forEach(tab => tab.classList.remove('active'));
@@ -36,7 +59,17 @@ function handleKeyboardShortcuts(e) {
     const activeObjects = !isEditing && canvas ? canvas.getActiveObjects() : [];
     const selectedObject = getSelectedObject();
 
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    // Ctrl/Cmd + Shift + Z: Redo
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
+        if (!isEditing) {
+            e.preventDefault();
+            redoCanvasAction();
+        }
+        return;
+    }
+    
+    // Ctrl/Cmd + Z: Undo
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
         if (!isEditing) {
             e.preventDefault();
             undoCanvasAction();

@@ -5,7 +5,9 @@
 class Config {
     constructor() {
         this.storageKey = 'workflowTrackerConfig';
+        this.configVersion = 2; // Increment this when apiEndpoint structure changes
         this.defaults = {
+            configVersion: 2,
             ioApiKey: '',
             replicateApiKey: '',
             llmModel: 'gpt-o1s-120B',  // OpenAI GPT O1S 120B
@@ -17,13 +19,39 @@ class Config {
             defaultImageCount: 3,
             defaultTransformStyle: 'artistic',
             apiEndpoint: {
+                // IO Intelligence API
+                ioIntelligence: {
+                    base: 'https://api.intelligence.io.solutions/api/v1',
+                    models: 'https://api.intelligence.io.solutions/api/v1/models',
+                    chat: 'https://api.intelligence.io.solutions/api/v1/chat/completions'
+                },
+                // Replicate API (via Cloudflare Workers proxy to avoid CORS)
+                replicate: {
+                    base: 'https://replicate-nanobanana.skume-bioinfo.workers.dev',
+                    nanoBanana: 'https://replicate-nanobanana.skume-bioinfo.workers.dev/proxy'
+                },
+                // Legacy endpoints (for compatibility)
                 llm: '/api/intelligence/chat',
                 image: '/api/image/generation',
-                understand: '/api/image/understand',
-                replicateNanoBanana: 'https://api.replicate.com/v1/models/google/nano-banana/predictions'
+                understand: '/api/image/understand'
             }
         };
         this.config = this.load();
+    }
+
+    /**
+     * Deep merge two objects
+     */
+    deepMerge(target, source) {
+        const result = { ...target };
+        for (const key in source) {
+            if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                result[key] = this.deepMerge(target[key] || {}, source[key]);
+            } else {
+                result[key] = source[key];
+            }
+        }
+        return result;
     }
 
     load() {
@@ -31,7 +59,30 @@ class Config {
             const stored = localStorage.getItem(this.storageKey);
             if (stored) {
                 const parsed = JSON.parse(stored);
-                return { ...this.defaults, ...parsed };
+
+                // Check config version - if outdated, reset to defaults
+                if (!parsed.configVersion || parsed.configVersion < this.configVersion) {
+                    console.warn(`Config version mismatch (stored: ${parsed.configVersion}, current: ${this.configVersion}). Resetting apiEndpoint to defaults.`);
+                    // Keep user settings but reset apiEndpoint
+                    const resetConfig = { ...this.defaults };
+                    resetConfig.ioApiKey = parsed.ioApiKey || '';
+                    resetConfig.replicateApiKey = parsed.replicateApiKey || '';
+                    resetConfig.llmModel = parsed.llmModel || this.defaults.llmModel;
+                    resetConfig.imageModel = parsed.imageModel || this.defaults.imageModel;
+                    resetConfig.aspectRatio = parsed.aspectRatio || this.defaults.aspectRatio;
+                    resetConfig.outputFormat = parsed.outputFormat || this.defaults.outputFormat;
+                    resetConfig.autoSave = parsed.autoSave !== undefined ? parsed.autoSave : this.defaults.autoSave;
+                    // Force save the updated config
+                    localStorage.setItem(this.storageKey, JSON.stringify(resetConfig));
+                    return resetConfig;
+                }
+
+                // Use deep merge to ensure apiEndpoint defaults are not overwritten
+                // But for apiEndpoint, always use defaults to ensure latest proxy settings
+                const merged = this.deepMerge(this.defaults, parsed);
+                // Force apiEndpoint to use defaults (important for proxy updates)
+                merged.apiEndpoint = this.defaults.apiEndpoint;
+                return merged;
             }
         } catch (error) {
             console.error('Failed to load configuration:', error);

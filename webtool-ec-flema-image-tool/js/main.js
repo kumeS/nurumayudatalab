@@ -77,6 +77,10 @@ function initializeEventListeners() {
     if (undoBtn) {
         undoBtn.addEventListener('click', () => undoCanvasAction());
     }
+    const redoBtn = document.getElementById('redoBtn');
+    if (redoBtn) {
+        redoBtn.addEventListener('click', () => redoCanvasAction());
+    }
     
     // ========== 画像関連 ==========
     document.getElementById('uploadImageBtn').addEventListener('click', () => {
@@ -84,6 +88,21 @@ function initializeEventListeners() {
     });
     
     document.getElementById('imageInput').addEventListener('change', handleImageUpload);
+    const importImageUrlBtn = document.getElementById('importImageUrlBtn');
+    const imageUrlInput = document.getElementById('imageUrlInput');
+
+    if (importImageUrlBtn) {
+        importImageUrlBtn.addEventListener('click', handleImageUrlImport);
+    }
+
+    if (imageUrlInput) {
+        imageUrlInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                handleImageUrlImport();
+            }
+        });
+    }
     
     // 画像フィルター
     document.getElementById('brightness').addEventListener('input', handleFilterChange);
@@ -157,6 +176,45 @@ function initializeEventListeners() {
     if (sendToBackBtnSide) sendToBackBtnSide.addEventListener('click', sendToBack);
     if (bringForwardBtnSide) bringForwardBtnSide.addEventListener('click', bringForward);
     if (sendBackwardBtnSide) sendBackwardBtnSide.addEventListener('click', sendBackward);
+
+    // 画像回転・反転
+    const rotateImage90Btn = document.getElementById('rotateImage90Btn');
+    const flipHorizontalBtn = document.getElementById('flipHorizontalBtn');
+    const flipVerticalBtn = document.getElementById('flipVerticalBtn');
+
+    if (rotateImage90Btn) rotateImage90Btn.addEventListener('click', rotateSelectedImage90);
+    if (flipHorizontalBtn) flipHorizontalBtn.addEventListener('click', flipSelectedImageHorizontal);
+    if (flipVerticalBtn) flipVerticalBtn.addEventListener('click', flipSelectedImageVertical);
+
+    // 一部ぼかし
+    const blurRadiusInput = document.getElementById('blurRadius');
+    const startPartialBlurBtn = document.getElementById('startPartialBlurBtn');
+    const applyPartialBlurBtn = document.getElementById('applyPartialBlurBtn');
+    const cancelPartialBlurBtn = document.getElementById('cancelPartialBlurBtn');
+
+    if (blurRadiusInput) {
+        blurRadiusInput.addEventListener('input', function(e) {
+            const value = parseInt(e.target.value);
+            document.getElementById('blurRadiusValue').textContent = value + 'px';
+            // ぼかし状態があれば半径を更新
+            if (typeof blurState !== 'undefined' && blurState) {
+                blurState.radius = value;
+            }
+        });
+    }
+
+    if (startPartialBlurBtn) startPartialBlurBtn.addEventListener('click', startPartialBlur);
+    if (applyPartialBlurBtn) applyPartialBlurBtn.addEventListener('click', applyPartialBlur);
+    if (cancelPartialBlurBtn) cancelPartialBlurBtn.addEventListener('click', cancelPartialBlur);
+
+    // トリミング
+    const startCroppingBtn = document.getElementById('startCroppingBtn');
+    const applyCroppingBtn = document.getElementById('applyCroppingBtn');
+    const cancelCroppingBtn = document.getElementById('cancelCroppingBtn');
+
+    if (startCroppingBtn) startCroppingBtn.addEventListener('click', startCropping);
+    if (applyCroppingBtn) applyCroppingBtn.addEventListener('click', applyCropping);
+    if (cancelCroppingBtn) cancelCroppingBtn.addEventListener('click', cancelCropping);
     
     // ========== テキスト関連 ==========
     document.getElementById('addTextBtn').addEventListener('click', () => addNewText());
@@ -170,6 +228,15 @@ function initializeEventListeners() {
     document.getElementById('textBgTransparent').addEventListener('change', updateSelectedText);
     document.getElementById('textShadow').addEventListener('change', updateSelectedText);
     document.getElementById('textStroke').addEventListener('change', updateSelectedText);
+    document.getElementById('textShadowColor').addEventListener('input', updateSelectedText);
+    document.getElementById('textShadowOpacity').addEventListener('input', updateSelectedText);
+    document.getElementById('textShadowBlur').addEventListener('input', updateSelectedText);
+    document.getElementById('textShadowOffset').addEventListener('input', updateSelectedText);
+    document.getElementById('textShadowAngle').addEventListener('input', updateSelectedText);
+    document.getElementById('textStrokeColor').addEventListener('input', updateSelectedText);
+    document.getElementById('textStrokeWidth').addEventListener('input', updateSelectedText);
+    document.getElementById('textLetterSpacing').addEventListener('input', updateSelectedText);
+    document.getElementById('textLineHeight').addEventListener('input', updateSelectedText);
     document.getElementById('textRotation').addEventListener('input', updateSelectedText);
     document.getElementById('textScale').addEventListener('input', updateSelectedText);
     document.getElementById('textOpacity').addEventListener('input', updateSelectedText);
@@ -181,15 +248,6 @@ function initializeEventListeners() {
     document.getElementById('textSendToBackBtn').addEventListener('click', sendToBack);
     document.getElementById('textBringForwardBtn').addEventListener('click', bringForward);
     document.getElementById('textSendBackwardBtn').addEventListener('click', sendBackward);
-    
-    // テキスト揃え
-    document.querySelectorAll('[data-align]').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('[data-align]').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            updateSelectedText();
-        });
-    });
     
     // テキストスタイル
     document.querySelectorAll('[data-style]').forEach(btn => {

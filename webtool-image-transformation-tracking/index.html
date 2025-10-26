@@ -52,7 +52,10 @@
                     <button id="loadWorkflowBtn" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-sm">
                         <i class="fas fa-folder-open mr-1"></i>読込
                     </button>
-                    
+                    <button id="clearWorkflowBtn" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-sm">
+                        <i class="fas fa-trash-alt mr-1"></i>クリア
+                    </button>
+
                     <div class="w-px h-6 bg-white/20"></div>
                     
                     <!-- View Controls -->
@@ -115,6 +118,19 @@
                     <i class="fas fa-object-group text-white"></i>
                     <span class="absolute left-12 bg-black/90 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                         ノード結合
+                    </span>
+                </button>
+                <button id="transformImageBtn" class="w-10 h-10 bg-pink-600 hover:bg-pink-700 rounded-lg flex items-center justify-center transition-colors group relative">
+                    <i class="fas fa-wand-magic-sparkles text-white"></i>
+                    <span class="absolute left-12 bg-black/90 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        画像変換 (T)
+                    </span>
+                </button>
+                <div class="w-full h-px bg-white/20"></div>
+                <button id="autoLayoutBtn" class="w-10 h-10 bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center justify-center transition-colors group relative">
+                    <i class="fas fa-sitemap text-white"></i>
+                    <span class="absolute left-12 bg-black/90 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        自動配置
                     </span>
                 </button>
             </div>
@@ -195,25 +211,6 @@
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-2">
-                                変換スタイル
-                            </label>
-                            <select id="promptStyle" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
-                                <option value="artistic">アーティスティック</option>
-                                <option value="photorealistic">写実的</option>
-                                <option value="anime">アニメスタイル</option>
-                                <option value="cyberpunk">サイバーパンク</option>
-                                <option value="watercolor">水彩画</option>
-                                <option value="oil-painting">油絵</option>
-                                <option value="sketch">スケッチ</option>
-                                <option value="3d-render">3Dレンダリング</option>
-                                <option value="style-transfer">スタイル転送</option>
-                                <option value="merge">画像結合</option>
-                                <option value="custom">カスタム</option>
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-2">
                                 プロンプト
                             </label>
                             <textarea id="promptText" 
@@ -227,7 +224,7 @@
                                 画像編集モデル
                             </label>
                             <select id="promptModel" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
-                                <option value="fal-ai/nano-banana" selected>Nano Banana</option>
+                                <option value="google/nano-banana" selected>Nano Banana</option>
                             </select>
                         </div>
                         
@@ -339,19 +336,10 @@
                             画像編集モデル
                         </label>
                         <select id="defaultModel" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
-                            <option value="fal-ai/nano-banana" selected>Nano Banana</option>
+                            <option value="google/nano-banana" selected>Nano Banana</option>
                         </select>
                     </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-2">
-                            LLMモデル
-                        </label>
-                        <select id="llmModel" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
-                            <option value="gpt-o1s-120B">OpenAI GPT-O1S-120B</option>
-                        </select>
-                    </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-2">
                             Aspect Ratio (アスペクト比)
@@ -364,7 +352,7 @@
                             <option value="3:4">3:4 (Standard Portrait)</option>
                         </select>
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-2">
                             Output Format (出力形式)
@@ -374,12 +362,21 @@
                             <option value="jpg">JPG</option>
                         </select>
                     </div>
-                    
+
                     <div>
                         <label class="inline-flex items-center">
                             <input type="checkbox" id="autoSave" class="form-checkbox h-5 w-5 text-purple-600" checked>
                             <span class="ml-2 text-gray-300">ワークフロー自動保存</span>
                         </label>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            LLMモデル
+                        </label>
+                        <select id="llmModel" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                            <option value="gpt-o1s-120B">OpenAI GPT-O1S-120B</option>
+                        </select>
                     </div>
                     
                     <button id="saveSettingsBtn" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
@@ -391,7 +388,7 @@
     </div>
 
     <!-- Hidden File Input -->
-    <input type="file" id="fileInput" accept="image/*" class="hidden" multiple>
+    <input type="file" id="fileInput" accept="image/*,image/webp,.webp" class="hidden" multiple>
     <input type="file" id="workflowFileInput" accept=".json" class="hidden">
 
     <!-- Progress Indicator -->
@@ -406,6 +403,7 @@
     <!-- Load debug system first for global availability -->
     <script src="js/debug.js"></script>
     <script src="js/config.js"></script>
+    <script src="js/imageStorage.js"></script>
     <script src="js/llmService.js"></script>
     <script src="js/transformationService.js"></script>
     <script src="js/workflowEngine.js"></script>
