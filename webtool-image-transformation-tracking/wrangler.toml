@@ -3,7 +3,7 @@
 # Domain: replicate-nanobanana.skume-bioinfo.workers.dev
 
 name = "replicate-nanobanana"
-main = "cloudflare-worker-CLEAN.js"
+main = "cloudflare-worker-v5.js"
 compatibility_date = "2024-01-01"
 
 # R2 Bucket Binding for Image Storage

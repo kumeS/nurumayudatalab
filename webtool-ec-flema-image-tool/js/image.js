@@ -135,6 +135,8 @@ async function addImageFromDataUrl(imageDataUrl, options = {}) {
     if (!skipHistory) {
         try {
             await saveImageToHistory(imageDataUrl, fileName);
+            // 画像履歴を更新（非同期で実行、エラーは無視）
+            displayImageHistory().catch(err => console.error('Failed to update image history UI:', err));
         } catch (error) {
             console.error('Failed to save image to history:', error);
         }
@@ -1342,19 +1344,196 @@ function flipSelectedImageVertical() {
         showNotification('反転する画像を選択してください', 'error');
         return;
     }
-    
+
     const canvas = getCanvas();
     selectedObject.set('flipY', !selectedObject.flipY);
     selectedObject.setCoords();
-    
+
     canvas.renderAll();
     scheduleCanvasHistoryCapture();
     triggerQuickSave();
-    
+
     showNotification('垂直反転しました', 'success');
-    
+
     // 触覚フィードバック
     if (navigator.vibrate) {
         navigator.vibrate(30);
+    }
+}
+
+// ========== 画像履歴パネル ==========
+
+// 画像履歴を表示
+async function displayImageHistory() {
+    const historyGrid = document.getElementById('imageHistoryGrid');
+    if (!historyGrid) return;
+
+    try {
+        const images = await getAllImageHistory();
+
+        if (!images || images.length === 0) {
+            historyGrid.innerHTML = `
+                <div class="image-history-empty">
+                    <i class="fas fa-images"></i>
+                    <p>まだ画像を追加していません</p>
+                </div>
+            `;
+            return;
+        }
+
+        // 画像履歴アイテムを生成
+        historyGrid.innerHTML = images.map(image => {
+            const date = new Date(image.uploadedAt);
+            const dateStr = date.toLocaleDateString('ja-JP', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            return `
+                <div class="image-history-item" data-image-id="${image.id}">
+                    <img src="${image.dataUrl}" alt="${image.fileName || '画像'}" loading="lazy">
+                    <div class="image-history-item-overlay">
+                        <div class="image-history-item-info" title="${image.fileName || dateStr}">
+                            ${image.fileName || dateStr}
+                        </div>
+                    </div>
+                    <button class="image-history-item-delete" data-image-id="${image.id}" title="削除" aria-label="画像を履歴から削除">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        // クリックイベントを追加
+        attachImageHistoryEventListeners();
+
+    } catch (error) {
+        console.error('Failed to display image history:', error);
+        historyGrid.innerHTML = `
+            <div class="image-history-empty">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>履歴の読み込みに失敗しました</p>
+            </div>
+        `;
+    }
+}
+
+// 画像履歴のイベントリスナーを設定
+function attachImageHistoryEventListeners() {
+    const historyGrid = document.getElementById('imageHistoryGrid');
+    if (!historyGrid) return;
+
+    // 画像アイテムのクリック（キャンバスに追加）
+    historyGrid.querySelectorAll('.image-history-item').forEach(item => {
+        item.addEventListener('click', async (e) => {
+            // 削除ボタンのクリックは除外
+            if (e.target.closest('.image-history-item-delete')) {
+                return;
+            }
+
+            const imageId = parseInt(item.dataset.imageId);
+            await addImageFromHistory(imageId);
+        });
+    });
+
+    // 削除ボタンのクリック
+    historyGrid.querySelectorAll('.image-history-item-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const imageId = parseInt(btn.dataset.imageId);
+            await deleteImageFromHistoryUI(imageId);
+        });
+    });
+}
+
+// 画像履歴からキャンバスに追加
+async function addImageFromHistory(imageId) {
+    try {
+        const images = await getAllImageHistory();
+        const imageData = images.find(img => img.id === imageId);
+
+        if (!imageData) {
+            showNotification('画像が見つかりませんでした', 'error');
+            return;
+        }
+
+        const canvas = getCanvas();
+        if (!canvas) {
+            showNotification('キャンバスがありません', 'error');
+            return;
+        }
+
+        // Data URL から画像を追加
+        fabric.Image.fromURL(imageData.dataUrl, (img) => {
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+
+            // 画像をキャンバスに収まるようにスケーリング
+            const maxWidth = canvasWidth * 0.8;
+            const maxHeight = canvasHeight * 0.8;
+            const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+
+            img.scale(scale);
+            img.set({
+                left: canvasWidth / 2,
+                top: canvasHeight / 2,
+                originX: 'center',
+                originY: 'center',
+                objectType: 'uploaded-image',
+                cornerStyle: 'circle',
+                cornerColor: '#ff9a5a',
+                cornerSize: 16,
+                transparentCorners: false,
+                borderColor: '#ff9a5a'
+            });
+
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+
+            scheduleCanvasHistoryCapture();
+            triggerQuickSave();
+
+            showNotification('画像を追加しました', 'success');
+
+            // 触覚フィードバック
+            if (navigator.vibrate) {
+                navigator.vibrate(30);
+            }
+        }, { crossOrigin: 'anonymous' });
+
+    } catch (error) {
+        console.error('Failed to add image from history:', error);
+        showNotification('画像の追加に失敗しました', 'error');
+    }
+}
+
+// 画像履歴から削除（UI更新込み）
+async function deleteImageFromHistoryUI(imageId) {
+    try {
+        await deleteImageFromHistory(imageId);
+        await displayImageHistory(); // 履歴を再表示
+        showNotification('履歴から削除しました', 'success');
+
+        // 触覚フィードバック
+        if (navigator.vibrate) {
+            navigator.vibrate(30);
+        }
+    } catch (error) {
+        console.error('Failed to delete image from history:', error);
+        showNotification('削除に失敗しました', 'error');
+    }
+}
+
+// 画像履歴を更新
+function refreshImageHistory() {
+    displayImageHistory();
+    showNotification('履歴を更新しました', 'success');
+
+    // 触覚フィードバック
+    if (navigator.vibrate) {
+        navigator.vibrate(20);
     }
 }

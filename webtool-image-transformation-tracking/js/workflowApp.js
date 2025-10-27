@@ -758,16 +758,20 @@ class WorkflowApp {
 
         const updates = {
             prompt: document.getElementById('promptText')?.value,
-            model: document.getElementById('promptModel')?.value
+            model: document.getElementById('promptModel')?.value,
+            aspectRatio: document.getElementById('promptAspectRatio')?.value || '1:1'
         };
 
         workflowEngine.updateEdge(edgeId, updates);
         this.closePromptEditor();
 
-        // Execute transformation if configured
+        // Execute transformation in background (non-blocking parallel execution)
         const edge = workflowEngine.edges.get(edgeId);
-        if (edge) {
-            this.executeEdgeTransformation(edge);
+        if (edge && edge.prompt && edge.prompt.trim() !== '') {
+            console.log(`🚀 Starting background image generation for edge ${edgeId}`);
+            this.executeEdgeTransformation(edge).catch(error => {
+                console.error(`Background generation failed for edge ${edgeId}:`, error);
+            });
         }
     }
 
@@ -800,20 +804,25 @@ class WorkflowApp {
             // Get transformation settings
             const model = edge.model || config.get('imageModel') || 'google/nano-banana';
             const count = parseInt(document.getElementById('promptImageCount')?.value || '3');
+            const aspectRatio = edge.aspectRatio || '1:1';
 
             console.log('Calling transformationService with:', {
                 sourceImage: sourceImage.substring(0, 50) + '...',
                 prompt: edge.prompt,
                 count: count,
-                model: model
+                model: model,
+                aspectRatio: aspectRatio
             });
 
-            // Call actual transformation service
-            const results = await transformationService.transformImage(
-                sourceImage,
+            // Call actual transformation service with aspect ratio
+            const results = await transformationService.transformWithNanoBanana(
+                [sourceImage],
                 edge.prompt,
-                count,
-                model
+                {
+                    count: count,
+                    aspectRatio: aspectRatio,
+                    nodeId: targetNode.id
+                }
             );
 
             console.log('Transformation completed, got', results.length, 'images');
@@ -835,7 +844,7 @@ class WorkflowApp {
             // Update node status to ready
             workflowEngine.updateNode(targetNode.id, { status: 'ready' });
 
-            console.log('Successfully added', results.length, 'images to target node');
+            console.log(`✅ Successfully added ${results.length} images to target node ${targetNode.id}`);
 
         } catch (error) {
             console.error('Transformation failed:', error);
@@ -846,8 +855,7 @@ class WorkflowApp {
                 errorMessage: error.message || 'Unknown error occurred'
             });
 
-            // Show error to user
-            alert(`画像生成に失敗しました: ${error.message}`);
+            console.error(`❌ Transformation failed for node ${targetNode.id}:`, error.message);
         }
     }
 
@@ -915,12 +923,12 @@ class WorkflowApp {
                     <h3 class="text-sm font-medium text-gray-400 mb-2">プロンプト設定</h3>
                     <div class="space-y-2">
                         <div>
-                            <span class="text-xs text-gray-500">スタイル:</span>
-                            <div class="text-sm text-white">${edge.style || '未設定'}</div>
-                        </div>
-                        <div>
                             <span class="text-xs text-gray-500">モデル:</span>
                             <div class="text-sm text-white">${edge.model || '未設定'}</div>
+                        </div>
+                        <div>
+                            <span class="text-xs text-gray-500">アスペクト比:</span>
+                            <div class="text-sm text-white">${edge.aspectRatio || '1:1'}</div>
                         </div>
                         <div>
                             <span class="text-xs text-gray-500">プロンプト:</span>
@@ -929,10 +937,18 @@ class WorkflowApp {
                     </div>
                 </div>
 
-                <button onclick="window.app.editEdgePrompt('${edgeId}')"
-                        class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
-                    <i class="fas fa-edit mr-2"></i>プロンプトを編集
-                </button>
+                <div class="space-y-2">
+                    <button onclick="window.app.editEdgePrompt('${edgeId}')"
+                            class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
+                        <i class="fas fa-edit mr-2"></i>プロンプトを編集
+                    </button>
+                    ${edge.prompt && edge.prompt.trim() !== '' ? `
+                        <button onclick="window.app.regenerateFromEdge('${edgeId}')"
+                                class="w-full px-4 py-2 bg-pink-600 hover:bg-pink-700 rounded-lg transition-colors">
+                            <i class="fas fa-rotate mr-2"></i>Re-generate
+                        </button>
+                    ` : ''}
+                </div>
             </div>
         `;
 
@@ -966,7 +982,54 @@ class WorkflowApp {
         const promptModel = document.getElementById('promptModel');
         if (promptModel) promptModel.value = edge.model || 'google/nano-banana';
 
+        const promptAspectRatio = document.getElementById('promptAspectRatio');
+        if (promptAspectRatio) promptAspectRatio.value = edge.aspectRatio || '1:1';
+
         modal.classList.remove('hidden');
+    }
+
+    /**
+     * Regenerate images from edge (triggered from edge detail panel)
+     * @param {string} edgeId - Edge ID to regenerate from
+     */
+    regenerateFromEdge(edgeId) {
+        const edge = workflowEngine.edges.get(edgeId);
+        if (!edge) {
+            console.error('Edge not found:', edgeId);
+            return;
+        }
+
+        // Validate edge has prompt
+        if (!edge.prompt || edge.prompt.trim() === '') {
+            console.error('Edge has no prompt configured');
+            return;
+        }
+
+        // Validate source and target nodes
+        const sourceNode = workflowEngine.nodes.get(edge.source);
+        const targetNode = workflowEngine.nodes.get(edge.target);
+
+        if (!sourceNode || !targetNode) {
+            console.error('Source or target node not found');
+            return;
+        }
+
+        // Validate source node has images
+        if (!sourceNode.images || sourceNode.images.length === 0) {
+            console.error('Source node has no images');
+            alert('ソースノードに画像がありません');
+            return;
+        }
+
+        console.log(`🚀 Starting Re-generate for edge ${edgeId} (${sourceNode.id} → ${targetNode.id})`);
+
+        // Execute transformation in background (parallel execution)
+        this.executeEdgeTransformation(edge).catch(error => {
+            console.error(`Re-generate failed for edge ${edgeId}:`, error);
+        });
+
+        // Optionally close the edge detail panel
+        // document.getElementById('edgeDetailPanel')?.classList.add('translate-x-full');
     }
 
     /**

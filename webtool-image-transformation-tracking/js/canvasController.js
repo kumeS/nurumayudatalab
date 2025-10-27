@@ -286,7 +286,7 @@ class CanvasController {
 
             const image = node.images[currentIndex];
             const maxSize = 140; // Maximum dimension for the image container (increased from 80)
-            const imgY = y; // Center the image vertically in the node
+            const imgY = y + 15; // Position image below header to avoid overlap with node label
 
             // Draw image placeholder
             ctx.fillStyle = '#1F2937';
@@ -380,12 +380,19 @@ class CanvasController {
             ctx.fillText('or right-click to upload', x, y + 10);
         }
 
-        // Status indicator
-        const statusColor = node.status === 'processing' ? '#F59E0B' : 
-                           node.status === 'error' ? '#EF4444' : '#10B981';
+        // Status indicator - with fallback for undefined status
+        const nodeStatus = node.status || 'ready';
+        const statusColor = nodeStatus === 'processing' ? '#F59E0B' :
+                           nodeStatus === 'error' ? '#EF4444' : '#10B981';
+
+        // Debug log for status
+        if (nodeStatus === 'processing') {
+            console.log(`🔶 Node ${id.substr(-6)} is PROCESSING - drawing orange indicator`);
+        }
+
         ctx.fillStyle = statusColor;
         ctx.beginPath();
-        ctx.arc(x + width/2 - 15, y - height/2 + 15, 5, 0, 2 * Math.PI);
+        ctx.arc(x + width/2 - 15, y - height/2 + 15, 8, 0, 2 * Math.PI); // Increased radius from 5 to 8
         ctx.fill();
         
         // Generate button for generated nodes with incoming edges
@@ -592,16 +599,20 @@ class CanvasController {
                 
                 if (node && node.images && node.images.length > 1) {
                     // Check if clicked on navigation arrows
-                    const imgSize = 80;
+                    const maxSize = 140; // Must match nodeRenderer maxSize
+                    const imgY = 15; // Offset from center (y + 15 in nodeRenderer)
                     const arrowWidth = 20;
-                    
-                    if (Math.abs(pointer.y - pos.y + 20) < imgSize/2) {
-                        if (pointer.x < pos.x - imgSize/2 && pointer.x > pos.x - imgSize/2 - arrowWidth) {
+
+                    // Check if clicked in the vertical range of the image
+                    if (Math.abs(pointer.y - (pos.y + imgY)) < maxSize/2) {
+                        if (pointer.x < pos.x - maxSize/2 && pointer.x > pos.x - maxSize/2 - arrowWidth) {
                             // Left arrow clicked
+                            console.log('Left arrow clicked for node:', nodeId);
                             this.navigateNodeImage(nodeId, -1);
                             return;
-                        } else if (pointer.x > pos.x + imgSize/2 && pointer.x < pos.x + imgSize/2 + arrowWidth) {
+                        } else if (pointer.x > pos.x + maxSize/2 && pointer.x < pos.x + maxSize/2 + arrowWidth) {
                             // Right arrow clicked
+                            console.log('Right arrow clicked for node:', nodeId);
                             this.navigateNodeImage(nodeId, 1);
                             return;
                         }
@@ -1232,9 +1243,23 @@ class CanvasController {
                     </div>
 
                     <div id="promptContent" class="${hasPrompt ? '' : 'hidden'}">
-                        <label class="block text-sm font-medium text-gray-300 mb-2">変換プロンプト</label>
-                        <textarea id="promptText" rows="6" placeholder="変換プロンプトを入力してください..."
-                                  class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400">${currentPrompt}</textarea>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">変換プロンプト</label>
+                                <textarea id="promptText" rows="6" placeholder="変換プロンプトを入力してください..."
+                                          class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400">${currentPrompt}</textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">アスペクト比</label>
+                                <select id="promptAspectRatioDialog" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                                    <option value="1:1">1:1 (正方形)</option>
+                                    <option value="4:3">4:3 (標準)</option>
+                                    <option value="3:4">3:4 (縦標準)</option>
+                                    <option value="16:9">16:9 (ワイド)</option>
+                                    <option value="9:16">9:16 (縦長)</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="flex space-x-3">
@@ -1252,10 +1277,16 @@ class CanvasController {
 
         // Auto show prompt content if edge already has a prompt
         const promptTextArea = document.getElementById('promptText');
+        const aspectRatioSelect = document.getElementById('promptAspectRatioDialog');
 
         // Ensure textarea is enabled and ready for input
         if (promptTextArea) {
             promptTextArea.disabled = false;
+        }
+
+        // Load existing aspect ratio if available
+        if (aspectRatioSelect && edge.aspectRatio) {
+            aspectRatioSelect.value = edge.aspectRatio;
         }
 
         if (hasPrompt) {
@@ -1283,12 +1314,12 @@ class CanvasController {
                 document.getElementById('promptContent').classList.remove('hidden');
                 promptTextArea.value = 'Generating with AI...';
                 promptTextArea.disabled = true;
-                
+
                 // Get current image from source node
                 const currentIndex = sourceNode.currentIndex || 0;
                 const sourceImage = sourceNode.images[currentIndex];
                 const imageUrl = sourceImage.url;
-                
+
                 // Call LLM service to generate prompt
                 const generatedPrompt = await llmService.generatePrompt(
                     imageUrl,
@@ -1296,14 +1327,35 @@ class CanvasController {
                     'Creative image transformation',
                     null // Use default model
                 );
-                
+
                 promptTextArea.value = generatedPrompt;
                 promptTextArea.disabled = false;
             } catch (error) {
                 console.error('Failed to generate prompt:', error);
-                promptTextArea.value = '';
-                promptTextArea.disabled = false;
-                alert('プロンプトの生成に失敗しました: ' + error.message);
+
+                // Check if error is due to missing API key
+                if (error.message && error.message.includes('APIキーが設定されていません')) {
+                    // Use default prompt instead of showing error
+                    const defaultPrompt = 'Transform the image creatively';
+                    promptTextArea.value = defaultPrompt;
+                    promptTextArea.disabled = false;
+
+                    // Show informative message above the textarea
+                    const warningDiv = document.createElement('div');
+                    warningDiv.className = 'mb-2 p-3 bg-yellow-900/30 border border-yellow-600/50 rounded-lg text-yellow-200 text-sm';
+                    warningDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>IONet APIが設定されていないため、デフォルトプロンプトを使用します。設定画面からAPIキーを入力すると、AI生成が利用できます。';
+
+                    // Insert warning before promptContent
+                    const promptContent = document.getElementById('promptContent');
+                    if (promptContent && promptContent.firstChild) {
+                        promptContent.insertBefore(warningDiv, promptContent.firstChild);
+                    }
+                } else {
+                    // Other errors - show as before
+                    promptTextArea.value = '';
+                    promptTextArea.disabled = false;
+                    alert('プロンプトの生成に失敗しました: ' + error.message);
+                }
             }
         };
 
@@ -1312,15 +1364,20 @@ class CanvasController {
         };
 
         document.getElementById('savePrompt').onclick = () => {
-            // Re-get the textarea to ensure we have the latest reference
+            // Re-get the textarea and aspect ratio to ensure we have the latest references
             const currentPromptTextArea = document.getElementById('promptText');
+            const currentAspectRatioSelect = document.getElementById('promptAspectRatioDialog');
             const promptText = currentPromptTextArea ? currentPromptTextArea.value.trim() : '';
+            const aspectRatio = currentAspectRatioSelect ? currentAspectRatioSelect.value : '1:1';
 
-            console.log('Save prompt clicked, value:', promptText);
+            console.log('Save prompt clicked, value:', promptText, 'aspectRatio:', aspectRatio);
 
             if (promptText) {
-                workflowEngine.updateEdge(edgeId, { prompt: promptText });
-                console.log(`Updated edge ${edgeId} with prompt: ${promptText}`);
+                workflowEngine.updateEdge(edgeId, {
+                    prompt: promptText,
+                    aspectRatio: aspectRatio
+                });
+                console.log(`Updated edge ${edgeId} with prompt: ${promptText}, aspectRatio: ${aspectRatio}`);
                 // Force update the edge visualization
                 const updatedEdge = workflowEngine.edges.get(edgeId);
                 if (updatedEdge) {
@@ -1519,16 +1576,81 @@ class CanvasController {
     }
 
     updateNode(node) {
+        // Update node position in vis.js DataSet
         this.nodes.update({
             id: node.id,
             x: node.position.x,
             y: node.position.y
         });
-        this.network.redraw();
+
+        // Force immediate redraw to reflect status changes
+        // Use requestRedraw() to prevent infinite loops
+        this.requestRedraw();
+
+        // Additional debug logging for status changes
+        if (node.status === 'processing' || node.status === 'error') {
+            console.log(`📝 Node ${node.id.substr(-6)} updated: status=${node.status}`);
+        }
     }
 
     removeNode(nodeId) {
         this.nodes.remove(nodeId);
+    }
+
+    // Helper method to calculate optimal edge smoothing based on node positions
+    calculateEdgeSmoothing(sourceId, targetId) {
+        // Get node positions
+        const sourceNode = this.nodes.get(sourceId);
+        const targetNode = this.nodes.get(targetId);
+
+        if (!sourceNode || !targetNode) {
+            // Default fallback if nodes not found
+            return {
+                enabled: true,
+                type: 'dynamic',
+                roundness: 0.2
+            };
+        }
+
+        const dx = targetNode.x - sourceNode.x;
+        const dy = targetNode.y - sourceNode.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Calculate angle in degrees
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+        // Determine smooth type based on relative position
+        let smoothType = 'dynamic';
+        let roundness = 0.2;
+
+        // Nearly horizontal (within 20 degrees of horizontal)
+        if (Math.abs(angle) < 20 || Math.abs(angle) > 160) {
+            smoothType = 'horizontal';
+            roundness = 0.1; // Gentle curve
+        }
+        // Nearly vertical (within 20 degrees of vertical)
+        else if (Math.abs(angle - 90) < 20 || Math.abs(angle + 90) < 20) {
+            smoothType = 'vertical';
+            roundness = 0.1; // Gentle curve
+        }
+        // Diagonal - determine curve direction
+        else {
+            // Top-left to bottom-right (positive slope) -> curvedCW
+            // Top-right to bottom-left (negative slope) -> curvedCCW
+            if ((dx > 0 && dy > 0) || (dx < 0 && dy < 0)) {
+                smoothType = 'curvedCW';
+            } else {
+                smoothType = 'curvedCCW';
+            }
+            // Adjust roundness based on distance - closer nodes = less curve
+            roundness = Math.min(0.3, distance / 2000);
+        }
+
+        return {
+            enabled: true,
+            type: smoothType,
+            roundness: roundness
+        };
     }
 
     // Edge operations
@@ -1549,6 +1671,9 @@ class CanvasController {
             hover: '#9CA3AF'
         };
 
+        // Calculate dynamic smoothing based on node positions
+        const smoothConfig = this.calculateEdgeSmoothing(edge.source, edge.target);
+
         this.edges.add({
             id: edge.id,
             from: edge.source,
@@ -1562,11 +1687,7 @@ class CanvasController {
             },
             color: color,
             width: hasPrompt ? 3 : 2,
-            smooth: {
-                enabled: true,
-                type: 'curvedCW',
-                roundness: 0.2
-            },
+            smooth: smoothConfig,
             font: {
                 size: 12,
                 color: hasPrompt ? '#E9D5FF' : '#D1D5DB',
@@ -1594,11 +1715,15 @@ class CanvasController {
             hover: '#9CA3AF'
         };
 
+        // Calculate dynamic smoothing based on node positions
+        const smoothConfig = this.calculateEdgeSmoothing(edge.source, edge.target);
+
         this.edges.update({
             id: edge.id,
             label: label,
             color: color,
             width: hasPrompt ? 3 : 2,
+            smooth: smoothConfig,
             font: {
                 size: 12,
                 color: hasPrompt ? '#E9D5FF' : '#D1D5DB',
@@ -1681,17 +1806,16 @@ class CanvasController {
             
             // Update status to success
             workflowEngine.updateNode(nodeId, { status: 'ready' });
-            
-            // Show success message
-            alert(`Generated ${incomingEdges.length} image(s) successfully!`);
-            
+
+            console.log(`✅ Generated ${incomingEdges.length} image(s) successfully for node ${nodeId}`);
+
         } catch (error) {
             console.error('Generation error:', error);
             workflowEngine.updateNode(nodeId, {
                 status: 'error',
                 errorMessage: error.message || 'Unknown error occurred'
             });
-            alert('Generation failed: ' + error.message);
+            console.error(`❌ Generation failed for node ${nodeId}:`, error.message);
         }
     }
 
@@ -2493,158 +2617,120 @@ class CanvasController {
     }
 
     /**
-     * Auto Layout - Automatically arrange nodes in a hierarchical layout
-     * Input nodes on the left, generated nodes on the right
+     * Auto Layout - Automatically arrange nodes using vis.js physics-based hierarchical layout
+     * Input nodes on the left, generated nodes on the right with force-based positioning
      */
     autoLayout() {
-        console.log('Auto layout started');
-        
+        console.log('Auto layout started - using physics-based hierarchical layout');
+
         if (!this.network || !workflowEngine) {
             console.warn('Network or workflow engine not initialized');
             return;
         }
-        
-        const inputNodes = [];
-        const generatedNodes = [];
-        const standaloneNodes = []; // Nodes without connections
-        
-        // Classify nodes by type
-        for (const node of this.nodes.get()) {
-            const nodeData = workflowEngine.nodes.get(node.id);
-            if (!nodeData) continue;
-            
-            // Check if node has any connections
-            const incomingEdges = workflowEngine.getIncomingEdges(node.id);
-            const outgoingEdges = workflowEngine.getOutgoingEdges(node.id);
-            const hasConnections = incomingEdges.length > 0 || outgoingEdges.length > 0;
-            
-            if (!hasConnections) {
-                standaloneNodes.push({ visNode: node, data: nodeData });
-            } else if (nodeData.nodeType === 'input') {
-                inputNodes.push({ visNode: node, data: nodeData });
-            } else {
-                generatedNodes.push({ visNode: node, data: nodeData });
-            }
+
+        // Count nodes and edges
+        const nodeCount = this.nodes.length;
+        const edgeCount = this.edges.length;
+        console.log(`Network has ${nodeCount} nodes and ${edgeCount} edges`);
+
+        if (nodeCount === 0) {
+            console.log('No nodes to layout');
+            return;
         }
-        
-        console.log(`Found ${inputNodes.length} input nodes, ${generatedNodes.length} generated nodes, ${standaloneNodes.length} standalone nodes`);
-        
-        // Layout configuration
-        const config = {
-            startX: 150,
-            startY: 150,
-            horizontalSpacing: 500,
-            verticalSpacing: 250,
-            minVerticalSpacing: 200
-        };
-        
-        // Sort nodes by number of connections (more connected = higher priority)
-        const sortByConnections = (a, b) => {
-            const aConnections = workflowEngine.getIncomingEdges(a.visNode.id).length + 
-                                 workflowEngine.getOutgoingEdges(a.visNode.id).length;
-            const bConnections = workflowEngine.getIncomingEdges(b.visNode.id).length + 
-                                 workflowEngine.getOutgoingEdges(b.visNode.id).length;
-            return bConnections - aConnections;
-        };
-        
-        inputNodes.sort(sortByConnections);
-        generatedNodes.sort(sortByConnections);
-        
-        // Position input nodes (left column)
-        let currentY = config.startY;
-        const newPositions = [];
-        
-        inputNodes.forEach((nodeInfo, index) => {
-            const y = currentY + (index * config.verticalSpacing);
-            newPositions.push({
-                id: nodeInfo.visNode.id,
-                x: config.startX,
-                y: y
-            });
+
+        // Disable physics temporarily to prepare for layout
+        this.network.setOptions({
+            physics: {
+                enabled: false
+            }
         });
-        
-        // Position generated nodes (right column)
-        // Try to align with their source nodes
-        const generatedPositions = new Map();
-        
-        generatedNodes.forEach((nodeInfo) => {
-            const incomingEdges = workflowEngine.getIncomingEdges(nodeInfo.visNode.id);
-            
-            if (incomingEdges.length > 0) {
-                // Calculate average Y position of source nodes
-                let totalY = 0;
-                let count = 0;
-                
-                incomingEdges.forEach(edge => {
-                    const sourcePosition = newPositions.find(p => p.id === edge.source);
-                    if (sourcePosition) {
-                        totalY += sourcePosition.y;
-                        count++;
-                    }
-                });
-                
-                if (count > 0) {
-                    const avgY = totalY / count;
-                    generatedPositions.set(nodeInfo.visNode.id, avgY);
+
+        // Set hierarchical layout options with physics
+        this.network.setOptions({
+            layout: {
+                hierarchical: {
+                    enabled: true,
+                    direction: 'LR', // Left to Right
+                    sortMethod: 'directed', // Sort by edge direction
+                    nodeSpacing: 250, // Horizontal spacing between nodes at same level
+                    levelSeparation: 500, // Vertical spacing between levels
+                    treeSpacing: 300, // Spacing between separate trees
+                    blockShifting: true, // Shift blocks to reduce whitespace
+                    edgeMinimization: true, // Minimize edge crossing
+                    parentCentralization: true, // Center parents above children
+                    shakeTowards: 'leaves' // Fine-tune towards leaf nodes
+                }
+            },
+            physics: {
+                enabled: true,
+                hierarchicalRepulsion: {
+                    centralGravity: 0.0,
+                    springLength: 200,
+                    springConstant: 0.01,
+                    nodeDistance: 250, // Minimum distance between nodes
+                    damping: 0.09
+                },
+                solver: 'hierarchicalRepulsion',
+                stabilization: {
+                    enabled: true,
+                    iterations: 1000,
+                    updateInterval: 25,
+                    fit: true
                 }
             }
         });
-        
-        // Assign Y positions to generated nodes, avoiding overlaps
-        currentY = config.startY;
-        const usedYPositions = [];
-        
-        generatedNodes.forEach((nodeInfo) => {
-            let targetY = generatedPositions.get(nodeInfo.visNode.id) || currentY;
-            
-            // Avoid overlaps with other nodes
-            while (usedYPositions.some(y => Math.abs(y - targetY) < config.minVerticalSpacing)) {
-                targetY += config.minVerticalSpacing;
-            }
-            
-            usedYPositions.push(targetY);
-            currentY = targetY + config.verticalSpacing;
-            
-            newPositions.push({
-                id: nodeInfo.visNode.id,
-                x: config.startX + config.horizontalSpacing,
-                y: targetY
-            });
+
+        console.log('Hierarchical layout configured, starting stabilization...');
+
+        // Listen for stabilization progress
+        this.network.once('stabilizationProgress', (params) => {
+            console.log(`Stabilization progress: ${Math.round(params.iterations / params.total * 100)}%`);
         });
-        
-        // Position standalone nodes (far right)
-        standaloneNodes.forEach((nodeInfo, index) => {
-            newPositions.push({
-                id: nodeInfo.visNode.id,
-                x: config.startX + (config.horizontalSpacing * 2),
-                y: config.startY + (index * config.verticalSpacing)
-            });
+
+        // When stabilization is done, disable physics and fit view
+        this.network.once('stabilizationIterationsDone', () => {
+            console.log('Stabilization complete');
+
+            // Disable physics after layout is stable
+            setTimeout(() => {
+                this.network.setOptions({
+                    physics: {
+                        enabled: false
+                    }
+                });
+
+                // Update node positions in workflowEngine
+                const positions = this.network.getPositions();
+                for (const nodeId in positions) {
+                    const node = workflowEngine.nodes.get(nodeId);
+                    if (node) {
+                        node.position = {
+                            x: positions[nodeId].x,
+                            y: positions[nodeId].y
+                        };
+                    }
+                }
+
+                // Save updated positions
+                workflowEngine.saveWorkflow();
+
+                // Fit view to show all nodes
+                this.fitView();
+
+                // Update edges to reflect new positions
+                for (const edge of workflowEngine.edges.values()) {
+                    this.updateEdge(edge);
+                }
+
+                // Update minimap
+                this.updateMiniMap();
+
+                console.log('Auto layout completed successfully');
+            }, 500);
         });
-        
-        // Apply new positions with animation
-        const updates = [];
-        newPositions.forEach(pos => {
-            updates.push({
-                id: pos.id,
-                x: pos.x,
-                y: pos.y
-            });
-            
-            // Update workflow engine
-            workflowEngine.updateNode(pos.id, {
-                position: { x: pos.x, y: pos.y }
-            });
-        });
-        
-        // Update vis.js network
-        this.nodes.update(updates);
-        
-        // Fit view after layout
-        setTimeout(() => {
-            this.fitView();
-        }, 100);
-        
-        console.log(`Auto layout complete: positioned ${newPositions.length} nodes`);
+
+        // Trigger stabilization
+        this.network.stabilize();
     }
 
     // Cleanup method to be called when destroying the controller

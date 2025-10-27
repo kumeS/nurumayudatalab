@@ -2374,3 +2374,193 @@ body {
 }
 
 /* ========== END UI AUDIT FIXES ==========  */
+
+/* ========== 画像履歴パネル ========== */
+
+.image-history-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.image-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.image-history-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.image-history-header h3 i {
+  color: #ff9a5a;
+  font-size: 16px;
+}
+
+.image-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.image-history-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.image-history-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.image-history-grid::-webkit-scrollbar-thumb {
+  background: rgba(255, 154, 90, 0.3);
+  border-radius: 3px;
+}
+
+.image-history-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 154, 90, 0.5);
+}
+
+.image-history-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.image-history-item:hover {
+  border-color: #ff9a5a;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(255, 154, 90, 0.3);
+}
+
+.image-history-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.image-history-item-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  display: flex;
+  align-items: flex-end;
+  padding: 6px;
+}
+
+.image-history-item:hover .image-history-item-overlay {
+  opacity: 1;
+}
+
+.image-history-item-info {
+  font-size: 10px;
+  color: #ffffff;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.image-history-item-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  background: rgba(244, 67, 54, 0.9);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.image-history-item:hover .image-history-item-delete {
+  opacity: 1;
+}
+
+.image-history-item-delete:hover {
+  background: #f44336;
+  transform: scale(1.1);
+}
+
+.image-history-item-delete i {
+  font-size: 12px;
+}
+
+.image-history-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+}
+
+.image-history-empty i {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+.image-history-empty p {
+  font-size: 14px;
+  margin: 0;
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+  .image-history-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 8px;
+    max-height: 300px;
+  }
+
+  .image-history-header h3 {
+    font-size: 13px;
+  }
+
+  .image-history-item-info {
+    font-size: 9px;
+  }
+
+  .image-history-item-delete {
+    width: 20px;
+    height: 20px;
+  }
+
+  .image-history-item-delete i {
+    font-size: 10px;
+  }
+}
+
+/* ========== END 画像履歴パネル ========== */

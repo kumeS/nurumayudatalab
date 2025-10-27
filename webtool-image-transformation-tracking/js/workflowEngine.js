@@ -156,8 +156,11 @@ class WorkflowEngine {
 
     addImageToNode(nodeId, imageData) {
         const node = this.nodes.get(nodeId);
-        if (!node) return null;
-        
+        if (!node) {
+            console.error('❌ addImageToNode: Node not found:', nodeId);
+            return null;
+        }
+
         const image = {
             id: this.generateId('img'),
             url: imageData.url,
@@ -165,8 +168,12 @@ class WorkflowEngine {
             metadata: imageData.metadata || {},
             created: new Date().toISOString()
         };
-        
+
         node.images.push(image);
+        console.log(`📸 Image added to node ${nodeId.substr(-6)}: Total images now = ${node.images.length}`);
+        console.log(`   Image URL type: ${image.url.startsWith('data:') ? 'base64' : 'URL'}`);
+        console.log(`   Image URL length: ${image.url.length} chars`);
+
         this.emit('imageAdded', { nodeId, image });
 
         // Save immediately to ensure data persistence
@@ -194,7 +201,6 @@ class WorkflowEngine {
             target: targetNodeId,
             prompt: options.prompt || '',
             model: options.model || config.get('imageModel'),
-            style: options.style || 'custom',
             metadata: options.metadata || {},
             created: new Date().toISOString()
         };
@@ -324,8 +330,7 @@ class WorkflowEngine {
         // Create edges from source nodes to merged node
         nodeIds.forEach(sourceId => {
             this.createEdge(sourceId, mergedNode.id, {
-                prompt: options.prompt || 'Merge images',
-                style: 'merge'
+                prompt: options.prompt || 'Merge images'
             });
         });
         
@@ -356,29 +361,53 @@ class WorkflowEngine {
         try {
             const workflows = JSON.parse(localStorage.getItem('workflows') || '[]');
             const index = workflows.findIndex(w => w.id === this.workflow.id);
-            
+
             const workflowData = {
                 ...this.workflow,
                 nodes: Array.from(this.nodes.values()),
                 edges: Array.from(this.edges.values())
             };
-            
+
+            // Debug: Log image counts before saving
+            console.log('💾 SAVING WORKFLOW TO LOCALSTORAGE');
+            let totalImages = 0;
+            workflowData.nodes.forEach(node => {
+                const imageCount = node.images ? node.images.length : 0;
+                totalImages += imageCount;
+                if (imageCount > 0) {
+                    console.log(`   Node ${node.id.substr(-6)}: ${imageCount} images`);
+                    node.images.forEach((img, idx) => {
+                        console.log(`      Image ${idx + 1}: ${img.url.startsWith('data:') ? 'base64' : 'URL'} (${img.url.length} chars)`);
+                    });
+                }
+            });
+            console.log(`   Total images in workflow: ${totalImages}`);
+
             if (index >= 0) {
                 workflows[index] = workflowData;
             } else {
                 workflows.push(workflowData);
             }
-            
+
             // Keep only recent workflows
             const maxWorkflows = window.config ? window.config.get('maxWorkflows') : 10;
             if (workflows.length > maxWorkflows) {
                 workflows.shift();
             }
-            
-            localStorage.setItem('workflows', JSON.stringify(workflows));
+
+            const jsonString = JSON.stringify(workflows);
+            const sizeInMB = (jsonString.length / (1024 * 1024)).toFixed(2);
+            console.log(`   LocalStorage size: ${sizeInMB} MB`);
+
+            localStorage.setItem('workflows', jsonString);
+            console.log('✅ Workflow saved successfully');
             return true;
         } catch (error) {
-            console.error('Failed to save workflow:', error);
+            console.error('❌ Failed to save workflow:', error);
+            if (error.name === 'QuotaExceededError') {
+                console.error('⚠️ LocalStorage quota exceeded! Data is too large.');
+                alert('保存容量を超えました。画像が多すぎる可能性があります。一部のノードを削除してください。');
+            }
             return false;
         }
     }
@@ -416,12 +445,21 @@ class WorkflowEngine {
 
             // Load nodes
             let loadedNodes = 0;
+            let totalImagesLoaded = 0;
             workflowData.nodes.forEach(nodeData => {
-                console.log('Loading node:', nodeData.id, 'at position:', nodeData.position);
+                const imageCount = nodeData.images ? nodeData.images.length : 0;
+                totalImagesLoaded += imageCount;
+                console.log(`Loading node: ${nodeData.id.substr(-6)} at position:`, nodeData.position, `with ${imageCount} images`);
+                if (imageCount > 0) {
+                    nodeData.images.forEach((img, idx) => {
+                        console.log(`   Image ${idx + 1}: ${img.url.startsWith('data:') ? 'base64' : 'URL'} (${img.url.length} chars)`);
+                    });
+                }
                 this.nodes.set(nodeData.id, nodeData);
                 this.workflow.nodes.push(nodeData.id);
                 loadedNodes++;
             });
+            console.log(`📸 Total images loaded from storage: ${totalImagesLoaded}`);
 
             // Load edges
             let loadedEdges = 0;

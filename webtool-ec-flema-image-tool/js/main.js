@@ -14,13 +14,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // 最後のプロジェクトを復元
     await restoreLastProject();
-    
+
     // イベントリスナー設定
     initializeEventListeners();
-    
+
+    // 画像履歴を表示
+    await displayImageHistory();
+
     // 自動保存開始
     startAutoSave();
-    
+
     // 初回ヒント表示
     showInitialHint();
 
@@ -103,7 +106,13 @@ function initializeEventListeners() {
             }
         });
     }
-    
+
+    // 画像履歴
+    const refreshImageHistoryBtn = document.getElementById('refreshImageHistoryBtn');
+    if (refreshImageHistoryBtn) {
+        refreshImageHistoryBtn.addEventListener('click', refreshImageHistory);
+    }
+
     // 画像フィルター
     document.getElementById('brightness').addEventListener('input', handleFilterChange);
     document.getElementById('contrast').addEventListener('input', handleFilterChange);

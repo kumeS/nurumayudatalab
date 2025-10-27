@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Workflow Tracker - ビジュアル画像処理ワークフロー</title>
-    
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="../favicon/nu-circle.svg">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -227,12 +230,25 @@
                                 <option value="google/nano-banana" selected>Nano Banana</option>
                             </select>
                         </div>
-                        
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                アスペクト比
+                            </label>
+                            <select id="promptAspectRatio" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                                <option value="1:1">1:1 (正方形)</option>
+                                <option value="4:3">4:3 (標準)</option>
+                                <option value="3:4">3:4 (縦標準)</option>
+                                <option value="16:9">16:9 (ワイド)</option>
+                                <option value="9:16">9:16 (縦長)</option>
+                            </select>
+                        </div>
+
                         <div class="flex items-center space-x-2">
                             <label class="block text-sm font-medium text-gray-300">
                                 生成枚数:
                             </label>
-                            <input type="number" id="promptImageCount" min="1" max="10" value="1" 
+                            <input type="number" id="promptImageCount" min="1" max="10" value="1"
                                    class="w-20 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-purple-500">
                         </div>
                     </div>

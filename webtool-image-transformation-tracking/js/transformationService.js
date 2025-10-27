@@ -121,8 +121,17 @@ class TransformationService {
                 throw new Error(`設定エラー: Cloudflare Workersプロキシが設定されていません。実際のURL: ${apiUrl}。ブラウザのキャッシュをクリアしてページをリロードしてください（Cmd+Shift+R / Ctrl+Shift+R）。`);
             }
 
-            // Payload for Cloudflare Workers proxy
+            // Extract Replicate API key from config
+            const replicateApiKey = config.get('replicateApiKey');
+            if (!replicateApiKey) {
+                throw new Error('Replicate APIキーが設定されていません。設定画面からAPIキーを入力してください。');
+            }
+
+            console.log('Using UI-side API key for Replicate authentication');
+
+            // Payload for Cloudflare Workers proxy (includes UI-side API token)
             const payload = {
+                apiToken: replicateApiKey,  // UI-side API key (encrypted via HTTPS)
                 path: '/v1/models/google/nano-banana/predictions', // Specify Replicate API path
                 input: {
                     prompt: prompt,
@@ -217,10 +226,12 @@ class TransformationService {
             
             // Convert output to proper format
             const results = [];
+            const conversionErrors = [];
+
             for (let index = 0; index < outputImages.length; index++) {
                 const url = outputImages[index];
                 console.log(`Processing output image ${index + 1}/${outputImages.length}`);
-                
+
                 try {
                     // Download and convert to base64, save to IndexedDB
                     const base64Image = await this.urlToBase64(url, nodeId, {
@@ -245,29 +256,33 @@ class TransformationService {
                             aspectRatio: aspectRatio,
                             outputFormat: outputFormat,
                             predictionId: prediction.id,
-                            sourceUrl: url
+                            sourceUrl: url,
+                            conversionSuccess: true
                         }
                     });
                 } catch (conversionError) {
                     console.error(`Failed to convert image ${index + 1}:`, conversionError);
-                    // Use original URL as fallback
-                    results.push({
-                        id: `nano_banana_${Date.now()}_${index}`,
-                        url: url,
-                        thumbnail: url,
-                        prompt: prompt,
-                        model: 'google/nano-banana',
-                        createdAt: new Date().toISOString(),
-                        metadata: {
-                            api: 'replicate',
-                            modelName: 'google/nano-banana',
-                            aspectRatio: aspectRatio,
-                            outputFormat: outputFormat,
-                            predictionId: prediction.id,
-                            conversionError: true
-                        }
+                    conversionErrors.push({
+                        index: index + 1,
+                        error: conversionError.message
                     });
+                    // Do not add failed images to results - this ensures only successfully converted images are saved
                 }
+            }
+
+            // Show warning if some images failed to convert
+            if (conversionErrors.length > 0) {
+                const errorMessage = `警告: ${conversionErrors.length}枚の画像の変換に失敗しました。\n` +
+                    conversionErrors.map(e => `画像${e.index}: ${e.error}`).join('\n');
+                console.warn(errorMessage);
+
+                // If ALL images failed, throw error
+                if (results.length === 0) {
+                    throw new Error('すべての画像の変換に失敗しました。ネットワーク接続を確認してください。\n\n' + errorMessage);
+                }
+
+                // If some images succeeded, show warning but continue
+                alert(errorMessage + '\n\n変換に成功した画像のみが保存されました。');
             }
             
             console.log('Nano Banana transformation completed successfully');
@@ -421,69 +436,103 @@ class TransformationService {
      * @param {string} imageUrl - Image URL to download
      * @param {string} nodeId - Node ID for IndexedDB storage
      * @param {Object} metadata - Additional metadata
+     * @param {number} retries - Number of retry attempts
      * @returns {Promise<string>} Base64 data URL
      */
-    async urlToBase64(imageUrl, nodeId = null, metadata = {}) {
-        try {
-            console.log('[ImageDownload] Starting download:', imageUrl.substring(0, 100));
+    async urlToBase64(imageUrl, nodeId = null, metadata = {}, retries = 3) {
+        console.log('[ImageDownload] Starting download:', imageUrl.substring(0, 100));
 
-            // If already base64, return as is
-            if (imageUrl.startsWith('data:')) {
-                console.log('[ImageDownload] Already base64, returning as is');
-                return imageUrl;
-            }
-
-            // Fetch image
-            console.log('[ImageDownload] Fetching image from URL...');
-            const response = await fetch(imageUrl);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch image: ${response.status}`);
-            }
-
-            // Convert to blob
-            console.log('[ImageDownload] Converting to blob...');
-            const blob = await response.blob();
-            console.log('[ImageDownload] Blob size:', blob.size, 'bytes, type:', blob.type);
-
-            // Save to IndexedDB if imageStorage is available and nodeId is provided
-            if (typeof imageStorage !== 'undefined' && nodeId) {
-                try {
-                    console.log('[ImageDownload] Saving to IndexedDB for node:', nodeId);
-                    const savedImage = await imageStorage.saveImage(nodeId, blob, {
-                        ...metadata,
-                        originalUrl: imageUrl,
-                        savedAt: new Date().toISOString()
-                    });
-                    console.log('[ImageDownload] Saved to IndexedDB with ID:', savedImage.id);
-                } catch (dbError) {
-                    console.error('[ImageDownload] Failed to save to IndexedDB:', dbError);
-                    // Continue even if IndexedDB save fails
-                }
-            } else {
-                if (!nodeId) {
-                    console.warn('[ImageDownload] No nodeId provided, skipping IndexedDB save');
-                }
-                if (typeof imageStorage === 'undefined') {
-                    console.warn('[ImageDownload] imageStorage not available, skipping IndexedDB save');
-                }
-            }
-
-            // Convert to base64
-            console.log('[ImageDownload] Converting blob to base64...');
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    console.log('[ImageDownload] Base64 conversion completed');
-                    resolve(reader.result);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-        } catch (error) {
-            console.error('[ImageDownload] Error downloading/converting image:', error);
-            // If conversion fails, return original URL
+        // If already base64, return as is
+        if (imageUrl.startsWith('data:')) {
+            console.log('[ImageDownload] Already base64, returning as is');
             return imageUrl;
         }
+
+        let lastError = null;
+
+        // Retry loop
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                console.log(`[ImageDownload] Attempt ${attempt}/${retries}: Fetching image from URL...`);
+
+                // Fetch image with timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+                const response = await fetch(imageUrl, {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch image: HTTP ${response.status} ${response.statusText}`);
+                }
+
+                // Convert to blob
+                console.log('[ImageDownload] Converting to blob...');
+                const blob = await response.blob();
+                console.log('[ImageDownload] Blob size:', blob.size, 'bytes, type:', blob.type);
+
+                // Validate blob is an image
+                if (!blob.type.startsWith('image/')) {
+                    throw new Error(`Invalid image type: ${blob.type}`);
+                }
+
+                // Save to IndexedDB if imageStorage is available and nodeId is provided
+                if (typeof imageStorage !== 'undefined' && nodeId) {
+                    try {
+                        console.log('[ImageDownload] Saving to IndexedDB for node:', nodeId);
+                        const savedImage = await imageStorage.saveImage(nodeId, blob, {
+                            ...metadata,
+                            originalUrl: imageUrl,
+                            savedAt: new Date().toISOString()
+                        });
+                        console.log('[ImageDownload] Saved to IndexedDB with ID:', savedImage.id);
+                    } catch (dbError) {
+                        console.error('[ImageDownload] Failed to save to IndexedDB:', dbError);
+                        // Continue even if IndexedDB save fails - base64 in LocalStorage is primary storage
+                    }
+                } else {
+                    if (!nodeId) {
+                        console.warn('[ImageDownload] No nodeId provided, skipping IndexedDB save');
+                    }
+                    if (typeof imageStorage === 'undefined') {
+                        console.warn('[ImageDownload] imageStorage not available, skipping IndexedDB save');
+                    }
+                }
+
+                // Convert to base64
+                console.log('[ImageDownload] Converting blob to base64...');
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        console.log('[ImageDownload] Base64 conversion completed successfully');
+                        resolve(reader.result);
+                    };
+                    reader.onerror = () => {
+                        reject(new Error('FileReader error: ' + reader.error));
+                    };
+                    reader.readAsDataURL(blob);
+                });
+
+                return base64;
+
+            } catch (error) {
+                lastError = error;
+                console.error(`[ImageDownload] Attempt ${attempt}/${retries} failed:`, error.message);
+
+                // If not the last attempt, wait before retrying
+                if (attempt < retries) {
+                    const waitTime = attempt * 1000; // Exponential backoff
+                    console.log(`[ImageDownload] Waiting ${waitTime}ms before retry...`);
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                }
+            }
+        }
+
+        // All retries failed
+        console.error('[ImageDownload] All retry attempts failed. Last error:', lastError);
+        throw new Error(`画像のダウンロードに失敗しました（${retries}回試行）: ${lastError.message}`);
     }
 
     /**
