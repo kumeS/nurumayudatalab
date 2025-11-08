@@ -160,6 +160,7 @@ async function loadProjectById(projectId) {
 // 新規プロジェクト作成
 async function createNewProject() {
     try {
+        console.log('[Project] Creating new project...');
         const canvasEntries = getCanvasCollection();
 
         const hasContent = canvasEntries.some(entry => entry.canvas && entry.canvas.getObjects().length > 0);
@@ -180,11 +181,18 @@ async function createNewProject() {
         hideTextControls();
         hideImageControls();
 
+        // プロジェクトメニューを閉じる
+        if (typeof closeProjectMenu === 'function') {
+            closeProjectMenu();
+        }
+
         showNotification('新しいプロジェクトを作成しました', 'success');
 
         if (navigator.vibrate) {
             navigator.vibrate(50);
         }
+
+        console.log('[Project] New project created:', newProjectId);
 
     } catch (error) {
         console.error('Create new project error:', error);
@@ -403,7 +411,9 @@ async function restoreLastProject() {
         if (projectData && (projectData.canvasData || (projectData.canvases && projectData.canvases.length))) {
             await loadCanvasesFromProjectData(projectData);
             resetCanvasHistory();
-            fitCanvasToContainer();
+            // ★Bug14修正: fitCanvasToContainer()の呼び出しを削除
+            // loadCanvasesFromProjectData()が既にズームを正しく復元しているため、
+            // ここでfitを呼ぶとズームが上書きされてしまう（Bug13の修正を参照）
             console.log('Last project restored:', projectData.name);
             showNotification(`「${projectData.name}」を復元しました`, 'success');
         } else {

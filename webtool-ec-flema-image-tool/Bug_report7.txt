@@ -1,0 +1,951 @@
+=============================================================================
+Bug_report7: Toolbar Display Logic Issue - Comprehensive Investigation
+=============================================================================
+Created: 2025-01-07
+Investigator: Professional Engineer
+Target System: FleMa Image Editing Tool
+Investigation Scope: Full codebase (HTML/CSS/JavaScript)
+
+=============================================================================
+■ EXECUTIVE SUMMARY
+=============================================================================
+
+【Issue Overview】
+Bug 1: When clicking on an image object, the image toolbar should be displayed 
+       in the right sidebar, but currently it displays based on the active tab 
+       rather than the object type.
+
+Bug 2: When clicking on a text object, the text toolbar should be displayed 
+       in the right sidebar, but currently it displays based on the active tab 
+       rather than the object type.
+
+【Severity】
+- Severity Level: MEDIUM-HIGH
+- Impact: All users on all devices
+- Frequency: 100% reproducible
+- User Experience Impact: HIGH (confusing behavior, reduces productivity)
+
+【Root Cause】
+The handleObjectSelection() function in js/canvas.init.js uses tab-based logic
+instead of object-based logic. It displays toolbars based on which tab is 
+currently active (image/template) rather than which object type (image/text) 
+was clicked.
+
+This was an intentional "UX improvement" (marked with ★UX改善 comment) but 
+actually creates confusing behavior that doesn't match user expectations.
+
+=============================================================================
+■ BUG IDENTIFICATION - DETAILED ANALYSIS
+=============================================================================
+
+【Bug Location】
+Primary File:
+- js/canvas.init.js (lines 275-317): handleObjectSelection() function
+
+Supporting Files:
+- js/image.core.js (lines 475-501): showImageControls() / hideImageControls()
+- js/text.ui.js (lines 300-326): showTextControls() / hideTextControls()
+- js/utils.js (lines 28-49): switchTab() function
+- index.html (lines 161-307): Inline controls panel HTML structure
+- css/style.css (lines 617-640): Inline controls panel styling
+
+【Current Problematic Implementation】
+
+■ 1. Object Selection Handler (canvas.init.js: 275-317)
+
+```javascript
+function handleObjectSelection(e) {
+    const obj = e.target || (e.selected && e.selected[0]) || null;
+    
+    if (!obj) {
+        persistActiveCanvasState();
+        return;
+    }
+    
+    if (obj.type === 'activeSelection') {
+        selectedObject = null;
+        hideTextControls();
+        hideImageControls();
+        persistActiveCanvasState();
+        return;
+    }
+    
+    selectedObject = obj;
+
+    // ★UX改善: タブに基づいてツールバーを表示（オブジェクトタイプではなく）
+    // 現在アクティブなタブを取得
+    const activeTab = document.querySelector('.tool-tab.active');
+    const activeTabType = activeTab ? activeTab.dataset.tab : 'image';
+
+    // タブコンテキストに応じてツールバーを表示
+    if (activeTabType === 'image') {
+        // 商品画像タブがアクティブ → 画像ツールバーを表示
+        showImageControls();
+        if (obj.objectType === 'uploaded-image') {
+            updateImageControlsUI(obj);
+        }
+        hideTextControls();
+    }
+    else if (activeTabType === 'template') {
+        // 売れる装飾タブがアクティブ → テキストツールバーを表示
+        showTextControls();
+        if (obj.type === 'i-text') {
+            updateTextControlsUI(obj);
+        }
+        hideImageControls();
+    }
+
+    persistActiveCanvasState();
+}
+```
+
+**Problem**: 
+The logic checks which tab is active (`activeTabType`) instead of checking 
+what type of object was clicked (`obj.type` or `obj.objectType`).
+
+**Result**:
+- If user is on "image" tab and clicks TEXT → image controls shown (WRONG!)
+- If user is on "template" tab and clicks IMAGE → text controls shown (WRONG!)
+
+【Expected Behavior】
+
+The toolbar should display based on OBJECT TYPE, not on ACTIVE TAB:
+
+```
+User Action                    Expected Toolbar Display
+─────────────────────────────────────────────────────────────────────
+Click on IMAGE object     →    Image controls (regardless of tab)
+Click on TEXT object      →    Text controls (regardless of tab)
+Click on LOGO object      →    (Future: Logo controls or hide all)
+Click on canvas (no obj)  →    Hide all controls
+```
+
+【Actual Behavior】
+
+Current implementation uses TAB CONTEXT:
+
+```
+User Action                Active Tab        Displayed Toolbar
+─────────────────────────────────────────────────────────────────────
+Click on IMAGE object      "商品画像"        Image controls ✓
+Click on IMAGE object      "売れる装飾"      Text controls ✗ WRONG!
+Click on TEXT object       "売れる装飾"      Text controls ✓
+Click on TEXT object       "商品画像"        Image controls ✗ WRONG!
+```
+
+=============================================================================
+■ ROOT CAUSE ANALYSIS
+=============================================================================
+
+【Historical Context】
+
+The problematic code was added as a "UX improvement" (marked with ★UX改善 
+comment), likely to maintain tab context when selecting objects. However, 
+this violates the principle of least surprise.
+
+【User Mental Model】
+
+When a user clicks an object, they expect:
+1. The object to be selected (visual feedback with selection box)
+2. The appropriate controls for THAT object to appear
+3. The controls to allow editing of THAT object's properties
+
+The current tab should NOT dictate what controls appear for a clicked object.
+
+【Why Current Approach Fails】
+
+```
+Scenario 1: User workflow confusion
+─────────────────────────────────────────────────────────────────────
+1. User is on "商品画像" tab
+2. Canvas has both images and text
+3. User clicks TEXT object to edit it
+4. IMAGE controls appear instead of TEXT controls
+5. User is confused - "Why can't I edit this text?"
+6. User must manually switch to "売れる装飾" tab
+7. User clicks TEXT object again
+8. NOW text controls appear
+
+Result: 2 extra steps, cognitive overhead, frustration
+```
+
+```
+Scenario 2: Multi-object editing workflow
+─────────────────────────────────────────────────────────────────────
+1. User adds an image
+2. User adds text over the image
+3. User wants to adjust image brightness
+4. User clicks image → wrong controls appear (text controls)
+5. User switches tab → clicks image again
+6. User adjusts brightness
+7. User wants to edit text
+8. User clicks text → wrong controls appear (image controls)
+9. User switches tab → clicks text again
+10. User edits text
+
+Result: Constant tab switching disrupts workflow
+```
+
+【Design Principle Violation】
+
+The current implementation violates the "Direct Manipulation" principle:
+- Objects should respond to direct interaction
+- Controls should match the selected object
+- Tab context should not override object-specific behavior
+
+=============================================================================
+■ DETAILED PROBLEM SYMPTOMS
+=============================================================================
+
+【Reproduction Steps - Bug 1】
+
+1. Open application
+2. Add an image to canvas
+3. Add text to canvas
+4. Click on "売れる装飾" tab (template tab)
+5. Click on the IMAGE object
+6. Observe: TEXT controls are displayed instead of IMAGE controls
+7. Result: Cannot adjust image properties (brightness, rotation, etc.)
+
+【Reproduction Steps - Bug 2】
+
+1. Open application
+2. Add text to canvas
+3. Add an image to canvas
+4. Click on "商品画像" tab (image tab)
+5. Click on the TEXT object
+6. Observe: IMAGE controls are displayed instead of TEXT controls
+7. Result: Cannot edit text content, font, color, etc.
+
+【Visual Evidence】
+
+```
+WRONG BEHAVIOR (Current):
+┌─────────────────────────────────────────────────────────────┐
+│ Tab: [商品画像*] [売れる装飾]                               │
+├─────────────────────────────────────────────────────────────┤
+│ Canvas:                                                      │
+│   ┌──────────┐                                              │
+│   │  IMAGE   │ ← User clicks this                          │
+│   └──────────┘                                              │
+│   [TEXT OBJECT]                                             │
+│                                                              │
+│ Right Sidebar:                                              │
+│   ┌────────────────────────┐                                │
+│   │ 画像調整               │ ← Image controls shown ✓      │
+│   │ - 輝度                 │                                │
+│   │ - コントラスト         │                                │
+│   └────────────────────────┘                                │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ Tab: [商品画像] [売れる装飾*]                               │
+├─────────────────────────────────────────────────────────────┤
+│ Canvas:                                                      │
+│   ┌──────────┐                                              │
+│   │  IMAGE   │ ← User clicks this                          │
+│   └──────────┘                                              │
+│   [TEXT OBJECT]                                             │
+│                                                              │
+│ Right Sidebar:                                              │
+│   ┌────────────────────────┐                                │
+│   │ テキスト調整           │ ← Text controls shown ✗ WRONG! │
+│   │ - テキスト             │                                │
+│   │ - フォント             │                                │
+│   └────────────────────────┘                                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+```
+CORRECT BEHAVIOR (Expected):
+┌─────────────────────────────────────────────────────────────┐
+│ Tab: [商品画像] [売れる装飾*]                               │
+├─────────────────────────────────────────────────────────────┤
+│ Canvas:                                                      │
+│   ┌──────────┐                                              │
+│   │  IMAGE   │ ← User clicks this                          │
+│   └──────────┘                                              │
+│   [TEXT OBJECT]                                             │
+│                                                              │
+│ Right Sidebar:                                              │
+│   ┌────────────────────────┐                                │
+│   │ 画像調整               │ ← Image controls shown ✓      │
+│   │ - 輝度                 │    (matches clicked object)    │
+│   │ - コントラスト         │                                │
+│   └────────────────────────┘                                │
+│   Tab auto-switched to "商品画像" (optional enhancement)    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+=============================================================================
+■ IMPACT ANALYSIS
+=============================================================================
+
+【User Experience Impact】
+
+**Severity**: HIGH
+
+**Affected Workflows**:
+1. Image editing after adding text
+2. Text editing after adding images
+3. Multi-object canvases (common use case)
+4. Any workflow requiring alternating between object types
+
+**User Frustration Points**:
+1. Controls don't match clicked object
+2. Must remember which tab to be on
+3. Extra clicks required (switch tab → click object again)
+4. Breaks user mental model
+5. Appears like a bug rather than intended behavior
+
+【Productivity Impact】
+
+**Extra Steps Required**:
+- Current: Click wrong object → Switch tab → Click object again = 3 steps
+- Expected: Click object → Edit = 1 step
+- Overhead: 2 extra steps per object type switch
+
+**Time Waste Calculation**:
+- Average user edits: 10 objects per canvas
+- Average switches: 5 times per canvas
+- Extra clicks: 5 switches × 2 steps = 10 extra clicks
+- Time per switch: ~2-3 seconds
+- Total waste: ~10-15 seconds per canvas
+- For power users (20+ canvases/day): 3-5 minutes wasted daily
+
+【Business Impact】
+
+1. **Lower User Satisfaction**: Confusing behavior reduces trust in application
+2. **Support Burden**: Users report as bug, requiring explanation
+3. **Competitive Disadvantage**: Other tools show controls based on object type
+4. **Learning Curve**: New users confused by unexpected behavior
+5. **Churn Risk**: Frustrating UX may cause users to abandon tool
+
+=============================================================================
+■ SOLUTION DESIGN
+=============================================================================
+
+【Strategy】
+
+**Primary Fix**: Change handleObjectSelection() to use object-based logic 
+instead of tab-based logic.
+
+**Optional Enhancement**: Auto-switch tab to match object type for better 
+discoverability.
+
+【Solution Components】
+
+## 1. Core Fix: Object-Based Toolbar Display
+
+**Objective**: Display toolbar based on clicked object type, not active tab.
+
+**Implementation Logic**:
+
+```
+Object Type         Action
+─────────────────────────────────────────────────────────────────────
+uploaded-image  →   Show image controls, hide text controls
+i-text          →   Show text controls, hide image controls  
+logo/icon       →   (Future) Show logo controls or hide all
+null/undefined  →   Hide all controls
+activeSelection →   Hide all controls (multiple objects selected)
+```
+
+## 2. Enhanced Fix: Auto-Tab Switch (Optional)
+
+**Objective**: Also switch to appropriate tab when object is clicked.
+
+**Benefits**:
+- Better discoverability for new users
+- Maintains tab-panel visual consistency
+- Provides clear visual feedback
+
+**Consideration**:
+- May be unexpected if user wants to stay on current tab
+- Could be jarring if user is mid-workflow on a tab
+- Best implemented with a user preference setting
+
+=============================================================================
+■ IMPLEMENTATION PLAN
+=============================================================================
+
+【Phase 1: Preparation】
+
+1. Backup current codebase
+2. Create feature branch: `fix/object-based-toolbar-display`
+3. Document current behavior with screenshots
+4. Prepare test cases
+
+【Phase 2: Code Changes】
+
+**Step 1**: Update handleObjectSelection() function
+
+**File**: js/canvas.init.js
+**Location**: Lines 275-317
+**Changes**: Replace tab-based logic with object-based logic
+
+**BEFORE (Current - WRONG)**:
+```javascript
+function handleObjectSelection(e) {
+    const obj = e.target || (e.selected && e.selected[0]) || null;
+    
+    if (!obj) {
+        persistActiveCanvasState();
+        return;
+    }
+    
+    if (obj.type === 'activeSelection') {
+        selectedObject = null;
+        hideTextControls();
+        hideImageControls();
+        persistActiveCanvasState();
+        return;
+    }
+    
+    selectedObject = obj;
+
+    // ★UX改善: タブに基づいてツールバーを表示（オブジェクトタイプではなく）
+    // 現在アクティブなタブを取得
+    const activeTab = document.querySelector('.tool-tab.active');
+    const activeTabType = activeTab ? activeTab.dataset.tab : 'image';
+
+    // タブコンテキストに応じてツールバーを表示
+    if (activeTabType === 'image') {
+        // 商品画像タブがアクティブ → 画像ツールバーを表示
+        showImageControls();
+        if (obj.objectType === 'uploaded-image') {
+            updateImageControlsUI(obj);
+        }
+        hideTextControls();
+    }
+    else if (activeTabType === 'template') {
+        // 売れる装飾タブがアクティブ → テキストツールバーを表示
+        showTextControls();
+        if (obj.type === 'i-text') {
+            updateTextControlsUI(obj);
+        }
+        hideImageControls();
+    }
+
+    persistActiveCanvasState();
+}
+```
+
+**AFTER (Fixed - CORRECT)**:
+```javascript
+function handleObjectSelection(e) {
+    const obj = e.target || (e.selected && e.selected[0]) || null;
+    
+    if (!obj) {
+        persistActiveCanvasState();
+        return;
+    }
+    
+    if (obj.type === 'activeSelection') {
+        selectedObject = null;
+        hideTextControls();
+        hideImageControls();
+        persistActiveCanvasState();
+        return;
+    }
+    
+    selectedObject = obj;
+
+    // ★Bug7 Fix: Display toolbar based on OBJECT TYPE, not active tab
+    // This matches user expectations: clicking an object shows its controls
+    
+    if (obj.objectType === 'uploaded-image') {
+        // Image object selected → show image controls
+        console.log('[Bug7 Fix] Image object selected, showing image controls');
+        showImageControls();
+        updateImageControlsUI(obj);
+        hideTextControls();
+    }
+    else if (obj.type === 'i-text') {
+        // Text object selected → show text controls
+        console.log('[Bug7 Fix] Text object selected, showing text controls');
+        showTextControls();
+        updateTextControlsUI(obj);
+        hideImageControls();
+    }
+    else {
+        // Other object types (future: logos, shapes, etc.)
+        // For now, hide all controls
+        console.log('[Bug7 Fix] Other object type selected:', obj.type);
+        hideTextControls();
+        hideImageControls();
+    }
+
+    persistActiveCanvasState();
+}
+```
+
+**Step 2**: Optional Enhancement - Auto-switch tab
+
+**Note**: This is OPTIONAL and should be discussed with stakeholders.
+If implemented, add this code BEFORE showing controls:
+
+```javascript
+// Optional: Auto-switch tab to match object type
+if (obj.objectType === 'uploaded-image') {
+    const imageTab = document.querySelector('[data-tab="image"]');
+    if (imageTab && !imageTab.classList.contains('active')) {
+        switchTab(imageTab);
+    }
+    showImageControls();
+    updateImageControlsUI(obj);
+    hideTextControls();
+}
+else if (obj.type === 'i-text') {
+    const templateTab = document.querySelector('[data-tab="template"]');
+    if (templateTab && !templateTab.classList.contains('active')) {
+        switchTab(templateTab);
+    }
+    showTextControls();
+    updateTextControlsUI(obj);
+    hideImageControls();
+}
+```
+
+**Pros of Auto-Switch**:
+- Visual consistency (tab matches toolbar)
+- Better for new users
+- Clear feedback
+
+**Cons of Auto-Switch**:
+- May be unexpected
+- Could disrupt workflow if user is mid-task on a tab
+- More invasive change
+
+**Recommendation**: Start with Step 1 (object-based display) only. 
+Gather user feedback. Add auto-switch later if users request it.
+
+【Phase 3: Testing】
+
+**Test Case 1: Image Object Click**
+```
+Setup:
+1. Create new canvas
+2. Add image to canvas
+3. Add text to canvas
+4. Switch to "売れる装飾" tab
+
+Test Steps:
+1. Click on the IMAGE object
+2. Verify: Image controls appear in right sidebar
+3. Verify: Can adjust image brightness, contrast, etc.
+4. Verify: Text controls are hidden
+
+Expected: ✓ Image controls shown
+Actual: (To be tested after fix)
+```
+
+**Test Case 2: Text Object Click**
+```
+Setup:
+1. Create new canvas
+2. Add text to canvas
+3. Add image to canvas
+4. Switch to "商品画像" tab
+
+Test Steps:
+1. Click on the TEXT object
+2. Verify: Text controls appear in right sidebar
+3. Verify: Can edit text content, font, color, etc.
+4. Verify: Image controls are hidden
+
+Expected: ✓ Text controls shown
+Actual: (To be tested after fix)
+```
+
+**Test Case 3: Multiple Object Switches**
+```
+Setup:
+1. Create canvas with 3 images and 3 text objects
+2. Stay on any tab
+
+Test Steps:
+1. Click image 1 → verify image controls
+2. Click text 1 → verify text controls
+3. Click image 2 → verify image controls
+4. Click text 2 → verify text controls
+5. Click image 3 → verify image controls
+6. Click text 3 → verify text controls
+
+Expected: Each click shows correct controls
+Actual: (To be tested after fix)
+```
+
+**Test Case 4: Selection Cleared**
+```
+Setup:
+1. Create canvas with image and text
+2. Click on image (controls shown)
+
+Test Steps:
+1. Click on empty canvas area
+2. Verify: All controls hidden
+3. Click on text
+4. Verify: Text controls shown
+5. Press Escape or click empty area
+6. Verify: All controls hidden
+
+Expected: Controls hidden when selection cleared
+Actual: (To be tested after fix)
+```
+
+**Test Case 5: Multi-Selection**
+```
+Setup:
+1. Create canvas with multiple images
+2. Select multiple images (Ctrl+Click or drag)
+
+Test Steps:
+1. Verify: All controls hidden (activeSelection)
+2. Click single image
+3. Verify: Image controls shown
+
+Expected: Controls hidden for multi-selection
+Actual: (To be tested after fix)
+```
+
+**Test Case 6: Tab Switch Behavior**
+```
+Setup:
+1. Create canvas with image (image controls shown)
+2. Switch to "売れる装飾" tab
+
+Test Steps:
+1. Verify: Controls remain visible or are hidden (per implementation)
+2. Click on canvas
+3. Click on image again
+4. Verify: Image controls shown regardless of active tab
+
+Expected: Controls based on object type, not tab
+Actual: (To be tested after fix)
+```
+
+【Phase 4: Validation】
+
+1. **Functional Validation**
+   - All test cases pass
+   - Controls match clicked object type
+   - No regression in existing features
+
+2. **UX Validation**
+   - User workflow is smoother
+   - Less confusion
+   - Fewer clicks required
+
+3. **Performance Validation**
+   - No performance degradation
+   - Controls switch instantly
+   - No console errors
+
+4. **Regression Testing**
+   - Image editing still works
+   - Text editing still works
+   - Tab switching still works
+   - Undo/redo still works
+   - Save/load still works
+
+=============================================================================
+■ EDGE CASES & CONSIDERATIONS
+=============================================================================
+
+【Edge Case 1: Rapid Object Switching】
+```
+Scenario: User rapidly clicks different objects
+Mitigation: No debouncing needed - controls switch instantly
+Test: Click 10 objects rapidly, verify controls update correctly
+```
+
+【Edge Case 2: Object Type Detection】
+```
+Scenario: Custom object types (future logos, shapes)
+Mitigation: Default to hiding all controls for unknown types
+Test: Add unknown object type, verify graceful degradation
+```
+
+【Edge Case 3: Simultaneous Selection Events】
+```
+Scenario: Multiple selection events fire at same time
+Mitigation: Use latest event's object
+Test: Programmatically trigger multiple selections
+```
+
+【Edge Case 4: Tab Switch During Edit】
+```
+Scenario: User switches tab while editing object
+Current Behavior: Controls hidden by switchTab()
+Consideration: Should controls remain visible?
+Recommendation: Keep current behavior (hide on tab switch)
+Rationale: Tab switch is explicit user action to change context
+```
+
+【Edge Case 5: Deleted Object】
+```
+Scenario: Object deleted while controls are shown
+Mitigation: hideImageControls/hideTextControls on object removal
+Test: Delete object, verify controls hidden
+Status: Already handled by existing code
+```
+
+=============================================================================
+■ POTENTIAL RISKS & MITIGATION
+=============================================================================
+
+【Risk 1: User Expects Tab-Based Behavior】
+```
+Risk: Some users may prefer current tab-based logic
+Likelihood: LOW (tab-based is counterintuitive)
+Mitigation: 
+- Monitor user feedback after deployment
+- Add user preference setting if requested
+- Document new behavior in help/tutorial
+```
+
+【Risk 2: Breaking Existing Workflows】
+```
+Risk: Users who adapted to current behavior may be disrupted
+Likelihood: MEDIUM
+Mitigation:
+- Release with clear changelog
+- Provide in-app notification of change
+- Add "What's New" popup explaining improvement
+```
+
+【Risk 3: Inconsistent Tab/Panel State】
+```
+Risk: Tab shows "template" but image controls visible
+Likelihood: MEDIUM (if not implementing auto-switch)
+Mitigation:
+- This is actually CORRECT behavior (object-based)
+- Add visual indicator showing "Editing: Image" in toolbar
+- Consider implementing optional auto-switch
+```
+
+【Risk 4: Performance Impact】
+```
+Risk: Additional conditional logic slows down selection
+Likelihood: VERY LOW (simple if/else, negligible overhead)
+Mitigation:
+- Current code already has similar complexity
+- No loops or heavy operations added
+- Profile before/after to confirm
+```
+
+【Risk 5: Regression in Other Features】
+```
+Risk: Change affects other selection-related features
+Likelihood: LOW (isolated change)
+Mitigation:
+- Comprehensive regression testing
+- Test all object manipulation features
+- Monitor for console errors
+```
+
+=============================================================================
+■ IMPLEMENTATION PRIORITY
+=============================================================================
+
+【Priority Assessment】
+
+**Priority**: HIGH
+
+**Justification**:
+1. Affects core UX (object editing)
+2. 100% reproducible
+3. Impacts all users
+4. Frequent operation (every object click)
+5. Simple fix with high impact
+
+**Recommended Timeline**:
+- Investigation: Complete (this document)
+- Implementation: 1-2 hours
+- Testing: 2-3 hours
+- Review: 1 hour
+- Deployment: Immediate (after approval)
+
+**Total Effort**: 4-6 hours
+
+=============================================================================
+■ VALIDATION CHECKLIST
+=============================================================================
+
+【Pre-Implementation】
+☐ Stakeholder approval obtained
+☐ Backup created
+☐ Feature branch created
+☐ Test plan documented
+
+【Implementation】
+☐ handleObjectSelection() updated
+☐ Object-based logic implemented
+☐ Console logging added for debugging
+☐ Code commented clearly
+☐ No syntax errors
+
+【Testing - Functional】
+☐ Image click shows image controls
+☐ Text click shows text controls
+☐ Multi-selection hides controls
+☐ Empty canvas click hides controls
+☐ Rapid switching works correctly
+☐ All test cases pass
+
+【Testing - Regression】
+☐ Image editing features work
+☐ Text editing features work
+☐ Tab switching works
+☐ Undo/redo works
+☐ Save/load works
+☐ Object deletion works
+☐ Object duplication works
+
+【Testing - Cross-Browser】
+☐ Chrome/Edge tested
+☐ Firefox tested
+☐ Safari tested
+☐ Mobile Safari tested
+☐ Mobile Chrome tested
+
+【Performance】
+☐ No performance degradation
+☐ Instant control switching
+☐ No console errors
+☐ No memory leaks
+
+【Documentation】
+☐ Code comments updated
+☐ Changelog entry added
+☐ User-facing documentation updated
+☐ Help text revised (if needed)
+
+【Deployment】
+☐ Code reviewed
+☐ Tests passing
+☐ Merged to main branch
+☐ Deployed to production
+
+=============================================================================
+■ SUCCESS CRITERIA
+=============================================================================
+
+【Functional Success】
+✓ Clicking image shows image controls (regardless of tab)
+✓ Clicking text shows text controls (regardless of tab)
+✓ Controls match selected object type
+✓ No confusion about which controls are shown
+✓ Smooth workflow without extra tab switching
+
+【Technical Success】
+✓ Clean, maintainable code
+✓ Proper error handling
+✓ Adequate logging for debugging
+✓ No breaking changes to existing features
+✓ No performance regression
+
+【User Experience Success】
+✓ Intuitive behavior (matches expectations)
+✓ Reduced clicks (no extra tab switches)
+✓ Faster editing workflow
+✓ Clear visual feedback
+✓ Positive user feedback
+
+【Business Success】
+✓ Reduced support requests about "wrong controls"
+✓ Improved user satisfaction scores
+✓ Lower churn rate
+✓ Competitive parity with other tools
+
+=============================================================================
+■ ROLLBACK PLAN
+=============================================================================
+
+【If Issues Detected】
+
+1. **Immediate Rollback**
+   ```bash
+   git revert <commit-hash>
+   git push origin main
+   ```
+
+2. **Verify Rollback**
+   - Test that tab-based logic is restored
+   - Verify no new errors introduced
+   - Clear browser cache on test devices
+
+3. **Investigate Issues**
+   - Document specific failure cases
+   - Analyze root cause
+   - Develop revised fix
+
+4. **Re-Deploy When Ready**
+   - Apply revised fix
+   - Re-test thoroughly
+   - Deploy with monitoring
+
+=============================================================================
+■ RECOMMENDED APPROACH
+=============================================================================
+
+【Minimal Change Strategy】
+
+**Implementation**: Object-based toolbar display (Step 1 only)
+- Change handleObjectSelection() to check object type
+- Do NOT auto-switch tabs
+- Preserve all other existing behavior
+
+**Rationale**:
+- Smallest possible change
+- Lowest risk
+- Addresses core issue
+- Easy to understand and test
+- Can add enhancements later if needed
+
+【Future Enhancements】
+
+If user feedback is positive, consider:
+
+1. **Auto-Tab Switch** (Optional)
+   - Switch tab to match object type when clicked
+   - Add user preference to enable/disable
+   - Provide visual feedback (animation)
+
+2. **Visual Indicator** (Recommended)
+   - Show "Editing: [Object Type]" badge in toolbar
+   - Highlight toolbar header when object selected
+   - Clear visual connection between object and controls
+
+3. **Context Menu** (Advanced)
+   - Right-click object → show context menu
+   - Menu includes "Edit Image" / "Edit Text" options
+   - Direct access to controls without tab navigation
+
+=============================================================================
+■ CONCLUSION
+=============================================================================
+
+This is a straightforward UX bug caused by tab-based logic that should be 
+object-based logic. The fix is simple (change one function), low-risk 
+(isolated change), and high-impact (improves core editing workflow).
+
+The current behavior is confusing and violates user expectations. Users 
+expect that clicking an object will show controls for THAT object, not 
+controls based on which tab happens to be active.
+
+**Recommendation**: Implement the minimal fix (object-based logic) immediately.
+This will significantly improve UX with minimal risk and effort.
+
+**Estimated Implementation Time**: 1-2 hours
+**Estimated Testing Time**: 2-3 hours  
+**Total Effort**: 3-5 hours
+
+**Priority**: HIGH (affects core UX, easy fix, high impact)
+**Complexity**: LOW (simple conditional logic change)
+**Risk**: LOW (isolated change, easy to test and rollback)
+
+=============================================================================
+END OF REPORT
+=============================================================================

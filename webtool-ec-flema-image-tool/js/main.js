@@ -3,11 +3,39 @@
 
 // 初期化
 document.addEventListener('DOMContentLoaded', async () => {
+    // デバッグ: Fabric.jsの読み込み確認
+    console.log('=== DEBUG: Application Initialization ===');
+    console.log('Fabric.js loaded:', typeof fabric);
+    console.log('Fabric version:', fabric ? fabric.version : 'N/A');
+    console.log('Canvas element:', document.getElementById('mainCanvas'));
+    console.log('Canvas context:', document.getElementById('mainCanvas')?.getContext('2d'));
+    
     // IndexedDB初期化
     await initIndexedDB();
     
+    // ★Bug7修正: CSSレイアウト確定を待つ
+    await new Promise(resolve => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(resolve);
+        });
+    });
+    
     // キャンバス初期化
     initializeFabricCanvas();
+    
+    // キャンバスサイズ同期を確保
+    if (typeof ensureCanvasSizeSync === 'function') {
+        ensureCanvasSizeSync();
+    }
+    
+    // ★Bug7修正: 初期表示を「画面に合わせる」に確実に設定
+    // initializeFabricCanvas 内でも呼ばれるが、レイアウト確定後に再度実行
+    if (typeof fitCanvasToContainer === 'function') {
+        setTimeout(() => {
+            fitCanvasToContainer();
+            console.log('[Bug7] Initial fit-to-container applied');
+        }, 100);
+    }
     
     // ズームスライダー初期化
     setupZoomSlider();
@@ -58,15 +86,15 @@ function isolatePanelScroll(element) {
 // イベントリスナー設定
 function initializeEventListeners() {
     // ========== パネルのスクロール隔離を適用 ==========
-    const imageControlsPanel = document.getElementById('imageControlsPanel');
-    const textControlsPanel = document.getElementById('textControlsPanel');
+    const imageControlsSection = document.getElementById('imageControlsSection');
+    const textControlsSection = document.getElementById('textControlsSection');
     
-    if (imageControlsPanel) {
-        isolatePanelScroll(imageControlsPanel);
+    if (imageControlsSection) {
+        isolatePanelScroll(imageControlsSection);
     }
     
-    if (textControlsPanel) {
-        isolatePanelScroll(textControlsPanel);
+    if (textControlsSection) {
+        isolatePanelScroll(textControlsSection);
     }
     
     // ========== プロジェクト関連 ==========
@@ -282,6 +310,96 @@ function initializeEventListeners() {
             applyStyleTemplate(this.dataset.styleTemplate);
         });
     });
+    
+    // ========== カスタムテンプレート機能 ==========
+    const CUSTOM_TEMPLATES_KEY = 'flema_custom_templates';
+    
+    function loadCustomTemplates() {
+        try {
+            const saved = localStorage.getItem(CUSTOM_TEMPLATES_KEY);
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.error('Failed to load custom templates:', e);
+            return [];
+        }
+    }
+    
+    function saveCustomTemplates(templates) {
+        try {
+            localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(templates));
+        } catch (e) {
+            console.error('Failed to save custom templates:', e);
+        }
+    }
+    
+    function renderCustomTemplates() {
+        const grid = document.getElementById('customTemplateGrid');
+        if (!grid) return;
+        
+        const templates = loadCustomTemplates();
+        grid.innerHTML = '';
+        
+        templates.forEach((text, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'template-btn custom-template-btn';
+            btn.textContent = text;
+            btn.style.position = 'relative';
+            btn.style.paddingRight = '36px';
+            
+            const deleteBtn = document.createElement('span');
+            deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+            deleteBtn.style.cssText = 'position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer; opacity: 0.6; font-size: 12px;';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                const templates = loadCustomTemplates();
+                templates.splice(index, 1);
+                saveCustomTemplates(templates);
+                renderCustomTemplates();
+                showNotification('カスタム文言を削除しました', 'success');
+            };
+            
+            btn.appendChild(deleteBtn);
+            btn.onclick = () => addTemplateText(text);
+            grid.appendChild(btn);
+        });
+    }
+    
+    const addCustomBtn = document.getElementById('addCustomTemplateBtn');
+    const customInput = document.getElementById('customTemplateInput');
+    
+    if (addCustomBtn && customInput) {
+        addCustomBtn.addEventListener('click', () => {
+            const text = customInput.value.trim();
+            if (!text) {
+                showNotification('文言を入力してください', 'error');
+                return;
+            }
+            if (text.length > 30) {
+                showNotification('文言は30文字以内にしてください', 'error');
+                return;
+            }
+            
+            const templates = loadCustomTemplates();
+            if (templates.includes(text)) {
+                showNotification('既に登録されています', 'error');
+                return;
+            }
+            
+            templates.push(text);
+            saveCustomTemplates(templates);
+            renderCustomTemplates();
+            customInput.value = '';
+            showNotification('カスタム文言を追加しました', 'success');
+        });
+        
+        customInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addCustomBtn.click();
+            }
+        });
+    }
+    
+    renderCustomTemplates();
     
     // ========== タブ切り替え ==========
     document.querySelectorAll('.tool-tab').forEach(tab => {

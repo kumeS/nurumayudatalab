@@ -1,0 +1,1564 @@
+=============================================================================
+Bug_report5: ツールバー配置問題の包括的調査報告書
+=============================================================================
+作成日: 2025年1月
+調査者: プロフェッショナルエンジニア
+対象システム: FLeMa 画像編集ツール
+調査範囲: 全コードベース（HTML/CSS/JavaScript）
+
+=============================================================================
+■ エグゼクティブサマリー
+=============================================================================
+
+【問題の概要】
+画像およびテキストの調整ツールバーが、右側のタブパネル（商品画像/売れる装飾）
+に表示されず、キャンバス上に浮動パネルとして表示される設計上の問題が確認された。
+
+【影響度】
+- 重大度: 中（機能は動作するが、UX設計と実装が不一致）
+- 影響範囲: 全ユーザー、全デバイス（デスクトップ/モバイル）
+- 修正難易度: 中（HTML構造変更 + CSS再設計 + JavaScript更新）
+
+【根本原因】
+初期設計時に、調整用ツールバーを浮動パネル（floating panels）として実装し、
+右サイドバーのタブパネル内に統合されていないアーキテクチャ上の問題。
+
+=============================================================================
+■ バグ1: 画像ツールバーが右サイドバーに表示されない
+=============================================================================
+
+【症状】
+画像オブジェクトをクリックしたとき、画像調整ツールバーがキャンバスの左上に
+浮動パネルとして表示される。ユーザーは右側の「商品画像」タブ内に表示される
+ことを期待している。
+
+【現在の実装】
+
+■ HTML構造 (index.html: 108-246行目)
+```html
+<aside class="image-controls-panel" id="imageControlsPanel" style="display: none;">
+    <div class="image-controls-header">
+        <h3><i class="fas fa-sliders-h"></i> 画像調整</h3>
+        <button class="btn-icon" id="closeImageControlsPanel">×</button>
+    </div>
+
+    <!-- 画像調整コントロール -->
+    <div class="image-controls-section image-controls-primary">
+        <button id="fitImageHeightBtn">縦いっぱいにフィット</button>
+    </div>
+
+    <!-- フィルター調整 -->
+    <div class="image-controls-section">
+        <h4>クイック補正</h4>
+        <!-- 明度、コントラスト、彩度、色相スライダー -->
+    </div>
+
+    <!-- レイヤー順序 -->
+    <div class="image-controls-section">
+        <h4>レイヤー順序</h4>
+        <!-- 最前面、最背面、前面へ、背面へボタン -->
+    </div>
+
+    <!-- 回転・反転 -->
+    <!-- ぼかし -->
+    <!-- トリミング -->
+    <!-- 背景除去 -->
+    <!-- 削除ボタン -->
+</aside>
+```
+
+**配置場所**: `<div id="canvasContainer">` の直下、キャンバスと同階層に配置
+
+■ CSS配置 (css/style.css: 616-674行目)
+```css
+.image-controls-panel {
+    position: absolute;      /* ← 絶対配置 */
+    top: 24px;               /* ← 上から24px */
+    left: 24px;              /* ← 左から24px（問題箇所） */
+    width: 200px;            /* デスクトップ: 220px */
+    max-height: calc(100vh - 120px);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 20;             /* ← キャンバスの上に浮く */
+    overflow-y: auto;
+    display: none;           /* デフォルト非表示 */
+}
+```
+
+**問題点**:
+- `position: absolute` でキャンバス上に浮いている
+- `left: 24px` で常に左側に固定
+- 右サイドバーとは独立した要素
+
+■ JavaScript表示制御 (js/image.core.js: 475-516行目)
+```javascript
+function showImageControls() {
+    const controlsPanel = document.getElementById('imageControlsPanel');
+    const container = document.getElementById('canvasContainer');
+
+    if (typeof hideTextControls === 'function') {
+        hideTextControls();
+    }
+
+    if (controlsPanel) {
+        controlsPanel.style.display = 'flex';  // ← 浮動パネルを表示
+        controlsPanel.scrollTop = 0;
+
+        // ★Bug_report5対応: キャンバスwrapperの位置に基づいてパネルを配置
+        const canvas = getCanvas();
+        if (canvas && canvas.wrapperEl) {
+            const wrapper = canvas.wrapperEl;
+            const wrapperRect = wrapper.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            // wrapperの左端から24px右、上端から24px下に配置
+            const leftPos = wrapperRect.left - containerRect.left + 24;
+            const topPos = wrapperRect.top - containerRect.top + 24;
+
+            controlsPanel.style.left = `${leftPos}px`;
+            controlsPanel.style.top = `${topPos}px`;
+        }
+    }
+}
+```
+
+**問題点**:
+- 浮動パネルの `display` を `flex` にして表示
+- キャンバス位置に応じて動的に `left`, `top` を計算
+- 右サイドバーの `imagePanel` とは無関係
+
+■ オブジェクト選択時の動作 (js/canvas.init.js: 294-305行目)
+```javascript
+// 画像が選択された場合
+if (activeTabType === 'image') {
+    // 商品画像タブがアクティブ → 画像ツールバーを表示
+    showImageControls();  // ← 浮動パネルを表示
+    if (obj.objectType === 'uploaded-image') {
+        updateImageControlsUI(obj);
+    }
+    hideTextControls();
+}
+```
+
+【期待される動作】
+
+■ 右サイドバーの構造 (index.html: 427-484行目)
+```html
+<div class="toolbar" id="toolbar">
+    <div class="tool-tabs">
+        <button class="tool-tab active" data-tab="image">
+            <i class="fas fa-image"></i>
+            <span>商品画像</span>
+        </button>
+        <button class="tool-tab" data-tab="template">
+            <i class="fas fa-sparkles"></i>
+            <span>売れる装飾</span>
+        </button>
+    </div>
+
+    <!-- 画像編集パネル -->
+    <div class="tool-panel active" id="imagePanel">
+        <h3>商品画像を追加</h3>
+        <button id="uploadImageBtn">商品画像を選択</button>
+
+        <!-- ★ここに画像調整コントロールが表示されるべき -->
+    </div>
+</div>
+```
+
+**ユーザーの期待**:
+1. 画像をクリック
+2. 「商品画像」タブが自動的にアクティブになる（現在は動作）
+3. `imagePanel` 内に画像調整コントロールが表示される（現在は未実装）
+
+【根本原因】
+
+1. **アーキテクチャの不一致**
+   - 設計: ツールバーは右サイドバー内のタブパネルに統合
+   - 実装: ツールバーは独立した浮動パネルとして実装
+
+2. **HTML構造の問題**
+   - 画像調整パネル: `canvasContainer` の子要素
+   - 右サイドバーパネル: `toolbar` の子要素
+   - → 異なる親要素のため統合されていない
+
+3. **CSS配置の問題**
+   - 浮動パネル: `position: absolute` でキャンバス上に浮く
+   - タブパネル: 通常フローで右サイドバー内に配置
+   - → 配置ロジックが根本的に異なる
+
+=============================================================================
+■ バグ2: テキストツールバーが右サイドバーに表示されない
+=============================================================================
+
+【症状】
+テキストオブジェクトをクリックしたとき、テキスト調整ツールバーがキャンバスの
+右上に浮動パネルとして表示される。ユーザーは右側の「売れる装飾」タブ内に
+表示されることを期待している。
+
+【現在の実装】
+
+■ HTML構造 (index.html: 248-421行目)
+```html
+<aside class="text-controls-panel" id="textControlsPanel" style="display: none;">
+    <div class="text-controls-header">
+        <h3><i class="fas fa-pen"></i> テキスト調整</h3>
+        <button class="btn-icon" id="closeTextControlsPanel">×</button>
+    </div>
+
+    <!-- テキスト内容 -->
+    <div class="text-controls-section">
+        <label>テキスト内容</label>
+        <textarea id="textContent"></textarea>
+    </div>
+
+    <!-- 基本設定 -->
+    <div class="text-controls-section">
+        <h4>基本設定</h4>
+        <!-- フォントサイズ、フォント選択 -->
+    </div>
+
+    <!-- 色設定 -->
+    <!-- スタイル -->
+    <!-- 影 -->
+    <!-- 縁取り -->
+    <!-- レイヤー順序 -->
+    <!-- 回転・拡大・不透明度 -->
+    <!-- 文字装飾 -->
+    <!-- 削除・複製 -->
+</aside>
+```
+
+**配置場所**: `<div id="canvasContainer">` の直下、画像パネルと同階層
+
+■ CSS配置 (css/style.css: 767-892行目)
+```css
+.text-controls-panel {
+    position: absolute;      /* ← 絶対配置 */
+    top: 24px;               /* ← 上から24px */
+    right: 24px;             /* ← 右から24px（問題箇所） */
+    width: 200px;            /* デスクトップ: 220px */
+    max-height: calc(100vh - 120px);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 20;             /* ← キャンバスの上に浮く */
+    overflow-y: auto;
+    display: none;           /* デフォルト非表示 */
+}
+```
+
+**問題点**:
+- `position: absolute` でキャンバス上に浮いている
+- `right: 24px` で常に右側（ただし右サイドバーとは別）
+- 右サイドバーと視覚的に重なる可能性がある
+
+■ JavaScript表示制御 (js/text.ui.js: 300-342行目)
+```javascript
+function showTextControls() {
+    const panel = document.getElementById('textControlsPanel');
+    const container = document.getElementById('canvasContainer');
+
+    if (!panel) return;
+
+    if (typeof hideImageControls === 'function') {
+        hideImageControls();
+    }
+
+    panel.style.display = 'flex';  // ← 浮動パネルを表示
+    panel.scrollTop = 0;
+
+    // ★Bug_report5対応: キャンバスwrapperの位置に基づいてパネルを配置
+    const canvas = getCanvas();
+    if (canvas && canvas.wrapperEl) {
+        const wrapper = canvas.wrapperEl;
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        // wrapperの右端から24px左、上端から24px下に配置
+        const containerWidth = containerRect.width;
+        const wrapperRightEdge = wrapperRect.right - containerRect.left;
+        const rightPos = containerWidth - wrapperRightEdge + 24;
+        const topPos = wrapperRect.top - containerRect.top + 24;
+
+        panel.style.right = `${rightPos}px`;
+        panel.style.top = `${topPos}px`;
+    }
+}
+```
+
+■ オブジェクト選択時の動作 (js/canvas.init.js: 307-314行目)
+```javascript
+else if (activeTabType === 'template') {
+    // 売れる装飾タブがアクティブ → テキストツールバーを表示
+    showTextControls();  // ← 浮動パネルを表示
+    if (obj.type === 'i-text') {
+        updateTextControlsUI(obj);
+    }
+    hideImageControls();
+}
+```
+
+【期待される動作】
+
+■ 右サイドバーの構造 (index.html: 486-630行目)
+```html
+<!-- テンプレートパネル -->
+<div class="tool-panel" id="templatePanel">
+    <h3>テキストを追加</h3>
+    <button id="addTextBtn">テキストを追加</button>
+
+    <!-- テンプレートテキスト -->
+    <!-- アイコン -->
+    <!-- スタイルテンプレート -->
+
+    <!-- ★ここにテキスト調整コントロールが表示されるべき -->
+</div>
+```
+
+**ユーザーの期待**:
+1. テキストをクリック
+2. 「売れる装飾」タブが自動的にアクティブになる（現在は動作）
+3. `templatePanel` 内にテキスト調整コントロールが表示される（現在は未実装）
+
+【根本原因】
+バグ1と同様の構造的問題。テキスト調整パネルも独立した浮動パネルとして実装
+されており、右サイドバーのタブパネルに統合されていない。
+
+=============================================================================
+■ 現在のアーキテクチャ図
+=============================================================================
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Canvas Container (#canvasContainer)                         │
+│                                                               │
+│  ┌────────────────┐                    ┌─────────────────┐  │
+│  │ Image Controls │  ← Bug 1           │ Text Controls   │  │
+│  │ Panel (LEFT)   │  浮動パネル        │ Panel (RIGHT)   │  │
+│  │ position:      │                     │ position:       │  │
+│  │ absolute       │                     │ absolute        │  │
+│  │ left: 24px     │                     │ right: 24px     │  │
+│  └────────────────┘                    └─────────────────┘  │
+│                                                               │
+│            ┌──────────────────┐                              │
+│            │   Canvas Wrapper │                              │
+│            │   (Fabric.js)    │                              │
+│            └──────────────────┘                              │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ Right Toolbar (#toolbar)                                     │
+│                                                               │
+│  ┌────────┬────────┐                                         │
+│  │商品画像 │売れる装飾│ ← タブ                               │
+│  └────────┴────────┘                                         │
+│                                                               │
+│  ┌─────────────────────────────────┐                        │
+│  │ Image Panel (#imagePanel)       │                        │
+│  │ - 画像アップロードボタン         │                        │
+│  │ - URL取り込み                    │                        │
+│  │                                  │                        │
+│  │ ★ ここに画像調整が入るべき      │ ← Bug 1               │
+│  └─────────────────────────────────┘                        │
+│                                                               │
+│  ┌─────────────────────────────────┐                        │
+│  │ Template Panel (#templatePanel)  │                        │
+│  │ - テキスト追加ボタン             │                        │
+│  │ - テンプレートボタン             │                        │
+│  │ - アイコンボタン                 │                        │
+│  │                                  │                        │
+│  │ ★ ここにテキスト調整が入るべき  │ ← Bug 2               │
+│  └─────────────────────────────────┘                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+=============================================================================
+■ 解決策の詳細
+=============================================================================
+
+【全体戦略】
+浮動パネルをタブパネル内に統合し、一貫性のあるUIアーキテクチャを実現する。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Phase 1: HTML構造の再構築
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+■ Step 1.1: 画像調整コントロールの移動
+
+【現在の配置】
+```html
+<!-- index.html: 108-246行目 -->
+<div id="canvasContainer">
+    <aside class="image-controls-panel" id="imageControlsPanel">
+        <!-- 画像調整コントロール -->
+    </aside>
+
+    <div id="canvasStack">
+        <!-- キャンバス -->
+    </div>
+</div>
+```
+
+【修正後の配置】
+```html
+<!-- index.html: 440-484行目（imagePanel内） -->
+<div class="tool-panel active" id="imagePanel">
+    <h3>商品画像を追加</h3>
+    <button class="btn-primary btn-full" id="uploadImageBtn">
+        <i class="fas fa-camera"></i> 商品画像を選択
+    </button>
+    <input type="file" id="imageInput" accept="image/*" style="display: none;" multiple>
+
+    <!-- 既存の画像アップロード機能 -->
+    <div class="image-url-import">...</div>
+    <div class="image-history">...</div>
+
+    <!-- ★★★ ここに画像調整セクションを追加 ★★★ -->
+    <div class="image-controls-section" id="imageControlsSection" style="display: none;">
+        <div class="controls-section-header">
+            <h4><i class="fas fa-sliders-h"></i> 画像調整</h4>
+        </div>
+
+        <!-- 縦いっぱいにフィットボタン -->
+        <div class="controls-group">
+            <button class="btn-secondary btn-full" id="fitImageHeightBtn">
+                <i class="fas fa-arrows-up-down"></i> 縦いっぱいにフィット
+            </button>
+        </div>
+
+        <!-- クイック補正 -->
+        <div class="controls-group">
+            <h5>クイック補正</h5>
+            <div class="control-item">
+                <label>
+                    <span><i class="fas fa-sun"></i> 明度</span>
+                    <span class="value" id="brightnessValue">0</span>
+                </label>
+                <input type="range" id="brightnessSlider" min="-100" max="100" value="0">
+            </div>
+            <!-- 他のフィルタースライダー -->
+        </div>
+
+        <!-- レイヤー順序 -->
+        <div class="controls-group">
+            <h5>レイヤー順序</h5>
+            <div class="btn-group-grid">
+                <button id="bringToFrontBtn">最前面</button>
+                <button id="sendToBackBtn">最背面</button>
+                <button id="bringForwardBtn">前面へ</button>
+                <button id="sendBackwardBtn">背面へ</button>
+            </div>
+        </div>
+
+        <!-- 回転・反転 -->
+        <!-- ぼかし -->
+        <!-- トリミング -->
+        <!-- 背景除去 -->
+
+        <!-- 削除ボタン -->
+        <div class="controls-group">
+            <button class="btn-danger btn-full" id="deleteImageBtn">
+                <i class="fas fa-trash"></i> 画像を削除
+            </button>
+        </div>
+    </div>
+</div>
+```
+
+**重要ポイント**:
+- `<aside>` タグを削除し、`<div class="image-controls-section">` に変更
+- すべてのコントロールIDは変更しない（JavaScriptの互換性維持）
+- デフォルトで `display: none` に設定
+- 既存のアップロード機能の下に配置
+
+■ Step 1.2: テキスト調整コントロールの移動
+
+【現在の配置】
+```html
+<!-- index.html: 248-421行目 -->
+<div id="canvasContainer">
+    <aside class="text-controls-panel" id="textControlsPanel">
+        <!-- テキスト調整コントロール -->
+    </aside>
+</div>
+```
+
+【修正後の配置】
+```html
+<!-- index.html: 486-630行目（templatePanel内） -->
+<div class="tool-panel" id="templatePanel">
+    <h3>テキストを追加</h3>
+    <button class="btn-primary btn-full" id="addTextBtn">
+        <i class="fas fa-font"></i> テキストを追加
+    </button>
+
+    <!-- 既存のテンプレートボタン、アイコン、スタイルテンプレート -->
+
+    <!-- ★★★ ここにテキスト調整セクションを追加 ★★★ -->
+    <div class="text-controls-section" id="textControlsSection" style="display: none;">
+        <div class="controls-section-header">
+            <h4><i class="fas fa-pen"></i> テキスト調整</h4>
+        </div>
+
+        <!-- テキスト内容 -->
+        <div class="controls-group">
+            <label>テキスト内容</label>
+            <textarea id="textContent" rows="3"></textarea>
+        </div>
+
+        <!-- 基本設定 -->
+        <div class="controls-group">
+            <h5>基本設定</h5>
+            <div class="control-item">
+                <label>
+                    <span><i class="fas fa-text-height"></i> サイズ</span>
+                    <span class="value" id="fontSizeValue">48px</span>
+                </label>
+                <input type="range" id="fontSize" min="12" max="200" value="48">
+            </div>
+            <!-- フォント選択 -->
+        </div>
+
+        <!-- 色設定 -->
+        <!-- スタイル -->
+        <!-- 影 -->
+        <!-- 縁取り -->
+        <!-- レイヤー順序 -->
+        <!-- 削除・複製 -->
+    </div>
+</div>
+```
+
+**重要ポイント**:
+- `<aside>` タグを削除し、`<div class="text-controls-section">` に変更
+- すべてのコントロールIDは変更しない
+- デフォルトで `display: none` に設定
+- 既存のテンプレート機能の下に配置
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Phase 2: CSS修正
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+■ Step 2.1: 浮動パネルスタイルの削除
+
+【現在のCSS】
+```css
+/* css/style.css: 616-674行目 */
+.image-controls-panel {
+    position: absolute;  /* ← 削除 */
+    top: 24px;           /* ← 削除 */
+    left: 24px;          /* ← 削除 */
+    width: 200px;
+    max-height: calc(100vh - 120px);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    padding: 16px;
+    z-index: 20;         /* ← 削除 */
+    overflow-y: auto;
+    display: none;
+}
+
+/* css/style.css: 767-892行目 */
+.text-controls-panel {
+    position: absolute;  /* ← 削除 */
+    top: 24px;           /* ← 削除 */
+    right: 24px;         /* ← 削除 */
+    width: 200px;
+    max-height: calc(100vh - 120px);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    padding: 16px;
+    z-index: 20;         /* ← 削除 */
+    overflow-y: auto;
+    display: none;
+}
+```
+
+**削除するプロパティ**:
+- `position: absolute`
+- `top`, `left`, `right`
+- `z-index`
+- `box-shadow`（タブパネル内では不要）
+- `border-radius`（タブパネル内では不要）
+
+■ Step 2.2: インラインコントロールセクションのスタイル追加
+
+【新規CSS】
+```css
+/* css/style.css: 新規追加 */
+
+/* 画像・テキスト調整セクション（タブパネル内） */
+.image-controls-section,
+.text-controls-section {
+    display: none;  /* デフォルト非表示 */
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px 0;
+    border-top: 2px solid rgba(255, 154, 90, 0.25);
+    margin-top: 20px;
+}
+
+.image-controls-section.active,
+.text-controls-section.active {
+    display: flex;  /* アクティブ時に表示 */
+}
+
+/* セクションヘッダー */
+.controls-section-header {
+    margin-bottom: 12px;
+}
+
+.controls-section-header h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.controls-section-header h4 i {
+    color: #FF9A5A;
+}
+
+/* コントロールグループ */
+.controls-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.controls-group h5 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+/* 個別コントロール項目 */
+.control-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-item label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: #666;
+}
+
+.control-item label .value {
+    font-weight: 600;
+    color: #333;
+}
+
+.control-item input[type="range"] {
+    width: 100%;
+}
+
+/* ボタングループ */
+.btn-group-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.btn-group-grid button {
+    padding: 8px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-group-grid button:hover {
+    background: #f5f5f5;
+    border-color: #FF9A5A;
+}
+
+/* スクロール可能領域の調整 */
+.tool-panel {
+    max-height: calc(100vh - 120px);  /* デスクトップ */
+    overflow-y: auto;
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+    .tool-panel {
+        max-height: calc(50vh - 60px);  /* モバイルでは画面の半分 */
+    }
+
+    .image-controls-section,
+    .text-controls-section {
+        padding: 16px 0;
+        gap: 12px;
+    }
+}
+```
+
+**重要ポイント**:
+- 通常のフロー配置（`position` 指定なし）
+- タブパネル内に自然に配置される
+- スクロール可能
+- モバイル対応維持
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Phase 3: JavaScript修正
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+■ Step 3.1: showImageControls() 関数の修正
+
+【現在の実装】(js/image.core.js: 475-516行目)
+```javascript
+function showImageControls() {
+    const controlsPanel = document.getElementById('imageControlsPanel');
+    const container = document.getElementById('canvasContainer');
+
+    if (typeof hideTextControls === 'function') {
+        hideTextControls();
+    }
+
+    if (controlsPanel) {
+        controlsPanel.style.display = 'flex';  // ← 浮動パネルを表示
+        controlsPanel.scrollTop = 0;
+
+        // キャンバスwrapperの位置に基づいて動的配置
+        const canvas = getCanvas();
+        if (canvas && canvas.wrapperEl) {
+            const wrapper = canvas.wrapperEl;
+            const wrapperRect = wrapper.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            const leftPos = wrapperRect.left - containerRect.left + 24;
+            const topPos = wrapperRect.top - containerRect.top + 24;
+
+            controlsPanel.style.left = `${leftPos}px`;
+            controlsPanel.style.top = `${topPos}px`;
+        }
+    }
+}
+```
+
+【修正後の実装】
+```javascript
+function showImageControls() {
+    const controlsSection = document.getElementById('imageControlsSection');
+
+    if (!controlsSection) {
+        console.warn('[showImageControls] imageControlsSection not found');
+        return;
+    }
+
+    // テキストコントロールを非表示
+    if (typeof hideTextControls === 'function') {
+        hideTextControls();
+    }
+
+    // インラインコントロールセクションを表示
+    controlsSection.classList.add('active');
+
+    // スクロール位置をリセット
+    const imagePanel = document.getElementById('imagePanel');
+    if (imagePanel) {
+        imagePanel.scrollTop = 0;
+    }
+
+    console.log('[showImageControls] Image controls displayed in imagePanel');
+}
+```
+
+**変更点**:
+- ターゲット要素を `imageControlsPanel` から `imageControlsSection` に変更
+- `style.display` の代わりに `classList.add('active')` を使用
+- 位置計算ロジックを削除（不要）
+- 親パネル（`imagePanel`）のスクロール位置をリセット
+
+■ Step 3.2: hideImageControls() 関数の修正
+
+【現在の実装】(js/image.core.js: 518-538行目)
+```javascript
+function hideImageControls() {
+    const controlsPanel = document.getElementById('imageControlsPanel');
+    const container = document.getElementById('canvasContainer');
+
+    if (controlsPanel) {
+        controlsPanel.style.display = 'none';
+    }
+}
+```
+
+【修正後の実装】
+```javascript
+function hideImageControls() {
+    const controlsSection = document.getElementById('imageControlsSection');
+
+    if (controlsSection) {
+        controlsSection.classList.remove('active');
+    }
+
+    console.log('[hideImageControls] Image controls hidden');
+}
+```
+
+**変更点**:
+- `style.display = 'none'` の代わりに `classList.remove('active')` を使用
+- シンプルで明確なロジック
+
+■ Step 3.3: showTextControls() 関数の修正
+
+【現在の実装】(js/text.ui.js: 300-342行目)
+```javascript
+function showTextControls() {
+    const panel = document.getElementById('textControlsPanel');
+    const container = document.getElementById('canvasContainer');
+
+    if (!panel) return;
+
+    if (typeof hideImageControls === 'function') {
+        hideImageControls();
+    }
+
+    panel.style.display = 'flex';
+    panel.scrollTop = 0;
+
+    // キャンバスwrapperの位置に基づいて動的配置
+    const canvas = getCanvas();
+    if (canvas && canvas.wrapperEl) {
+        const wrapper = canvas.wrapperEl;
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        const containerWidth = containerRect.width;
+        const wrapperRightEdge = wrapperRect.right - containerRect.left;
+        const rightPos = containerWidth - wrapperRightEdge + 24;
+        const topPos = wrapperRect.top - containerRect.top + 24;
+
+        panel.style.right = `${rightPos}px`;
+        panel.style.top = `${topPos}px`;
+    }
+}
+```
+
+【修正後の実装】
+```javascript
+function showTextControls() {
+    const controlsSection = document.getElementById('textControlsSection');
+
+    if (!controlsSection) {
+        console.warn('[showTextControls] textControlsSection not found');
+        return;
+    }
+
+    // 画像コントロールを非表示
+    if (typeof hideImageControls === 'function') {
+        hideImageControls();
+    }
+
+    // インラインコントロールセクションを表示
+    controlsSection.classList.add('active');
+
+    // スクロール位置をリセット
+    const templatePanel = document.getElementById('templatePanel');
+    if (templatePanel) {
+        templatePanel.scrollTop = 0;
+    }
+
+    console.log('[showTextControls] Text controls displayed in templatePanel');
+}
+```
+
+■ Step 3.4: hideTextControls() 関数の修正
+
+【現在の実装】(js/text.ui.js: 345-365行目)
+```javascript
+function hideTextControls() {
+    const panel = document.getElementById('textControlsPanel');
+    const container = document.getElementById('canvasContainer');
+
+    if (panel) {
+        panel.style.display = 'none';
+    }
+}
+```
+
+【修正後の実装】
+```javascript
+function hideTextControls() {
+    const controlsSection = document.getElementById('textControlsSection');
+
+    if (controlsSection) {
+        controlsSection.classList.remove('active');
+    }
+
+    console.log('[hideTextControls] Text controls hidden');
+}
+```
+
+■ Step 3.5: オブジェクト選択ハンドラーの確認
+
+【現在の実装】(js/canvas.init.js: 293-314行目)
+```javascript
+// ★UX改善: タブに基づいてツールバーを表示
+const activeTab = document.querySelector('.tool-tab.active');
+const activeTabType = activeTab ? activeTab.dataset.tab : 'image';
+
+// タブコンテキストに応じてツールバーを表示
+if (activeTabType === 'image') {
+    // 商品画像タブがアクティブ → 画像ツールバーを表示
+    showImageControls();
+    if (obj.objectType === 'uploaded-image') {
+        updateImageControlsUI(obj);
+    }
+    hideTextControls();
+}
+else if (activeTabType === 'template') {
+    // 売れる装飾タブがアクティブ → テキストツールバーを表示
+    showTextControls();
+    if (obj.type === 'i-text') {
+        updateTextControlsUI(obj);
+    }
+    hideImageControls();
+}
+```
+
+**確認事項**:
+- このロジックはそのまま使用可能
+- `showImageControls()` と `showTextControls()` が修正されれば、
+  自動的に新しい動作になる
+- タブ切り替えとコントロール表示が連携して動作
+
+■ Step 3.6: 閉じるボタンの処理修正（オプション）
+
+【現在の実装】(js/main.js: 155-177行目)
+```javascript
+const closeImageControlsPanel = document.getElementById('closeImageControlsPanel');
+if (closeImageControlsPanel) {
+    closeImageControlsPanel.addEventListener('click', function() {
+        hideImageControls();
+    });
+}
+
+const closeTextControlsPanel = document.getElementById('closeTextControlsPanel');
+if (closeTextControlsPanel) {
+    closeTextControlsPanel.addEventListener('click', function() {
+        hideTextControls();
+    });
+}
+```
+
+**修正案**:
+タブパネル内に統合された場合、閉じるボタンは以下のいずれかに変更：
+
+1. **オプション1**: 閉じるボタンを削除
+   - タブパネルは常に表示されているため、閉じる必要がない
+   - オブジェクトの選択を解除すればコントロールは非表示になる
+
+2. **オプション2**: 「選択解除」ボタンに変更
+   ```javascript
+   const deselectImageBtn = document.getElementById('deselectImageBtn');
+   if (deselectImageBtn) {
+       deselectImageBtn.addEventListener('click', function() {
+           const canvas = getCanvas();
+           if (canvas) {
+               canvas.discardActiveObject();
+               canvas.requestRenderAll();
+           }
+       });
+   }
+   ```
+
+3. **オプション3**: そのまま維持（後方互換性）
+   - 既存の動作を維持
+   - クリックでコントロールセクションを非表示
+
+**推奨**: オプション1（閉じるボタンを削除）が最もシンプルで直感的
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Phase 4: イベントリスナーの互換性確保
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+■ Step 4.1: すべてのコントロールIDが維持されていることを確認
+
+【チェックリスト】
+
+画像コントロール (js/main.js: 178-221行目):
+- [ ] `fitImageHeightBtn`
+- [ ] `brightnessSlider`
+- [ ] `contrastSlider`
+- [ ] `saturationSlider`
+- [ ] `hueSlider`
+- [ ] `resetFiltersBtn`
+- [ ] `bringToFrontBtn`
+- [ ] `sendToBackBtn`
+- [ ] `bringForwardBtn`
+- [ ] `sendBackwardBtn`
+- [ ] `rotateLeftBtn`
+- [ ] `rotateRightBtn`
+- [ ] `flipHorizontalBtn`
+- [ ] `flipVerticalBtn`
+- [ ] `toggleBlurModeBtn`
+- [ ] `blurIntensitySlider`
+- [ ] `cropImageBtn`
+- [ ] `applyCropBtn`
+- [ ] `cancelCropBtn`
+- [ ] `removeBackgroundBtn`
+- [ ] `removeBackgroundQuickBtn`
+- [ ] `deleteImageBtn`
+
+テキストコントロール (js/main.js: 222-295行目):
+- [ ] `textContent`
+- [ ] `fontSize`
+- [ ] `fontFamily`
+- [ ] `textColor`
+- [ ] `textBackgroundColor`
+- [ ] `toggleBoldBtn`
+- [ ] `toggleItalicBtn`
+- [ ] `toggleUnderlineBtn`
+- [ ] `toggleShadowBtn`
+- [ ] `shadowColorPicker`
+- [ ] `shadowBlurSlider`
+- [ ] `shadowOffsetXSlider`
+- [ ] `shadowOffsetYSlider`
+- [ ] `toggleStrokeBtn`
+- [ ] `strokeColorPicker`
+- [ ] `strokeWidthSlider`
+- [ ] `textAlignLeft`
+- [ ] `textAlignCenter`
+- [ ] `textAlignRight`
+- [ ] `textRotation`
+- [ ] `textScale`
+- [ ] `textOpacity`
+- [ ] `textLetterSpacing`
+- [ ] `textLineHeight`
+- [ ] `deleteTextBtn`
+- [ ] `duplicateTextBtn`
+- [ ] `bringTextToFront`
+- [ ] `sendTextToBack`
+- [ ] `bringTextForward`
+- [ ] `sendTextBackward`
+
+**重要**: これらのIDが変更されていないため、既存のイベントリスナーは
+そのまま動作する。
+
+■ Step 4.2: 動的に生成されるコントロールの確認
+
+一部のコントロールは動的に生成される可能性があるため、確認が必要：
+
+```javascript
+// 例: テンプレートボタンの動的生成
+document.querySelectorAll('.template-text-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // ...
+    });
+});
+```
+
+**対応**: セレクターベースのイベントリスナーはクラス名を維持すれば問題なし
+
+=============================================================================
+■ 実装時の注意点
+=============================================================================
+
+【1. 段階的な実装アプローチ】
+
+■ フェーズ1: 画像コントロールのみ実装
+1. 画像コントロールをHTMLで移動
+2. CSSを更新
+3. JavaScriptを修正
+4. 徹底的にテスト
+5. 問題なければフェーズ2へ
+
+■ フェーズ2: テキストコントロールを実装
+1. テキストコントロールをHTMLで移動
+2. CSSを更新
+3. JavaScriptを修正
+4. 徹底的にテスト
+
+**理由**: 一度に両方を変更すると、問題の切り分けが困難になる
+
+【2. バックアップの作成】
+
+修正前に必ず以下のファイルをバックアップ:
+- `index.html`
+- `css/style.css`
+- `js/image.core.js`
+- `js/text.ui.js`
+- `js/canvas.init.js`
+- `js/main.js`
+
+```bash
+# バックアップコマンド例
+cp index.html index.html.backup_before_bug5_fix
+cp css/style.css css/style.css.backup_before_bug5_fix
+cp js/image.core.js js/image.core.js.backup_before_bug5_fix
+cp js/text.ui.js js/text.ui.js.backup_before_bug5_fix
+cp js/canvas.init.js js/canvas.init.js.backup_before_bug5_fix
+cp js/main.js js/main.js.backup_before_bug5_fix
+```
+
+【3. ブラウザのキャッシュクリア】
+
+CSS/JavaScriptの変更後は必ずハードリフレッシュ:
+- Chrome/Edge: `Ctrl+Shift+R` (Windows) / `Cmd+Shift+R` (Mac)
+- Firefox: `Ctrl+F5` (Windows) / `Cmd+Shift+R` (Mac)
+- Safari: `Cmd+Option+R`
+
+【4. デベロッパーツールでの確認】
+
+■ Elements タブ:
+- 新しいHTML構造が正しく配置されているか確認
+- CSSのスタイルが正しく適用されているか確認
+- `active` クラスが正しく追加/削除されているか確認
+
+■ Console タブ:
+- JavaScriptエラーがないか確認
+- `console.log` で動作フローを確認
+- `showImageControls` / `hideImageControls` の呼び出しを確認
+
+■ Network タブ:
+- CSSファイルが正しく読み込まれているか確認
+- JavaScriptファイルが正しく読み込まれているか確認
+- 304 (Not Modified) の場合はハードリフレッシュ
+
+【5. モバイルでの動作確認】
+
+デスクトップで動作確認後、必ずモバイルでもテスト:
+
+■ Chrome DevTools モバイルエミュレーター:
+1. F12 でデベロッパーツールを開く
+2. デバイスツールバーアイコンをクリック（Ctrl+Shift+M）
+3. iPhone SE, iPhone 12 Pro, iPad などでテスト
+4. 縦向き・横向き両方をテスト
+
+■ 実機テスト（可能であれば）:
+- iOS Safari
+- Android Chrome
+- タッチ操作が正しく動作するか確認
+- スクロールが正しく動作するか確認
+
+【6. レイアウト崩れの確認ポイント】
+
+■ タブパネルのスクロール:
+```css
+.tool-panel {
+    max-height: calc(100vh - 120px);  /* 高さ制限 */
+    overflow-y: auto;                 /* スクロール有効 */
+}
+```
+- コントロールが多い場合、パネル内でスクロール可能か確認
+- スクロールバーが適切に表示されるか確認
+
+■ モバイルでの高さ制限:
+```css
+@media (max-width: 768px) {
+    .tool-panel {
+        max-height: calc(50vh - 60px);  /* モバイルでは半分 */
+    }
+}
+```
+- 画面の半分を超えないか確認
+- スクロールが機能するか確認
+
+■ コントロールの視認性:
+- すべてのボタンが見えるか
+- スライダーが正しく操作できるか
+- カラーピッカーが正しく表示されるか
+
+【7. パフォーマンスの確認】
+
+■ 表示/非表示の切り替え速度:
+- オブジェクト選択時の応答性
+- タブ切り替え時の滑らかさ
+- CSSトランジションの適用（オプション）
+
+■ CSSトランジションの追加（オプション）:
+```css
+.image-controls-section,
+.text-controls-section {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.image-controls-section.active,
+.text-controls-section.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+```
+
+【8. 既存機能の動作確認】
+
+■ 画像機能:
+- [ ] 画像アップロード
+- [ ] URL取り込み
+- [ ] フィルター調整
+- [ ] 回転・反転
+- [ ] レイヤー順序
+- [ ] ぼかし
+- [ ] トリミング
+- [ ] 背景除去
+- [ ] 画像削除
+
+■ テキスト機能:
+- [ ] テキスト追加
+- [ ] テンプレートテキスト
+- [ ] フォント変更
+- [ ] サイズ変更
+- [ ] カラー変更
+- [ ] スタイル（太字、斜体、下線）
+- [ ] 影
+- [ ] 縁取り
+- [ ] レイヤー順序
+- [ ] テキスト削除・複製
+
+■ キャンバス機能:
+- [ ] ズーム
+- [ ] パン
+- [ ] オブジェクト選択
+- [ ] オブジェクト移動
+- [ ] オブジェクトリサイズ
+- [ ] Undo/Redo
+- [ ] プロジェクト保存/読み込み
+
+【9. エッジケースのテスト】
+
+■ タブ切り替え中にオブジェクト選択:
+1. 「商品画像」タブを選択
+2. キャンバス上のテキストをクリック
+3. タブが「売れる装飾」に自動切り替え
+4. テキストコントロールが表示される
+
+■ 複数オブジェクトの選択:
+1. Shiftキーを押しながら複数のオブジェクトを選択
+2. コントロールが非表示になる（期待動作）
+3. 単一オブジェクトをクリック
+4. 適切なコントロールが表示される
+
+■ オブジェクトの削除:
+1. 画像を選択
+2. 画像コントロールが表示
+3. 「画像を削除」ボタンをクリック
+4. 画像が削除され、コントロールが非表示になる
+
+【10. アクセシビリティの確保】
+
+■ キーボード操作:
+- Tab キーでコントロール間を移動可能か
+- Enter/Space でボタンを操作可能か
+- Esc キーでパネルを閉じる（オプション）
+
+■ スクリーンリーダー対応:
+- ボタンに適切な `aria-label` が設定されているか
+- フォーム要素に `<label>` が関連付けられているか
+
+=============================================================================
+■ リスクと対策
+=============================================================================
+
+【リスク1: イベントリスナーの破損】
+
+■ 確率: 低
+■ 影響: 高（コントロールが動作しなくなる）
+
+■ 原因:
+- コントロールのIDが変更された
+- DOM構造が大きく変わり、セレクターが無効になった
+
+■ 対策:
+- すべてのIDを変更しない
+- HTML移動後、各コントロールのIDを確認
+- イベントリスナーを再バインドする必要がないことを確認
+
+■ テスト方法:
+```javascript
+// ブラウザコンソールで確認
+console.log(document.getElementById('fitImageHeightBtn'));  // null でないこと
+console.log(document.getElementById('textContent'));        // null でないこと
+```
+
+【リスク2: CSS レイアウト崩れ】
+
+■ 確率: 中
+■ 影響: 中（見た目が悪くなる、操作しづらくなる）
+
+■ 原因:
+- タブパネル内のコンテンツが多すぎてレイアウトが崩れる
+- モバイルでスクロールが機能しない
+- デスクトップで横幅が足りない
+
+■ 対策:
+- `max-height` と `overflow-y: auto` を適切に設定
+- モバイルとデスクトップで別々のスタイルを適用
+- フレックスボックスレイアウトを使用してコンテンツを整列
+
+■ テスト方法:
+- 複数のデバイスサイズでテスト
+- すべてのコントロールが表示されるか確認
+- スクロールが機能するか確認
+
+【リスク3: JavaScriptエラー】
+
+■ 確率: 低
+■ 影響: 高（機能が完全に停止する可能性）
+
+■ 原因:
+- 存在しない要素にアクセスしようとする
+- `classList.add()` や `classList.remove()` が失敗する
+- 他のJavaScriptコードとの競合
+
+■ 対策:
+- すべての要素アクセスで null チェックを実施
+- try-catch ブロックで重要な処理を保護（オプション）
+- ブラウザのコンソールでエラーを確認
+
+■ テスト方法:
+```javascript
+// ブラウザコンソールで確認
+const section = document.getElementById('imageControlsSection');
+console.log(section);  // null でないこと
+section.classList.add('active');  // エラーが発生しないこと
+```
+
+【リスク4: モバイルUIの劣化】
+
+■ 確率: 中
+■ 影響: 中（モバイルユーザーの体験が悪化）
+
+■ 原因:
+- タブパネルのスクロールが機能しない
+- コントロールが小さすぎてタッチ操作が困難
+- 画面の大部分をツールバーが占有してキャンバスが見えない
+
+■ 対策:
+- モバイル専用のCSSを適用
+- タッチターゲットサイズを最低44x44pxに設定
+- パネルの高さを画面の50%以下に制限
+
+■ テスト方法:
+- Chrome DevTools のモバイルエミュレーターで確認
+- 実機（可能であれば）でテスト
+- タッチ操作が快適か確認
+
+【リスク5: キャンバス表示領域の縮小】
+
+■ 確率: 低
+■ 影響: 低（既存の設計で対応済み）
+
+■ 原因:
+- 以前は浮動パネルがキャンバス上に重なっていたが、
+  タブパネル内に統合されても、右サイドバーは元々存在していた
+
+■ 対策:
+- キャンバスコンテナのパディング値を確認
+- 右サイドバーとの間に適切なスペースがあるか確認
+
+■ テスト方法:
+- キャンバスの表示領域が以前と同じか確認
+- ズーム操作が正しく動作するか確認
+
+【リスク6: 状態管理の混乱】
+
+■ 確率: 低
+■ 影響: 中（表示と実際の状態が不一致）
+
+■ 原因:
+- `showImageControls()` と `hideImageControls()` の呼び出しが不整合
+- タブ切り替え時にコントロールの状態がリセットされない
+
+■ 対策:
+- 明確な状態管理ロジック
+- タブ切り替え時に適切にコントロールを非表示
+- オブジェクト選択解除時に確実にコントロールを非表示
+
+■ テスト方法:
+```javascript
+// 期待される動作シーケンス
+// 1. 画像を選択 → 画像コントロール表示
+// 2. テキストを選択 → 画像コントロール非表示、テキストコントロール表示
+// 3. キャンバスをクリック → 両方非表示
+```
+
+=============================================================================
+■ テスト計画
+=============================================================================
+
+【Phase 1: 機能テスト】(2-3時間)
+
+■ 画像コントロールテスト:
+- [ ] 画像をクリックすると「商品画像」タブがアクティブになる
+- [ ] `imagePanel` 内に画像コントロールセクションが表示される
+- [ ] すべてのスライダーが動作する
+- [ ] すべてのボタンが動作する
+- [ ] フィルター、回転、ぼかし、トリミング、背景除去が動作する
+- [ ] 画像削除が動作する
+
+■ テキストコントロールテスト:
+- [ ] テキストをクリックすると「売れる装飾」タブがアクティブになる
+- [ ] `templatePanel` 内にテキストコントロールセクションが表示される
+- [ ] テキスト内容の編集が動作する
+- [ ] フォントサイズ、フォント選択が動作する
+- [ ] カラーピッカーが動作する
+- [ ] スタイルボタンが動作する
+- [ ] 影、縁取りが動作する
+- [ ] テキスト削除・複製が動作する
+
+■ タブ切り替えテスト:
+- [ ] 手動でタブを切り替えるとコントロールが非表示になる
+- [ ] オブジェクト選択時にタブが自動切り替えされる
+- [ ] タブとコントロール表示が同期している
+
+【Phase 2: レイアウトテスト】(1-2時間)
+
+■ デスクトップ（1920x1080）:
+- [ ] 右サイドバーが正しく表示される
+- [ ] コントロールセクションが適切に配置される
+- [ ] スクロールが機能する
+- [ ] レイアウト崩れがない
+
+■ デスクトップ（1366x768）:
+- [ ] 低解像度でも正しく表示される
+- [ ] スクロールが適切に機能する
+
+■ タブレット（iPad - 768x1024）:
+- [ ] ツールバーが適切に表示される
+- [ ] コントロールが操作しやすい
+- [ ] スクロールが機能する
+
+■ モバイル（iPhone - 375x667）:
+- [ ] 下部ツールバーが正しく表示される
+- [ ] コントロールセクションが適切に配置される
+- [ ] スクロールが機能する
+- [ ] タッチ操作が快適
+
+【Phase 3: 互換性テスト】(1時間)
+
+■ ブラウザテスト:
+- [ ] Chrome（最新版）
+- [ ] Firefox（最新版）
+- [ ] Safari（最新版）
+- [ ] Edge（最新版）
+
+■ OS テスト:
+- [ ] Windows 10/11
+- [ ] macOS
+- [ ] iOS
+- [ ] Android
+
+【Phase 4: パフォーマンステスト】(30分)
+
+■ 応答性:
+- [ ] オブジェクト選択時の応答が速い（<100ms）
+- [ ] タブ切り替えが滑らか
+- [ ] スクロールが滑らか
+
+■ メモリ使用量:
+- [ ] メモリリークがない
+- [ ] 長時間使用しても問題ない
+
+【Phase 5: エッジケーステスト】(1時間)
+
+■ 特殊ケース:
+- [ ] 複数オブジェクト選択時にコントロールが非表示
+- [ ] オブジェクト削除後にコントロールが非表示
+- [ ] キャンバス切り替え時の動作
+- [ ] ズーム/パン操作中の動作
+- [ ] Undo/Redo 時の動作
+
+=============================================================================
+■ 実装タイムライン
+=============================================================================
+
+【Phase 1: HTML再構築】(2-3時間)
+- Step 1: バックアップ作成
+- Step 2: 画像コントロールを `imagePanel` に移動
+- Step 3: テキストコントロールを `templatePanel` に移動
+- Step 4: HTMLバリデーション
+
+【Phase 2: CSS修正】(1-2時間)
+- Step 1: 浮動パネルスタイルを削除
+- Step 2: インラインコントロールセクションスタイルを追加
+- Step 3: モバイル対応CSSを更新
+- Step 4: ブラウザでビジュアル確認
+
+【Phase 3: JavaScript更新】(2-3時間)
+- Step 1: `showImageControls()` 修正
+- Step 2: `hideImageControls()` 修正
+- Step 3: `showTextControls()` 修正
+- Step 4: `hideTextControls()` 修正
+- Step 5: 動作確認とデバッグ
+
+【Phase 4: テスト】(3-4時間)
+- Step 1: 機能テスト
+- Step 2: レイアウトテスト
+- Step 3: 互換性テスト
+- Step 4: パフォーマンステスト
+- Step 5: エッジケーステスト
+
+【Phase 5: 最終調整】(1時間)
+- Step 1: バグ修正
+- Step 2: スタイル微調整
+- Step 3: 最終確認
+
+**総推定時間**: 9-13時間
+**推奨実装期間**: 2-3日（段階的に実装し、各フェーズで十分にテスト）
+
+=============================================================================
+■ 成功基準
+=============================================================================
+
+【主要目標】
+✅ 画像コントロールが「商品画像」タブパネル内に表示される
+✅ テキストコントロールが「売れる装飾」タブパネル内に表示される
+✅ キャンバス上に浮動パネルが表示されない
+✅ すべての既存機能が正常に動作する
+
+【副次目標】
+✅ モバイルとデスクトップの両方で快適に動作
+✅ スムーズなトランジション
+✅ パフォーマンス低下なし
+✅ 一貫性のあるUI/UX
+
+【品質基準】
+✅ JavaScriptエラーゼロ
+✅ コンソール警告ゼロ
+✅ すべてのテストケースが合格
+✅ クロスブラウザ動作確認済み
+
+=============================================================================
+■ まとめ
+=============================================================================
+
+この報告書では、画像およびテキストツールバーが右サイドバーに表示されない
+2つのバグを詳細に調査し、根本原因を特定しました。
+
+【根本原因】:
+初期設計時に、調整用ツールバーを浮動パネルとして実装し、右サイドバーの
+タブパネル内に統合されていないアーキテクチャ上の問題。
+
+【解決策】:
+HTML構造を再構築し、浮動パネルをタブパネル内に移動。CSSで通常フロー配置に
+変更し、JavaScriptでクラスベースの表示/非表示制御に更新。
+
+【実装の注意点】:
+- 段階的に実装（画像→テキスト）
+- すべてのIDを維持してイベントリスナーの互換性を確保
+- モバイルとデスクトップの両方で徹底的にテスト
+- 既存機能が完全に動作することを確認
+
+この修正により、ユーザーの期待通りに、画像/テキストのツールバーが右側の
+タブパネル内に統合され、より一貫性のあるUIを提供できます。
+
+=============================================================================
+作成者: プロフェッショナルエンジニア
+最終更新: 2025年1月
+=============================================================================

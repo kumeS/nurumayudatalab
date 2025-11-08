@@ -1,8 +1,10 @@
 # Image Transformation Tracker - 画像変換追跡システム
 
-最終更新: 2025-10-27 (v5.3)
+最終更新: 2025-10-30 (v5.4)
 
 **ビジュアルワークフローエディタ**: ノードベースの画像処理パイプライン構築ツール
+
+AI駆動のNano Bananaモデルを使用した、Vanilla JavaScriptによる軽量でフレームワーク不要の画像変換ワークフロー管理ツールです。
 
 ## 📚 最新アップデート (2025-10-27 v5.3)
 
@@ -377,485 +379,122 @@
 
 ### 🎯 短期実装可能な機能（優先度: 高 🔴）
 
-以下は、現在の実装を活かして1-4時間程度で追加できる実用的な機能です。大規模実装やProduction公開は想定せず、個人・小規模チーム向けの実用機能に限定します。
-
-#### 1. バッチ画像生成機能
-**実装難易度**: ⭐⭐ 中程度
-**実装時間**: 2-3時間
-**目的**: 選択した複数の生成ノードで一括して画像生成を実行
-
-**実装内容**:
-- ヘッダーに「⚡ 一括生成」ボタンを追加
-- クリックで全ての「Generate可能なノード」（入力エッジあり）を検出
-- 確認ダイアログで生成対象ノードを表示
-- 順次または並列で画像生成を実行
-- 実装箇所: `js/workflowApp.js`、`js/transformationService.js`
-
-**実装方法**:
-```javascript
-// 一括生成ボタンのハンドラー
-async batchGenerate() {
-  // Generate可能なノードを検出
-  const generatableNodes = Array.from(workflowEngine.nodes.values())
-    .filter(node => {
-      const incomingEdges = Array.from(workflowEngine.edges.values())
-        .filter(edge => edge.to === node.id && edge.prompt);
-      return node.type === 'generated' && incomingEdges.length > 0;
-    });
-
-  if (generatableNodes.length === 0) {
-    alert('生成可能なノードがありません');
-    return;
-  }
-
-  // 確認ダイアログ
-  if (!confirm(`${generatableNodes.length}個のノードで画像を生成します。よろしいですか？`)) {
-    return;
-  }
-
-  // 順次生成（並列にする場合はPromise.allを使用）
-  for (const node of generatableNodes) {
-    try {
-      await transformationService.generateForNode(node.id);
-    } catch (error) {
-      console.error(`ノード${node.id}の生成に失敗:`, error);
-    }
-  }
-
-  alert('一括生成が完了しました');
-}
-```
-
----
-
-#### 2. 画像の複数選択削除機能
-**実装難易度**: ⭐ 簡単
-**実装時間**: 1時間
-**目的**: ノード内の不要な画像を一括削除してストレージを節約
-
-**実装内容**:
-- ノード詳細パネルの画像グリッドにチェックボックスを追加
-- 「選択した画像を削除」ボタンを追加
-- 複数の画像を選択して一度に削除
-- 実装箇所: `js/canvasController.js`の`renderNodeDetails()`
-
-**実装方法**:
-```javascript
-// 画像グリッドにチェックボックスを追加
-<input type="checkbox" class="image-select" data-index="${index}">
-
-// 削除ボタンのハンドラー
-deleteSelectedImages(nodeId) {
-  const checked = document.querySelectorAll('.image-select:checked');
-  const indices = Array.from(checked).map(el => parseInt(el.dataset.index));
-
-  if (indices.length === 0) {
-    alert('削除する画像を選択してください');
-    return;
-  }
-
-  if (!confirm(`${indices.length}枚の画像を削除しますか？`)) {
-    return;
-  }
-
-  indices.sort((a, b) => b - a); // 後ろから削除
-  const node = workflowEngine.nodes.get(nodeId);
-  indices.forEach(i => node.images.splice(i, 1));
-
-  workflowEngine.emit('nodeUpdated', { nodeId });
-  workflowEngine.saveWorkflow();
-}
-```
-
----
-
-#### 3. エッジのプロンプトテンプレート機能
-**実装難易度**: ⭐ 簡単
-**実装時間**: 1.5時間
-**目的**: よく使うプロンプトをテンプレートとして保存・再利用
-
-**実装内容**:
-- プロンプト編集モーダルに「💾 テンプレート保存」ボタンを追加
-- LocalStorageに`prompt_templates`配列として保存
-- プロンプト入力時にテンプレートをドロップダウンで表示
-- テンプレート選択で自動入力
-- 設定モーダルにテンプレート管理セクションを追加（削除機能）
-- 実装箇所: `index.html`、`js/workflowApp.js`
-
-**実装方法**:
-```javascript
-// テンプレート保存
-saveTemplate(prompt, name = null) {
-  const templates = JSON.parse(localStorage.getItem('prompt_templates') || '[]');
-  const templateName = name || prompt.substring(0, 30) + '...';
-
-  templates.push({
-    id: Date.now(),
-    name: templateName,
-    text: prompt,
-    created: new Date().toISOString()
-  });
-
-  localStorage.setItem('prompt_templates', JSON.stringify(templates));
-  alert('テンプレートを保存しました');
-}
-
-// テンプレート読み込み
-loadTemplates() {
-  return JSON.parse(localStorage.getItem('prompt_templates') || '[]');
-}
-
-// テンプレート削除
-deleteTemplate(templateId) {
-  const templates = JSON.parse(localStorage.getItem('prompt_templates') || '[]');
-  const filtered = templates.filter(t => t.id !== templateId);
-  localStorage.setItem('prompt_templates', JSON.stringify(filtered));
-}
-```
-
----
-
-#### 4. ノードのメモ機能
-**実装難易度**: ⭐ 簡単
-**実装時間**: 1時間
-**目的**: ノードに説明やメモを追加して作業を整理
-
-**実装内容**:
-- ノード詳細パネルに「📝 メモ」テキストエリアを追加
-- メモはノードオブジェクトの`metadata.note`に保存
-- メモがあるノードにはキャンバス上に📝アイコンを表示
-- 自動保存機能（入力後1秒で保存）
-- 実装箇所: `js/canvasController.js`、`js/workflowEngine.js`
-
-**実装方法**:
-```javascript
-// ノード詳細パネルにメモエリアを追加
-<div class="mt-4">
-  <label class="block text-sm font-medium text-gray-300 mb-2">📝 メモ</label>
-  <textarea
-    id="nodeNoteInput"
-    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg"
-    rows="3"
-    placeholder="このノードについてのメモを入力..."
-  ></textarea>
-</div>
-
-// メモ保存（デバウンス付き）
-let noteTimeout;
-document.getElementById('nodeNoteInput').addEventListener('input', (e) => {
-  clearTimeout(noteTimeout);
-  noteTimeout = setTimeout(() => {
-    const node = workflowEngine.nodes.get(currentNodeId);
-    node.metadata = { ...node.metadata, note: e.target.value };
-    workflowEngine.emit('nodeUpdated', { nodeId: currentNodeId });
-    workflowEngine.saveWorkflow();
-  }, 1000);
-});
-
-// レンダリング時にアイコン表示
-if (node.metadata?.note) {
-  ctx.fillText('📝', x + radius - 15, y - radius + 20);
-}
-```
-
----
-
-#### 5. ワークフロー履歴機能（Undo/Redo）
-**実装難易度**: ⭐⭐ 中程度
-**実装時間**: 2-3時間
-**目的**: 操作を取り消し・やり直しできるようにする
-
-**実装内容**:
-- ノード作成・削除、エッジ作成・削除、画像追加などの操作を記録
-- `Ctrl/Cmd + Z`でUndo、`Ctrl/Cmd + Shift + Z`でRedo
-- ヘッダーにUndo/Redoボタンを追加
-- 最大20操作まで履歴を保持
-- 実装箇所: 新規ファイル`js/historyManager.js`
-
-**実装方法**:
-```javascript
-class HistoryManager {
-  constructor(maxHistory = 20) {
-    this.history = [];
-    this.currentIndex = -1;
-    this.maxHistory = maxHistory;
-  }
-
-  push(state) {
-    this.history = this.history.slice(0, this.currentIndex + 1);
-    this.history.push(JSON.parse(JSON.stringify(state)));
-    if (this.history.length > this.maxHistory) {
-      this.history.shift();
-    } else {
-      this.currentIndex++;
-    }
-  }
-
-  undo() {
-    if (this.currentIndex > 0) {
-      this.currentIndex--;
-      return this.history[this.currentIndex];
-    }
-    return null;
-  }
-
-  redo() {
-    if (this.currentIndex < this.history.length - 1) {
-      this.currentIndex++;
-      return this.history[this.currentIndex];
-    }
-    return null;
-  }
-}
-```
-
----
-
-#### 6. 画像のドラッグ&ドロップ並び替え
-**実装難易度**: ⭐⭐ 中程度
-**実装時間**: 2時間
-**目的**: ノード内の画像順序を自由に変更
-
-**実装内容**:
-- ノード詳細パネルの画像グリッドにドラッグ&ドロップ機能を追加
-- HTML5 Drag and Drop APIを使用
-- 並び替え中は視覚的なフィードバックを表示
-- 並び替え後に自動保存
-- 実装箇所: `js/canvasController.js`の`renderNodeDetails()`
-
-**実装方法**:
-```javascript
-// 画像要素にdraggable属性を追加
-<img
-  draggable="true"
-  ondragstart="handleDragStart(event, ${index})"
-  ondragover="handleDragOver(event)"
-  ondrop="handleDrop(event, ${index})"
-  class="cursor-move"
-  ...>
-
-function handleDragStart(e, index) {
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('imageIndex', index);
-  e.currentTarget.style.opacity = '0.5';
-}
-
-function handleDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-}
-
-function handleDrop(e, targetIndex) {
-  e.preventDefault();
-  const sourceIndex = parseInt(e.dataTransfer.getData('imageIndex'));
-
-  if (sourceIndex === targetIndex) return;
-
-  const node = workflowEngine.nodes.get(nodeId);
-  const [removed] = node.images.splice(sourceIndex, 1);
-  node.images.splice(targetIndex, 0, removed);
-
-  workflowEngine.emit('nodeUpdated', { nodeId });
-  workflowEngine.saveWorkflow();
-
-  // 画像グリッドを再描画
-  this.renderNodeDetails(nodeId);
-}
-```
-
----
-
-#### 7. エッジの色カスタマイズ
-**実装難易度**: ⭐ 簡単
-**実装時間**: 1時間
-**目的**: エッジに色をつけて視覚的に整理
-
-**実装内容**:
-- エッジ詳細パネルに色選択パレットを追加
-- 6色のプリセットカラーを用意（紫、青、緑、黄、橙、赤）
-- エッジの`metadata.color`プロパティに保存
-- vis.jsのエッジ色設定に反映
-- 実装箇所: `index.html`、`js/canvasController.js`
-
-**実装方法**:
-```javascript
-// エッジ詳細パネルに色選択を追加
-<div class="mt-4">
-  <label class="block text-sm font-medium text-gray-300 mb-2">🎨 エッジの色</label>
-  <div class="flex gap-2">
-    ${['#a855f7', '#3b82f6', '#10b981', '#fbbf24', '#f97316', '#ef4444'].map(color => `
-      <button
-        onclick="setEdgeColor('${edge.id}', '${color}')"
-        class="w-8 h-8 rounded border-2 border-gray-600 hover:border-white"
-        style="background-color: ${color}">
-      </button>
-    `).join('')}
-  </div>
-</div>
-
-// 色設定関数
-function setEdgeColor(edgeId, color) {
-  const edge = workflowEngine.edges.get(edgeId);
-  edge.metadata = { ...edge.metadata, color };
-
-  // vis.jsのエッジを更新
-  this.network.body.data.edges.update({
-    id: edgeId,
-    color: { color: color }
-  });
-
-  workflowEngine.saveWorkflow();
-}
-```
-
----
-
-#### 8. ノードのズーム機能
-**実装難易度**: ⭐ 簡単
-**実装時間**: 30分
-**目的**: 特定のノードにすばやくフォーカス
-
-**実装内容**:
-- ノード詳細パネルに「Zoom to Node」ボタンを追加
-- クリックでそのノードを中央に表示してズームイン
-- ミニマップからのノードクリックでもズーム
-- 実装箇所: `js/canvasController.js`
-
-**実装方法**:
-```javascript
-zoomToNode(nodeId) {
-  const position = this.network.getPositions([nodeId])[nodeId];
-  this.network.moveTo({
-    position: position,
-    scale: 1.5,
-    animation: {
-      duration: 500,
-      easingFunction: 'easeInOutQuad'
-    }
-  });
-}
-```
-
----
-
-#### 9. ワークフローのエクスポート改善
-**実装難易度**: ⭐ 簡単
-**実装時間**: 1時間
-**目的**: ワークフローを見やすいPNG画像として保存
-
-**実装内容**:
-- ヘッダーに「📸 スクリーンショット」ボタンを追加
-- vis.jsキャンバス全体をPNG画像として保存
-- ファイル名に日時を含める（`workflow-YYYY-MM-DD.png`）
-- 透明背景または白背景を選択可能
-- 実装箇所: `js/workflowApp.js`
-
-**実装方法**:
-```javascript
-exportAsScreenshot() {
-  // vis.jsのキャンバスを取得
-  const canvas = this.container.querySelector('canvas');
-
-  if (!canvas) {
-    alert('キャンバスが見つかりません');
-    return;
-  }
-
-  // ダウンロードリンクを作成
-  const link = document.createElement('a');
-  const timestamp = new Date().toISOString().slice(0, 10);
-  link.download = `workflow-${timestamp}.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-
-  console.log('スクリーンショットを保存しました');
-}
-```
+以下は、現在の実装を活かして30分〜3時間程度で追加できる実用的な機能です。大規模実装やProduction公開は想定せず、個人・小規模チーム向けの実用機能に限定します。
+
+#### 1. **プロンプトテンプレート管理** ⭐ 簡単
+- **実装時間**: 1-1.5時間
+- **目的**: よく使うプロンプトをテンプレートとして保存・再利用
+- **実装内容**:
+  - プロンプト編集モーダルに「💾 テンプレート保存」ボタンを追加
+  - LocalStorageに`prompt_templates`配列として保存
+  - プロンプト入力時にドロップダウンでテンプレート選択
+  - 設定モーダルにテンプレート一覧と削除機能を追加
+- **実装箇所**: `index.html`、`js/workflowApp.js`
+
+#### 2. **ノードのメモ/ラベル機能** ⭐ 簡単
+- **実装時間**: 45分〜1時間
+- **目的**: ノードに説明やメモを追加して作業を整理
+- **実装内容**:
+  - ノード詳細パネルに「📝 メモ」テキストエリアを追加
+  - ノードオブジェクトの`metadata.note`に保存（自動保存）
+  - メモがあるノードのキャンバス上に📝アイコンを表示
+  - ノード名をカスタマイズ可能に（デフォルト: "Node 1"など）
+- **実装箇所**: `js/canvasController.js:renderNodeDetails()`、`js/workflowEngine.js`
+
+#### 3. **ノードのズーム/フォーカス機能** ⭐ 簡単
+- **実装時間**: 30分
+- **目的**: 特定のノードにすばやくフォーカスしてワークフローを見やすくする
+- **実装内容**:
+  - ノード詳細パネルに「🎯 Zoom to Node」ボタンを追加
+  - クリックでそのノードを中央に表示してズームイン（vis.js `moveTo()`）
+  - スムーズなアニメーション付き（500ms）
+- **実装箇所**: `js/canvasController.js`
+
+#### 4. **エッジの色カスタマイズ** ⭐ 簡単
+- **実装時間**: 1時間
+- **目的**: エッジに色をつけてワークフローを視覚的に整理
+- **実装内容**:
+  - エッジ詳細パネルに色選択パレットを追加（6色プリセット）
+  - エッジの`metadata.color`に保存してvis.jsに反映
+  - プロンプトカテゴリごとに色分け可能
+- **実装箇所**: `index.html`、`js/canvasController.js:renderEdgeDetails()`
+
+#### 5. **ワークフローのPNGエクスポート** ⭐ 簡単
+- **実装時間**: 45分〜1時間
+- **目的**: ワークフロー全体を画像として保存してドキュメント化
+- **実装内容**:
+  - ヘッダーに「📸 スクリーンショット」ボタンを追加
+  - vis.jsキャンバス全体をPNG画像としてエクスポート
+  - ファイル名に日時を含める（`workflow-2025-10-30.png`）
+- **実装箇所**: `js/workflowApp.js`
+
+#### 6. **画像の複数選択削除** ⭐ 簡単
+- **実装時間**: 1時間
+- **目的**: ノード内の不要な画像を一括削除してストレージを節約
+- **実装内容**:
+  - ノード詳細パネルの画像グリッドにチェックボックスを追加
+  - 「🗑️ 選択削除」ボタンで複数画像を一度に削除
+  - 削除前に確認ダイアログを表示
+- **実装箇所**: `js/canvasController.js:renderNodeDetails()`
+
+#### 7. **画像のキーボードナビゲーション** ⭐ 簡単
+- **実装時間**: 30分
+- **目的**: 矢印キーで画像を素早く切り替え
+- **実装内容**:
+  - ノード詳細パネルで画像が選択されている時に←→キーで前後の画像に切り替え
+  - Enterキーで画像拡大モーダルを表示
+  - Escキーでパネルを閉じる（既存機能の拡張）
+- **実装箇所**: `js/workflowApp.js:bindKeyboardEvents()`
+
+#### 8. **ノードの複製機能** ⭐ 簡単
+- **実装時間**: 45分
+- **目的**: 既存ノードを複製して似たワークフローを素早く構築
+- **実装内容**:
+  - 右クリックメニューに「📋 複製」オプションを追加
+  - ノードの画像、メタデータ、設定をコピー（エッジは除外）
+  - 複製ノードを元のノードの右側に配置
+- **実装箇所**: `js/canvasController.js:showCircleMenu()`、`js/workflowEngine.js`
+
+#### 9. **Undo/Redo機能** ⭐⭐ 中程度
+- **実装時間**: 2-3時間
+- **目的**: 操作を取り消し・やり直しできるようにする
+- **実装内容**:
+  - ノード/エッジの作成・削除、画像追加などの操作を記録
+  - `Ctrl/Cmd + Z`でUndo、`Ctrl/Cmd + Shift + Z`でRedo
+  - ヘッダーにUndo/Redoボタンを追加（最大20操作まで）
+- **実装箇所**: 新規ファイル`js/historyManager.js`、`js/workflowEngine.js`
+
+#### 10. **バッチ画像生成機能** ⭐⭐ 中程度
+- **実装時間**: 2-3時間
+- **目的**: 複数の生成ノードで一括して画像生成を実行
+- **実装内容**:
+  - ヘッダーに「⚡ 一括生成」ボタンを追加
+  - Generate可能なノード（入力エッジあり）を検出して確認ダイアログ表示
+  - 順次または並列で画像生成を実行（オプション選択可能）
+  - プログレス表示とエラーハンドリング
+- **実装箇所**: `js/workflowApp.js`、`js/transformationService.js`
 
 ---
 
 ### 📋 中期実装機能（優先度: 中 🟡）
 
-#### 10. 生成ノードタイプの追加（モーダル復活）
-**実装難易度**: ⭐⭐ 中程度
-**実装時間**: 1.5-2時間
-**目的**: ノード作成時に入力/生成ノードを選択できるようにする
+#### 11. **画像のドラッグ&ドロップ並び替え** ⭐⭐ 中程度
+- **実装時間**: 2時間
+- **目的**: ノード内の画像順序を自由に変更
+- **実装内容**: HTML5 Drag and Drop APIを使用してノード詳細パネルの画像グリッドで並び替え
+- **実装箇所**: `js/canvasController.js:renderNodeDetails()`
 
-**実装内容**:
-- ノード追加ボタンをクリック時にモーダルを表示（v5.2で削除されたモーダルを復活）
-- 入力ノード（📤）/生成ノード（✨）を選択
-- 選択したタイプに応じてノードを作成
-- 実装箇所: `index.html`、`js/workflowApp.js`
+#### 12. **プロンプト生成進捗の視覚化** ⭐⭐ 中程度
+- **実装時間**: 2-3時間
+- **目的**: 画像生成中の進捗を視覚的に表示
+- **実装内容**: 生成中のノードにプログレスバーを表示（0% → 100%）、推定残り時間表示
+- **実装箇所**: `js/transformationService.js`、`js/canvasController.js`
 
-**実装方法**:
-```javascript
-// モーダルHTML（index.htmlに追加）
-<div id="nodeTypeModal" class="modal">
-  <div class="modal-content">
-    <h3 class="text-xl font-bold mb-4">ノードタイプを選択</h3>
-    <div class="grid grid-cols-2 gap-4">
-      <button onclick="createNodeWithType('input')" class="p-6 bg-blue-600 rounded-lg">
-        <div class="text-4xl mb-2">📤</div>
-        <div class="font-bold">入力ノード</div>
-        <div class="text-sm text-gray-300 mt-1">画像をアップロード</div>
-      </button>
-      <button onclick="createNodeWithType('generated')" class="p-6 bg-purple-600 rounded-lg">
-        <div class="text-4xl mb-2">✨</div>
-        <div class="font-bold">生成ノード</div>
-        <div class="text-sm text-gray-300 mt-1">AI画像を受け取る</div>
-      </button>
-    </div>
-  </div>
-</div>
-
-// ノード作成関数
-createNodeWithType(type) {
-  const position = { x: Math.random() * 500, y: Math.random() * 500 };
-  workflowEngine.createNode(type, position);
-  closeModal('nodeTypeModal');
-}
-```
-
----
-
-#### 11. プログレスバー付き画像生成
-**実装難易度**: ⭐⭐ 中程度
-**実装時間**: 2-3時間
-**目的**: 画像生成中の進捗を視覚的に表示
-
-**実装内容**:
-- 生成中のノードにプログレスバーを表示
-- ポーリング状態を可視化（0% → 25% → 50% → 75% → 100%）
-- 推定残り時間を表示（オプション）
-- 実装箇所: `js/transformationService.js`、`js/canvasController.js`
-
-**実装方法**:
-```javascript
-// ノードにプログレスを追加
-node.metadata = {
-  ...node.metadata,
-  generationProgress: 0,
-  generationStatus: 'processing'
-};
-
-// ポーリング中にプログレスを更新
-let pollCount = 0;
-const maxPolls = 24; // 24秒
-
-while (pollCount < maxPolls) {
-  const progress = Math.min((pollCount / maxPolls) * 100, 95);
-  node.metadata.generationProgress = progress;
-  workflowEngine.emit('nodeUpdated', { nodeId });
-
-  // ポーリング処理
-  await sleep(1000);
-  pollCount++;
-}
-
-// 完了時
-node.metadata.generationProgress = 100;
-node.metadata.generationStatus = 'completed';
-```
+#### 13. **ノードタイプ選択モーダルの復活** ⭐⭐ 中程度
+- **実装時間**: 1.5-2時間
+- **目的**: ノード作成時に入力/生成ノードを選択できるようにする
+- **実装内容**: v5.2で簡素化された機能を復活させ、ノード追加時にタイプ選択モーダルを表示
+- **実装箇所**: `index.html`、`js/workflowApp.js`
 
 ---
 
@@ -869,6 +508,8 @@ node.metadata.generationStatus = 'completed';
 - **画像のフィルタ適用**: 明るさ、コントラスト等の基本的な画像編集
 - **ワークフロー共有機能**: JSONでエクスポート/インポート（既存機能の拡張）
 
+---
+
 ### 実装しない機能 ❌
 
 以下は複雑すぎるか、現在の目的に合わないため実装しません：
@@ -878,7 +519,7 @@ node.metadata.generationStatus = 'completed';
 - **データベース連携**: JSONファイルベースが適切
 - **リアルタイムコラボレーション**: 実装コストが高すぎる
 - **モバイルアプリ化**: Webアプリケーションに集中
-- **複数の画像生成モデル対応**: Nano Bananaに集中
+- **複数の画像生成モデル対応**: Nano Bananaモデルに集中
 
 ## 💻 技術スタック
 
@@ -1098,5 +739,5 @@ MIT License
 
 ---
 
-**Last Updated**: 2025-10-27
-**Version**: 5.3.0
+**Last Updated**: 2025-10-30
+**Version**: 5.4.0

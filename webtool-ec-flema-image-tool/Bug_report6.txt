@@ -1,0 +1,978 @@
+=============================================================================
+Bug_report6: Canvas Maximization Cutoff Issue - Comprehensive Investigation
+=============================================================================
+Created: 2025-01-07
+Investigator: Professional Engineer
+Target System: FleMa Image Editing Tool
+Investigation Scope: Full codebase (HTML/CSS/JavaScript)
+
+=============================================================================
+■ EXECUTIVE SUMMARY
+=============================================================================
+
+【Issue Overview】
+When clicking the "Zoom to Fit" button (最大表示（画面に合わせる）) in the header toolbar,
+the canvas gets cut off at the bottom of the viewport. The canvas does not fill the
+entire available screen space as expected by users.
+
+【Severity】
+- Severity Level: MEDIUM
+- Impact: All users on all devices (desktop & mobile)
+- Frequency: 100% reproducible
+- User Experience Impact: HIGH (prevents users from seeing full canvas at maximum zoom)
+
+【Root Cause】
+The canvas container height calculation does not properly account for:
+1. CSS padding on #canvasContainer
+2. Header height subtraction in mobile mode
+3. Available viewport height calculation in fitCanvasToContainer()
+4. Vertical positioning strategy in syncCanvasViewportSize()
+
+=============================================================================
+■ BUG IDENTIFICATION
+=============================================================================
+
+【Bug Location】
+Primary Files:
+- js/canvas.state.js (lines 629-675): fitCanvasToContainer() function
+- js/canvas.state.js (lines 472-549): syncCanvasViewportSize() function  
+- js/canvas.init.js (lines 726-783): centerCanvasInView() function
+- css/style.css (lines 447-493): #canvasContainer styling
+- css/style.css (lines 1076-1083): Mobile-specific height calculations
+
+【Current Implementation Analysis】
+
+■ 1. Canvas Container CSS (css/style.css: 447-493)
+
+```css
+#canvasContainer {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    height: 60vh;  /* ← Only 60% of viewport height */
+    height: calc(var(--vh, 1vh) * 60);
+    background: #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    overflow: auto;
+    border-bottom: 2px solid var(--border-color);
+    padding: 24px 20px 32px;  /* ← Padding reduces available space */
+    opacity: 0;
+    transition: opacity 0.25s ease-in-out;
+}
+```
+
+**Issue**: Container is only 60vh, not full available height.
+
+■ 2. Mobile Mode Height Calculation (css/style.css: 1076-1083)
+
+```css
+@media (max-width: 768px) {
+    #canvasContainer {
+        height: calc(60vh - var(--header-height, 96px));
+        height: calc(var(--vh, 1vh) * 60 - var(--header-height, 96px));
+        min-height: 200px;
+        max-height: calc(60vh - var(--header-height, 96px));
+        max-height: calc(var(--vh, 1vh) * 60 - var(--header-height, 96px));
+        position: relative;
+    }
+}
+```
+
+**Issue**: Subtracts header height but still limited to 60vh base value.
+
+■ 3. fitCanvasToContainer() Function (canvas.state.js: 629-675)
+
+```javascript
+function fitCanvasToContainer() {
+    if (!canvas) return;
+
+    const container = document.getElementById('canvasContainer');
+    if (!container) return;
+
+    const computedStyle = window.getComputedStyle(container);
+    const paddingX = parseFloat(computedStyle.paddingLeft || '0') + 
+                     parseFloat(computedStyle.paddingRight || '0');
+    const paddingY = parseFloat(computedStyle.paddingTop || '0') + 
+                     parseFloat(computedStyle.paddingBottom || '0');
+
+    const availableWidth = Math.max(container.clientWidth - paddingX, 0);
+    const availableHeight = Math.max(container.clientHeight - paddingY, 0);
+    // ↑ Uses container.clientHeight which is limited by 60vh CSS
+
+    if (availableWidth === 0 || availableHeight === 0) {
+        syncCanvasViewportSize({ recenter: true });
+        updateZoomUiFromCanvas();
+        return;
+    }
+
+    const widthScale = availableWidth / canvas.width;
+    const heightScale = availableHeight / canvas.height;
+    const fitZoom = Math.min(widthScale, heightScale);
+    // ↑ Zoom calculated based on limited 60vh height
+    
+    canvas.setZoom(fitZoom);
+    canvasZoom = fitZoom;
+    sharedCanvasZoom = canvasZoom;
+    centerCanvasInView();
+    syncCanvasViewportSize({ recenter: false });
+    updateZoomUiFromCanvas();
+    canvas.requestRenderAll();
+    persistActiveCanvasState();
+}
+```
+
+**Issue**: Available height is based on container.clientHeight which is constrained
+by the 60vh CSS rule, not the actual viewport height minus header.
+
+■ 4. syncCanvasViewportSize() Vertical Positioning (canvas.state.js: 472-549)
+
+```javascript
+function syncCanvasViewportSize(options = {}) {
+    // ... (width/height calculations)
+    
+    if (wrapper) {
+        wrapper.style.width = `${canvasWidth}px`;
+        wrapper.style.height = `${canvasHeight}px`;
+        wrapper.style.transform = `scale(${zoom})`;
+        wrapper.style.transformOrigin = 'center center';
+
+        const availableWidth = container.clientWidth - paddingLeft - paddingRight;
+        const availableHeight = container.clientHeight - paddingTop - paddingBottom;
+        // ↑ Still limited by 60vh container height
+
+        wrapper.style.position = 'absolute';
+        wrapper.style.left = `${paddingLeft + availableWidth / 2 - canvasWidth / 2}px`;
+        wrapper.style.top = `${paddingTop + (availableHeight * 0.3) - canvasHeight / 2}px`;
+        // ↑ Positioned at 30% of available height, which is already limited
+    }
+    // ...
+}
+```
+
+**Issue**: Vertical positioning uses 30% of limited available height, causing cutoff.
+
+■ 5. centerCanvasInView() Positioning (canvas.init.js: 726-783)
+
+```javascript
+function centerCanvasInView() {
+    if (!canvas) return;
+
+    const canvasContainer = document.getElementById('canvasContainer');
+    if (!canvasContainer) return;
+
+    const zoom = canvas.getZoom();
+    const computedStyle = window.getComputedStyle(canvasContainer);
+    const paddingLeft = parseFloat(computedStyle.paddingLeft || '0');
+    const paddingRight = parseFloat(computedStyle.paddingRight || '0');
+    const paddingTop = parseFloat(computedStyle.paddingTop || '0');
+    const paddingBottom = parseFloat(computedStyle.paddingBottom || '0');
+
+    const availableWidth = Math.max(
+        canvasContainer.clientWidth - paddingLeft - paddingRight, 0
+    );
+    const availableHeight = Math.max(
+        canvasContainer.clientHeight - paddingTop - paddingBottom, 0
+    );
+    // ↑ Again using limited container.clientHeight
+
+    const vpt = canvas.viewportTransform.slice();
+    vpt[4] = 0;
+    vpt[5] = 0;
+    canvas.setViewportTransform(vpt);
+    canvas.requestRenderAll();
+}
+```
+
+**Issue**: Uses container.clientHeight which doesn't reflect true viewport availability.
+
+=============================================================================
+■ ROOT CAUSE ANALYSIS
+=============================================================================
+
+【Architectural Flow of the Issue】
+
+1. **CSS Constraint Layer**
+   - #canvasContainer is set to 60vh height
+   - Mobile mode subtracts header height but still from 60vh base
+   - This creates an artificial ceiling on available space
+
+2. **JavaScript Calculation Layer**
+   - fitCanvasToContainer() reads container.clientHeight
+   - This value is already constrained by CSS (60vh - header)
+   - Zoom calculation is based on this limited height
+
+3. **Positioning Layer**
+   - syncCanvasViewportSize() positions canvas at 30% of available height
+   - centerCanvasInView() doesn't compensate for the positioning offset
+   - Result: Canvas bottom is cut off when zoomed to fit
+
+【Why Current Approach Fails】
+
+```
+Expected Flow:
+Viewport (100vh) → Header (96px) → Available Space (100vh - 96px) → Canvas Fits
+
+Actual Flow:
+Viewport (100vh) → CSS limit (60vh) → Header (96px) → Limited Space (60vh - 96px) → Canvas Cutoff
+                    ↑ Bottleneck
+```
+
+The 60vh constraint was likely intended to:
+- Reserve space for toolbar at bottom (40vh)
+- Work in column-reverse layout for mobile
+
+However, when "maximizing" canvas, users expect 100% available viewport usage.
+
+=============================================================================
+■ DETAILED PROBLEM SYMPTOMS
+=============================================================================
+
+【Reproduction Steps】
+1. Open application on any device
+2. Add an image or text to canvas
+3. Click "Zoom to Fit" button (最大表示) in header toolbar
+4. Observe: Canvas bottom portion is hidden below viewport
+
+【Expected Behavior】
+Canvas should fit entirely within visible viewport area, utilizing:
+- Full viewport height minus header height
+- Proper padding/margin consideration
+- Complete visibility of canvas boundaries
+
+【Actual Behavior】
+Canvas is sized to fit within 60vh container, causing bottom cutoff when:
+- Canvas zoom makes it larger than available space
+- Vertical positioning doesn't account for zoom scaling
+- No overflow handling for maximized state
+
+【Visual Evidence】
+```
+┌─────────────────────────────────────┐
+│ Header (96px)                       │
+├─────────────────────────────────────┤
+│ Canvas Container (60vh - 96px)      │
+│ ┌─────────────────────────────────┐ │
+│ │                                 │ │
+│ │  Visible Canvas Area           │ │
+│ │                                 │ │
+│ └─────────────────────────────────┘ │
+│   Cutoff Area (invisible) ↓         │
+└─────────────────────────────────────┘
+│ Toolbar (40vh)                      │
+└─────────────────────────────────────┘
+```
+
+=============================================================================
+■ IMPACT ANALYSIS
+=============================================================================
+
+【User Experience Impact】
+- **Severity**: MEDIUM-HIGH
+- **Frequency**: Every time user clicks "Zoom to Fit"
+- **Data Loss Risk**: None (no data corruption)
+- **Workaround**: Manual zoom out, but defeats purpose of maximize button
+
+【Affected User Actions】
+1. Maximizing canvas to see full image
+2. Editing near canvas bottom edge
+3. Viewing full composition at maximum size
+4. Mobile users with limited screen space
+
+【Business Impact】
+- Reduced user satisfaction
+- Perception of "broken" maximize feature
+- Competitive disadvantage (other tools handle this correctly)
+
+=============================================================================
+■ SOLUTION DESIGN
+=============================================================================
+
+【Strategy】
+Two-phase approach:
+1. **CSS Layer**: Remove 60vh constraint for maximize mode
+2. **JavaScript Layer**: Calculate true available viewport space
+
+【Solution Components】
+
+## 1. Dynamic Container Height Calculation
+
+**Objective**: Make #canvasContainer use full available viewport height when maximized.
+
+**Implementation**:
+```javascript
+// New function in canvas.state.js
+function calculateAvailableViewportHeight() {
+    const header = document.querySelector('.app-header');
+    const toolbar = document.querySelector('.toolbar');
+    
+    const headerHeight = header ? header.offsetHeight : 96;
+    const toolbarHeight = toolbar ? toolbar.offsetHeight : 0;
+    
+    const vh = window.innerHeight;
+    const availableHeight = vh - headerHeight - toolbarHeight;
+    
+    return Math.max(availableHeight, 200); // Minimum 200px
+}
+```
+
+## 2. fitCanvasToContainer() Enhancement
+
+**Changes Required**:
+```javascript
+function fitCanvasToContainer() {
+    if (!canvas) return;
+
+    const container = document.getElementById('canvasContainer');
+    if (!container) return;
+
+    // ★ FIX: Calculate true available viewport height
+    const trueAvailableHeight = calculateAvailableViewportHeight();
+    
+    const computedStyle = window.getComputedStyle(container);
+    const paddingX = parseFloat(computedStyle.paddingLeft || '0') + 
+                     parseFloat(computedStyle.paddingRight || '0');
+    const paddingY = parseFloat(computedStyle.paddingTop || '0') + 
+                     parseFloat(computedStyle.paddingBottom || '0');
+
+    // ★ FIX: Use true viewport height, not container.clientHeight
+    const availableWidth = Math.max(container.clientWidth - paddingX, 0);
+    const availableHeight = Math.max(trueAvailableHeight - paddingY, 0);
+
+    if (availableWidth === 0 || availableHeight === 0) {
+        syncCanvasViewportSize({ recenter: true });
+        updateZoomUiFromCanvas();
+        return;
+    }
+
+    const widthScale = availableWidth / canvas.width;
+    const heightScale = availableHeight / canvas.height;
+    const fitZoom = Math.min(widthScale, heightScale);
+    
+    // ★ FIX: Ensure container height matches calculated height
+    container.style.height = `${trueAvailableHeight}px`;
+    container.style.minHeight = `${trueAvailableHeight}px`;
+    container.style.maxHeight = `${trueAvailableHeight}px`;
+    
+    canvas.setZoom(fitZoom);
+    canvasZoom = fitZoom;
+    sharedCanvasZoom = canvasZoom;
+
+    centerCanvasInView();
+    syncCanvasViewportSize({ recenter: true }); // ★ Changed to true
+    updateZoomUiFromCanvas();
+    canvas.requestRenderAll();
+    persistActiveCanvasState();
+}
+```
+
+## 3. syncCanvasViewportSize() Vertical Centering Fix
+
+**Changes Required**:
+```javascript
+function syncCanvasViewportSize(options = {}) {
+    if (!canvas) return;
+
+    const container = document.getElementById('canvasContainer');
+    if (!container) return;
+
+    const { recenter = false } = options;
+    const zoom = canvas.getZoom();
+
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+
+    const wrapper = canvas.wrapperEl;
+    const lower = canvas.lowerCanvasEl;
+    const upper = canvas.upperCanvasEl;
+
+    if (wrapper) {
+        wrapper.style.width = `${canvasWidth}px`;
+        wrapper.style.height = `${canvasHeight}px`;
+        wrapper.style.transform = `scale(${zoom})`;
+        wrapper.style.transformOrigin = 'center center';
+
+        const computedStyle = window.getComputedStyle(container);
+        const paddingLeft = parseFloat(computedStyle.paddingLeft || '0');
+        const paddingRight = parseFloat(computedStyle.paddingRight || '0');
+        const paddingTop = parseFloat(computedStyle.paddingTop || '0');
+        const paddingBottom = parseFloat(computedStyle.paddingBottom || '0');
+
+        // ★ FIX: Use actual container height (now set to full viewport)
+        const availableWidth = container.clientWidth - paddingLeft - paddingRight;
+        const availableHeight = container.clientHeight - paddingTop - paddingBottom;
+
+        // ★ FIX: Calculate scaled canvas size
+        const scaledCanvasWidth = canvasWidth * zoom;
+        const scaledCanvasHeight = canvasHeight * zoom;
+
+        wrapper.style.position = 'absolute';
+        
+        // ★ FIX: Center horizontally
+        wrapper.style.left = `${paddingLeft + (availableWidth - canvasWidth) / 2}px`;
+        
+        // ★ FIX: Center vertically (changed from 30% positioning)
+        wrapper.style.top = `${paddingTop + (availableHeight - canvasHeight) / 2}px`;
+    }
+
+    [lower, upper].forEach((el) => {
+        if (!el) return;
+        el.style.width = `${canvasWidth}px`;
+        el.style.height = `${canvasHeight}px`;
+    });
+
+    if (upper) {
+        upper.style.zIndex = '11';
+        upper.style.pointerEvents = 'auto';
+        upper.style.backgroundColor = 'transparent';
+    }
+    if (lower) {
+        lower.style.zIndex = '10';
+        lower.style.backgroundColor = '#ffffff';
+    }
+
+    if (recenter) {
+        centerCanvasInView();
+    }
+
+    container.scrollLeft = 0;
+    container.scrollTop = 0;
+
+    canvas.calcOffset();
+
+    requestAnimationFrame(() => {
+        canvas.renderAll();
+        console.log('[Canvas] Viewport size synced, zoom:', zoom);
+    });
+
+    dbgCanvas('syncViewportSize', { zoom, recenter });
+}
+```
+
+## 4. CSS Adjustments
+
+**css/style.css changes**:
+
+```css
+/* Remove 60vh limitation for canvas container */
+#canvasContainer {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    /* REMOVED: height: 60vh; */
+    /* REMOVED: height: calc(var(--vh, 1vh) * 60); */
+    /* ★ NEW: Height will be set dynamically by JavaScript */
+    background: #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    overflow: auto;
+    border-bottom: 2px solid var(--border-color);
+    padding: 24px 20px 32px;
+    opacity: 0;
+    transition: opacity 0.25s ease-in-out;
+}
+
+/* Mobile mode adjustments */
+@media (max-width: 768px) {
+    #canvasContainer {
+        /* REMOVED: Fixed height calculations */
+        /* ★ NEW: Height managed by JavaScript fitCanvasToContainer() */
+        min-height: 200px;
+        position: relative;
+        padding: 16px;
+    }
+}
+
+/* Desktop mode height */
+body.desktop-mode #canvasContainer {
+    flex: 1;
+    height: calc(100vh - var(--header-height)) !important;
+    max-height: none;
+    padding: clamp(24px, 4vw, 48px);
+}
+```
+
+## 5. Resize Event Handler Update
+
+**Add to canvas.init.js or main.js**:
+
+```javascript
+// Recalculate on window resize
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        const container = document.getElementById('canvasContainer');
+        if (container && canvas) {
+            // Reset container to allow new calculation
+            container.style.height = '';
+            container.style.minHeight = '';
+            container.style.maxHeight = '';
+            
+            // Recalculate and apply
+            fitCanvasToContainer();
+        }
+    }, 250);
+});
+```
+
+=============================================================================
+■ IMPLEMENTATION PLAN
+=============================================================================
+
+【Phase 1: Preparation】
+1. Backup current codebase
+2. Create feature branch: `fix/canvas-maximization-cutoff`
+3. Test current behavior and document exact cutoff measurements
+
+【Phase 2: Code Changes】
+
+**Step 1**: Add helper function (canvas.state.js)
+```javascript
+// Add after line 78 (after preferredCanvasSize definition)
+function calculateAvailableViewportHeight() {
+    const header = document.querySelector('.app-header');
+    const toolbar = document.querySelector('.toolbar');
+    
+    const headerHeight = header ? header.offsetHeight : 96;
+    const toolbarHeight = toolbar ? toolbar.offsetHeight : 0;
+    
+    const vh = window.innerHeight;
+    const availableHeight = vh - headerHeight - toolbarHeight;
+    
+    console.log('[Bug6 Fix] Calculated available viewport height:', {
+        windowHeight: vh,
+        headerHeight,
+        toolbarHeight,
+        availableHeight
+    });
+    
+    return Math.max(availableHeight, 200);
+}
+```
+
+**Step 2**: Update fitCanvasToContainer() (canvas.state.js: lines 629-675)
+```javascript
+// Replace existing function
+function fitCanvasToContainer() {
+    if (!canvas) return;
+
+    const container = document.getElementById('canvasContainer');
+    if (!container) return;
+
+    // ★ Bug6 Fix: Calculate true available viewport height
+    const trueAvailableHeight = calculateAvailableViewportHeight();
+    
+    const computedStyle = window.getComputedStyle(container);
+    const paddingX = parseFloat(computedStyle.paddingLeft || '0') + 
+                     parseFloat(computedStyle.paddingRight || '0');
+    const paddingY = parseFloat(computedStyle.paddingTop || '0') + 
+                     parseFloat(computedStyle.paddingBottom || '0');
+
+    // ★ Bug6 Fix: Use true viewport height
+    const availableWidth = Math.max(container.clientWidth - paddingX, 0);
+    const availableHeight = Math.max(trueAvailableHeight - paddingY, 0);
+
+    console.log('[Bug6 Fix] fitCanvasToContainer:', {
+        trueAvailableHeight,
+        paddingY,
+        availableWidth,
+        availableHeight,
+        canvasSize: [canvas.width, canvas.height]
+    });
+
+    if (availableWidth === 0 || availableHeight === 0) {
+        syncCanvasViewportSize({ recenter: true });
+        updateZoomUiFromCanvas();
+        return;
+    }
+
+    const widthScale = availableWidth / canvas.width;
+    const heightScale = availableHeight / canvas.height;
+    const fitZoom = Math.min(widthScale, heightScale);
+    
+    console.log('[Bug6 Fix] Calculated fit zoom:', {
+        widthScale: widthScale.toFixed(3),
+        heightScale: heightScale.toFixed(3),
+        fitZoom: fitZoom.toFixed(3)
+    });
+
+    // ★ Bug6 Fix: Set container height to match calculated height
+    container.style.height = `${trueAvailableHeight}px`;
+    container.style.minHeight = `${trueAvailableHeight}px`;
+    container.style.maxHeight = `${trueAvailableHeight}px`;
+
+    const currentZoom = canvas.getZoom();
+
+    if (Math.abs(fitZoom - currentZoom) < 0.001) {
+        centerCanvasInView();
+        syncCanvasViewportSize({ recenter: true });
+        updateZoomUiFromCanvas();
+        return;
+    }
+
+    canvas.setZoom(fitZoom);
+    canvasZoom = fitZoom;
+    sharedCanvasZoom = canvasZoom;
+
+    centerCanvasInView();
+    syncCanvasViewportSize({ recenter: true });
+    updateZoomUiFromCanvas();
+    canvas.requestRenderAll();
+    persistActiveCanvasState();
+    
+    console.log('[Bug6 Fix] fitCanvasToContainer completed, final zoom:', fitZoom.toFixed(3));
+}
+```
+
+**Step 3**: Update syncCanvasViewportSize() (canvas.state.js: lines 472-549)
+```javascript
+// Update wrapper positioning section (around line 489-512)
+if (wrapper) {
+    wrapper.style.width = `${canvasWidth}px`;
+    wrapper.style.height = `${canvasHeight}px`;
+    wrapper.style.transform = `scale(${zoom})`;
+    wrapper.style.transformOrigin = 'center center';
+
+    const computedStyle = window.getComputedStyle(container);
+    const paddingLeft = parseFloat(computedStyle.paddingLeft || '0');
+    const paddingRight = parseFloat(computedStyle.paddingRight || '0');
+    const paddingTop = parseFloat(computedStyle.paddingTop || '0');
+    const paddingBottom = parseFloat(computedStyle.paddingBottom || '0');
+
+    const availableWidth = container.clientWidth - paddingLeft - paddingRight;
+    const availableHeight = container.clientHeight - paddingTop - paddingBottom;
+
+    wrapper.style.position = 'absolute';
+    
+    // ★ Bug6 Fix: Center horizontally
+    wrapper.style.left = `${paddingLeft + (availableWidth - canvasWidth) / 2}px`;
+    
+    // ★ Bug6 Fix: Center vertically (changed from 30% offset)
+    wrapper.style.top = `${paddingTop + (availableHeight - canvasHeight) / 2}px`;
+    
+    console.log('[Bug6 Fix] Canvas wrapper positioned:', {
+        left: wrapper.style.left,
+        top: wrapper.style.top,
+        availableSize: [availableWidth, availableHeight],
+        canvasSize: [canvasWidth, canvasHeight]
+    });
+}
+```
+
+**Step 4**: Update CSS (css/style.css)
+```css
+/* Line 447-468: Update #canvasContainer */
+#canvasContainer {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    /* ★ Bug6 Fix: Remove fixed 60vh height */
+    /* REMOVED: height: 60vh; */
+    /* REMOVED: height: calc(var(--vh, 1vh) * 60); */
+    background: #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    overflow: auto;
+    border-bottom: 2px solid var(--border-color);
+    padding: 24px 20px 32px;
+    opacity: 0;
+    transition: opacity 0.25s ease-in-out;
+}
+
+/* Lines 1076-1083: Update mobile mode */
+@media (max-width: 768px) {
+    #canvasContainer {
+        /* ★ Bug6 Fix: Remove fixed height calculations */
+        /* REMOVED: height: calc(60vh - var(--header-height, 96px)); */
+        /* REMOVED: max-height: calc(60vh - var(--header-height, 96px)); */
+        min-height: 200px;
+        position: relative;
+        padding: 16px;
+    }
+}
+```
+
+**Step 5**: Add resize handler (main.js, at end of DOMContentLoaded)
+```javascript
+// Add after canvas initialization
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        const container = document.getElementById('canvasContainer');
+        if (container && canvas) {
+            console.log('[Bug6 Fix] Window resized, recalculating canvas fit');
+            container.style.height = '';
+            container.style.minHeight = '';
+            container.style.maxHeight = '';
+            handleCanvasResize();
+        }
+    }, 250);
+});
+```
+
+【Phase 3: Testing】
+
+**Test Case 1: Mobile Portrait Mode**
+```
+Device: iPhone 12 (375x667px)
+Steps:
+1. Load application
+2. Add image to canvas
+3. Click "Zoom to Fit" button
+Expected: Canvas fills screen minus header, no cutoff
+Verify: Entire canvas visible, bottom edge clear
+```
+
+**Test Case 2: Mobile Landscape Mode**
+```
+Device: iPhone 12 (667x375px)
+Steps:
+1. Rotate to landscape
+2. Click "Zoom to Fit"
+Expected: Canvas fits width, no vertical cutoff
+Verify: Full canvas visible
+```
+
+**Test Case 3: Desktop Standard**
+```
+Device: Desktop 1920x1080
+Steps:
+1. Open in desktop mode
+2. Click "Zoom to Fit"
+Expected: Canvas centered, no cutoff
+Verify: All canvas edges visible with proper spacing
+```
+
+**Test Case 4: Desktop Narrow Window**
+```
+Device: Desktop, resize to 800x600
+Steps:
+1. Resize browser window
+2. Click "Zoom to Fit"
+Expected: Canvas adjusts to new window size
+Verify: No cutoff at any window size
+```
+
+**Test Case 5: Rapid Zoom Operations**
+```
+Steps:
+1. Click Zoom In 5 times
+2. Click Zoom to Fit
+3. Click Zoom Out 3 times
+4. Click Zoom to Fit again
+Expected: Consistent behavior, no accumulating errors
+Verify: Canvas always fits correctly
+```
+
+【Phase 4: Validation】
+
+1. Cross-browser testing
+   - Chrome/Edge (Chromium)
+   - Firefox
+   - Safari (macOS/iOS)
+
+2. Performance verification
+   - Measure render time before/after
+   - Check for layout thrashing
+   - Monitor memory usage
+
+3. Regression testing
+   - Verify existing zoom features still work
+   - Check undo/redo functionality
+   - Confirm project save/load integrity
+
+=============================================================================
+■ EDGE CASES & CONSIDERATIONS
+=============================================================================
+
+【Edge Case 1: Very Small Viewport】
+```
+Scenario: Mobile with viewport < 400px height
+Mitigation: Math.max(availableHeight, 200) ensures minimum usable space
+```
+
+【Edge Case 2: Dynamic Toolbar Appearance】
+```
+Scenario: Toolbar height changes (expand/collapse)
+Mitigation: Calculate toolbar.offsetHeight dynamically each time
+```
+
+【Edge Case 3: Device Orientation Change】
+```
+Scenario: iOS notch area, safe area insets
+Mitigation: Use env(safe-area-inset-*) in padding calculations
+```
+
+【Edge Case 4: Multiple Rapid Resize Events】
+```
+Scenario: User drags window corner rapidly
+Mitigation: 250ms debounce on resize event handler
+```
+
+【Edge Case 5: Canvas Larger Than Viewport】
+```
+Scenario: 1080x1080 canvas on 320x568 device
+Mitigation: Zoom calculation ensures it always fits within available space
+```
+
+=============================================================================
+■ POTENTIAL RISKS & MITIGATION
+=============================================================================
+
+【Risk 1: Layout Shift on Load】
+```
+Risk: Canvas jumps when JS sets height
+Mitigation: 
+- Set initial height in HTML/CSS
+- Use opacity transition (already implemented)
+- Calculate and set height before showing container
+```
+
+【Risk 2: Performance Impact】
+```
+Risk: Height recalculation on every resize
+Mitigation:
+- 250ms debounce
+- Only recalculate when visible
+- Use requestAnimationFrame for DOM changes
+```
+
+【Risk 3: Breaking Existing Projects】
+```
+Risk: Saved projects with old zoom values
+Mitigation:
+- Preserve zoom values when loading
+- Only apply fit on explicit user action
+- Maintain backward compatibility in save format
+```
+
+【Risk 4: Toolbar Overlap】
+```
+Risk: Canvas overlaps with toolbar in edge cases
+Mitigation:
+- Always subtract toolbar height
+- Add minimum gap (24px) between canvas and toolbar
+- Test at various screen sizes
+```
+
+=============================================================================
+■ VALIDATION CHECKLIST
+=============================================================================
+
+【Pre-Implementation Validation】
+☐ Code review completed
+☐ Test plan approved
+☐ Backup created
+☐ Branch created
+
+【Implementation Validation】
+☐ calculateAvailableViewportHeight() function added
+☐ fitCanvasToContainer() updated
+☐ syncCanvasViewportSize() updated
+☐ CSS changes applied
+☐ Resize handler added
+☐ Console logging added for debugging
+
+【Testing Validation】
+☐ Mobile portrait tested
+☐ Mobile landscape tested
+☐ Desktop standard tested
+☐ Desktop narrow tested
+☐ Rapid zoom tested
+☐ Chrome tested
+☐ Firefox tested
+☐ Safari tested
+
+【Performance Validation】
+☐ No layout thrashing detected
+☐ Render time < 16ms
+☐ Memory usage stable
+☐ No console errors
+
+【Regression Validation】
+☐ Existing zoom features work
+☐ Undo/redo works
+☐ Save/load works
+☐ Image editing works
+☐ Text editing works
+
+=============================================================================
+■ SUCCESS CRITERIA
+=============================================================================
+
+【Functional Success】
+✓ Canvas fills 100% of available viewport when "Zoom to Fit" is clicked
+✓ No cutoff at bottom of canvas
+✓ Proper padding/spacing maintained
+✓ Works on all screen sizes (mobile, tablet, desktop)
+✓ Works in all orientations (portrait, landscape)
+
+【Technical Success】
+✓ Clean, maintainable code
+✓ No performance degradation
+✓ Proper error handling
+✓ Adequate logging for debugging
+✓ No breaking changes to existing features
+
+【User Experience Success】
+✓ Instant visual feedback
+✓ Smooth zoom transition
+✓ Predictable behavior
+✓ Matches user expectations
+✓ No user confusion
+
+=============================================================================
+■ ROLLBACK PLAN
+=============================================================================
+
+【If Issues Detected】
+1. Revert CSS changes (restore 60vh height)
+2. Revert JavaScript changes (git checkout)
+3. Clear browser cache on test devices
+4. Verify application returns to working state
+5. Document issues for next iteration
+
+【Git Commands】
+```bash
+# Create backup branch
+git branch backup/before-bug6-fix
+
+# If rollback needed
+git checkout main
+git revert <commit-hash>
+git push origin main
+```
+
+=============================================================================
+■ CONCLUSION
+=============================================================================
+
+This bug is caused by a fundamental mismatch between CSS-defined container
+height (60vh) and the expectation of "maximize to fill screen." The fix
+requires coordinated changes across CSS and JavaScript to properly calculate
+and utilize the full available viewport height.
+
+The solution is straightforward but requires careful testing across devices
+and screen sizes to ensure no regressions. With proper implementation and
+validation, this will significantly improve the user experience when
+maximizing the canvas.
+
+**Estimated Implementation Time**: 4-6 hours
+**Estimated Testing Time**: 2-3 hours
+**Total Effort**: 6-9 hours
+
+**Priority**: MEDIUM-HIGH (affects core UX but has workaround)
+**Complexity**: MEDIUM (requires coordinated CSS/JS changes)
+**Risk**: LOW (changes are isolated, easy to revert)
+
+=============================================================================
+END OF REPORT
+=============================================================================

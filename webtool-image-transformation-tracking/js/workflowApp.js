@@ -148,6 +148,14 @@ class WorkflowApp {
             });
         }
 
+        // Batch Generation
+        const batchGenerateBtn = document.getElementById('batchGenerateBtn');
+        if (batchGenerateBtn) {
+            batchGenerateBtn.addEventListener('click', () => {
+                this.batchGenerateImages();
+            });
+        }
+
         // Settings
         const settingsBtn = document.getElementById('settingsBtn');
         if (settingsBtn) {
@@ -883,6 +891,150 @@ class WorkflowApp {
         };
 
         indicator.innerHTML = modeText[mode] || modeText.select;
+    }
+
+    /**
+     * Batch generate images for all generatable nodes
+     * Uses parallel execution for better performance
+     */
+    async batchGenerateImages() {
+        console.log('🚀 Batch generation started');
+
+        // Find all generatable nodes (generated type nodes with incoming edges that have prompts)
+        const generatableNodes = [];
+
+        for (const node of workflowEngine.nodes.values()) {
+            if (node.type !== 'generated') continue;
+
+            // Find incoming edges with prompts
+            const incomingEdgesWithPrompts = Array.from(workflowEngine.edges.values())
+                .filter(edge => edge.target === node.id && edge.prompt && edge.prompt.trim() !== '');
+
+            if (incomingEdgesWithPrompts.length > 0) {
+                generatableNodes.push({
+                    node: node,
+                    edges: incomingEdgesWithPrompts
+                });
+            }
+        }
+
+        if (generatableNodes.length === 0) {
+            alert('生成可能なノードがありません。\n\n生成ノードに入力エッジを接続し、プロンプトを設定してください。');
+            return;
+        }
+
+        // Show confirmation dialog with details
+        const totalEdges = generatableNodes.reduce((sum, item) => sum + item.edges.length, 0);
+        const confirmMessage = `${generatableNodes.length}個のノード（${totalEdges}個のエッジ）で画像を生成します。\n\n並列実行モード: 同時に複数のノードで生成を開始します。\n\nよろしいですか？`;
+
+        if (!confirm(confirmMessage)) {
+            console.log('Batch generation cancelled by user');
+            return;
+        }
+
+        // Show progress indicator
+        this.showBatchProgress(0, totalEdges, `一括生成を開始しています...`);
+
+        try {
+            let completedCount = 0;
+            let successCount = 0;
+            let errorCount = 0;
+            const errors = [];
+
+            // Parallel execution: Create all promises at once
+            const generationPromises = [];
+
+            for (const { node, edges } of generatableNodes) {
+                for (const edge of edges) {
+                    // Create promise for each edge transformation
+                    const promise = this.executeEdgeTransformation(edge)
+                        .then(() => {
+                            completedCount++;
+                            successCount++;
+                            this.showBatchProgress(completedCount, totalEdges,
+                                `生成中... (成功: ${successCount}, 失敗: ${errorCount}, 残り: ${totalEdges - completedCount})`);
+                            console.log(`✅ Edge ${edge.id} completed successfully (${completedCount}/${totalEdges})`);
+                        })
+                        .catch(error => {
+                            completedCount++;
+                            errorCount++;
+                            errors.push({
+                                nodeId: node.id,
+                                edgeId: edge.id,
+                                error: error.message
+                            });
+                            this.showBatchProgress(completedCount, totalEdges,
+                                `生成中... (成功: ${successCount}, 失敗: ${errorCount}, 残り: ${totalEdges - completedCount})`);
+                            console.error(`❌ Edge ${edge.id} failed (${completedCount}/${totalEdges}):`, error.message);
+                        });
+
+                    generationPromises.push(promise);
+                }
+            }
+
+            // Wait for all generations to complete
+            console.log(`⏳ Waiting for ${generationPromises.length} parallel generations...`);
+            await Promise.allSettled(generationPromises);
+
+            // Hide progress
+            this.hideBatchProgress();
+
+            // Show summary
+            const summaryMessage = `一括生成が完了しました！\n\n` +
+                `✅ 成功: ${successCount}個\n` +
+                `❌ 失敗: ${errorCount}個\n` +
+                `📊 合計: ${totalEdges}個`;
+
+            if (errorCount > 0) {
+                const errorDetails = errors.map(e =>
+                    `ノード ${e.nodeId} (エッジ ${e.edgeId}): ${e.error}`
+                ).join('\n');
+                alert(summaryMessage + '\n\n失敗の詳細:\n' + errorDetails);
+            } else {
+                alert(summaryMessage);
+            }
+
+            console.log('🎉 Batch generation completed', { successCount, errorCount, totalEdges });
+
+        } catch (error) {
+            console.error('Batch generation failed:', error);
+            this.hideBatchProgress();
+            alert(`一括生成に失敗しました: ${error.message}`);
+        }
+    }
+
+    /**
+     * Show batch generation progress
+     */
+    showBatchProgress(completed, total, message) {
+        const container = document.getElementById('progressContainer');
+        const bar = document.getElementById('progressBar');
+        const text = document.getElementById('progressText');
+
+        if (container) {
+            container.classList.remove('hidden');
+        }
+
+        if (bar) {
+            const percentage = total > 0 ? (completed / total) * 100 : 0;
+            bar.style.width = `${percentage}%`;
+        }
+
+        if (text) {
+            text.textContent = message;
+        }
+    }
+
+    /**
+     * Hide batch generation progress
+     */
+    hideBatchProgress() {
+        setTimeout(() => {
+            const container = document.getElementById('progressContainer');
+            if (container) {
+                container.classList.add('hidden');
+            }
+        }, 2000); // Keep visible for 2 seconds to show final result
     }
 
     /**

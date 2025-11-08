@@ -1,31 +1,18 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `index.html` is the single-page shell that wires UI controls to the feature modules loaded from `js/`.
-- `css/style.css` provides shared styling; scope additions with small utility classes to prevent bleed.
-- `js/` is organized by feature (`canvas.js`, `text.js`, `image.js`, `export.js`, `project.js`, `db.js`, `utils.js`, `main.js`); extend the closest domain file and place cross-cutting helpers in `utils.js`.
-- `assets/` stores small static media; user uploads stay in memory and are not checked in.
-- Data persistence flows through IndexedDB in `js/db.js`; review schema impacts before changing storage.
+This is a static Fabric.js SPA, so `index.html` is the only entry point and owns the CDN scripts plus accessibility hooks. Styling sits in `css/style.css`. Feature logic is grouped inside `js/`: `canvas.*.js` drives Fabric initialization, selection, and zoom; `image.*.js` handles uploads, URL fetch, and adjustments; `text.*.js` keeps presets/UI interactions; `project.js`+`db.js` wrap IndexedDB persistence; `export.js` writes PNG/JPG; `utils.js` hosts shared helpers; `main.js` bootstraps on `DOMContentLoaded`. Add new modules per feature and append them to the `<script>` list in dependency order.
 
 ## Build, Test, and Development Commands
-- `python3 -m http.server 5173` — spins up a local static server from the repo root for quick smoke tests.
-- `npx http-server . -p 5173` — node-based server that mirrors deployment behavior.
-- `npm run lint` — run the optional lint script if present; document any new tooling inside `package.json`.
+- `python3 -m http.server 5173` — fastest local server; open `http://localhost:5173`.
+- `npx http-server . -p 5173` — Node-based option (`npm install -g http-server` once).
+- Clear browser cache/IndexedDB before regression runs (`Application > Storage > Clear site data`) to avoid stale state when comparing fixes.
 
 ## Coding Style & Naming Conventions
-- JavaScript uses 4 spaces; CSS uses 2 spaces. Prefer `const`/`let`, arrow functions, and browser-native APIs.
-- Use `camelCase` for functions, variables, and file-local helpers; reserve `PascalCase` for constructor-like utilities; filenames stay lowercase with no spaces.
-- Keep new comments concise, bilingual when clarifying complex logic (日本語 + brief English), and default to ASCII characters.
+Use vanilla ES2015+ with 4-space indentation, `const`/`let`, and lower camelCase for functions, variables, and DOM ids (`setupZoomSlider`, `undoBtn`). Files remain kebab/dotted (`image.advanced.js`) to reflect layering. Keep comments concise and task-focused (Japanese labels are fine). Prefer guard clauses and helper extraction over deep nesting. Any DOM-derived strings must be sanitized via DOMPurify, and new globals should hang off their module namespace instead of `window`.
 
 ## Testing Guidelines
-- Manual testing is required: verify project load/save, IndexedDB persistence after refresh, image uploads, text styling, zoom/pan, keyboard shortcuts, and export flows in Chrome and Safari.
-- Document any regressions or browser discrepancies in `docs/` or relevant pull requests; no automated test suite exists yet.
+No automated tests exist, so attach manual QA notes to each change. Minimum smoke checklist: 1) import via file picker and HTTPS URL, 2) add/remove canvases and validate undo/redo, 3) adjust text styles plus presets, 4) export PNG and JPG, 5) reload to confirm IndexedDB restores the session. Persistence changes require backing up the IndexedDB store, clearing it, and rerunning save/load. Capture before/after screenshots (see `.playwright-mcp/` examples) for layout or responsive issues.
 
 ## Commit & Pull Request Guidelines
-- Write atomic commits in present tense (e.g., `Add zoom reset shortcut`); use `feature/<topic>` or `fix/<issue-number>` branches.
-- Pull requests should summarize changes, link related issues, list manual test steps, and attach before/after screenshots for UI updates.
-- Avoid adding large binaries; keep new static assets in `assets/` and pin CDN versions if dependencies change in `index.html`.
-
-## Security & Configuration Tips
-- Never embed secrets; the app operates entirely client-side.
-- When adjusting IndexedDB behavior, consider quota limits, migrations, and communicate potential data loss.
+Git history uses `v0.4.x <scope>` style messages (`v0.4.x Mac Air`, `v0.4.x Mac Pro`). Follow that format, incrementing the suffix that best matches your change and mentioning the device or context exercised. PRs should ship with: a concise summary, linked bug-report IDs (`Bug_report3`, etc.), the manual test checklist you executed, and screenshots/GIFs for UI updates. Call out IndexedDB schema tweaks, new CDN dependencies, or extra reviewer steps before requesting approval.

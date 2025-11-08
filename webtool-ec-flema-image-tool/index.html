@@ -53,15 +53,21 @@
                     <button class="zoom-btn-header" id="zoomInBtn" title="拡大">
                         <i class="fas fa-search-plus"></i>
                     </button>
-                    <button class="zoom-btn-header" id="zoomResetBtn" title="100%表示">
+                    <button class="zoom-btn-header" id="zoomResetBtn" title="実寸表示 (100%)">
                         <i class="fas fa-expand-arrows-alt"></i>
                     </button>
-                    <button class="zoom-btn-header" id="zoomFitBtn" title="画面に合わせる">
+                    <button class="zoom-btn-header" id="zoomFitBtn" title="最大表示（画面に合わせる）">
                         <i class="fas fa-compress-arrows-alt"></i>
                     </button>
                 </div>
             </div>
         </header>
+
+        <!-- ズーム倍率インジケーター（一時表示） -->
+        <div id="zoomIndicator" class="zoom-indicator">
+            <i class="fas fa-search-plus"></i>
+            <span id="zoomPercentage">100%</span>
+        </div>
 
         <!-- プロジェクトメニュー -->
         <div class="project-menu" id="projectMenu">
@@ -91,7 +97,7 @@
             <div class="canvas-workspace" id="canvasContainer">
                 <div class="canvas-stack" id="canvasStack">
                     <div class="canvas-slot active" data-canvas-id="mainCanvas">
-                        <canvas id="mainCanvas"></canvas>
+                        <canvas id="mainCanvas" width="1080" height="1080"></canvas>
                     </div>
                 </div>
                 <button class="btn-add-canvas" id="addCanvasBtn" type="button" aria-label="キャンバスを追加">
@@ -99,54 +105,107 @@
                     <span>キャンバスを追加</span>
                 </button>
 
-                <aside class="image-controls-panel" id="imageControlsPanel" style="display: none;">
-                    <div class="image-controls-header">
-                        <h3><i class="fas fa-sliders-h"></i> 画像調整</h3>
-                        <button class="btn-icon" id="closeImageControlsPanel" aria-label="画像調整を閉じる">
-                            <i class="fas fa-times"></i>
-                        </button>
+                
+
+                
+            </div>
+
+            <!-- ツールバー -->
+            <div class="toolbar" id="toolbar">
+                <div class="tool-tabs">
+                    <button class="tool-tab active" data-tab="image">
+                        <i class="fas fa-image"></i>
+                        <span>商品画像</span>
+                    </button>
+                    <button class="tool-tab" data-tab="template">
+                        <i class="fas fa-sparkles"></i>
+                        <span>売れる装飾</span>
+                    </button>
+                </div>
+
+                <!-- 画像編集パネル -->
+                <div class="tool-panel active" id="imagePanel">
+                    <h3>商品画像を追加</h3>
+                    <button class="btn-primary btn-full" id="uploadImageBtn">
+                        <i class="fas fa-camera"></i> 商品画像を選択
+                    </button>
+                    <input type="file" id="imageInput" accept="image/*" style="display: none;" multiple>
+                    <div class="image-url-import">
+                        <div class="image-url-row">
+                            <input type="url" id="imageUrlInput" placeholder="https://example.com/image.jpg" inputmode="url" autocomplete="off" spellcheck="false" aria-label="画像URLを入力">
+                            <button class="btn-secondary" id="importImageUrlBtn" type="button">
+                                <i class="fas fa-link"></i> URLから追加
+                            </button>
+                        </div>
+                        <small class="image-url-hint">直接貼り付けた画像URLからインポートできます</small>
                     </div>
 
-                    <div class="image-controls-section image-controls-primary">
-                        <button class="btn-secondary btn-full" id="fitImageHeightBtn">
-                            <i class="fas fa-arrows-up-down"></i> 縦いっぱいにフィット
-                        </button>
+                    <!-- 画像履歴セクション -->
+                    <div class="image-history-section">
+                        <div class="image-history-header">
+                            <h3>
+                                <i class="fas fa-clock-rotate-left"></i> 最近使った画像
+                            </h3>
+                            <button class="btn-icon-small" id="refreshImageHistoryBtn" title="履歴を更新" aria-label="履歴を更新">
+                                <i class="fas fa-rotate"></i>
+                            </button>
+                        </div>
+                        <div class="image-history-grid" id="imageHistoryGrid">
+                            <div class="image-history-empty">
+                                <i class="fas fa-images"></i>
+                                <p>まだ画像を追加していません</p>
+                            </div>
+                        </div>
                     </div>
+                    
+                    <div class="inline-controls-panel image-controls-panel" id="imageControlsSection">
+                        <div class="image-controls-header">
+                            <h3><i class="fas fa-sliders-h"></i> 画像調整</h3>
+                            <button class="btn-icon" id="closeImageControlsPanel" aria-label="画像調整を閉じる">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
 
-                    <div class="image-controls-section">
-                        <h4>クイック補正</h4>
-                        <div class="control-group compact">
-                            <label>
-                                <span><i class="fas fa-sun"></i> 輝度</span>
-                                <span class="value" id="brightnessValue">0</span>
-                            </label>
-                            <input type="range" id="brightness" min="-100" max="100" value="0" step="1">
+                        <div class="image-controls-section image-controls-primary">
+                            <button class="btn-secondary btn-full" id="fitImageHeightBtn">
+                                <i class="fas fa-arrows-up-down"></i> 縦いっぱいにフィット
+                            </button>
                         </div>
-                        <div class="control-group compact">
-                            <label>
-                                <span><i class="fas fa-circle-half-stroke"></i> コントラスト</span>
-                                <span class="value" id="contrastValue">0</span>
-                            </label>
-                            <input type="range" id="contrast" min="0" max="200" value="0" step="1">
+
+                        <div class="image-controls-section">
+                            <h4>クイック補正</h4>
+                            <div class="control-group compact">
+                                <label>
+                                    <span><i class="fas fa-sun"></i> 輝度</span>
+                                    <span class="value" id="brightnessValue">0</span>
+                                </label>
+                                <input type="range" id="brightness" min="-100" max="100" value="0" step="1">
+                            </div>
+                            <div class="control-group compact">
+                                <label>
+                                    <span><i class="fas fa-circle-half-stroke"></i> コントラスト</span>
+                                    <span class="value" id="contrastValue">0</span>
+                                </label>
+                                <input type="range" id="contrast" min="0" max="200" value="0" step="1">
+                            </div>
+                            <div class="control-group compact">
+                                <label>
+                                    <span><i class="fas fa-palette"></i> 彩度</span>
+                                    <span class="value" id="saturationValue">0</span>
+                                </label>
+                                <input type="range" id="saturation" min="0" max="200" value="0" step="1">
+                            </div>
+                            <div class="control-group compact">
+                                <label>
+                                    <span><i class="fas fa-droplet"></i> 色相</span>
+                                    <span class="value" id="hueValue">0</span>
+                                </label>
+                                <input type="range" id="hue" min="0" max="360" value="0" step="1">
+                            </div>
+                            <button class="btn-secondary btn-full" id="resetFilters">
+                                <i class="fas fa-undo"></i> リセット
+                            </button>
                         </div>
-                        <div class="control-group compact">
-                            <label>
-                                <span><i class="fas fa-palette"></i> 彩度</span>
-                                <span class="value" id="saturationValue">0</span>
-                            </label>
-                            <input type="range" id="saturation" min="0" max="200" value="0" step="1">
-                        </div>
-                        <div class="control-group compact">
-                            <label>
-                                <span><i class="fas fa-droplet"></i> 色相</span>
-                                <span class="value" id="hueValue">0</span>
-                            </label>
-                            <input type="range" id="hue" min="0" max="360" value="0" step="1">
-                        </div>
-                        <button class="btn-secondary btn-full" id="resetFilters">
-                            <i class="fas fa-undo"></i> リセット
-                        </button>
-                    </div>
 
                     <div class="image-controls-section">
                         <h4>回転・反転</h4>
@@ -237,9 +296,18 @@
                             <i class="fas fa-trash"></i> 画像を削除
                         </button>
                     </div>
-                </aside>
+                </div>
 
-                <aside class="text-controls-panel" id="textControlsPanel" style="display: none;">
+                </div>
+
+                <!-- テンプレートパネル -->
+                <div class="tool-panel" id="templatePanel">
+                    <h3>テキストを追加</h3>
+                    <button class="btn-primary btn-full" id="addTextBtn">
+                        <i class="fas fa-plus"></i> テキストを追加
+                    </button>
+
+                    <div class="inline-controls-panel text-controls-panel" id="textControlsSection">
                     <div class="text-controls-header">
                         <h3><i class="fas fa-pen"></i> テキスト調整</h3>
                         <button class="btn-icon" id="closeTextControlsPanel" aria-label="テキスト調整を閉じる">
@@ -414,64 +482,7 @@
                         <button class="btn-secondary" id="duplicateTextBtn"><i class="fas fa-copy"></i> 複製</button>
                         <button class="btn-danger" id="deleteTextBtn"><i class="fas fa-trash"></i> 削除</button>
                     </div>
-                </aside>
-            </div>
-
-            <!-- ツールバー -->
-            <div class="toolbar" id="toolbar">
-                <div class="tool-tabs">
-                    <button class="tool-tab active" data-tab="image">
-                        <i class="fas fa-image"></i>
-                        <span>商品画像</span>
-                    </button>
-                    <button class="tool-tab" data-tab="template">
-                        <i class="fas fa-sparkles"></i>
-                        <span>売れる装飾</span>
-                    </button>
                 </div>
-
-                <!-- 画像編集パネル -->
-                <div class="tool-panel active" id="imagePanel">
-                    <h3>商品画像を追加</h3>
-                    <button class="btn-primary btn-full" id="uploadImageBtn">
-                        <i class="fas fa-camera"></i> 商品画像を選択
-                    </button>
-                    <input type="file" id="imageInput" accept="image/*" style="display: none;" multiple>
-                    <div class="image-url-import">
-                        <div class="image-url-row">
-                            <input type="url" id="imageUrlInput" placeholder="https://example.com/image.jpg" inputmode="url" autocomplete="off" spellcheck="false" aria-label="画像URLを入力">
-                            <button class="btn-secondary" id="importImageUrlBtn" type="button">
-                                <i class="fas fa-link"></i> URLから追加
-                            </button>
-                        </div>
-                        <small class="image-url-hint">直接貼り付けた画像URLからインポートできます</small>
-                    </div>
-
-                    <!-- 画像履歴セクション -->
-                    <div class="image-history-section">
-                        <div class="image-history-header">
-                            <h3>
-                                <i class="fas fa-clock-rotate-left"></i> 最近使った画像
-                            </h3>
-                            <button class="btn-icon" id="refreshImageHistoryBtn" title="履歴を更新" aria-label="履歴を更新">
-                                <i class="fas fa-rotate"></i>
-                            </button>
-                        </div>
-                        <div class="image-history-grid" id="imageHistoryGrid">
-                            <div class="image-history-empty">
-                                <i class="fas fa-images"></i>
-                                <p>まだ画像を追加していません</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- テンプレートパネル -->
-                <div class="tool-panel" id="templatePanel">
-                    <h3>テキストを追加</h3>
-                    <button class="btn-primary btn-full" id="addTextBtn">
-                        <i class="fas fa-plus"></i> テキストを追加
-                    </button>
                     <h3>① 売れる言葉を選ぶ</h3>
                     <div class="template-grid">
                         <button class="template-btn" data-template="新品未使用">新品未使用</button>
@@ -489,6 +500,19 @@
                         <button class="template-btn" data-template="韓国現地で購入">韓国現地で購入</button>
                         <button class="template-btn" data-template="正規品">正規品</button>
                         <button class="template-btn" data-template="韓国正規店で購入">韓国正規店で購入</button>
+                    </div>
+                    
+                    <!-- カスタム文言追加UI -->
+                    <div class="custom-template-section" style="margin-top: 16px;">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="customTemplateInput" placeholder="カスタム文言を入力..." 
+                                   maxlength="30" style="flex: 1; padding: 10px; border: 2px solid var(--border-color); 
+                                   border-radius: 8px; font-size: 14px;">
+                            <button class="btn-secondary" id="addCustomTemplateBtn" style="padding: 10px 16px; white-space: nowrap;">
+                                <i class="fas fa-plus"></i> 追加
+                            </button>
+                        </div>
+                        <div id="customTemplateGrid" class="template-grid" style="margin-top: 12px;"></div>
                     </div>
 
                     <h3>② ロゴを追加（オプション）</h3>
@@ -619,9 +643,20 @@
     <script src="js/utils.js"></script>
     <script src="js/db.js"></script>
     <script src="js/project.js"></script>
-    <script src="js/canvas.js"></script>
-    <script src="js/image.js"></script>
-    <script src="js/text.js"></script>
+
+    <!-- Canvas modules -->
+    <script src="js/canvas.state.js"></script>
+    <script src="js/canvas.interaction.js"></script>
+    <script src="js/canvas.init.js"></script>
+
+    <!-- Image modules -->
+    <script src="js/image.core.js"></script>
+    <script src="js/image.advanced.js"></script>
+
+    <!-- Text modules -->
+    <script src="js/text.core.js"></script>
+    <script src="js/text.ui.js"></script>
+
     <script src="js/export.js"></script>
     <script src="js/main.js"></script>
 </body>

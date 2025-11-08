@@ -263,6 +263,45 @@ body {
     text-align: center;
 }
 
+/* ========== ズーム倍率インジケーター（一時表示） ========== */
+.zoom-indicator {
+    position: fixed;
+    top: 120px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    z-index: 10000;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+}
+
+.zoom-indicator i {
+    margin-right: 8px;
+    color: var(--primary-orange);
+}
+
+.zoom-indicator.show {
+    display: block;
+    opacity: 1;
+}
+
+/* モバイル対応：ズームインジケーター位置調整 */
+@media (max-width: 768px) {
+    .zoom-indicator {
+        top: 80px;
+        right: 10px;
+        font-size: 14px;
+        padding: 10px 16px;
+    }
+}
+
 /* モバイル対応：ズームコントロールを非表示 */
 @media (max-width: 768px) {
     /* スマホモードでページ全体のスクロール禁止 */
@@ -292,16 +331,15 @@ body {
                  calc(16px + env(safe-area-inset-left, 0px));
         top: env(safe-area-inset-top, 0px);
         flex-wrap: nowrap;
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
+        justify-content: flex-start;
+        column-gap: 12px;
     }
 
     .app-header h1 {
         font-size: 18px;
         gap: 8px;
         min-width: 0;
-        flex: 0 1 auto;
+        flex: 0 0 auto;
     }
 
     .zoom-controls-header {
@@ -318,8 +356,20 @@ body {
 
     .header-actions {
         gap: 8px;
-        flex-shrink: 0;
+        flex: 1 0 auto;
         min-width: min-content;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+    }
+
+    .header-actions > * {
+        flex-shrink: 0;
+    }
+
+    .header-actions::-webkit-scrollbar {
+        display: none;
     }
 
     .btn-settings,
@@ -398,8 +448,9 @@ body {
     position: relative;
     width: 100%;
     min-height: 400px;
-    height: 60vh;
-    height: calc(var(--vh, 1vh) * 60);
+    /* ★Bug6 Fix: Remove fixed 60vh height - will be set dynamically by JavaScript */
+    /* REMOVED: height: 60vh; */
+    /* REMOVED: height: calc(var(--vh, 1vh) * 60); */
     background: #e0e0e0; /* グレー背景で作業領域を広く見せる */
     display: flex;
     flex-direction: column;
@@ -408,6 +459,13 @@ body {
     overflow: auto; /* スクロール可能にしてキャンバス全体を表示 */
     border-bottom: 2px solid var(--border-color);
     padding: 24px 20px 32px; /* キャンバス周りのスペースを適度に */
+    /* Bug7修正: 初期表示のちらつき防止 */
+    opacity: 0;
+    transition: opacity 0.25s ease-in-out;
+}
+
+#canvasContainer.initialized {
+    opacity: 1;
 }
 
 .canvas-stack {
@@ -416,6 +474,7 @@ body {
     align-items: center;
     gap: 24px;
     width: 100%;
+    position: relative;
 }
 
 .canvas-slot {
@@ -423,14 +482,24 @@ body {
     width: 100%;
     display: flex;
     justify-content: center;
+    align-items: center; /* ★Bug_report_canvas_size 追加: 垂直方向も中央配置 */
+    padding: 50px 60px 50px 50px; /* ★Bug_report_canvas_size 修正: ズーム時のはみ出しを許容 */
+    overflow: visible; /* ★Bug_report_canvas_size 追加: ズーム時の表示確保 */
 }
 
-#canvasContainer.with-image-controls {
+/* PC版のみコントロールパネル用のpadding - 常時適用してレイアウト安定化 */
+body.desktop-mode #canvasContainer {
     padding-left: 210px;
+    padding-right: 210px;
 }
 
-.canvas-slot canvas {
+/* Bug修正: Fabric.jsが作成する全canvas要素に背景を適用 */
+.canvas-slot canvas,
+.canvas-slot .lower-canvas,
+.canvas-slot .upper-canvas {
     touch-action: none;
+    /* CSS背景を強制適用（Fabric.jsのDOM変換後も有効） */
+    background: #ffffff !important;
     /* キャンバス出力範囲の影を強調 - 出力範囲が明確に分かる */
     box-shadow:
         0 0 0 2px rgba(255, 154, 90, 0.8), /* オレンジの枠線で出力範囲を明確化 */
@@ -439,27 +508,36 @@ body {
         0 8px 24px rgba(0,0,0,0.2),
         0 16px 48px rgba(0,0,0,0.15);
     border-radius: 2px;
-    background: white;
     margin: auto; /* 中央配置を確実に */
 }
 
-.canvas-slot.active canvas {
+/* Bug修正: アクティブなcanvasのスタイル（lower-canvasのみ影を適用） */
+.canvas-slot.active canvas,
+.canvas-slot.active .lower-canvas {
     box-shadow:
         0 0 0 2px rgba(255, 154, 90, 1),
         0 0 0 4px rgba(255, 154, 90, 0.32),
         0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
+/* Bug修正: upper-canvasは透明背景で影なし（選択枠のみ表示） */
+.canvas-slot .upper-canvas {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
 .canvas-slot-toolbar {
     position: absolute;
     top: 12px;
-    right: 16px;
+    left: 100%;
+    margin-left: 12px;
     display: flex;
     gap: 8px;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease;
     z-index: 3;
+    transform: none;
 }
 
 .canvas-slot:hover .canvas-slot-toolbar,
@@ -530,34 +608,35 @@ body {
     box-shadow: 0 3px 12px rgba(255, 154, 90, 0.24);
 }
 
-.image-controls-panel {
-    position: absolute;
-    top: 24px;
-    left: 24px;
-    width: 200px;
-    background: var(--white);
-    border-radius: 16px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
-    border: 1px solid rgba(255, 154, 90, 0.25);
-    padding: 12px 14px;
-    display: none;
-    flex-direction: column;
-    gap: 12px;
-    z-index: 20;
+/* ========== キャンバス追加/削除ボタンを一時的に非表示 ========== */
+.btn-add-canvas,
+.delete-canvas-btn {
+    display: none !important;
 }
 
-/* PC版モード：画像調整パネルのスクロール対応とレイアウト改善 */
-body.desktop-mode .image-controls-panel {
-    max-height: calc(100vh - 48px - var(--header-height, 96px));
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    font-size: 13px;
-    line-height: 1.4;
-    padding: 16px;
-    gap: 12px;
-    width: 220px;
+.inline-controls-panel {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 24px;
+    padding: 18px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(255, 154, 90, 0.25);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.inline-controls-panel.active {
+    display: flex;
+}
+
+.image-controls-panel,
+.text-controls-panel {
+    width: 100%;
+}
+
+body.desktop-mode .inline-controls-panel {
+    padding: 20px;
 }
 
 /* PC版：画像パネルのコントロールサイズ改善 */
@@ -681,36 +760,9 @@ body.desktop-mode .image-controls-panel .image-controls-section h4 {
     margin-right: 6px;
 }
 
-.text-controls-panel {
-    position: absolute;
-    top: 24px;
-    right: 24px;
-    width: 200px;
-    background: var(--white);
-    border-radius: 16px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
-    border: 1px solid rgba(255, 154, 90, 0.25);
-    padding: 12px 14px;
-    display: none;
-    flex-direction: column;
-    gap: 10px;
-    z-index: 20;
-    max-height: calc(100% - 48px);
-    overflow-y: auto;
-}
-
-/* PC版モード：テキスト調整パネルのスクロール対応とレイアウト改善 */
 body.desktop-mode .text-controls-panel {
-    max-height: calc(100vh - 48px - var(--header-height, 96px));
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    font-size: 13px;
-    line-height: 1.4;
-    padding: 16px;
-    gap: 12px;
-    width: 220px;
+    padding: 20px;
+    gap: 16px;
 }
 
 /* PC版：テキストパネルのコントロールグループ改善 */
@@ -807,9 +859,7 @@ body.desktop-mode .text-controls-panel .checkbox-label.small input[type="checkbo
     height: 16px;
 }
 
-#canvasContainer.with-text-controls {
-    padding-right: 210px;
-}
+/* 上記で統合済み */
 
 .text-controls-header {
     display: flex;
@@ -1025,63 +1075,18 @@ body.desktop-mode .text-controls-panel .checkbox-label.small input[type="checkbo
 
     /* キャンバスエリアの高さを固定（ヘッダー + ツールバー分を引く） */
     #canvasContainer {
-        height: calc(60vh - var(--header-height, 96px));
-        height: calc(var(--vh, 1vh) * 60 - var(--header-height, 96px));
+        /* ★Bug6 Fix: Remove fixed height calculations - managed by JavaScript */
+        /* REMOVED: height: calc(60vh - var(--header-height, 96px)); */
+        /* REMOVED: height: calc(var(--vh, 1vh) * 60 - var(--header-height, 96px)); */
         min-height: 200px;
-        max-height: calc(60vh - var(--header-height, 96px));
-        max-height: calc(var(--vh, 1vh) * 60 - var(--header-height, 96px));
+        /* REMOVED: max-height: calc(60vh - var(--header-height, 96px)); */
+        /* REMOVED: max-height: calc(var(--vh, 1vh) * 60 - var(--header-height, 96px)); */
         position: relative;
-    }
-
-    /* 画像コントロールパネル: ツールバーの位置に切り替えて表示 */
-    #canvasContainer.with-image-controls {
-        padding: 0;
-    }
-
-    .image-controls-panel {
-        position: fixed;
-        top: var(--header-height, 96px);
-        left: 0;
-        bottom: auto;
-        width: 100%;
-        height: 40vh;
-        height: calc(var(--vh, 1vh) * 40);
-        max-height: 40vh;
-        max-height: calc(var(--vh, 1vh) * 40);
-        border-radius: 0;
-        overflow-y: auto;
-        z-index: 100;
-    }
-
-    /* テキストコントロールパネル: ツールバーの位置に切り替えて表示 */
-    .text-controls-panel {
-        position: fixed;
-        top: var(--header-height, 96px);
-        left: 0;
-        right: auto;
-        bottom: auto;
-        width: 100%;
-        height: 40vh;
-        height: calc(var(--vh, 1vh) * 40);
-        max-height: 40vh;
-        max-height: calc(var(--vh, 1vh) * 40);
-        border-radius: 0;
-        overflow-y: auto;
-        z-index: 100;
-    }
-
-    #canvasContainer.with-text-controls {
-        padding: 0;
+        padding: 16px;
     }
 
     .text-controls-grid {
         grid-template-columns: 1fr;
-    }
-
-    /* 画像/テキストコントロール表示時はツールバーを隠す */
-    #canvasContainer.with-image-controls ~ .toolbar,
-    #canvasContainer.with-text-controls ~ .toolbar {
-        display: none;
     }
 }
 
@@ -1541,10 +1546,34 @@ input[type="color"]::-webkit-color-swatch {
 /* ========== Fabric.js カスタムスタイル ========== */
 #canvasContainer .canvas-container {
     position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    margin: 0 auto !important;
+    overflow: visible;  /* ★変更: キャンバス外も表示 */
 }
 
+/* Fabric.jsキャンバスコンテナ */
+.canvas-container {
+    position: relative;
+    overflow: visible;  /* ズーム時に枠外も表示 */
+}
+
+/* Fabric.jsの下層キャンバス（静的コンテンツ） */
+.lower-canvas {
+    position: absolute !important;
+    z-index: 10 !important;
+}
+
+/* Fabric.jsの上層キャンバス（インタラクティブ要素） */
 .upper-canvas {
+    position: absolute !important;
+    z-index: 11 !important;
     border: none !important;
+    pointer-events: auto !important;
+}
+
+.canvas-slot {
+    position: relative;
 }
 
 /* ========== レスポンシブ ========== */
@@ -2009,7 +2038,7 @@ body.toolbar-scroll-active #canvasContainer {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 12px;
     animation: fadeIn 0.3s ease;
 }
 
@@ -2024,6 +2053,76 @@ body.toolbar-scroll-active #canvasContainer {
     flex-direction: column;
     box-shadow: 0 8px 32px rgba(0,0,0,0.2);
     animation: slideUp 0.3s ease;
+}
+
+/* スマホモード：設定ダイアログの最適化 */
+@media (max-width: 768px) {
+    .settings-dialog-overlay {
+        padding: 8px;
+        align-items: flex-start;
+        padding-top: 60px; /* ヘッダーの下に表示 */
+    }
+
+    .settings-dialog {
+        max-width: 100%;
+        width: calc(100% - 16px);
+        max-height: calc(90vh - 60px);
+        margin: 0 auto;
+        border-radius: 12px;
+    }
+
+    .settings-dialog-header {
+        padding: 14px 16px;
+    }
+
+    .settings-dialog-header h3 {
+        font-size: 16px;
+    }
+
+    .settings-dialog-body {
+        padding: 16px;
+    }
+
+    .canvas-size-options {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .canvas-size-btn {
+        padding: 12px 8px;
+        font-size: 13px;
+    }
+
+    .canvas-size-btn strong {
+        font-size: 14px;
+    }
+
+    .canvas-size-btn small {
+        font-size: 11px;
+    }
+
+    .custom-size-input {
+        gap: 6px;
+    }
+
+    .custom-size-input input {
+        padding: 8px;
+        font-size: 13px;
+    }
+
+    .settings-dialog-footer {
+        padding: 12px 16px;
+        gap: 8px;
+    }
+
+    .settings-group {
+        margin-bottom: 18px;
+    }
+
+    .settings-group h4 {
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
 }
 
 .settings-dialog-header {

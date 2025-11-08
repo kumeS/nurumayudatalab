@@ -1,0 +1,439 @@
+=============================================================================
+BUG REPORT: キャンバスサイズが縮小・拡大表示されない問題
+=============================================================================
+作成日: 2025年1月
+重要度: HIGH (Critical) - ズーム機能の根幹に関わる重大な問題
+カテゴリ: Canvas Viewport & Zoom System
+
+=============================================================================
+1. 問題の概要（EXECUTIVE SUMMARY）
+=============================================================================
+
+【症状】
+ズーム操作（Ctrl+ホイール、ズームボタン、ピンチイン/アウト）を実行すると：
+- 画像やテキストなどのキャンバスオブジェクトは正常に縮小・拡大される
+- しかし、キャンバス本体のDOM要素サイズが変化しない
+- 結果として、ズームインすると画像が大きくなるが「キャンバスの白い領域」は
+  変わらないため、画像がキャンバスからはみ出して見える
+
+【ユーザー影響】
+- ズームの視覚的フィードバックが不正確
+- キャンバスの「出力範囲」が視覚的に把握できない
+- 特に200%以上にズームインすると、画像が大きくなってもキャンバスサイズが
+  追従しないため、作業領域の境界が分からなくなる
+- エクスポート時の「実際の出力範囲」との乖離が大きく、混乱を招く
+
+=============================================================================
+2. 再現手順（REPRODUCTION STEPS）
+=============================================================================
+
+【環境】
+- ブラウザ: Chrome/Safari/Firefox (全ブラウザで再現)
+- OS: macOS/Windows/iOS/Android (全プラットフォームで再現)
+- デバイス: PC/タブレット/スマートフォン
+
+【再現手順】
+1. アプリケーションを開く
+2. 商品画像を1枚アップロードする
+3. キャンバスに画像が配置される（初期状態: 100%表示）
+4. 以下のいずれかの方法でズーム操作を実行：
+   a) Ctrl + マウスホイール上下
+   b) ヘッダーの「拡大」ボタン（+アイコン）をクリック
+   c) スマホでピンチアウト（2本指で広げる）
+5. ズーム値が200%になる
+
+【期待される動作】
+- キャンバス全体（白い背景部分を含む）が2倍のサイズに拡大される
+- 画像も2倍に拡大される
+- キャンバスの枠線（オレンジの枠）が2倍のサイズになる
+- 視覚的に「キャンバスが拡大表示されている」ことが明確に分かる
+
+【実際の動作】
+- 画像は2倍に拡大される ✓
+- キャンバスのDOM要素サイズは変わらない（1080x1080pxのまま） ✗
+- キャンバスの枠線サイズは変わらない ✗
+- 結果として、拡大された画像がキャンバスの「見た目の範囲」からはみ出る
+
+=============================================================================
+3. 根本原因分析（ROOT CAUSE ANALYSIS）
+=============================================================================
+
+【技術的な原因】
+canvas.js:441-504 の `syncCanvasViewportSize()` 関数において、
+Bug_report15の修正で以下の変更が加えられた：
+
+```javascript
+// Bug_report15 修正前（正しい動作）:
+if (wrapper) {
+    wrapper.style.width = `${scaledWidth}px`;
+    wrapper.style.height = `${scaledHeight}px`;
+}
+
+[lower, upper].forEach((el) => {
+    if (!el) return;
+    el.style.width = `${scaledWidth}px`;
+    el.style.height = `${scaledHeight}px`;
+});
+
+// Bug_report15 修正後（現在のコード - 問題あり）:
+if (wrapper) {
+    wrapper.style.width = `${canvasWidth}px`;   // ← scaledWidth から変更
+    wrapper.style.height = `${canvasHeight}px`; // ← scaledHeight から変更
+}
+
+[lower, upper].forEach((el) => {
+    if (!el) return;
+    el.style.width = `${canvasWidth}px`;   // ← scaledWidth から変更
+    el.style.height = `${canvasHeight}px`; // ← scaledHeight から変更
+});
+```
+
+【問題の詳細】
+1. **CSS Transform vs. DOM Resize の混乱**
+   - Fabric.jsの内部ズームは `viewportTransform` と `canvas.setZoom()` で
+     キャンバスのコンテンツ（画像・テキスト）を拡大縮小する
+   - しかし、DOM要素のサイズは変更しない
+   - Bug_report15の修正は、DOM要素のサイズを「ズーム前のサイズ」に
+     固定することで「二乗問題」を解決しようとした
+   - しかし、これにより視覚的な拡大表示が失われた
+
+2. **scaledWidth/scaledHeight 変数の未使用**
+   - canvas.js:460-461 で計算されている `scaledWidth` と `scaledHeight` が
+     存在するにもかかわらず、DOM要素のサイズ設定には使われていない
+   ```javascript
+   const scaledWidth = canvasWidth * zoom;
+   const scaledHeight = canvasHeight * zoom;
+   // ↑ 計算しているが、その後使用されていない
+   ```
+
+3. **コメントとの矛盾**
+   - canvas.js:457-459 のコメントには「ズーム倍率の二乗問題を解決」とあるが、
+     実際にはズームの視覚的表示を完全に無効化してしまっている
+
+=============================================================================
+4. 影響範囲（IMPACT SCOPE）
+=============================================================================
+
+【直接的な影響を受ける機能】
+1. ズームイン/ズームアウト（全ズーム操作）
+   - ファイル: canvas.js:1379-1474 (setupCanvasZoom)
+   - 関数: applyCanvasZoom(), fitCanvasToContainer(), resetCanvasZoom()
+
+2. キャンバスビューポート同期
+   - ファイル: canvas.js:441-504 (syncCanvasViewportSize)
+   - ファイル: canvas.js:395-439 (syncCanvasViewportSizeForState)
+
+3. キャンバスリサイズ
+   - ファイル: canvas.js:1772-1889 (resizeCanvas)
+   - キャンバスサイズ変更時にズームが正しく表示されない
+
+4. 中央配置機能
+   - ファイル: canvas.js:1943-1996 (centerCanvasInView)
+   - キャンバスサイズが固定されているため、中央配置が正確でない可能性
+
+【間接的な影響を受ける機能】
+1. 画像追加・配置
+   - ファイル: image.js
+   - 画像を追加した際の「キャンバスに収める」動作が不正確
+
+2. テキスト追加・配置
+   - ファイル: text.js
+   - テキストを追加した際の初期配置が不正確
+
+3. エクスポート機能
+   - ファイル: export.js
+   - 視覚的な表示と実際の出力範囲の乖離により、ユーザーが混乱
+
+4. プロジェクト保存・読み込み
+   - ファイル: project.js
+   - ズーム状態の保存・復元時に表示が不正確
+
+=============================================================================
+5. 関連するバグレポート（RELATED BUGS）
+=============================================================================
+
+【Bug_report15: "ズーム倍率の二乗問題"】
+- 概要: ズームすると拡大率が期待値の二乗になる問題
+- 修正内容: DOM要素のサイズを `scaledWidth/Height` から `canvasWidth/Height` に変更
+- 副作用: 今回のバグ（キャンバスサイズが拡大表示されない）を引き起こした
+- 状態: 修正済みだが、不完全
+
+【Bug_report12: "新規キャンバスのズーム同期"】
+- 概要: 新しいキャンバスが既存のズームレベルで初期化されない
+- 修正内容: createCanvasStateFromElement で sharedCanvasZoom を適用
+- 関連性: ズームシステムの整合性に関する問題
+
+【Bug_report13: "キャンバスサイズ変更時の相対位置維持"】
+- 概要: キャンバスサイズを変更すると画像の相対位置が崩れる
+- 修正内容: resizeCanvas で相対位置・サイズを維持
+- 関連性: リサイズ時のズーム処理に影響
+
+=============================================================================
+6. 推奨される修正方法（RECOMMENDED FIX）
+=============================================================================
+
+【修正戦略】
+Bug_report15の「二乗問題」を解決しつつ、視覚的なズーム表示を復元する。
+CSS Transform を使用してDOMレベルでのズーム表示を実現する。
+
+【修正箇所1: syncCanvasViewportSize() 関数】
+ファイル: js/canvas.js:441-504
+
+```javascript
+function syncCanvasViewportSize(options = {}) {
+    if (!canvas) return;
+
+    const container = document.getElementById('canvasContainer');
+    if (!container) return;
+
+    const { recenter = false } = options;
+    const zoom = canvas.getZoom();
+
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+
+    const wrapper = canvas.wrapperEl;
+    const lower = canvas.lowerCanvasEl;
+    const upper = canvas.upperCanvasEl;
+
+    // ★修正: DOM要素のサイズは論理サイズを維持し、
+    // CSS Transformでズーム表示を実現
+    if (wrapper) {
+        wrapper.style.width = `${canvasWidth}px`;
+        wrapper.style.height = `${canvasHeight}px`;
+        wrapper.style.transform = `scale(${zoom})`;
+        wrapper.style.transformOrigin = 'center center';
+    }
+
+    [lower, upper].forEach((el) => {
+        if (!el) return;
+        el.style.width = `${canvasWidth}px`;
+        el.style.height = `${canvasHeight}px`;
+    });
+
+    // z-indexと背景色を再設定
+    if (upper) {
+        upper.style.zIndex = '11';
+        upper.style.pointerEvents = 'auto';
+        upper.style.backgroundColor = 'transparent';
+    }
+    if (lower) {
+        lower.style.zIndex = '10';
+        lower.style.backgroundColor = '#ffffff';
+    }
+
+    if (recenter) {
+        centerCanvasInView();
+    }
+
+    container.scrollLeft = 0;
+    container.scrollTop = 0;
+
+    canvas.calcOffset();
+
+    requestAnimationFrame(() => {
+        canvas.renderAll();
+        console.log('[Canvas] Viewport size synced with CSS Transform zoom:', zoom);
+    });
+
+    dbgCanvas('syncViewportSize', { zoom, cssTransform: `scale(${zoom})`, recenter });
+}
+```
+
+【修正箇所2: syncCanvasViewportSizeForState() 関数】
+ファイル: js/canvas.js:395-439
+
+```javascript
+function syncCanvasViewportSizeForState(state, options = {}) {
+    if (!state || !state.canvas) return;
+
+    const { recenter = false } = options;
+    const fabricCanvas = state.canvas;
+    const zoom = fabricCanvas.getZoom();
+
+    const canvasWidth = fabricCanvas.width;
+    const canvasHeight = fabricCanvas.height;
+
+    const wrapper = fabricCanvas.wrapperEl;
+    const lower = fabricCanvas.lowerCanvasEl;
+    const upper = fabricCanvas.upperCanvasEl;
+
+    // ★修正: CSS Transformでズーム表示
+    if (wrapper) {
+        wrapper.style.width = `${canvasWidth}px`;
+        wrapper.style.height = `${canvasHeight}px`;
+        wrapper.style.transform = `scale(${zoom})`;
+        wrapper.style.transformOrigin = 'center center';
+    }
+
+    [lower, upper].forEach((el) => {
+        if (!el) return;
+        el.style.width = `${canvasWidth}px`;
+        el.style.height = `${canvasHeight}px`;
+    });
+
+    if (upper) {
+        upper.style.zIndex = '11';
+        upper.style.pointerEvents = 'auto';
+        upper.style.backgroundColor = 'transparent';
+    }
+    if (lower) {
+        lower.style.zIndex = '10';
+        lower.style.backgroundColor = '#ffffff';
+    }
+
+    fabricCanvas.calcOffset();
+
+    requestAnimationFrame(() => {
+        fabricCanvas.renderAll();
+    });
+
+    dbgCanvas('syncViewportSizeForState', { zoom, cssTransform: `scale(${zoom})` });
+}
+```
+
+【修正箇所3: CSS スタイル追加】
+ファイル: css/style.css
+
+```css
+/* Fabric.jsキャンバスコンテナ - CSS Transformによるズーム表示 */
+.canvas-container {
+    position: relative;
+    overflow: visible;
+    transform-origin: center center;
+    transition: transform 0.2s ease-out; /* スムーズなズームアニメーション */
+}
+
+/* キャンバススロット - CSS Transform用のスペース確保 */
+.canvas-slot {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 50px; /* ズーム時のはみ出しを許容 */
+    overflow: visible;
+}
+```
+
+=============================================================================
+7. 代替案（ALTERNATIVE SOLUTIONS）
+=============================================================================
+
+【代替案A: Fabric.js の setZoom() を使わず、CSS Transform のみでズーム】
+メリット:
+- DOM サイズとズーム表示が完全に分離される
+- 二乗問題が発生しない
+デメリット:
+- Fabric.js のオブジェクト座標系とマウス座標系の変換が複雑になる
+- 既存のズーム処理を大幅に書き換える必要がある
+推奨度: ★★☆☆☆ (大規模な変更が必要)
+
+【代替案B: DOM サイズを scaledWidth/Height に設定し、Fabric.js のズームを無効化】
+メリット:
+- 視覚的なズーム表示が正確
+- DOM サイズとキャンバスの見た目が一致
+デメリット:
+- Fabric.js の内部ズーム機能が使えなくなる
+- パン操作や viewportTransform との統合が困難
+推奨度: ★☆☆☆☆ (Fabric.js の機能を殺してしまう)
+
+【代替案C: 推奨案 - CSS Transform によるハイブリッド方式】
+メリット:
+- Fabric.js の内部ズーム機能を活用しつつ、視覚的表示も正確
+- 二乗問題を回避
+- 既存コードへの変更が最小限
+デメリット:
+- CSS Transform と Fabric.js の viewportTransform の二重管理が必要
+推奨度: ★★★★★ (最もバランスが良い)
+
+=============================================================================
+8. 実装時の注意事項（IMPLEMENTATION NOTES）
+=============================================================================
+
+【重要な考慮事項】
+
+1. **マウス座標の変換**
+   CSS Transform を適用すると、マウスイベントの座標が変わる可能性がある。
+   Fabric.js の `canvas.calcOffset()` を必ず呼び出して座標系を更新する。
+
+2. **アニメーション性能**
+   CSS Transform は GPU アクセラレーションが効くため、
+   `transition: transform 0.2s ease-out` を追加するとスムーズなズームが実現できる。
+
+3. **中央配置との統合**
+   `centerCanvasInView()` 関数で CSS Transform の scale を考慮した
+   中央配置計算が必要になる場合がある。
+
+4. **エクスポート時の座標変換**
+   エクスポート時は CSS Transform を無視し、Fabric.js の論理座標で
+   出力する必要がある（現状のまま問題なし）。
+
+5. **後方互換性**
+   保存されたプロジェクトを読み込んだ際に、ズーム状態が正しく復元されることを
+   確認する必要がある。
+
+【テスト項目】
+
+□ ズームイン（Ctrl + ホイール上）で、キャンバスが視覚的に拡大される
+□ ズームアウト（Ctrl + ホイール下）で、キャンバスが視覚的に縮小される
+□ ヘッダーの「拡大」「縮小」ボタンで、キャンバスサイズが変化する
+□ スマホでピンチイン/アウトで、キャンバスサイズが変化する
+□ 画像を追加した際に、キャンバスの出力範囲が明確に見える
+□ キャンバスサイズを変更（設定→キャンバスサイズ）した後も、ズームが正常
+□ プロジェクトを保存→読み込みした後も、ズーム表示が正常
+□ エクスポートした画像が、視覚的な表示と一致している
+□ マウスクリック/タップの座標が正確（オブジェクト選択が正常）
+□ パン操作（Spaceキー + ドラッグ）が正常に動作する
+
+【パフォーマンス検証】
+
+- CSS Transform のアニメーションが 60fps で動作することを確認
+- 大きな画像（5MB以上）を配置した状態でもズームがスムーズであることを確認
+- 複数キャンバス（5枚以上）がある状態でも動作が重くならないことを確認
+
+=============================================================================
+9. デバッグ用コマンド（DEBUG COMMANDS）
+=============================================================================
+
+【ブラウザコンソールでの確認方法】
+
+```javascript
+// 現在のズームレベルを確認
+console.log('Current zoom:', canvas.getZoom());
+
+// DOM要素のサイズを確認
+const wrapper = canvas.wrapperEl;
+console.log('Wrapper DOM size:', wrapper.style.width, wrapper.style.height);
+console.log('Wrapper CSS Transform:', wrapper.style.transform);
+
+// 論理キャンバスサイズを確認
+console.log('Canvas logical size:', canvas.width, canvas.height);
+
+// 期待されるスケール済みサイズを確認
+const zoom = canvas.getZoom();
+console.log('Expected scaled size:', canvas.width * zoom, canvas.height * zoom);
+
+// 手動でCSS Transformを適用してテスト
+wrapper.style.transform = `scale(${zoom})`;
+wrapper.style.transformOrigin = 'center center';
+console.log('CSS Transform applied for testing');
+```
+
+=============================================================================
+10. 結論（CONCLUSION）
+=============================================================================
+
+本バグは、Bug_report15の修正により DOM要素のサイズを「ズーム前のサイズ」に
+固定したことで発生した。この修正は「二乗問題」を解決したが、
+視覚的なズーム表示を完全に無効化してしまった。
+
+推奨される修正方法は、CSS Transform を使用して DOM レベルでのズーム表示を
+実現しつつ、Fabric.js の内部ズーム機能を活用する「ハイブリッド方式」である。
+これにより、Bug_report15の修正内容を維持しつつ、正しい視覚的表示を実現できる。
+
+修正の優先度は HIGH であり、ズーム機能の根幹に関わるため、
+早急な対応が必要である。
+
+=============================================================================
+END OF BUG REPORT
+=============================================================================
