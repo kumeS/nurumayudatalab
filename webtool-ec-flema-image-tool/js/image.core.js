@@ -599,10 +599,8 @@ function fitImageToCanvasHeight() {
     console.log('  - Difference:', Math.abs(verifyHeight - canvasHeight).toFixed(2), 'px');
     console.log('  - Percentage:', ((verifyHeight / canvasHeight) * 100).toFixed(2) + '%');
 
-    showNotification('画像を縦いっぱいにフィットしました', 'success');
-    
-    triggerQuickSave();
-    scheduleCanvasHistoryCapture();
+    vibrateAndNotify('画像を縦いっぱいにフィットしました', 'success');
+    saveCanvasState();
 }
 
 function removeImageBackgroundQuick() {

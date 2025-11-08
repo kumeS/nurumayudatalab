@@ -1,0 +1,1924 @@
+=============================================================================
+Bug_report8: Toolbar Display Issue - DOM Structure Root Cause Analysis
+=============================================================================
+Created: 2025-01-08
+Investigator: Professional Engineer
+Target System: FleMa Image Editing Tool
+Investigation Scope: Full codebase with focus on HTML/CSS structure
+
+=============================================================================
+■ EXECUTIVE SUMMARY
+=============================================================================
+
+【Issue Overview】
+Bug 1: When clicking an image object, image controls cannot be displayed in 
+       the right sidebar when the "売れる装飾" (template) tab is active, 
+       because imageControlsSection is NESTED INSIDE the imagePanel which is 
+       hidden when templatePanel is active.
+
+Bug 2: When clicking a text object, text controls cannot be displayed in 
+       the right sidebar when the "商品画像" (image) tab is active, because 
+       textControlsSection is NESTED INSIDE the templatePanel which is hidden 
+       when imagePanel is active.
+
+【Severity】
+- Severity Level: HIGH (architectural/structural issue)
+- Impact: All users on all devices
+- Frequency: 100% reproducible
+- Root Cause Type: DOM STRUCTURE problem (not just logic)
+
+【Root Cause - NEW DISCOVERY】
+The inline-controls-panel elements are placed INSIDE their parent tool-panel 
+containers. When a tool-panel is inactive (display:none), ALL its children 
+are hidden, including the inline-controls-panel. This makes it IMPOSSIBLE to 
+show image controls when templatePanel is active, or text controls when 
+imagePanel is active.
+
+**This is a DOM STRUCTURE issue, not just a JavaScript logic issue.**
+
+Bug_report7.txt identified the JavaScript logic problem, but missed the 
+fundamental HTML structure problem that prevents the fix from working.
+
+=============================================================================
+■ ARCHITECTURAL PROBLEM - DETAILED ANALYSIS
+=============================================================================
+
+【Current HTML Structure - THE PROBLEM】
+
+```html
+<div class="toolbar" id="toolbar">
+  
+  <!-- Image Tab Panel -->
+  <div class="tool-panel active" id="imagePanel">
+    <h3>商品画像を追加</h3>
+    <button id="uploadImageBtn">商品画像を選択</button>
+    
+    <!-- Image History Section -->
+    <div class="image-history-section">...</div>
+    
+    <!-- ★ PROBLEM: Image controls NESTED INSIDE imagePanel -->
+    <div class="inline-controls-panel image-controls-panel" 
+         id="imageControlsSection">
+      <h3>画像調整</h3>
+      <!-- Image editing controls: brightness, contrast, etc. -->
+    </div>
+  </div>
+  
+  <!-- Template Tab Panel -->
+  <div class="tool-panel" id="templatePanel">  <!-- NOT active by default -->
+    <h3>テキストを追加</h3>
+    <button id="addTextBtn">テキストを追加</button>
+    
+    <!-- ★ PROBLEM: Text controls NESTED INSIDE templatePanel -->
+    <div class="inline-controls-panel text-controls-panel" 
+         id="textControlsSection">
+      <h3>テキスト調整</h3>
+      <!-- Text editing controls: font, color, etc. -->
+    </div>
+  </div>
+  
+</div>
+```
+
+【CSS Rules - THE ENFORCEMENT】
+
+```css
+/* css/style.css: 1152-1160 */
+.tool-panel {
+    display: none;     /* ← Hidden by default */
+    padding: 12px 4px 4px;
+    animation: fadeIn 0.25s ease;
+}
+
+.tool-panel.active {
+    display: block;    /* ← Only active panel shown */
+}
+
+/* css/style.css: 617-629 */
+.inline-controls-panel {
+    display: none;     /* ← Hidden by default */
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 24px;
+    /* ... */
+}
+
+.inline-controls-panel.active {
+    display: flex;     /* ← Shown when active class added */
+}
+```
+
+【The Cascading Hiding Problem】
+
+```
+Visibility Flow:
+─────────────────────────────────────────────────────────────────────
+
+1. User switches to "売れる装飾" tab
+   → imagePanel.classList.remove('active')
+   → templatePanel.classList.add('active')
+   
+2. CSS kicks in:
+   imagePanel { display: none }      ← PARENT hidden
+   └─ imageControlsSection { ... }  ← CHILD cannot be shown
+                                       (hidden parent = hidden children)
+
+3. JavaScript tries to show image controls:
+   imageControlsSection.classList.add('active')
+   → display: flex !important       ← This doesn't matter!
+   
+4. Result: STILL HIDDEN
+   Because parent (imagePanel) has display:none
+   CSS rule: Children of display:none parents are ALWAYS invisible
+            regardless of their own display property
+```
+
+【Why CSS Cannot Override】
+
+In CSS, the `display: none` property on a parent element REMOVES the entire 
+subtree from the rendering tree. No amount of CSS on child elements can 
+override this fundamental behavior.
+
+```css
+/* This WILL NOT WORK: */
+.parent { display: none; }
+.parent .child { display: block !important; }  /* ← Still hidden! */
+
+/* Because display:none on parent removes entire subtree */
+```
+
+This is a fundamental CSS behavior, not a bug. The bug is in the HTML 
+structure that nests the controls inside the tab panels.
+
+=============================================================================
+■ COMPARISON WITH BUG_REPORT7
+=============================================================================
+
+【Bug_report7.txt Analysis】
+- ✓ Correctly identified the JavaScript logic issue
+- ✓ Correctly proposed object-based control display
+- ✗ Missed the DOM structure problem
+- ✗ The proposed fix in Bug_report7 will NOT work without HTML changes
+
+【Why Bug_report7 Fix Won't Work】
+
+```javascript
+// Bug_report7 proposed fix:
+if (obj.objectType === 'uploaded-image') {
+    showImageControls();  // Adds .active class to imageControlsSection
+    // ...
+}
+```
+
+**Problem**: Adding `.active` class changes the element's own `display` 
+property, but does NOT make it visible if its parent has `display: none`.
+
+```
+Current State:
+  imagePanel { display: none }        ← PARENT
+  └─ imageControlsSection.active {   ← CHILD
+       display: flex;                  ← Irrelevant
+     }
+     
+Result: imageControlsSection is STILL HIDDEN
+```
+
+=============================================================================
+■ SOLUTION DESIGN - THREE APPROACHES
+=============================================================================
+
+【Approach 1: RECOMMENDED - Move Controls Outside Panels】
+
+**Concept**: Move inline-controls-panel elements OUTSIDE of tool-panel 
+containers, making them independent siblings.
+
+**HTML Structure Change**:
+
+```html
+<div class="toolbar" id="toolbar">
+  
+  <!-- Tab buttons remain the same -->
+  <div class="tool-tabs">...</div>
+  
+  <!-- Tool panels for upload/creation controls -->
+  <div class="tool-panel active" id="imagePanel">
+    <h3>商品画像を追加</h3>
+    <button id="uploadImageBtn">商品画像を選択</button>
+    <div class="image-history-section">...</div>
+    <!-- ★ REMOVE: imageControlsSection moved out -->
+  </div>
+  
+  <div class="tool-panel" id="templatePanel">
+    <h3>テキストを追加</h3>
+    <button id="addTextBtn">テキストを追加</button>
+    <!-- ★ REMOVE: textControlsSection moved out -->
+  </div>
+  
+  <!-- ★ NEW: Independent controls section -->
+  <div class="controls-container">
+    
+    <!-- Image editing controls - now independent -->
+    <div class="inline-controls-panel image-controls-panel" 
+         id="imageControlsSection">
+      <div class="image-controls-header">
+        <h3><i class="fas fa-sliders-h"></i> 画像調整</h3>
+        <button class="btn-icon" id="closeImageControlsPanel">×</button>
+      </div>
+      <!-- All image controls here -->
+    </div>
+    
+    <!-- Text editing controls - now independent -->
+    <div class="inline-controls-panel text-controls-panel" 
+         id="textControlsSection">
+      <div class="text-controls-header">
+        <h3><i class="fas fa-pen"></i> テキスト調整</h3>
+        <button class="btn-icon" id="closeTextControlsPanel">×</button>
+      </div>
+      <!-- All text controls here -->
+    </div>
+    
+  </div>
+  
+</div>
+```
+
+**CSS Changes Required**:
+
+```css
+/* Add new container for independent controls */
+.controls-container {
+    /* No special styling needed */
+    /* Let inline-controls-panel handle their own display */
+}
+
+/* Existing rules remain the same */
+.inline-controls-panel {
+    display: none;
+}
+
+.inline-controls-panel.active {
+    display: flex;
+}
+
+/* Optional: Smooth transitions */
+.inline-controls-panel {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.inline-controls-panel.active {
+    display: flex;
+    opacity: 1;
+}
+```
+
+**JavaScript Changes Required**:
+
+```javascript
+// canvas.init.js: handleObjectSelection()
+function handleObjectSelection(e) {
+    const obj = e.target || (e.selected && e.selected[0]) || null;
+    
+    if (!obj) {
+        persistActiveCanvasState();
+        return;
+    }
+    
+    if (obj.type === 'activeSelection') {
+        selectedObject = null;
+        hideTextControls();
+        hideImageControls();
+        persistActiveCanvasState();
+        return;
+    }
+    
+    selectedObject = obj;
+
+    // ★ Bug8 Fix: Object-based display (now works because controls are independent)
+    if (obj.objectType === 'uploaded-image') {
+        console.log('[Bug8 Fix] Image object selected, showing image controls');
+        showImageControls();
+        updateImageControlsUI(obj);
+        hideTextControls();
+    }
+    else if (obj.type === 'i-text') {
+        console.log('[Bug8 Fix] Text object selected, showing text controls');
+        showTextControls();
+        updateTextControlsUI(obj);
+        hideImageControls();
+    }
+    else {
+        console.log('[Bug8 Fix] Other object type:', obj.type);
+        hideTextControls();
+        hideImageControls();
+    }
+
+    persistActiveCanvasState();
+}
+```
+
+**Advantages**:
+- ✓ Clean separation of concerns
+- ✓ Controls can show regardless of active tab
+- ✓ Simpler logic (no parent visibility workarounds)
+- ✓ Better maintainability
+- ✓ Future-proof for additional object types
+
+**Disadvantages**:
+- Requires HTML restructuring (moderate effort)
+- Need to move ~150 lines of HTML
+- Need to update CSS selectors if any depend on nesting
+
+**Implementation Effort**: 2-3 hours
+
+─────────────────────────────────────────────────────────────────────────────
+
+【Approach 2: CSS Override with Positioning】
+
+**Concept**: Use CSS positioning to "pull" controls out of hidden parents.
+
+**CSS Changes**:
+
+```css
+/* Force controls to be visible even when parent is hidden */
+.inline-controls-panel {
+    position: fixed;    /* or absolute */
+    right: 0;
+    top: var(--header-height);
+    width: 100%;
+    max-width: 360px;
+    height: calc(100vh - var(--header-height));
+    z-index: 50;
+    display: none;
+    background: white;
+}
+
+.inline-controls-panel.active {
+    display: flex;
+}
+
+/* On desktop, position within toolbar area */
+body.desktop-mode .inline-controls-panel {
+    position: relative;
+    width: 100%;
+    height: auto;
+    max-width: none;
+}
+```
+
+**JavaScript Changes**: Same as Approach 1 (object-based logic)
+
+**Advantages**:
+- No HTML changes required
+- Quick to implement
+
+**Disadvantages**:
+- ✗ Hacky solution (fighting CSS instead of fixing structure)
+- ✗ Fixed positioning may cause layout issues
+- ✗ Different behavior on mobile vs desktop
+- ✗ Z-index management complexity
+- ✗ May interfere with scrolling
+- ✗ Hard to maintain
+
+**Implementation Effort**: 1-2 hours
+
+**Recommendation**: NOT RECOMMENDED (technical debt)
+
+─────────────────────────────────────────────────────────────────────────────
+
+【Approach 3: Dual Controls (Keep Current + Add Independent)】
+
+**Concept**: Keep existing nested controls for tab context, add NEW 
+independent controls for object selection.
+
+**HTML Structure**:
+
+```html
+<div class="toolbar">
+  
+  <!-- Existing structure unchanged -->
+  <div class="tool-panel active" id="imagePanel">
+    <div class="inline-controls-panel" id="imageControlsSection">
+      <!-- Keep existing for tab context -->
+    </div>
+  </div>
+  
+  <div class="tool-panel" id="templatePanel">
+    <div class="inline-controls-panel" id="textControlsSection">
+      <!-- Keep existing for tab context -->
+    </div>
+  </div>
+  
+  <!-- NEW: Additional independent controls -->
+  <div class="object-controls-container">
+    <div class="inline-controls-panel" id="imageControlsIndependent">
+      <!-- Duplicate image controls -->
+    </div>
+    <div class="inline-controls-panel" id="textControlsIndependent">
+      <!-- Duplicate text controls -->
+    </div>
+  </div>
+  
+</div>
+```
+
+**JavaScript Logic**:
+
+```javascript
+// Show independent controls when object selected across tabs
+// Show nested controls when working within active tab
+```
+
+**Advantages**:
+- No breaking changes to existing structure
+- Backward compatible
+
+**Disadvantages**:
+- ✗ Code duplication (2x controls HTML)
+- ✗ Increased maintenance burden
+- ✗ Larger DOM tree
+- ✗ Confusing architecture
+- ✗ Potential sync issues between duplicate controls
+
+**Implementation Effort**: 3-4 hours
+
+**Recommendation**: NOT RECOMMENDED (unnecessarily complex)
+
+=============================================================================
+■ RECOMMENDED SOLUTION - DETAILED IMPLEMENTATION
+=============================================================================
+
+【Solution: Approach 1 - Move Controls Outside Panels】
+
+This is the cleanest, most maintainable solution that properly fixes the 
+architectural problem.
+
+## Step 1: HTML Restructuring
+
+**File**: index.html
+**Lines to Modify**: 161-299 (imageControlsSection), 310-510 (textControlsSection)
+
+**Current Structure** (WRONG):
+```
+toolbar
+├─ tool-tabs
+├─ imagePanel (tool-panel)
+│  ├─ upload buttons
+│  ├─ image history
+│  └─ imageControlsSection ← NESTED (PROBLEM!)
+└─ templatePanel (tool-panel)
+   ├─ add text button
+   └─ textControlsSection ← NESTED (PROBLEM!)
+```
+
+**New Structure** (CORRECT):
+```
+toolbar
+├─ tool-tabs
+├─ imagePanel (tool-panel)
+│  ├─ upload buttons
+│  └─ image history
+├─ templatePanel (tool-panel)
+│  └─ add text button
+└─ controls-container ← NEW
+   ├─ imageControlsSection ← INDEPENDENT
+   └─ textControlsSection ← INDEPENDENT
+```
+
+**Implementation**:
+
+```html
+<!-- index.html -->
+<div class="toolbar" id="toolbar">
+    
+    <!-- Tab buttons (unchanged) -->
+    <div class="tool-tabs">
+        <button class="tool-tab active" data-tab="image">
+            <i class="fas fa-image"></i>
+            <span>商品画像</span>
+        </button>
+        <button class="tool-tab" data-tab="template">
+            <i class="fas fa-sparkles"></i>
+            <span>売れる装飾</span>
+        </button>
+    </div>
+
+    <!-- Image Panel (REMOVE inline-controls-panel from here) -->
+    <div class="tool-panel active" id="imagePanel">
+        <h3>商品画像を追加</h3>
+        <button class="btn-primary btn-full" id="uploadImageBtn">
+            <i class="fas fa-camera"></i> 商品画像を選択
+        </button>
+        <input type="file" id="imageInput" accept="image/*" 
+               style="display: none;" multiple>
+        
+        <!-- Image URL import -->
+        <div class="image-url-import">
+            <!-- ... -->
+        </div>
+
+        <!-- Image history section -->
+        <div class="image-history-section">
+            <!-- ... -->
+        </div>
+        
+        <!-- ★ REMOVED: imageControlsSection moved out -->
+    </div>
+
+    <!-- Template Panel (REMOVE inline-controls-panel from here) -->
+    <div class="tool-panel" id="templatePanel">
+        <h3>テキストを追加</h3>
+        <button class="btn-primary btn-full" id="addTextBtn">
+            <i class="fas fa-plus"></i> テキストを追加
+        </button>
+
+        <!-- Template buttons for predefined text styles -->
+        <div class="template-grid">
+            <!-- ... existing template buttons ... -->
+        </div>
+
+        <!-- Custom templates section -->
+        <div id="customTemplatesSection">
+            <!-- ... -->
+        </div>
+        
+        <!-- ★ REMOVED: textControlsSection moved out -->
+    </div>
+
+    <!-- ★ NEW: Independent Controls Container -->
+    <div class="controls-container" id="controlsContainer">
+        
+        <!-- Image Controls - Now Independent -->
+        <div class="inline-controls-panel image-controls-panel" 
+             id="imageControlsSection">
+            <div class="image-controls-header">
+                <h3><i class="fas fa-sliders-h"></i> 画像調整</h3>
+                <button class="btn-icon" id="closeImageControlsPanel" 
+                        aria-label="画像調整を閉じる">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- All image controls moved here -->
+            <div class="image-controls-section image-controls-primary">
+                <button class="btn-secondary btn-full" id="fitImageHeightBtn">
+                    <i class="fas fa-arrows-up-down"></i> 縦いっぱいにフィット
+                </button>
+            </div>
+
+            <!-- Filters section -->
+            <div class="image-controls-section">
+                <h4>クイック補正</h4>
+                <div class="control-group compact">
+                    <label>
+                        <span><i class="fas fa-sun"></i> 輝度</span>
+                        <span class="value" id="brightnessValue">0</span>
+                    </label>
+                    <input type="range" id="brightness" 
+                           min="-100" max="100" value="0" step="1">
+                </div>
+                <!-- ... all other filter controls ... -->
+            </div>
+
+            <!-- Rotation/Flip section -->
+            <div class="image-controls-section">
+                <!-- ... -->
+            </div>
+
+            <!-- Blur section -->
+            <div class="image-controls-section">
+                <!-- ... -->
+            </div>
+
+            <!-- Cropping section -->
+            <div class="image-controls-section">
+                <!-- ... -->
+            </div>
+
+            <!-- Layer controls -->
+            <div class="image-controls-section">
+                <!-- ... -->
+            </div>
+
+            <!-- Other controls (background removal, delete) -->
+            <div class="image-controls-section">
+                <!-- ... -->
+            </div>
+        </div>
+
+        <!-- Text Controls - Now Independent -->
+        <div class="inline-controls-panel text-controls-panel" 
+             id="textControlsSection">
+            <div class="text-controls-header">
+                <h3><i class="fas fa-pen"></i> テキスト調整</h3>
+                <button class="btn-icon" id="closeTextControlsPanel" 
+                        aria-label="テキスト調整を閉じる">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- All text controls moved here -->
+            <div class="text-controls-section">
+                <label>
+                    <i class="fas fa-font"></i> テキスト
+                </label>
+                <textarea id="textContent" 
+                          placeholder="ここにテキストを入力"></textarea>
+            </div>
+
+            <!-- Font controls -->
+            <div class="text-controls-section">
+                <!-- ... -->
+            </div>
+
+            <!-- Color controls -->
+            <div class="text-controls-section">
+                <!-- ... -->
+            </div>
+
+            <!-- Size and alignment -->
+            <div class="text-controls-section">
+                <!-- ... -->
+            </div>
+
+            <!-- Effects (shadow, stroke, etc.) -->
+            <div class="text-effects-section">
+                <!-- ... -->
+            </div>
+
+            <!-- Layer and delete buttons -->
+            <div class="text-controls-section">
+                <!-- ... -->
+            </div>
+        </div>
+
+    </div> <!-- End controls-container -->
+
+</div> <!-- End toolbar -->
+```
+
+## Step 2: CSS Updates
+
+**File**: css/style.css
+
+**Add New Styles**:
+
+```css
+/* Add after .inline-controls-panel rules (around line 640) */
+
+/* ★ Bug8 Fix: Independent controls container */
+.controls-container {
+    /* No special layout needed - just a logical container */
+    /* Controls handle their own display via .active class */
+}
+
+/* Ensure controls can be shown independently of tab panels */
+.controls-container .inline-controls-panel {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 24px;
+    padding: 18px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(255, 154, 90, 0.25);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.controls-container .inline-controls-panel.active {
+    display: flex;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Desktop mode adjustments */
+body.desktop-mode .controls-container {
+    /* Inherit toolbar's scrolling context */
+}
+
+body.desktop-mode .controls-container .inline-controls-panel {
+    padding: 20px;
+}
+```
+
+**No Other CSS Changes Required**: All existing inline-controls-panel styles 
+will continue to work because we're using the same class names.
+
+## Step 3: JavaScript Updates
+
+**File**: js/canvas.init.js
+**Function**: handleObjectSelection() (lines 275-317)
+
+```javascript
+// ★ Bug8 Fix: Object-based control display
+// Now works because controls are independent of tab panels
+function handleObjectSelection(e) {
+    const obj = e.target || (e.selected && e.selected[0]) || null;
+    
+    if (!obj) {
+        persistActiveCanvasState();
+        return;
+    }
+    
+    if (obj.type === 'activeSelection') {
+        selectedObject = null;
+        hideTextControls();
+        hideImageControls();
+        persistActiveCanvasState();
+        return;
+    }
+    
+    selectedObject = obj;
+
+    // Display controls based on OBJECT TYPE (not active tab)
+    if (obj.objectType === 'uploaded-image') {
+        // Image object selected → show image controls
+        console.log('[Bug8 Fix] Image object selected, showing image controls');
+        showImageControls();
+        updateImageControlsUI(obj);
+        hideTextControls();
+    }
+    else if (obj.type === 'i-text') {
+        // Text object selected → show text controls
+        console.log('[Bug8 Fix] Text object selected, showing text controls');
+        showTextControls();
+        updateTextControlsUI(obj);
+        hideImageControls();
+    }
+    else {
+        // Other object types (future: logos, shapes, etc.)
+        console.log('[Bug8 Fix] Other object type selected:', obj.type);
+        hideTextControls();
+        hideImageControls();
+    }
+
+    persistActiveCanvasState();
+}
+```
+
+**No Changes Needed**:
+- showImageControls() in js/image.core.js - works as-is
+- hideImageControls() in js/image.core.js - works as-is
+- showTextControls() in js/text.ui.js - works as-is
+- hideTextControls() in js/text.ui.js - works as-is
+- updateImageControlsUI() in js/image.core.js - works as-is
+- updateTextControlsUI() in js/text.ui.js - works as-is
+
+All existing functions work without modification because they just add/remove 
+the `.active` class, which now properly shows/hides the controls since 
+they're no longer nested in hidden parents.
+
+## Step 4: Tab Switch Behavior Update (Optional)
+
+**File**: js/utils.js
+**Function**: switchTab() (lines 28-49)
+
+**Current Behavior**: Tab switch hides all inline controls.
+**Consideration**: Should controls remain visible when switching tabs?
+
+**Option A**: Keep current behavior (hide controls on tab switch)
+```javascript
+// No changes needed - existing code already hides controls
+function switchTab(activeTab) {
+    document.querySelectorAll('.tool-tab').forEach(tab => 
+        tab.classList.remove('active'));
+    document.querySelectorAll('.tool-panel').forEach(panel => 
+        panel.classList.remove('active'));
+
+    activeTab.classList.add('active');
+    const tabName = activeTab.dataset.tab;
+    document.getElementById(tabName + 'Panel').classList.add('active');
+
+    // Hide all controls on tab switch (explicit user context change)
+    if (typeof hideImageControls === 'function') {
+        hideImageControls();
+    }
+    if (typeof hideTextControls === 'function') {
+        hideTextControls();
+    }
+
+    if (navigator.vibrate) {
+        navigator.vibrate(20);
+    }
+}
+```
+
+**Option B**: Keep controls visible (preserve editing context)
+```javascript
+function switchTab(activeTab) {
+    document.querySelectorAll('.tool-tab').forEach(tab => 
+        tab.classList.remove('active'));
+    document.querySelectorAll('.tool-panel').forEach(panel => 
+        panel.classList.remove('active'));
+
+    activeTab.classList.add('active');
+    const tabName = activeTab.dataset.tab;
+    document.getElementById(tabName + 'Panel').classList.add('active');
+
+    // ★ Bug8 Enhancement: Don't hide controls on tab switch
+    // Let user continue editing current object across tabs
+    // (Controls only hidden when selecting different object or clicking close)
+
+    if (navigator.vibrate) {
+        navigator.vibrate(20);
+    }
+}
+```
+
+**Recommendation**: Option B (keep controls visible) provides better UX 
+because user can switch tabs to access upload/creation tools while still 
+having editing controls visible for their selected object.
+
+=============================================================================
+■ MIGRATION GUIDE
+=============================================================================
+
+【Step-by-Step Implementation】
+
+**Phase 1: Backup** (5 minutes)
+```bash
+git add .
+git commit -m "Backup before Bug8 fix"
+git branch backup/before-bug8-fix
+```
+
+**Phase 2: HTML Restructuring** (60-90 minutes)
+
+1. Open index.html
+2. Locate imageControlsSection (starts around line 161)
+3. Cut entire `<div class="inline-controls-panel image-controls-panel" id="imageControlsSection">` block (up to closing `</div>`)
+4. Locate textControlsSection (starts around line 310)
+5. Cut entire `<div class="inline-controls-panel text-controls-panel" id="textControlsSection">` block
+6. After templatePanel closing tag, add new controls-container
+7. Paste both control sections inside controls-container
+8. Save file
+
+**Phase 3: CSS Updates** (15-30 minutes)
+
+1. Open css/style.css
+2. After .inline-controls-panel rules (around line 640), add:
+   - .controls-container styles
+   - .controls-container .inline-controls-panel styles
+   - Animation keyframes
+   - Desktop mode adjustments
+3. Save file
+
+**Phase 4: JavaScript Updates** (15-30 minutes)
+
+1. Open js/canvas.init.js
+2. Update handleObjectSelection() function (lines 275-317)
+3. Replace tab-based logic with object-based logic
+4. Add console.log statements for debugging
+5. Save file
+
+6. (Optional) Open js/utils.js
+7. (Optional) Update switchTab() to keep controls visible
+8. Save file
+
+**Phase 5: Testing** (60-90 minutes)
+
+See Test Plan section below.
+
+**Total Implementation Time**: 2.5-4 hours
+
+=============================================================================
+■ TEST PLAN
+=============================================================================
+
+【Test Case 1: Image Object with Template Tab Active】
+```
+Setup:
+1. Load application
+2. Add image to canvas
+3. Add text to canvas
+4. Switch to "売れる装飾" (template) tab
+
+Test Steps:
+1. Click on the IMAGE object
+2. Verify: Image controls appear in right sidebar
+3. Verify: Can adjust brightness (slider works)
+4. Verify: Can adjust contrast (slider works)
+5. Verify: Can rotate image (button works)
+6. Verify: Can delete image (button works)
+7. Verify: Text controls are hidden
+
+Expected Result: ✓ Image controls fully functional
+Current Result: ✗ Image controls cannot appear (hidden by parent)
+After Fix: ✓ Image controls appear and work
+```
+
+【Test Case 2: Text Object with Image Tab Active】
+```
+Setup:
+1. Load application
+2. Add text to canvas
+3. Add image to canvas
+4. Switch to "商品画像" (image) tab
+
+Test Steps:
+1. Click on the TEXT object
+2. Verify: Text controls appear in right sidebar
+3. Verify: Can edit text content (textarea works)
+4. Verify: Can change font (dropdown works)
+5. Verify: Can change color (color picker works)
+6. Verify: Can adjust size (slider works)
+7. Verify: Image controls are hidden
+
+Expected Result: ✓ Text controls fully functional
+Current Result: ✗ Text controls cannot appear (hidden by parent)
+After Fix: ✓ Text controls appear and work
+```
+
+【Test Case 3: Rapid Object Type Switching】
+```
+Setup:
+1. Canvas with 3 images and 3 text objects
+2. Can be on any tab
+
+Test Steps:
+1. Click image 1 → verify image controls shown
+2. Click text 1 → verify text controls shown
+3. Click image 2 → verify image controls shown
+4. Click text 2 → verify text controls shown
+5. Click image 3 → verify image controls shown
+6. Click text 3 → verify text controls shown
+7. Repeat 10 times rapidly
+
+Expected: Controls switch correctly every time
+After Fix: ✓ Controls switch smoothly
+```
+
+【Test Case 4: Tab Switching Behavior】
+```
+Setup:
+1. Add image, click it (image controls shown)
+2. Note current tab
+
+Test Steps:
+1. Switch to other tab
+2. Verify: Image controls behavior (hidden or visible per Option A/B)
+3. Click on canvas (deselect object)
+4. Click image again
+5. Verify: Image controls shown regardless of active tab
+
+Expected: Controls show based on object, not tab
+After Fix: ✓ Works correctly
+```
+
+【Test Case 5: Close Button Functionality】
+```
+Setup:
+1. Add image, click it (image controls shown)
+
+Test Steps:
+1. Click "×" (close) button in image controls header
+2. Verify: Image controls hidden
+3. Click image again
+4. Verify: Image controls shown again
+
+Expected: Close button works
+After Fix: ✓ Works (no changes to close button logic)
+```
+
+【Test Case 6: Desktop vs Mobile Layout】
+```
+Setup:
+1. Test on desktop (wide screen)
+2. Test on mobile (narrow screen)
+3. Test on tablet (medium screen)
+
+Test Steps:
+For each device:
+1. Add image and text
+2. Click image → verify controls appear
+3. Click text → verify controls appear
+4. Switch tabs → verify expected behavior
+5. Verify scrolling works
+6. Verify controls don't overlap canvas
+
+Expected: Works on all devices
+After Fix: ✓ Works (CSS responsive design preserved)
+```
+
+【Test Case 7: Multiple Object Selection】
+```
+Setup:
+1. Add 3 images to canvas
+
+Test Steps:
+1. Click image 1 (image controls shown)
+2. Ctrl+Click image 2 (multi-select)
+3. Verify: All controls hidden (activeSelection)
+4. Click empty space (deselect)
+5. Click single image
+6. Verify: Image controls shown again
+
+Expected: Controls hidden for multi-selection
+After Fix: ✓ Works (no changes to multi-select logic)
+```
+
+【Test Case 8: Regression - Upload and Template Features】
+```
+Setup:
+1. Fresh canvas
+
+Test Steps:
+Image Panel:
+1. Switch to "商品画像" tab
+2. Click "商品画像を選択" button
+3. Upload image → verify works
+4. Verify image history shows uploaded image
+5. Add image from URL → verify works
+
+Template Panel:
+1. Switch to "売れる装飾" tab
+2. Click "テキストを追加" button
+3. Verify text added to canvas
+4. Click template buttons
+5. Verify template text created
+
+Expected: All creation features still work
+After Fix: ✓ Works (no changes to creation logic)
+```
+
+【Test Case 9: Undo/Redo with Controls】
+```
+Setup:
+1. Add image, adjust brightness to 50
+2. Image controls visible
+
+Test Steps:
+1. Click Undo button
+2. Verify: Brightness reverts to 0
+3. Verify: Image controls still visible
+4. Verify: Brightness slider shows 0
+5. Click Redo button
+6. Verify: Brightness returns to 50
+7. Verify: Controls update correctly
+
+Expected: Undo/Redo works, controls stay in sync
+After Fix: ✓ Works (no changes to undo/redo logic)
+```
+
+【Test Case 10: Save/Load Project】
+```
+Setup:
+1. Add image with brightness adjusted
+2. Add text with custom font
+3. Save project
+
+Test Steps:
+1. Reload application
+2. Load saved project
+3. Verify: Image and text restored
+4. Click image → verify controls show correct values
+5. Click text → verify controls show correct values
+6. Adjust controls → verify changes apply
+
+Expected: Save/load works, controls restore correctly
+After Fix: ✓ Works (no changes to save/load logic)
+```
+
+=============================================================================
+■ EDGE CASES & CONSIDERATIONS
+=============================================================================
+
+【Edge Case 1: Empty Canvas】
+```
+Scenario: User clicks empty area (no objects)
+Expected: All controls hidden
+Testing: Verify handleObjectSelection() handles null object
+Status: Already handled (obj === null case)
+```
+
+【Edge Case 2: Object Deleted While Controls Visible】
+```
+Scenario: User deletes object while editing it
+Expected: Controls automatically hidden
+Testing: Verify deletion triggers selection cleared event
+Status: Already handled by existing code
+```
+
+【Edge Case 3: Very Long Toolbar Content】
+```
+Scenario: Controls + panels overflow toolbar height
+Expected: Toolbar scrolls
+Testing: Add many objects, verify scrolling works
+Mitigation: CSS overflow-y: auto on toolbar
+Status: Already handled
+```
+
+【Edge Case 4: Rapid Tab Switching】
+```
+Scenario: User rapidly clicks tabs
+Expected: No flickering, smooth transitions
+Testing: Click tabs 20 times rapidly
+Mitigation: CSS transitions, animation
+Status: Works with current CSS
+```
+
+【Edge Case 5: Browser Back Button】
+```
+Scenario: User clicks browser back button
+Expected: No navigation (single-page app)
+Testing: Verify history not pushed
+Status: Not applicable (no route changes)
+```
+
+【Edge Case 6: Keyboard Navigation】
+```
+Scenario: User tabs through controls
+Expected: Focus order makes sense
+Testing: Press Tab key, verify focus flow
+Mitigation: Proper HTML structure maintains focus order
+Status: Works after fix
+```
+
+【Edge Case 7: Screen Reader Accessibility】
+```
+Scenario: User with screen reader
+Expected: Controls announced correctly
+Testing: Use VoiceOver/NVDA
+Mitigation: Proper ARIA labels already present
+Status: Works (no changes to accessibility)
+```
+
+=============================================================================
+■ RISKS & MITIGATION
+=============================================================================
+
+【Risk 1: HTML Restructuring Breaks Layout】
+```
+Risk: Moving controls might break CSS selectors
+Likelihood: LOW (using same class names)
+Mitigation:
+- Keep all class names identical
+- Test on all devices after change
+- Use browser dev tools to verify styles applied
+Impact: Layout issues
+Rollback: Restore from backup branch
+```
+
+【Risk 2: JavaScript References Break】
+```
+Risk: Code depends on specific DOM structure
+Likelihood: LOW (selectors use IDs)
+Mitigation:
+- All selectors use document.getElementById()
+- IDs remain unchanged
+- Test all interactive features
+Impact: Features stop working
+Rollback: Restore from backup branch
+```
+
+【Risk 3: Performance Degradation】
+```
+Risk: More DOM elements slow down rendering
+Likelihood: VERY LOW (same elements, different location)
+Mitigation:
+- No new elements added (just moved)
+- Same CSS rules apply
+- Monitor render performance
+Impact: Slight slowdown
+Rollback: Not needed (no performance impact expected)
+```
+
+【Risk 4: Mobile Layout Issues】
+```
+Risk: Controls overflow on small screens
+Likelihood: LOW (responsive CSS preserved)
+Mitigation:
+- Test on actual devices
+- Verify scrolling works
+- Check touch interactions
+Impact: Poor mobile UX
+Rollback: Adjust CSS, no need to revert HTML
+```
+
+【Risk 5: User Confusion】
+```
+Risk: Users expect controls to hide on tab switch
+Likelihood: MEDIUM (if using Option B)
+Mitigation:
+- Use Option A (hide controls on tab switch)
+- OR provide clear visual feedback
+- OR add user preference setting
+Impact: Unexpected behavior
+Rollback: Change switchTab() behavior
+```
+
+=============================================================================
+■ SUCCESS CRITERIA
+=============================================================================
+
+【Functional Success】
+✓ Clicking image shows image controls (any tab)
+✓ Clicking text shows text controls (any tab)
+✓ All control features work (sliders, buttons, inputs)
+✓ Controls hide when selecting other object type
+✓ Controls hide when clicking close button
+✓ Controls hide when clicking empty canvas
+
+【Technical Success】
+✓ Clean HTML structure (no deep nesting)
+✓ Maintainable code (logical separation)
+✓ No CSS hacks (proper positioning)
+✓ No JavaScript workarounds
+✓ Proper use of CSS display properties
+
+【UX Success】
+✓ Intuitive behavior (matches expectations)
+✓ Smooth transitions (no flickering)
+✓ Responsive design (works on all devices)
+✓ Accessible (keyboard, screen reader)
+✓ Fast performance (no lag)
+
+【Regression Success】
+✓ Image upload still works
+✓ Text creation still works
+✓ Template buttons still work
+✓ Tab switching still works
+✓ Undo/redo still works
+✓ Save/load still works
+✓ All existing features intact
+
+=============================================================================
+■ COMPARISON WITH BUG_REPORT7
+=============================================================================
+
+【Bug_report7.txt】
+- Focus: JavaScript logic issue
+- Solution: Object-based control display
+- Missing: DOM structure problem
+- Result: Incomplete solution (won't work)
+
+【Bug_report8.txt (This Report)】
+- Focus: DOM structure issue + JavaScript logic
+- Solution: Move controls + object-based display
+- Complete: Addresses root cause
+- Result: Complete solution (will work)
+
+【Why Bug_report7 Fix Won't Work】
+```javascript
+// Bug_report7 proposed:
+if (obj.objectType === 'uploaded-image') {
+    showImageControls(); // Adds .active class
+}
+
+// showImageControls() implementation:
+function showImageControls() {
+    const controlsSection = document.getElementById('imageControlsSection');
+    controlsSection.classList.add('active'); // ← display: flex
+}
+
+// BUT:
+// imageControlsSection is INSIDE imagePanel
+// imagePanel has display: none (when templatePanel is active)
+// Result: imageControlsSection CANNOT be visible
+//         (CSS: children of display:none are always hidden)
+```
+
+【Combined Fix】
+Bug_report8 solution = Bug_report7 logic + HTML restructuring
+
+This report provides the COMPLETE solution that Bug_report7 missed.
+
+=============================================================================
+■ IMPLEMENTATION CHECKLIST
+=============================================================================
+
+【Pre-Implementation】
+☐ Read Bug_report7.txt and Bug_report8.txt fully
+☐ Understand DOM structure problem
+☐ Review current HTML structure
+☐ Backup codebase (git commit)
+☐ Create feature branch
+☐ Inform stakeholders of HTML changes
+
+【HTML Restructuring】
+☐ Locate imageControlsSection in index.html
+☐ Cut imageControlsSection HTML block
+☐ Locate textControlsSection in index.html
+☐ Cut textControlsSection HTML block
+☐ Add controls-container div after templatePanel
+☐ Paste imageControlsSection inside controls-container
+☐ Paste textControlsSection inside controls-container
+☐ Verify closing tags match
+☐ Validate HTML (no syntax errors)
+
+【CSS Updates】
+☐ Open css/style.css
+☐ Add .controls-container styles
+☐ Add .controls-container .inline-controls-panel styles
+☐ Add animation keyframes (if not exists)
+☐ Add desktop mode adjustments
+☐ Verify no conflicting selectors
+☐ Test responsive behavior
+
+【JavaScript Updates】
+☐ Open js/canvas.init.js
+☐ Update handleObjectSelection()
+☐ Replace tab-based logic with object-based logic
+☐ Add console.log for debugging
+☐ Save file
+☐ (Optional) Update switchTab() in js/utils.js
+☐ Verify no syntax errors
+
+【Testing - Functional】
+☐ Test Case 1: Image with template tab
+☐ Test Case 2: Text with image tab
+☐ Test Case 3: Rapid switching
+☐ Test Case 4: Tab switching behavior
+☐ Test Case 5: Close button
+☐ Test Case 6: Desktop/mobile layout
+☐ Test Case 7: Multi-selection
+☐ Test Case 8: Upload/template features
+☐ Test Case 9: Undo/redo
+☐ Test Case 10: Save/load
+
+【Testing - Regression】
+☐ Image upload works
+☐ URL import works
+☐ Text creation works
+☐ Template buttons work
+☐ Tab switching works
+☐ All controls work
+☐ Keyboard shortcuts work
+☐ Touch gestures work (mobile)
+
+【Testing - Cross-Browser】
+☐ Chrome/Edge (latest)
+☐ Firefox (latest)
+☐ Safari (macOS)
+☐ Safari (iOS)
+☐ Chrome (Android)
+
+【Testing - Responsive】
+☐ Desktop (1920x1080)
+☐ Laptop (1366x768)
+☐ Tablet portrait (768x1024)
+☐ Tablet landscape (1024x768)
+☐ Mobile portrait (375x667)
+☐ Mobile landscape (667x375)
+
+【Performance & Accessibility】
+☐ No console errors
+☐ Smooth animations
+☐ Fast rendering
+☐ Keyboard navigation works
+☐ Screen reader announces correctly
+☐ Touch targets ≥44px (mobile)
+☐ Color contrast meets WCAG
+
+【Documentation】
+☐ Update code comments
+☐ Update AGENTS.md (if applicable)
+☐ Create changelog entry
+☐ Document breaking changes
+☐ Add migration notes
+
+【Deployment】
+☐ Code review completed
+☐ All tests passing
+☐ No console warnings
+☐ Merge to main branch
+☐ Deploy to staging
+☐ Verify on staging
+☐ Deploy to production
+☐ Monitor for issues
+
+=============================================================================
+■ ROLLBACK PLAN
+=============================================================================
+
+【If Critical Issue Found】
+
+1. **Immediate Rollback** (5 minutes)
+   ```bash
+   git checkout main
+   git revert HEAD
+   git push origin main
+   ```
+
+2. **Verify Rollback** (10 minutes)
+   - Test application loads
+   - Verify no new errors
+   - Confirm old behavior restored
+
+3. **Investigate Issue** (variable)
+   - Document specific failure
+   - Identify cause
+   - Determine fix
+
+4. **Apply Revised Fix** (variable)
+   - Create new branch
+   - Apply corrections
+   - Re-test thoroughly
+   - Deploy when ready
+
+【Partial Rollback Options】
+
+**Option A**: Revert HTML only (keep JS changes)
+```bash
+git checkout HEAD~1 -- index.html
+git commit -m "Revert HTML changes only"
+```
+
+**Option B**: Revert CSS only (keep HTML/JS)
+```bash
+git checkout HEAD~1 -- css/style.css
+git commit -m "Revert CSS changes only"
+```
+
+**Option C**: Revert JS only (keep HTML/CSS)
+```bash
+git checkout HEAD~1 -- js/canvas.init.js
+git commit -m "Revert JS changes only"
+```
+
+=============================================================================
+■ CONCLUSION
+=============================================================================
+
+This bug is caused by a STRUCTURAL problem in the HTML DOM, not just a 
+JavaScript logic issue. The inline-controls-panel elements are nested inside 
+their parent tool-panel containers, making them subject to the parent's 
+display:none CSS rule.
+
+**Key Findings**:
+
+1. **DOM Structure Problem**: Controls nested in hidden parents
+2. **CSS Cascade Issue**: Children of display:none are always hidden
+3. **JavaScript Logic Issue**: Tab-based instead of object-based
+4. **Bug_report7 Incomplete**: Missed the structural problem
+
+**Complete Solution**:
+
+1. **Move controls out** of tool-panel containers
+2. **Create independent** controls-container
+3. **Update JavaScript** to object-based logic
+4. **Add CSS** for new structure
+5. **Test thoroughly** across devices
+
+**Why This Solution Works**:
+
+- Controls are no longer children of tab panels
+- Controls can be shown/hidden independently
+- JavaScript can directly control visibility
+- CSS display property works as intended
+- Clean architecture, maintainable code
+
+**Implementation Effort**: 2.5-4 hours
+**Risk Level**: LOW (isolated changes, easy rollback)
+**Priority**: HIGH (core UX feature, simple fix)
+
+**Recommendation**: Implement Approach 1 (move controls outside panels) 
+immediately. This provides the cleanest, most maintainable solution that 
+properly fixes both the DOM structure and JavaScript logic issues.
+
+=============================================================================
+END OF REPORT
+=============================================================================
+
+=============================================================================
+■ CRITICAL UPDATE - TOOLBAR COMPLETE DISAPPEARANCE
+=============================================================================
+Updated: 2025-01-08
+Severity Level: CRITICAL (upgraded from HIGH)
+New Symptom: Toolbars completely disappear, not showing anywhere
+
+【New User Report】
+"画像のツールバー、テキストのツールバーが消えて、右側のツールバーにも表示されない"
+Translation: "Image toolbar and text toolbar disappear and don't display in the right sidebar either"
+
+This reveals a MORE CRITICAL issue than originally identified. The toolbars
+are not just showing incorrectly - they're COMPLETELY DISAPPEARING.
+
+=============================================================================
+■ ROOT CAUSE #3: SWITCHTAB() INTERFERENCE (NEWLY DISCOVERED)
+=============================================================================
+
+In addition to the DOM structure issue (Root Cause #1) and JavaScript logic
+issue (Root Cause #2), there is a THIRD critical problem:
+
+**The switchTab() function ALWAYS hides ALL controls when called.**
+
+【Problem Code】
+File: js/utils.js (lines 36-43)
+
+```javascript
+function switchTab(activeTab) {
+    // ... tab switching code ...
+    
+    // ★ CRITICAL PROBLEM: ALWAYS hides controls on ANY tab switch
+    // タブ切り替え時はサイドパネルを非表示にする
+    // （オブジェクト選択時に自動表示される）
+    if (typeof hideImageControls === 'function') {
+        hideImageControls();  // ← Hides image controls
+    }
+    if (typeof hideTextControls === 'function') {
+        hideTextControls();  // ← Hides text controls  
+    }
+    
+    // 触覚フィードバック
+    if (navigator.vibrate) {
+        navigator.vibrate(20);
+    }
+}
+```
+
+【Why This Causes Complete Disappearance】
+
+Scenario 1: User clicks image while on template tab
+```
+1. handleObjectSelection() fires
+   └─ Detects image object
+   └─ Checks active tab = "template" (wrong tab)
+   └─ Tab-based logic shows TEXT controls (WRONG!)
+   └─ Hides image controls
+
+2. User sees: No controls visible
+   (Text controls can't show because templatePanel has display:none)
+
+Result: BOTH controls hidden, nothing visible
+```
+
+Scenario 2: If auto-tab-switching is implemented
+```
+1. handleObjectSelection() fires
+   └─ Detects image object  
+   └─ Calls switchTab(imageTab) to match object type
+   
+2. switchTab() executes
+   └─ Switches to imagePanel
+   └─ Calls hideImageControls()  ← IMMEDIATELY hides controls!
+   └─ Calls hideTextControls()
+   
+3. handleObjectSelection() tries to show imageControls
+   └─ Too late - already hidden by switchTab()
+
+Result: Controls flash briefly then disappear
+```
+
+Scenario 3: Manual tab switching while editing
+```
+1. User is editing image (image controls visible)
+2. User clicks "売れる装飾" tab
+3. switchTab() executes
+   └─ Hides ALL controls
+4. User clicks image again
+5. handleObjectSelection() fires
+   └─ Tab-based logic shows WRONG controls
+   
+Result: Controls disappear and wrong ones attempted
+```
+
+=============================================================================
+■ THREE-WAY FAILURE MODE
+=============================================================================
+
+The toolbar disappearance is caused by THREE simultaneous issues:
+
+【Issue #1: DOM Structure】
+- Controls nested inside tab panels
+- Hidden parents make children invisible
+- Identified in: Original Bug_report8
+
+【Issue #2: JavaScript Logic】
+- Tab-based instead of object-based control display
+- Shows wrong controls for wrong tab
+- Identified in: Bug_report7
+
+【Issue #3: switchTab() Interference】 ← NEW DISCOVERY
+- switchTab() ALWAYS hides ALL controls
+- Creates race condition with object selection
+- Prevents controls from ever being visible
+
+【Combined Effect】
+```
+DOM Structure + JavaScript Logic + switchTab() = COMPLETE FAILURE
+
+Example Flow:
+1. User on template tab, clicks image
+2. handleObjectSelection() tries to show image controls (fails - DOM structure)
+3. Tries to show text controls instead (fails - wrong tab logic)
+4. If tab switches, switchTab() hides everything (switchTab interference)
+5. Result: NO CONTROLS VISIBLE AT ALL
+```
+
+=============================================================================
+■ COMPLETE SOLUTION - ALL THREE ISSUES
+=============================================================================
+
+To fix the complete disappearance, ALL THREE issues must be addressed:
+
+【Fix #1: DOM Structure】 (from original Bug_report8)
+- Move controls OUT of tab panels
+- Create independent controls-container
+- Implementation: 60-90 minutes
+
+【Fix #2: JavaScript Logic】 (from Bug_report7)
+- Change to object-based control display
+- Show controls based on object type, not active tab
+- Implementation: 15-30 minutes
+
+【Fix #3: switchTab() Behavior】 ← NEW FIX REQUIRED
+- REMOVE automatic hiding of controls in switchTab()
+- Let handleObjectSelection() control visibility
+- Implementation: 5-10 minutes
+
+=============================================================================
+■ UPDATED IMPLEMENTATION - FIX #3
+=============================================================================
+
+**File**: js/utils.js
+**Function**: switchTab() (lines 28-49)
+**Change**: Remove control hiding logic
+
+**BEFORE (WRONG - causes disappearance)**:
+```javascript
+function switchTab(activeTab) {
+    document.querySelectorAll('.tool-tab').forEach(tab => 
+        tab.classList.remove('active'));
+    document.querySelectorAll('.tool-panel').forEach(panel => 
+        panel.classList.remove('active'));
+
+    activeTab.classList.add('active');
+    const tabName = activeTab.dataset.tab;
+    document.getElementById(tabName + 'Panel').classList.add('active');
+
+    // ★ REMOVE THIS: Causes controls to disappear
+    if (typeof hideImageControls === 'function') {
+        hideImageControls();
+    }
+    if (typeof hideTextControls === 'function') {
+        hideTextControls();
+    }
+
+    if (navigator.vibrate) {
+        navigator.vibrate(20);
+    }
+}
+```
+
+**AFTER (CORRECT - allows controls to stay visible)**:
+```javascript
+function switchTab(activeTab) {
+    document.querySelectorAll('.tool-tab').forEach(tab => 
+        tab.classList.remove('active'));
+    document.querySelectorAll('.tool-panel').forEach(panel => 
+        panel.classList.remove('active'));
+
+    activeTab.classList.add('active');
+    const tabName = activeTab.dataset.tab;
+    document.getElementById(tabName + 'Panel').classList.add('active');
+
+    // ★ Bug8 Fix #3: DON'T hide controls on tab switch
+    // Controls visibility is managed by handleObjectSelection()
+    // based on selected object type, not active tab
+    //
+    // Removed: hideImageControls() and hideTextControls()
+    //
+    // This allows user to:
+    // - Switch tabs while editing an object
+    // - Access upload/creation tools while keeping edit controls visible
+    // - Have consistent behavior across tab switches
+
+    if (navigator.vibrate) {
+        navigator.vibrate(20);
+    }
+}
+```
+
+**Why This Fix Works**:
+- Stops switchTab() from interfering with control visibility
+- Lets handleObjectSelection() be the single source of truth
+- Preserves editing context when switching tabs
+- No race conditions between tab switch and object selection
+
+**Alternative Approach** (if hiding on tab switch is desired):
+```javascript
+function switchTab(activeTab) {
+    document.querySelectorAll('.tool-tab').forEach(tab => 
+        tab.classList.remove('active'));
+    document.querySelectorAll('.tool-panel').forEach(panel => 
+        panel.classList.remove('active'));
+
+    activeTab.classList.add('active');
+    const tabName = activeTab.dataset.tab;
+    document.getElementById(tabName + 'Panel').classList.add('active');
+
+    // ★ Alternative: Only hide if NO object is selected
+    const canvas = typeof getCanvas === 'function' ? getCanvas() : null;
+    const selectedObject = canvas ? canvas.getActiveObject() : null;
+    
+    if (!selectedObject) {
+        // Only hide controls if nothing is selected
+        if (typeof hideImageControls === 'function') {
+            hideImageControls();
+        }
+        if (typeof hideTextControls === 'function') {
+            hideTextControls();
+        }
+    }
+    // If object is selected, keep controls visible
+
+    if (navigator.vibrate) {
+        navigator.vibrate(20);
+    }
+}
+```
+
+=============================================================================
+■ COMPLETE IMPLEMENTATION ORDER
+=============================================================================
+
+To fix toolbar disappearance, implement in this order:
+
+【Step 1: Fix switchTab() Interference】 (5-10 min)
+Priority: HIGHEST (quick win, immediate improvement)
+File: js/utils.js
+Action: Remove hideImageControls() and hideTextControls() calls
+Result: Stops controls from being forcibly hidden
+
+【Step 2: Fix JavaScript Logic】 (15-30 min)
+Priority: HIGH (makes controls show for right object)
+File: js/canvas.init.js
+Action: Change handleObjectSelection() to object-based logic
+Result: Shows correct controls for clicked object
+
+【Step 3: Fix DOM Structure】 (60-90 min)
+Priority: MEDIUM (enables cross-tab visibility)
+Files: index.html, css/style.css
+Action: Move controls out of tab panels
+Result: Controls can show regardless of active tab
+
+【Why This Order】
+
+Starting with Step 1 provides immediate improvement:
+- Controls stop disappearing
+- Minimal code change (delete 4 lines)
+- Zero risk
+- Can be deployed immediately
+
+Then Step 2 makes controls show correctly:
+- Right controls for right object
+- Small code change
+- Low risk
+- Completes basic functionality
+
+Finally Step 3 enables full cross-tab editing:
+- Controls work across tab switches
+- Larger structural change
+- Requires testing
+- Complete solution
+
+【Incremental Deployment】
+
+```
+Phase 1 (Immediate): Deploy Step 1
+- Controls stop disappearing
+- Users can edit objects again
+- Still have tab-context limitation
+
+Phase 2 (Next day): Deploy Step 2
+- Correct controls show
+- Better UX
+- Still need right tab active
+
+Phase 3 (Next week): Deploy Step 3
+- Full cross-tab editing
+- Complete solution
+- Thorough testing done
+```
+
+=============================================================================
+■ UPDATED TEST CASE - VERIFY DISAPPEARANCE FIXED
+=============================================================================
+
+**Test Case: Toolbar Disappearance Bug**
+
+Setup:
+1. Start fresh application
+2. Ensure "商品画像" tab is active
+3. Add an image to canvas
+4. Add text to canvas
+
+Test Scenario A: Same Tab (should work even before fix)
+```
+1. Stay on "商品画像" tab
+2. Click on image object
+3. Expected: Image controls appear
+4. Verify: Controls visible and functional
+5. Click on text object  
+6. Expected: Text controls appear (or image controls if wrong tab logic)
+7. Verify: Some controls visible
+```
+
+Test Scenario B: Wrong Tab (reproduces disappearance)
+```
+1. Switch to "売れる装飾" tab
+2. Click on IMAGE object
+3. Current Bug: Controls disappear completely
+4. After Step 1 Fix: Image controls stay visible (but may be wrong ones)
+5. After Step 2 Fix: Image controls show correctly
+6. After Step 3 Fix: Image controls work perfectly across tabs
+```
+
+Test Scenario C: Rapid Tab Switching
+```
+1. Click image (image controls visible)
+2. Switch to "売れる装飾" tab
+3. Current Bug: Controls disappear
+4. After Fix: Controls remain visible
+5. Switch back to "商品画像" tab
+6. Verify: Controls still visible
+7. Click text object
+8. Verify: Text controls now show
+```
+
+=============================================================================
+■ DEBUGGING COMMANDS
+=============================================================================
+
+To diagnose the disappearance in browser console:
+
+```javascript
+// Check if controls exist in DOM
+console.log('Image controls:', document.getElementById('imageControlsSection'));
+console.log('Text controls:', document.getElementById('textControlsSection'));
+
+// Check parent visibility
+const imagePanel = document.getElementById('imagePanel');
+const templatePanel = document.getElementById('templatePanel');
+console.log('imagePanel display:', window.getComputedStyle(imagePanel).display);
+console.log('templatePanel display:', window.getComputedStyle(templatePanel).display);
+
+// Check controls visibility
+const imgControls = document.getElementById('imageControlsSection');
+const txtControls = document.getElementById('textControlsSection');
+if (imgControls) {
+    console.log('Image controls display:', window.getComputedStyle(imgControls).display);
+    console.log('Image controls has .active:', imgControls.classList.contains('active'));
+}
+if (txtControls) {
+    console.log('Text controls display:', window.getComputedStyle(txtControls).display);
+    console.log('Text controls has .active:', txtControls.classList.contains('active'));
+}
+
+// Check selected object
+const canvas = window.canvas;
+if (canvas) {
+    const obj = canvas.getActiveObject();
+    console.log('Selected object:', obj);
+    console.log('Object type:', obj?.type);
+    console.log('Object objectType:', obj?.objectType);
+}
+
+// Force show controls (temporary test)
+if (imgControls) {
+    imgControls.classList.add('active');
+    console.log('Forced image controls active');
+}
+```
+
+=============================================================================
+■ SUMMARY OF CRITICAL UPDATE
+=============================================================================
+
+**Original Bug_report8 identified**: DOM structure + JavaScript logic issues
+**This update adds**: switchTab() interference issue (Root Cause #3)
+
+**Three-way failure mode**:
+1. DOM Structure: Controls nested in hidden parents
+2. JavaScript Logic: Tab-based instead of object-based
+3. switchTab() Interference: Force-hides controls on tab switch
+
+**Complete solution requires fixing all three**:
+- Quick fix (Step 1): Remove hiding from switchTab() - 5-10 min
+- Medium fix (Step 2): Object-based logic - 15-30 min  
+- Complete fix (Step 3): DOM restructuring - 60-90 min
+
+**Immediate action**: Implement Step 1 first for quickest improvement
+
+**Result after all fixes**:
+✓ Controls show correctly
+✓ Controls match selected object
+✓ Controls work across tab switches
+✓ No disappearing toolbars
+✓ Consistent, predictable behavior
+
+=============================================================================
+END OF CRITICAL UPDATE
+=============================================================================

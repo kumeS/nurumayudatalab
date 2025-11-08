@@ -86,12 +86,7 @@ class ApiService {
         return this.request(endpoint, { method: 'DELETE' });
     }
 
-    /**
-     * Check if API is configured
-     */
-    isConfigured() {
-        return window.config && (window.config.hasIOApi() || window.config.hasReplicateApi());
-    }
+
 }
 
 // Initialize API service

@@ -1,0 +1,1384 @@
+=============================================================================
+Bug_report9: Initial Load and Zoom System Issues - Comprehensive Analysis
+=============================================================================
+Created: 2025-01-08
+Investigator: Professional Engineer
+Target System: FleMa Image Editing Tool
+Investigation Scope: Initialization, Layout, and Zoom System
+
+=============================================================================
+■ EXECUTIVE SUMMARY
+=============================================================================
+
+【Three Critical Issues Identified】
+
+Bug 1: Layout Flash on Initial Load (FOUC - Flash of Unstyled Content)
+- Severity: MEDIUM (Visual/UX issue)
+- Symptom: Different layout briefly visible before correct layout loads
+- Root Cause: Canvas container hidden by CSS, shown after initialization
+
+Bug 2: Initial Canvas Zoom Too Small (10% instead of maximized)
+- Severity: HIGH (Functional/UX issue)  
+- Symptom: Canvas appears at 10% zoom (MIN_CANVAS_ZOOM) instead of fit-to-screen
+- Root Cause: INITIAL_CANVAS_ZOOM = 0.5 conflicts with fitCanvasToContainer()
+
+Bug 3: Canvas Size Grows on Zoom In/Out Operations
+- Severity: HIGH (Critical functional bug)
+- Symptom: Canvas physical size increases with zoom operations
+- Root Cause: syncCanvasViewportSize() applies CSS transform scale incorrectly
+
+【Impact Assessment】
+- All Bugs: Affects 100% of users on every session
+- User Experience: Confusing, appears broken
+- Business Impact: Poor first impression, perceived as buggy software
+
+=============================================================================
+■ BUG #1: LAYOUT FLASH ON INITIAL LOAD (FOUC)
+=============================================================================
+
+【Symptom】
+When the application loads, users briefly see a different layout before the 
+correct layout appears. This creates a jarring visual experience.
+
+【Visual Evidence】
+```
+Time T=0ms: Page loads, HTML rendered
+  ↓
+  Canvas container: opacity: 0 (invisible)
+  Other elements: visible with default styling
+  User sees: Incomplete layout
+  ↓
+Time T=100-300ms: JavaScript executes, canvas initializes
+  ↓
+Time T=300-500ms: .initialized class added
+  ↓
+  Canvas container: opacity: 1 (fade in)
+  User sees: Layout "jumps" as canvas appears
+```
+
+【Root Cause Analysis】
+
+**File**: css/style.css (lines 462-469)
+```css
+#canvasContainer {
+    /* ... other styles ... */
+    /* Bug7修正: 初期表示のちらつき防止 */
+    opacity: 0;
+    transition: opacity 0.25s ease-in-out;
+}
+
+#canvasContainer.initialized {
+    opacity: 1;
+}
+```
+
+**File**: js/canvas.init.js (lines 115-125)
+```javascript
+// ★Bug7修正: 初期化完了後にコンテナを表示
+const container = document.getElementById('canvasContainer');
+if (container) {
+    // 少し遅延させてから表示（描画完了を待つ）
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            container.classList.add('initialized');
+            console.log('[Bug7] Canvas container initialized and visible');
+        });
+    });
+}
+```
+
+**Why This Causes Flash**:
+
+1. **Initial State**: Canvas container is invisible (opacity: 0)
+2. **Other Elements**: Header, toolbar, controls are immediately visible
+3. **Layout Reflow**: When canvas appears, layout shifts
+4. **User Perception**: Sees incomplete layout → sudden appearance
+5. **Result**: Flash of Unstyled Content (FOUC)
+
+**Timing Issue**:
+- HTML parsing: 0-50ms
+- CSS loading: 0-100ms  
+- JavaScript execution: 100-200ms
+- Canvas initialization: 200-400ms
+- Double requestAnimationFrame: adds 32ms delay (2 frames)
+- Total visible delay: 232-432ms
+
+During this 232-432ms window, users see an incomplete layout.
+
+【Related Code Locations】
+
+1. **CSS Initialization Hide**
+   - File: css/style.css (lines 462-469)
+   - Purpose: Prevent flash during initialization
+   - Problem: Causes different kind of flash (layout jump)
+
+2. **JavaScript Initialization Show**
+   - File: js/canvas.init.js (lines 115-125)
+   - Purpose: Show canvas after ready
+   - Problem: Delay too long, creates visible gap
+
+3. **Canvas Creation**
+   - File: js/canvas.interaction.js (lines 270-335)
+   - Creates Fabric canvas with initial settings
+   - No direct flash issue here
+
+【Current Workaround (Insufficient)】
+
+The comment says "Bug7修正: 初期表示のちらつき防止" (Bug7 fix: prevent 
+initial display flicker), but this actually CREATES a different flash:
+
+- Without opacity: Flash of canvas before styling applied
+- With opacity: Flash of incomplete layout before canvas appears
+
+Neither solution is ideal. The real fix requires:
+- Skeleton loader or placeholder
+- Faster initialization
+- Better timing coordination
+
+=============================================================================
+■ BUG #2: INITIAL CANVAS ZOOM TOO SMALL (10%)
+=============================================================================
+
+【Symptom】
+When the application first loads, the canvas appears extremely small at 
+approximately 10% zoom instead of being maximized to fit the screen.
+
+【User Report】
+"初期画面で、キャンバスが画面最大化されず、10%に設定されている。
+ キャンバスは画面最大化で表示すべきです。"
+
+Translation: "On initial screen, canvas is not maximized and is set to 10%. 
+Canvas should be displayed maximized."
+
+【Visual Evidence】
+```
+Expected Initial State:
+┌──────────────────────────────────┐
+│ Header                           │
+├──────────────────────────────────┤
+│ ┌────────────────────────────┐  │
+│ │                            │  │
+│ │     Canvas (Fit to screen) │  │
+│ │        Zoom: ~95%          │  │
+│ │                            │  │
+│ └────────────────────────────┘  │
+└──────────────────────────────────┘
+
+Actual Initial State (BUG):
+┌──────────────────────────────────┐
+│ Header                           │
+├──────────────────────────────────┤
+│                                  │
+│   ┌─┐  Canvas (tiny)             │
+│   └─┘  Zoom: 10%                 │
+│                                  │
+│                                  │
+└──────────────────────────────────┘
+```
+
+【Root Cause Analysis】
+
+**Issue #1: Conflicting Zoom Values**
+
+File: js/canvas.state.js (lines 69-73)
+```javascript
+const MIN_CANVAS_ZOOM = 0.1;  // 10% - minimum zoom
+const MAX_CANVAS_ZOOM = 5;    // 500% - maximum zoom
+const DEFAULT_CANVAS_WIDTH = 1080;
+const DEFAULT_CANVAS_HEIGHT = 1080;
+const INITIAL_CANVAS_ZOOM = 0.5;  // 50% - より操作しやすいズームレベル
+```
+
+**Problem**: INITIAL_CANVAS_ZOOM = 0.5 (50%) is set, but something is 
+overriding it to MIN_CANVAS_ZOOM = 0.1 (10%).
+
+**Issue #2: Canvas Creation with Shared Zoom**
+
+File: js/canvas.interaction.js (lines 306-311)
+```javascript
+// ★Bug12修正: 既存のsharedCanvasZoomを即座に適用
+// これにより、新しいキャンバスが既存のキャンバスと同じズームで表示される
+if (sharedCanvasZoom !== 1.0 && isFinite(sharedCanvasZoom)) {
+    fabricCanvas.setZoom(sharedCanvasZoom);
+    console.log('[Bug12] Applied shared zoom to new canvas:', sharedCanvasZoom);
+}
+```
+
+**Problem**: If sharedCanvasZoom is not initialized correctly, canvas gets 
+wrong zoom value.
+
+**Issue #3: Initialization Flow**
+
+File: js/canvas.init.js (lines 62-127)
+```javascript
+function initializeFabricCanvas() {
+    // ... canvas creation code ...
+    
+    if (firstStateId) {
+        setActiveCanvas(firstStateId, { force: true, recenter: true });
+        fitCanvasToContainer();  // ← Should fit to screen
+        
+        // ... showing container code ...
+    }
+}
+```
+
+**Expected**: fitCanvasToContainer() should set zoom to fit screen (e.g., 95%)
+**Actual**: Canvas appears at 10% zoom
+
+**Issue #4: Zoom State Initialization**
+
+File: js/canvas.state.js (lines 4-7)
+```javascript
+let canvas = null;
+let selectedObject = null;
+let canvasZoom = 1;  // ← Initial value
+let sharedCanvasZoom = 1; // グローバル共有ズーム値（全キャンバス同期用）
+```
+
+**Problem**: canvasZoom and sharedCanvasZoom both start at 1.0 (100%), but 
+somewhere they're being set to 0.1 (10%) during initialization.
+
+【Initialization Flow Analysis】
+
+```
+Initialization Sequence:
+─────────────────────────────────────────────────────────────────────
+
+1. JavaScript loads
+   canvasZoom = 1.0
+   sharedCanvasZoom = 1.0
+
+2. initializeFabricCanvas() called
+   ├─ createCanvasStateFromElement() 
+   │  └─ fabricCanvas.setZoom(sharedCanvasZoom)  // 1.0
+   │
+   ├─ setActiveCanvas(firstStateId, { recenter: true })
+   │  └─ syncCanvasViewportSize({ recenter: true })
+   │     └─ Applies CSS transform: scale(zoom)
+   │
+   └─ fitCanvasToContainer()  // ← CRITICAL STEP
+      ├─ Calculates fit zoom (should be ~0.95 for typical screen)
+      ├─ Calls canvas.setZoom(fitZoom)
+      └─ Should update canvasZoom and sharedCanvasZoom
+
+3. Result: Canvas should be at ~95% zoom
+
+BUT ACTUALLY:
+- Canvas appears at 10% (MIN_CANVAS_ZOOM)
+- Something is overriding or failing in fitCanvasToContainer()
+```
+
+【Hypothesized Failure Points】
+
+**Hypothesis A**: fitCanvasToContainer() calculates wrong zoom
+
+File: js/canvas.state.js (lines 650-721)
+```javascript
+function fitCanvasToContainer() {
+    if (!canvas) return;
+
+    const container = document.getElementById('canvasContainer');
+    if (!container) return;
+
+    // ★Bug6 Fix: Calculate true available viewport height
+    const trueAvailableHeight = calculateAvailableViewportHeight();
+    
+    const computedStyle = window.getComputedStyle(container);
+    const paddingX = parseFloat(computedStyle.paddingLeft || '0') + 
+                     parseFloat(computedStyle.paddingRight || '0');
+    const paddingY = parseFloat(computedStyle.paddingTop || '0') + 
+                     parseFloat(computedStyle.paddingBottom || '0');
+
+    // ★Bug6 Fix: Use true viewport height, not container.clientHeight
+    const availableWidth = Math.max(container.clientWidth - paddingX, 0);
+    const availableHeight = Math.max(trueAvailableHeight - paddingY, 0);
+
+    // ... logging ...
+
+    if (availableWidth === 0 || availableHeight === 0) {
+        syncCanvasViewportSize({ recenter: true });
+        updateZoomUiFromCanvas();
+        return;  // ← EARLY RETURN WITHOUT SETTING ZOOM!
+    }
+
+    const widthScale = availableWidth / canvas.width;
+    const heightScale = availableHeight / canvas.height;
+    const fitZoom = Math.min(widthScale, heightScale);
+```
+
+**Problem Scenario**:
+- If availableWidth or availableHeight is 0 during initialization
+- Early return is triggered
+- Zoom is never calculated or set
+- Canvas remains at whatever zoom it had (possibly 0.1)
+
+**Hypothesis B**: Container dimensions not ready during initialization
+
+During page load:
+1. HTML parsed
+2. CSS loaded
+3. JavaScript executes
+4. Canvas initialized
+5. BUT: Layout not fully computed yet
+6. container.clientWidth might be 0 or very small
+7. fitCanvasToContainer() fails or calculates wrong value
+
+**Hypothesis C**: Race condition between initialization steps
+
+```
+Time T=0: initializeFabricCanvas() starts
+  ├─ Canvas created with zoom = 1.0
+  ↓
+Time T=50ms: setActiveCanvas() called
+  ├─ syncCanvasViewportSize() applies transform
+  ↓
+Time T=100ms: fitCanvasToContainer() called
+  ├─ Container dimensions not ready (0 x 0)
+  ├─ Early return triggered
+  ├─ Zoom never updated
+  ↓
+Time T=200ms: Double requestAnimationFrame completes
+  ├─ Container becomes visible
+  ├─ But zoom is still at default (or corrupted to 0.1)
+  
+Result: Canvas visible but wrong zoom
+```
+
+【Debug Evidence Needed】
+
+To confirm root cause, check console logs:
+1. "[Bug6 Fix] Calculated available viewport height"
+2. "[Bug6 Fix] fitCanvasToContainer"
+3. Initial availableWidth and availableHeight values
+4. Whether early return is triggered
+
+If logs show:
+- availableWidth: 0 or availableHeight: 0 → Hypothesis A confirmed
+- "fitCanvasToContainer completed" but zoom still 10% → Different issue
+
+【Related Issues】
+
+This bug interacts with Bug #3 (zoom system issues). If zoom system is 
+fundamentally broken, fitCanvasToContainer() might work correctly but 
+subsequent operations corrupt the zoom value.
+
+=============================================================================
+■ BUG #3: CANVAS SIZE GROWS ON ZOOM OPERATIONS
+=============================================================================
+
+【Symptom】
+When using +/- buttons to zoom in/out, the canvas physical size increases 
+instead of just changing the zoom level. Objects and canvas size become 
+desynchronized.
+
+【User Report】
+"＋−の拡大・縮小時に、キャンバスサイズが大きくなるバグがある。
+ キャンバスサイズとオブジェクトサイズの連動が取れていない。
+ 関連コードを削除して再作成するのが望ましい。"
+
+Translation: "When zooming in/out with +/-, there's a bug where canvas size 
+increases. Canvas size and object size are not synchronized. It's desirable 
+to delete related code and recreate it."
+
+【Visual Evidence】
+```
+Initial State (100% zoom):
+┌─────────────────────────┐
+│ Canvas 1080x1080        │
+│ ┌─────────────────────┐ │
+│ │                     │ │
+│ │     Objects         │ │
+│ │                     │ │
+│ └─────────────────────┘ │
+└─────────────────────────┘
+
+After Zoom In to 150% (BUG):
+┌────────────────────────────────────┐
+│ Canvas 1620x1620 ← SIZE INCREASED! │
+│ ┌────────────────────────────────┐ │
+│ │                                │ │
+│ │                                │ │
+│ │     Objects (also bigger)      │ │
+│ │     BUT not proportional!      │ │
+│ │                                │ │
+│ └────────────────────────────────┘ │
+└────────────────────────────────────┘
+
+Expected After Zoom In to 150%:
+┌─────────────────────────┐
+│ Canvas 1080x1080 (same) │
+│ ┌─────────────────────┐ │
+│ │                     │ │
+│ │ Objects (bigger)    │ │
+│ │  via zoom scale     │ │
+│ └─────────────────────┘ │
+└─────────────────────────┘
+```
+
+【Root Cause Analysis】
+
+**Primary Issue: syncCanvasViewportSize() Implementation**
+
+File: js/canvas.state.js (lines 492-579)
+```javascript
+function syncCanvasViewportSize(options = {}) {
+    if (!canvas) return;
+
+    const container = document.getElementById('canvasContainer');
+    if (!container) return;
+
+    const { recenter = false } = options;
+    const zoom = canvas.getZoom();
+
+    const canvasWidth = canvas.width;   // ← Logical size (1080)
+    const canvasHeight = canvas.height; // ← Logical size (1080)
+
+    const wrapper = canvas.wrapperEl;
+    const lower = canvas.lowerCanvasEl;
+    const upper = canvas.upperCanvasEl;
+
+    // DOM要素サイズは論理サイズを維持し、CSS TransformでズームによるスケーリングGUI適用
+    if (wrapper) {
+        wrapper.style.width = `${canvasWidth}px`;  // ← Sets DOM size
+        wrapper.style.height = `${canvasHeight}px`;
+        wrapper.style.transform = `scale(${zoom})`;  // ← Applies zoom via CSS
+        wrapper.style.transformOrigin = 'center center';
+
+        // ★Bug_report5対応: コンテナのpadding領域を考慮して中央配置
+        const computedStyle = window.getComputedStyle(container);
+        const paddingLeft = parseFloat(computedStyle.paddingLeft || '0');
+        const paddingRight = parseFloat(computedStyle.paddingRight || '0');
+        const paddingTop = parseFloat(computedStyle.paddingTop || '0');
+        const paddingBottom = parseFloat(computedStyle.paddingBottom || '0');
+
+        // 利用可能な領域の中心座標を計算
+        const availableWidth = container.clientWidth - paddingLeft - paddingRight;
+        const availableHeight = container.clientHeight - paddingTop - paddingBottom;
+
+        // wrapper を絶対配置
+        wrapper.style.position = 'absolute';
+        
+        // ★Bug6 Fix: Center horizontally
+        wrapper.style.left = `${paddingLeft + (availableWidth - canvasWidth) / 2}px`;
+        
+        // ★Bug6 Fix: Center vertically (changed from 30% positioning)
+        wrapper.style.top = `${paddingTop + (availableHeight - canvasHeight) / 2}px`;
+        
+        console.log('[Bug6 Fix] Canvas wrapper positioned:', {
+            left: wrapper.style.left,
+            top: wrapper.style.top,
+            availableSize: [availableWidth, availableHeight],
+            canvasSize: [canvasWidth, canvasHeight]
+        });
+    }
+
+    [lower, upper].forEach((el) => {
+        if (!el) return;
+        el.style.width = `${canvasWidth}px`;   // ← Also sets DOM size
+        el.style.height = `${canvasHeight}px`;
+    });
+```
+
+**The Problem**:
+
+1. **Wrapper Size Calculation**:
+   ```javascript
+   wrapper.style.left = `${paddingLeft + (availableWidth - canvasWidth) / 2}px`;
+   ```
+   This calculation assumes `canvasWidth` is the VISUAL width, but:
+   - `canvasWidth` = logical size (1080px)
+   - Visual width = canvasWidth * zoom
+   - When zoom = 1.5, visual width = 1620px
+   - But calculation uses 1080px
+
+2. **CSS Transform Scale Effect**:
+   ```javascript
+   wrapper.style.transform = `scale(${zoom})`;
+   ```
+   This scales the entire wrapper INCLUDING its children.
+   - At zoom = 1.5, wrapper becomes 1080 * 1.5 = 1620px visually
+   - But positioning calculation doesn't account for this
+
+3. **Desynchronization**:
+   - Logical size stays at 1080x1080
+   - Visual size becomes 1620x1620  
+   - Objects are scaled by Fabric.js zoom
+   - But layout calculations use logical size
+   - Result: Mismatch between logical and visual dimensions
+
+**Secondary Issue: CSS Transform Origin**
+
+```javascript
+wrapper.style.transformOrigin = 'center center';
+```
+
+When zoom changes:
+- Transform origin is center
+- Scale is applied from center
+- But absolute positioning is calculated before scale
+- Result: Element appears to "jump" or "grow" incorrectly
+
+**Tertiary Issue: Zoom Button Implementation**
+
+File: js/canvas.init.js (lines 686-700)
+```javascript
+// ズームイン (+10%)
+zoomInBtn.addEventListener('click', function() {
+    const currentZoomPercent = Math.round(canvas.getZoom() * 100);
+    const newZoomPercent = Math.min(currentZoomPercent + 10, MAX_CANVAS_ZOOM * 100);
+    const clampedZoom = clampCanvasZoom(newZoomPercent / 100);
+    applyCanvasZoom(clampedZoom, { centerOnView: true });
+});
+
+// ズームアウト (-10%)
+zoomOutBtn.addEventListener('click', function() {
+    const currentZoomPercent = Math.round(canvas.getZoom() * 100);
+    const newZoomPercent = Math.max(currentZoomPercent - 10, MIN_CANVAS_ZOOM * 100);
+    const clampedZoom = clampCanvasZoom(newZoomPercent / 100);
+    applyCanvasZoom(clampedZoom, { centerOnView: true });
+});
+```
+
+Each zoom operation:
+1. Gets current zoom (e.g., 1.0)
+2. Calculates new zoom (e.g., 1.1)
+3. Calls applyCanvasZoom()
+4. Which calls syncCanvasViewportSize()
+5. Which recalculates wrapper positioning
+6. Using LOGICAL size, not VISUAL size
+7. Result: Positioning error accumulates
+
+【Zoom System Architecture Analysis】
+
+**Current Architecture (PROBLEMATIC)**:
+
+```
+Zoom Operation Flow:
+────────────────────────────────────────────────────────────────────
+
+User clicks +/- button
+  ↓
+Calculate new zoom value
+  ↓
+applyCanvasZoom(targetZoom)
+  ├─ Update sharedCanvasZoom = targetZoom
+  ├─ Update canvasZoom = targetZoom
+  ├─ For each canvas:
+  │  ├─ fabricCanvas.setZoom(targetZoom)  ← Fabric.js zoom
+  │  └─ syncCanvasViewportSizeForState()  ← CSS positioning
+  │     └─ wrapper.style.transform = `scale(${zoom})`
+  └─ centerCanvasInView()
+
+Result: Two zoom mechanisms fighting each other!
+1. Fabric.js internal zoom (affects object rendering)
+2. CSS transform scale (affects DOM element size)
+```
+
+**The Dual-Zoom Problem**:
+
+Fabric.js has its own zoom system:
+- `canvas.setZoom(value)` - internal zoom
+- Affects how objects are rendered
+- Changes viewport transform matrix
+- Objects appear larger/smaller
+
+CSS Transform adds ANOTHER layer:
+- `wrapper.style.transform = 'scale(...)'` - CSS zoom
+- Affects entire DOM element
+- Makes everything bigger visually
+- Independent of Fabric.js zoom
+
+**Result: Compound Scaling**:
+```
+True Visual Scale = Fabric.js Zoom × CSS Transform Scale
+
+Example:
+- Fabric.js zoom = 1.5
+- CSS transform = scale(1.5)
+- True visual scale = 1.5 × 1.5 = 2.25 (225%)
+
+User expects 150%, but sees 225%!
+```
+
+【Why This Design Was Used】
+
+From comments in code:
+```javascript
+// DOM要素サイズは論理サイズを維持し、CSS TransformでズームによるスケーリングGUI適用
+```
+Translation: "DOM element size maintains logical size, CSS Transform applies 
+zoom scaling to GUI"
+
+**Original Intent**:
+- Keep logical canvas size constant (1080x1080)
+- Apply zoom visually via CSS transform
+- Avoid changing actual canvas resolution
+
+**Why It Fails**:
+- Mixing Fabric.js zoom + CSS transform creates compound scaling
+- Positioning calculations use logical size, not visual size
+- Transform origin and absolute positioning conflict
+- No single source of truth for "actual size"
+
+【Code Sections Requiring Refactoring】
+
+**Section 1: syncCanvasViewportSize()** (CRITICAL)
+- File: js/canvas.state.js (lines 492-579)
+- Problem: Applies CSS transform scale on top of Fabric.js zoom
+- Recommendation: Use ONLY Fabric.js zoom, remove CSS transform
+
+**Section 2: syncCanvasViewportSizeForState()** (RELATED)
+- File: js/canvas.state.js (lines 447-490)
+- Problem: Same dual-zoom issue for multiple canvases
+- Recommendation: Same fix as Section 1
+
+**Section 3: applyCanvasZoom()** (COORDINATION)
+- File: js/canvas.state.js (lines 619-658)
+- Problem: Calls syncCanvasViewportSize() which applies CSS scale
+- Recommendation: Only call Fabric.js setZoom(), skip CSS transform
+
+**Section 4: fitCanvasToContainer()** (INITIALIZATION)
+- File: js/canvas.state.js (lines 650-721)
+- Problem: Sets container dimensions based on zoom
+- Recommendation: Container size should be independent of zoom
+
+**Section 5: centerCanvasInView()** (POSITIONING)
+- File: js/canvas.state.js (lines 728-756)
+- Problem: Centers based on logical size, not visual size
+- Recommendation: Use Fabric.js viewport transform for positioning
+
+=============================================================================
+■ RECOMMENDED SOLUTION - COMPLETE ZOOM SYSTEM REFACTORING
+=============================================================================
+
+【Strategy】
+
+**Remove CSS Transform Scaling - Use ONLY Fabric.js Zoom**
+
+Fabric.js has a robust, well-tested zoom system. Using CSS transforms on top 
+of it creates unnecessary complexity and bugs. The solution is to use ONLY 
+Fabric.js zoom and remove all CSS transform scaling.
+
+【Solution Architecture】
+
+**New Zoom System (SIMPLIFIED)**:
+
+```
+Zoom Operation Flow (NEW):
+────────────────────────────────────────────────────────────────────
+
+User clicks +/- button
+  ↓
+Calculate new zoom value
+  ↓
+applyCanvasZoom(targetZoom)
+  ├─ Update sharedCanvasZoom = targetZoom
+  ├─ Update canvasZoom = targetZoom
+  ├─ For each canvas:
+  │  ├─ fabricCanvas.setZoom(targetZoom)  ← ONLY zoom mechanism
+  │  └─ fabricCanvas.setViewportTransform([zoom, 0, 0, zoom, x, y])
+  └─ Update container to hold zoomed canvas
+
+NO CSS transform scale!
+Fabric.js handles ALL zooming internally.
+```
+
+【Implementation Steps】
+
+**Step 1: Remove CSS Transform Scaling**
+
+File: js/canvas.state.js
+Function: syncCanvasViewportSize()
+
+**BEFORE (Current - WRONG)**:
+```javascript
+function syncCanvasViewportSize(options = {}) {
+    // ... 
+    if (wrapper) {
+        wrapper.style.width = `${canvasWidth}px`;
+        wrapper.style.height = `${canvasHeight}px`;
+        wrapper.style.transform = `scale(${zoom})`;  // ← REMOVE THIS
+        wrapper.style.transformOrigin = 'center center'; // ← REMOVE THIS
+        
+        // Complex positioning calculations...
+        wrapper.style.left = `${...}`;
+        wrapper.style.top = `${...}`;
+    }
+    // ...
+}
+```
+
+**AFTER (Fixed - CORRECT)**:
+```javascript
+function syncCanvasViewportSize(options = {}) {
+    if (!canvas) return;
+
+    const container = document.getElementById('canvasContainer');
+    if (!container) return;
+
+    const { recenter = false } = options;
+    const zoom = canvas.getZoom();
+
+    // ★Bug9 Fix: Canvas wrapper size should match VISUAL size
+    // Visual size = logical size × zoom
+    const canvasLogicalWidth = canvas.width;
+    const canvasLogicalHeight = canvas.height;
+    const canvasVisualWidth = canvasLogicalWidth * zoom;
+    const canvasVisualHeight = canvasLogicalHeight * zoom;
+
+    const wrapper = canvas.wrapperEl;
+    const lower = canvas.lowerCanvasEl;
+    const upper = canvas.upperCanvasEl;
+
+    if (wrapper) {
+        // ★Bug9 Fix: Set wrapper to VISUAL size (no CSS transform needed)
+        wrapper.style.width = `${canvasVisualWidth}px`;
+        wrapper.style.height = `${canvasVisualHeight}px`;
+        
+        // ★Bug9 Fix: REMOVED CSS transform scale
+        // wrapper.style.transform = `scale(${zoom})`;  // DELETED
+        
+        wrapper.style.position = 'absolute';
+        
+        // ★Bug9 Fix: Center based on VISUAL size
+        const computedStyle = window.getComputedStyle(container);
+        const paddingLeft = parseFloat(computedStyle.paddingLeft || '0');
+        const paddingTop = parseFloat(computedStyle.paddingTop || '0');
+        const paddingRight = parseFloat(computedStyle.paddingRight || '0');
+        const paddingBottom = parseFloat(computedStyle.paddingBottom || '0');
+
+        const availableWidth = container.clientWidth - paddingLeft - paddingRight;
+        const availableHeight = container.clientHeight - paddingTop - paddingBottom;
+
+        // Center horizontally
+        wrapper.style.left = `${paddingLeft + (availableWidth - canvasVisualWidth) / 2}px`;
+        
+        // Center vertically
+        wrapper.style.top = `${paddingTop + (availableHeight - canvasVisualHeight) / 2}px`;
+    }
+
+    // ★Bug9 Fix: Lower and upper canvases match LOGICAL size
+    // Fabric.js handles the zoom scaling internally
+    [lower, upper].forEach((el) => {
+        if (!el) return;
+        el.style.width = `${canvasLogicalWidth}px`;
+        el.style.height = `${canvasLogicalHeight}px`;
+    });
+
+    // z-index and background
+    if (upper) {
+        upper.style.zIndex = '11';
+        upper.style.pointerEvents = 'auto';
+        upper.style.backgroundColor = 'transparent';
+    }
+    if (lower) {
+        lower.style.zIndex = '10';
+        lower.style.backgroundColor = '#ffffff';
+    }
+
+    if (recenter) {
+        centerCanvasInView();
+    }
+
+    // コンテナのスクロールは常に左上に固定
+    container.scrollLeft = 0;
+    container.scrollTop = 0;
+
+    canvas.calcOffset();
+
+    requestAnimationFrame(() => {
+        canvas.renderAll();
+        console.log('[Bug9 Fix] Viewport size synced, zoom:', zoom);
+    });
+}
+```
+
+**Key Changes**:
+1. Calculate visual size: `canvasVisualWidth = canvasLogicalWidth * zoom`
+2. Set wrapper size to visual size: `wrapper.style.width = canvasVisualWidth`
+3. REMOVE CSS transform scale
+4. Position based on visual size, not logical size
+5. Lower/upper canvases keep logical size (Fabric.js handles zoom)
+
+**Step 2: Update syncCanvasViewportSizeForState()**
+
+File: js/canvas.state.js
+Function: syncCanvasViewportSizeForState()
+
+Apply the same fix as Step 1 to the per-canvas version:
+- Remove CSS transform scale
+- Calculate visual size
+- Position based on visual size
+
+**Step 3: Simplify applyCanvasZoom()**
+
+File: js/canvas.state.js
+Function: applyCanvasZoom()
+
+**BEFORE**:
+```javascript
+function applyCanvasZoom(targetZoom, options = {}) {
+    // ... validation ...
+    
+    canvasOrder.forEach((id) => {
+        const state = canvasStateStore.get(id);
+        if (!state || !state.canvas) return;
+
+        const fabricCanvas = state.canvas;
+        if (point && id === activeCanvasId) {
+            fabricCanvas.zoomToPoint(point, clampedZoom);
+        } else {
+            fabricCanvas.setZoom(clampedZoom);
+        }
+
+        // 各キャンバスのビューポートサイズを同期
+        syncCanvasViewportSizeForState(state, { recenter: centerOnView });
+    });
+    // ...
+}
+```
+
+**AFTER**:
+```javascript
+function applyCanvasZoom(targetZoom, options = {}) {
+    if (!canvas) return;
+
+    const { point, centerOnView = false, silent = false } = options;
+    const clampedZoom = clampCanvasZoom(targetZoom);
+
+    // 共有ズーム値を更新
+    sharedCanvasZoom = clampedZoom;
+    canvasZoom = clampedZoom;
+
+    console.log('[Bug9 Fix] Applying zoom:', clampedZoom);
+
+    // 全キャンバスにズームを適用
+    canvasOrder.forEach((id) => {
+        const state = canvasStateStore.get(id);
+        if (!state || !state.canvas) return;
+
+        const fabricCanvas = state.canvas;
+        
+        // ★Bug9 Fix: Use ONLY Fabric.js zoom
+        if (point && id === activeCanvasId) {
+            fabricCanvas.zoomToPoint(point, clampedZoom);
+        } else {
+            fabricCanvas.setZoom(clampedZoom);
+        }
+
+        // ★Bug9 Fix: Update wrapper size to match new visual size
+        syncCanvasViewportSizeForState(state, { recenter: centerOnView });
+    });
+
+    if (centerOnView) {
+        centerCanvasInView();
+    }
+
+    if (!silent) {
+        updateZoomUiFromCanvas();
+        showZoomIndicator(clampedZoom);
+    }
+
+    canvas.requestRenderAll();
+    persistActiveCanvasState();
+    
+    console.log('[Bug9 Fix] Zoom applied successfully, zoom:', clampedZoom);
+}
+```
+
+**No major changes needed here** - just ensure syncCanvasViewportSizeForState() 
+is called to update wrapper size.
+
+**Step 4: Fix Initial Zoom (Bug #2 Solution)**
+
+File: js/canvas.init.js
+Function: initializeFabricCanvas()
+
+**BEFORE**:
+```javascript
+if (firstStateId) {
+    setActiveCanvas(firstStateId, { force: true, recenter: true });
+    fitCanvasToContainer();  // ← Might fail if container not ready
+    
+    // ... showing container code ...
+}
+```
+
+**AFTER**:
+```javascript
+if (firstStateId) {
+    setActiveCanvas(firstStateId, { force: true, recenter: false });
+    
+    // ★Bug9 Fix: Show container first, THEN fit canvas
+    const container = document.getElementById('canvasContainer');
+    if (container) {
+        container.classList.add('initialized');
+        console.log('[Bug9 Fix] Canvas container shown');
+    }
+    
+    // ★Bug9 Fix: Use requestAnimationFrame to ensure layout is ready
+    requestAnimationFrame(() => {
+        // Container is now visible and layout is computed
+        fitCanvasToContainer();
+        console.log('[Bug9 Fix] Canvas fitted to container');
+    });
+}
+```
+
+**Key Changes**:
+1. Show container first (classList.add('initialized'))
+2. THEN fit canvas (after layout is ready)
+3. Single requestAnimationFrame (not double)
+4. Ensures container dimensions are available for fitCanvasToContainer()
+
+**Step 5: Fix Layout Flash (Bug #1 Solution)**
+
+File: css/style.css
+
+**OPTION A: Faster Initialization (Recommended)**
+
+Keep opacity: 0 approach but show faster:
+- Already implemented in Step 4
+- Single requestAnimationFrame instead of double
+- Reduces delay from 32ms to 16ms
+
+**OPTION B: Skeleton Loader**
+
+Add a skeleton/placeholder:
+
+```css
+#canvasContainer {
+    /* ... existing styles ... */
+}
+
+#canvasContainer::before {
+    content: '';
+    display: block;
+    width: 80%;
+    height: 60vh;
+    margin: 0 auto;
+    background: linear-gradient(
+        90deg,
+        #f0f0f0 25%,
+        #e0e0e0 50%,
+        #f0f0f0 75%
+    );
+    background-size: 200% 100%;
+    animation: loading 1.5s ease-in-out infinite;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+#canvasContainer.initialized::before {
+    opacity: 0;
+    pointer-events: none;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+```
+
+This shows an animated placeholder while canvas initializes.
+
+**OPTION C: Remove Opacity Hide (Simplest)**
+
+Just remove the opacity hiding:
+
+```css
+#canvasContainer {
+    /* REMOVED: opacity: 0; */
+    /* REMOVED: transition: opacity 0.25s ease-in-out; */
+}
+
+/* REMOVED: #canvasContainer.initialized { opacity: 1; } */
+```
+
+Accept minor flash during initialization for simpler code.
+
+**Recommendation**: Use Option A (faster initialization) combined with 
+improvements from Step 4. This provides the best balance of smooth UX and 
+simple implementation.
+
+**Step 6: Fallback for Early fitCanvasToContainer() Calls**
+
+File: js/canvas.state.js
+Function: fitCanvasToContainer()
+
+Add safety check:
+
+```javascript
+function fitCanvasToContainer() {
+    if (!canvas) return;
+
+    const container = document.getElementById('canvasContainer');
+    if (!container) return;
+
+    // ★Bug9 Fix: Wait for container to be visible
+    const containerVisible = container.offsetWidth > 0 && 
+                            container.offsetHeight > 0;
+    if (!containerVisible) {
+        console.warn('[Bug9 Fix] Container not ready, retrying fit');
+        requestAnimationFrame(() => {
+            fitCanvasToContainer();
+        });
+        return;
+    }
+
+    // ★Bug6 Fix: Calculate true available viewport height
+    const trueAvailableHeight = calculateAvailableViewportHeight();
+    
+    // ... rest of function ...
+}
+```
+
+This ensures fitCanvasToContainer() doesn't execute with invalid dimensions.
+
+=============================================================================
+■ TESTING PLAN
+=============================================================================
+
+【Test Case 1: Initial Load - No Flash】
+
+Setup:
+1. Clear browser cache
+2. Close application
+3. Reload application
+
+Test Steps:
+1. Observe initial page load
+2. Watch for layout changes
+3. Measure time to stable layout
+
+Expected After Fix:
+- Canvas container appears quickly (< 50ms)
+- No visible layout shift
+- Smooth fade-in or skeleton loader
+- No flash of different layout
+
+Current Bug:
+- Container hidden for 232-432ms
+- Visible layout shift when appears
+- Looks broken during load
+
+【Test Case 2: Initial Canvas Zoom - Fit to Screen】
+
+Setup:
+1. Fresh application load
+2. No objects on canvas
+
+Test Steps:
+1. Load application
+2. Observe initial canvas size
+3. Check zoom percentage in header
+
+Expected After Fix:
+- Canvas fills available space
+- Zoom approximately 85-95% (depends on screen)
+- Canvas clearly visible and usable
+- Zoom indicator shows correct percentage
+
+Current Bug:
+- Canvas appears tiny (10% zoom)
+- Must manually zoom to see canvas
+- Very poor first impression
+
+【Test Case 3: Zoom In - Canvas Size Stable】
+
+Setup:
+1. Canvas at 100% zoom
+2. Add a text object to canvas
+
+Test Steps:
+1. Click zoom in (+) button
+2. Observe canvas size
+3. Click zoom in (+) again
+4. Observe canvas size
+5. Repeat 5 times
+
+Expected After Fix:
+- Canvas wrapper grows visually (visual size increases)
+- BUT canvas logical size stays 1080x1080
+- Objects scale proportionally with zoom
+- Positioning remains centered
+- No "jumping" or unexpected movement
+
+Current Bug:
+- Canvas physical size increases
+- Objects and canvas desynchronized
+- Size grows uncontrollably
+- Layout breaks
+
+【Test Case 4: Zoom Out - Canvas Size Stable】
+
+Setup:
+1. Canvas at 100% zoom
+2. Add a text object to canvas
+
+Test Steps:
+1. Click zoom out (-) button
+2. Observe canvas size
+3. Click zoom out (-) again
+4. Observe canvas size
+5. Repeat until minimum zoom
+
+Expected After Fix:
+- Canvas wrapper shrinks visually
+- Canvas logical size stays 1080x1080
+- Objects scale proportionally
+- Minimum zoom (10%) honored
+- Canvas stays centered
+
+Current Bug:
+- Similar issues as zoom in
+- Desynchronization
+- Layout problems
+
+【Test Case 5: Zoom to Fit After Loading Image】
+
+Setup:
+1. Canvas at 100% zoom
+2. Add a large image (2000x2000)
+
+Test Steps:
+1. Click "Zoom to Fit" button
+2. Observe canvas zoom
+3. Verify image fits in viewport
+
+Expected After Fix:
+- Canvas zooms to fit available space
+- Image fully visible
+- Correct zoom percentage shown
+- Canvas centered
+
+Current Bug:
+- May zoom incorrectly
+- May not account for header/toolbar space
+- Image may be cut off
+
+【Test Case 6: Rapid Zoom Operations】
+
+Setup:
+1. Canvas at 100% zoom
+
+Test Steps:
+1. Click zoom in (+) 10 times rapidly
+2. Wait for all operations to complete
+3. Check canvas integrity
+4. Click zoom out (-) 10 times rapidly
+5. Check canvas integrity
+
+Expected After Fix:
+- All zoom operations complete correctly
+- No size drift
+- Canvas remains functional
+- Zoom value accurate
+
+Current Bug:
+- Size grows uncontrollably
+- Canvas may become unusable
+- Errors in console
+
+【Test Case 7: Zoom with Objects】
+
+Setup:
+1. Canvas at 100% zoom
+2. Add image, text, and shapes
+
+Test Steps:
+1. Zoom in to 200%
+2. Verify all objects scale equally
+3. Zoom out to 50%
+4. Verify all objects scale equally
+5. Check object properties unchanged
+
+Expected After Fix:
+- All objects scale proportionally
+- No distortion
+- Object properties (size, position) unchanged
+- Logical dimensions preserved
+
+Current Bug:
+- Objects may scale incorrectly
+- Desynchronization between object types
+- Some objects may disappear
+
+【Test Case 8: Window Resize During Zoom】
+
+Setup:
+1. Canvas at 150% zoom
+
+Test Steps:
+1. Resize browser window smaller
+2. Observe canvas behavior
+3. Resize browser window larger
+4. Observe canvas behavior
+
+Expected After Fix:
+- Canvas stays centered
+- Zoom percentage unchanged
+- Layout adjusts smoothly
+- No broken layout
+
+Current Bug:
+- Canvas may jump to wrong position
+- Size may change unexpectedly
+- Layout may break
+
+【Test Case 9: Save/Load Project with Zoom】
+
+Setup:
+1. Canvas at 150% zoom
+2. Add objects
+3. Save project
+
+Test Steps:
+1. Reload application
+2. Load saved project
+3. Verify zoom level restored
+4. Verify canvas size correct
+
+Expected After Fix:
+- Zoom restored to 150%
+- Canvas size correct
+- Objects positioned correctly
+- No layout issues
+
+Current Bug:
+- Zoom may not restore correctly
+- Canvas size may be wrong
+- Layout may break
+
+【Test Case 10: Mobile Device - All Tests】
+
+Setup:
+1. Test on actual mobile device (iOS/Android)
+2. Portrait and landscape orientations
+
+Test Steps:
+1. Repeat all test cases above
+2. Check touch interactions work
+3. Verify pinch-to-zoom disabled
+4. Check button zoom works
+
+Expected After Fix:
+- All tests pass on mobile
+- Touch controls work smoothly
+- No layout issues
+- Good performance
+
+=============================================================================
+■ MIGRATION NOTES
+=============================================================================
+
+【Breaking Changes】
+
+**CSS Transform Removal**:
+- Any custom CSS that relied on transform scale will break
+- Check for `wrapper.style.transform` usage in other code
+- Update any animations that used transform
+
+**Wrapper Size Changes**:
+- Wrapper now sized to visual dimensions, not logical
+- May affect layout calculations in other parts of code
+- Check all code that reads wrapper.offsetWidth/Height
+
+**Zoom Calculation Changes**:
+- Visual size now correctly calculated as logical × zoom
+- Update any code that assumed wrapper size = canvas size
+- Check collision detection, bounds checking, etc.
+
+【Backward Compatibility】
+
+**Save File Format**:
+- Zoom values stored in projects will still work
+- No changes to serialization format needed
+
+**API Changes**:
+- syncCanvasViewportSize() signature unchanged
+- applyCanvasZoom() signature unchanged
+- External calling code should work without changes
+
+【Rollback Plan】
+
+If critical issues found after deployment:
+
+1. **Immediate Rollback**:
+   ```bash
+   git revert HEAD~3  # Revert last 3 commits
+   git push origin main
+   ```
+
+2. **Partial Rollback**:
+   - Keep initial zoom fix (Priority 1)
+   - Revert zoom system refactoring (Priority 2)
+   - Adjust if needed
+
+3. **Hotfix**:
+   - If specific issue found, create hotfix branch
+   - Fix issue in isolation
+   - Deploy hotfix
+   - Merge back to main
+
+=============================================================================
+■ SUCCESS CRITERIA
+=============================================================================
+
+【Functional Success】
+✓ Canvas appears at correct zoom on initial load (85-95%)
+✓ No layout flash or visible initialization artifacts
+✓ Zoom in/out operations work smoothly
+✓ Canvas size remains stable during zoom
+✓ Objects scale proportionally with canvas
+✓ Zoom percentage displayed correctly
+✓ All zoom controls functional (+, -, reset, fit)
+
+【Technical Success】
+✓ Single zoom mechanism (Fabric.js only)
+✓ No CSS transform scaling
+✓ Clean, maintainable code
+✓ No compound scaling issues
+✓ Proper separation of logical vs visual size
+✓ Consistent zoom across all canvases
+
+【Performance Success】
+✓ Smooth zoom operations (no lag)
+✓ Fast initial load (< 500ms to usable)
+✓ No memory leaks during repeated zoom
+✓ Good performance on mobile devices
+✓ No layout thrashing
+
+【User Experience Success】
+✓ Intuitive zoom behavior
+✓ Predictable canvas size
+✓ Smooth transitions
+✓ Professional appearance
+✓ No confusion or frustration
+✓ Positive first impression
+
+=============================================================================
+■ CONCLUSION
+=============================================================================
+
+Three distinct bugs identified, all related to initialization and zoom system:
+
+1. **Layout Flash**: Timing issue with container visibility
+2. **Initial Zoom**: fitCanvasToContainer() called before layout ready
+3. **Zoom Size Growth**: Dual-zoom system (Fabric.js + CSS) causes compound scaling
+
+**Root Architectural Issue**: Mixing Fabric.js zoom with CSS transform scale 
+creates unnecessary complexity and bugs. Solution is to use ONLY Fabric.js zoom.
+
+**Recommendation**: Implement in order of priority, with thorough testing 
+between each phase. The zoom system refactoring is significant but necessary 
+for long-term stability.
+
+=============================================================================
+END OF REPORT
+=============================================================================

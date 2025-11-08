@@ -408,17 +408,36 @@ async function restoreLastProject() {
         const projectId = getCurrentProjectId();
         const projectData = await loadProject(projectId);
         
-        if (projectData && (projectData.canvasData || (projectData.canvases && projectData.canvases.length))) {
-            await loadCanvasesFromProjectData(projectData);
-            resetCanvasHistory();
-            // ★Bug14修正: fitCanvasToContainer()の呼び出しを削除
-            // loadCanvasesFromProjectData()が既にズームを正しく復元しているため、
-            // ここでfitを呼ぶとズームが上書きされてしまう（Bug13の修正を参照）
-            console.log('Last project restored:', projectData.name);
-            showNotification(`「${projectData.name}」を復元しました`, 'success');
+        if (projectData && projectData.canvasData) {
+            // シンプル版: 単一キャンバスのみサポート
+            const canvas = getCanvas();
+            if (canvas && projectData.canvasData) {
+                await deserializeCanvas(canvas, projectData.canvasData);
+                
+                // ズームとサイズを復元
+                if (projectData.canvasWidth) {
+                    canvas.setWidth(projectData.canvasWidth);
+                }
+                if (projectData.canvasHeight) {
+                    canvas.setHeight(projectData.canvasHeight);
+                }
+                
+                // 履歴を初期化
+                if (typeof initializeHistory === 'function') {
+                    initializeHistory();
+                }
+                
+                // キャンバスをコンテナに合わせる
+                fitCanvasToContainer();
+                
+                console.log('Last project restored:', projectData.name);
+                showNotification(`「${projectData.name}」を復元しました`, 'success');
+            }
         } else {
-            resetCanvasWorkspaceToDefault();
-            resetCanvasHistory();
+            // 新規プロジェクト
+            if (typeof initializeHistory === 'function') {
+                initializeHistory();
+            }
         }
         
         updateProjectListUI();

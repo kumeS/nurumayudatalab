@@ -230,16 +230,10 @@ function applyPartialBlur() {
             cancelPartialBlur();
             
             canvas.requestRenderAll();
-            scheduleCanvasHistoryCapture();
-            triggerQuickSave();
+            saveCanvasState();
             
             hideLoadingNotification();
-            showNotification('ぼかしを適用しました', 'success');
-            
-            // 触覚フィードバック
-            if (navigator.vibrate) {
-                navigator.vibrate(30);
-            }
+            vibrateAndNotify('ぼかしを適用しました', 'success');
         }, { crossOrigin: 'anonymous' });
         
     } catch (error) {
@@ -482,15 +476,8 @@ function applyCropping() {
         selectedImage.selectable = true;
         canvas.renderAll();
         
-        scheduleCanvasHistoryCapture();
-        triggerQuickSave();
-        
-        showNotification('トリミングしました', 'success');
-        
-        // 触覚フィードバック
-        if (navigator.vibrate) {
-            navigator.vibrate(30);
-        }
+        vibrateAndNotify('トリミングしました', 'success');
+        saveCanvasState();
         
     } catch (error) {
         console.error('Cropping error:', error);
@@ -545,77 +532,46 @@ function cancelCropping() {
 
 // ========== 画像回転・反転機能 ==========
 
-// 画像を90度回転
-function rotateSelectedImage90() {
+// 画像変形の共通処理
+function transformSelectedImage(transformFn, errorMsg, successMsg) {
     const selectedObject = getSelectedObject();
     if (!selectedObject || selectedObject.objectType !== 'uploaded-image') {
-        showNotification('回転する画像を選択してください', 'error');
+        showNotification(errorMsg, 'error');
         return;
     }
     
     const canvas = getCanvas();
-    const currentAngle = selectedObject.angle || 0;
-    selectedObject.set('angle', currentAngle + 90);
-    selectedObject.setCoords();
-    
-    canvas.renderAll();
-    scheduleCanvasHistoryCapture();
-    triggerQuickSave();
-    
-    showNotification('90度回転しました', 'success');
-    
-    // 触覚フィードバック
-    if (navigator.vibrate) {
-        navigator.vibrate(30);
-    }
+    transformFn(selectedObject);
+    updateAndRender(selectedObject, canvas);
+    vibrateAndNotify(successMsg, 'success');
+    saveCanvasState();
+}
+
+// 画像を90度回転
+function rotateSelectedImage90() {
+    transformSelectedImage(
+        (obj) => obj.set('angle', (obj.angle || 0) + 90),
+        '回転する画像を選択してください',
+        '90度回転しました'
+    );
 }
 
 // 画像を水平反転（左右反転）
 function flipSelectedImageHorizontal() {
-    const selectedObject = getSelectedObject();
-    if (!selectedObject || selectedObject.objectType !== 'uploaded-image') {
-        showNotification('反転する画像を選択してください', 'error');
-        return;
-    }
-    
-    const canvas = getCanvas();
-    selectedObject.set('flipX', !selectedObject.flipX);
-    selectedObject.setCoords();
-    
-    canvas.renderAll();
-    scheduleCanvasHistoryCapture();
-    triggerQuickSave();
-    
-    showNotification('水平反転しました', 'success');
-    
-    // 触覚フィードバック
-    if (navigator.vibrate) {
-        navigator.vibrate(30);
-    }
+    transformSelectedImage(
+        (obj) => obj.set('flipX', !obj.flipX),
+        '反転する画像を選択してください',
+        '水平反転しました'
+    );
 }
 
 // 画像を垂直反転（上下反転）
 function flipSelectedImageVertical() {
-    const selectedObject = getSelectedObject();
-    if (!selectedObject || selectedObject.objectType !== 'uploaded-image') {
-        showNotification('反転する画像を選択してください', 'error');
-        return;
-    }
-
-    const canvas = getCanvas();
-    selectedObject.set('flipY', !selectedObject.flipY);
-    selectedObject.setCoords();
-
-    canvas.renderAll();
-    scheduleCanvasHistoryCapture();
-    triggerQuickSave();
-
-    showNotification('垂直反転しました', 'success');
-
-    // 触覚フィードバック
-    if (navigator.vibrate) {
-        navigator.vibrate(30);
-    }
+    transformSelectedImage(
+        (obj) => obj.set('flipY', !obj.flipY),
+        '反転する画像を選択してください',
+        '垂直反転しました'
+    );
 }
 
 // ========== 画像履歴パネル ==========

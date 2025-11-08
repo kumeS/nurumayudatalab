@@ -329,110 +329,13 @@ class TransformationService {
         }
     }
 
-    /**
-     * Batch transform with multiple prompts
-     */
-    async batchTransform(sourceImage, prompts, model = 'flux-pro/ultra') {
-        const allResults = [];
-        
-        for (let i = 0; i < prompts.length; i++) {
-            try {
-                const results = await this.transformImage(
-                    sourceImage,
-                    prompts[i],
-                    1,
-                    model
-                );
-                allResults.push(...results);
-            } catch (error) {
-                console.error(`Failed to transform with prompt ${i}:`, error);
-            }
-        }
-        
-        return allResults;
-    }
 
-    /**
-     * Apply style transfer
-     */
-    async applyStyleTransfer(contentImage, styleImage, strength = 0.5) {
-        try {
-            // This would call a style transfer API
-            const prompt = `Apply style transfer from reference image with strength ${strength}`;
-            return await this.transformImage(contentImage, prompt, 1, 'gpt-image-1');
-        } catch (error) {
-            console.error('Style transfer failed:', error);
-            throw error;
-        }
-    }
 
-    /**
-     * Upscale image
-     */
-    async upscaleImage(imageUrl, scale = 2) {
-        throw new Error('アップスケール機能はまだ実装されていません');
-    }
 
-    /**
-     * Remove background
-     */
-    async removeBackground(imageUrl) {
-        throw new Error('背景除去機能はまだ実装されていません');
-    }
-
-    /**
-     * Prepare image for API (convert base64 to usable URL)
-     */
-    async prepareImageForApi(imageUrl) {
-        // If already a URL, return as is
-        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-            return imageUrl;
-        }
-        
-        // If base64, convert to Blob URL
-        if (imageUrl.startsWith('data:')) {
-            return this.base64ToBlobURL(imageUrl);
-        }
-        
-        return imageUrl;
-    }
-    
-    /**
-     * Convert base64 to Blob URL
-     */
-    base64ToBlobURL(base64Data) {
-        try {
-            // Extract base64 content
-            const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-            if (!matches || matches.length !== 3) {
-                throw new Error('Invalid base64 format');
-            }
-            
-            const contentType = matches[1];
-            const base64 = matches[2];
-            
-            // Convert to binary
-            const binary = atob(base64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
-            }
-            
-            // Create Blob
-            const blob = new Blob([bytes], { type: contentType });
-            
-            // Create Blob URL
-            const blobUrl = URL.createObjectURL(blob);
-            
-            return blobUrl;
-        } catch (error) {
-            console.error('Error converting base64 to Blob URL:', error);
-            throw error;
-        }
-    }
     
     /**
      * Convert URL to base64 and save to IndexedDB
+     * Uses imageStorage utility for blob conversion
      * @param {string} imageUrl - Image URL to download
      * @param {string} nodeId - Node ID for IndexedDB storage
      * @param {Object} metadata - Additional metadata
@@ -450,88 +353,56 @@ class TransformationService {
 
         let lastError = null;
 
-        // Retry loop
         for (let attempt = 1; attempt <= retries; attempt++) {
             try {
-                console.log(`[ImageDownload] Attempt ${attempt}/${retries}: Fetching image from URL...`);
+                console.log(`[ImageDownload] Attempt ${attempt}/${retries}: Fetching image...`);
 
-                // Fetch image with timeout
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-                const response = await fetch(imageUrl, {
-                    signal: controller.signal
-                });
+                const response = await fetch(imageUrl, { signal: controller.signal });
                 clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch image: HTTP ${response.status} ${response.statusText}`);
                 }
 
-                // Convert to blob
-                console.log('[ImageDownload] Converting to blob...');
                 const blob = await response.blob();
-                console.log('[ImageDownload] Blob size:', blob.size, 'bytes, type:', blob.type);
+                console.log('[ImageDownload] Blob size:', blob.size, 'bytes');
 
-                // Validate blob is an image
                 if (!blob.type.startsWith('image/')) {
                     throw new Error(`Invalid image type: ${blob.type}`);
                 }
 
-                // Save to IndexedDB if imageStorage is available and nodeId is provided
+                // Save to IndexedDB if available
                 if (typeof imageStorage !== 'undefined' && nodeId) {
                     try {
-                        console.log('[ImageDownload] Saving to IndexedDB for node:', nodeId);
-                        const savedImage = await imageStorage.saveImage(nodeId, blob, {
+                        await imageStorage.saveImage(nodeId, blob, {
                             ...metadata,
                             originalUrl: imageUrl,
                             savedAt: new Date().toISOString()
                         });
-                        console.log('[ImageDownload] Saved to IndexedDB with ID:', savedImage.id);
+                        console.log('[ImageDownload] Saved to IndexedDB');
                     } catch (dbError) {
-                        console.error('[ImageDownload] Failed to save to IndexedDB:', dbError);
-                        // Continue even if IndexedDB save fails - base64 in LocalStorage is primary storage
-                    }
-                } else {
-                    if (!nodeId) {
-                        console.warn('[ImageDownload] No nodeId provided, skipping IndexedDB save');
-                    }
-                    if (typeof imageStorage === 'undefined') {
-                        console.warn('[ImageDownload] imageStorage not available, skipping IndexedDB save');
+                        console.error('[ImageDownload] IndexedDB save failed:', dbError);
                     }
                 }
 
-                // Convert to base64
-                console.log('[ImageDownload] Converting blob to base64...');
-                const base64 = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        console.log('[ImageDownload] Base64 conversion completed successfully');
-                        resolve(reader.result);
-                    };
-                    reader.onerror = () => {
-                        reject(new Error('FileReader error: ' + reader.error));
-                    };
-                    reader.readAsDataURL(blob);
-                });
-
+                // Use imageStorage utility for conversion
+                const base64 = await imageStorage.blobToDataURL(blob);
+                console.log('[ImageDownload] Conversion completed');
                 return base64;
 
             } catch (error) {
                 lastError = error;
                 console.error(`[ImageDownload] Attempt ${attempt}/${retries} failed:`, error.message);
 
-                // If not the last attempt, wait before retrying
                 if (attempt < retries) {
-                    const waitTime = attempt * 1000; // Exponential backoff
-                    console.log(`[ImageDownload] Waiting ${waitTime}ms before retry...`);
-                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                    await new Promise(resolve => setTimeout(resolve, attempt * 1000));
                 }
             }
         }
 
-        // All retries failed
-        console.error('[ImageDownload] All retry attempts failed. Last error:', lastError);
         throw new Error(`画像のダウンロードに失敗しました（${retries}回試行）: ${lastError.message}`);
     }
 

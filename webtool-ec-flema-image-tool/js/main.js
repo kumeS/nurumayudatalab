@@ -23,22 +23,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // キャンバス初期化
     initializeFabricCanvas();
     
-    // キャンバスサイズ同期を確保
-    if (typeof ensureCanvasSizeSync === 'function') {
-        ensureCanvasSizeSync();
-    }
+    // ズームコントロール初期化
+    setupZoomControls();
     
-    // ★Bug7修正: 初期表示を「画面に合わせる」に確実に設定
-    // initializeFabricCanvas 内でも呼ばれるが、レイアウト確定後に再度実行
-    if (typeof fitCanvasToContainer === 'function') {
-        setTimeout(() => {
-            fitCanvasToContainer();
-            console.log('[Bug7] Initial fit-to-container applied');
-        }, 100);
-    }
+    // 履歴初期化
+    initializeHistory();
     
-    // ズームスライダー初期化
-    setupZoomSlider();
+    // Undo/Redoボタンの設定
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
+    if (undoBtn) undoBtn.addEventListener('click', undoCanvasAction);
+    if (redoBtn) redoBtn.addEventListener('click', redoCanvasAction);
     
     // 最後のプロジェクトを復元
     await restoreLastProject();
@@ -103,14 +98,6 @@ function initializeEventListeners() {
     const layoutToggleBtn = document.getElementById('layoutToggleBtn');
     if (layoutToggleBtn) {
         layoutToggleBtn.addEventListener('click', toggleLayoutMode);
-    }
-    const undoBtn = document.getElementById('undoBtn');
-    if (undoBtn) {
-        undoBtn.addEventListener('click', () => undoCanvasAction());
-    }
-    const redoBtn = document.getElementById('redoBtn');
-    if (redoBtn) {
-        redoBtn.addEventListener('click', () => redoCanvasAction());
     }
     
     // ========== 画像関連 ==========

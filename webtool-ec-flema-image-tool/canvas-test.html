@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: sans-serif;
+        }
+        
+        #canvasContainer {
+            width: 100%;
+            height: 600px;
+            background: #f0f0f0;
+            border: 2px solid #333;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .canvas-slot {
+            position: relative;
+        }
+        
+        canvas {
+            border: 1px solid #999;
+            background: white !important;
+        }
+        
+        #debug {
+            margin-top: 20px;
+            padding: 10px;
+            background: #e0e0e0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+</head>
+<body>
+    <h1>Canvas Display Test</h1>
+    
+    <div id="canvasContainer">
+        <div class="canvas-slot">
+            <canvas id="mainCanvas" width="1080" height="1080"></canvas>
+        </div>
+    </div>
+    
+    <div id="debug">Loading...</div>
+    
+    <script>
+        let canvas = null;
+        let debugLog = [];
+        
+        function log(msg) {
+            debugLog.push(msg);
+            document.getElementById('debug').textContent = debugLog.join('\n');
+            console.log(msg);
+        }
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            log('=== Canvas Test Start ===');
+            
+            const canvasElement = document.getElementById('mainCanvas');
+            log('Canvas element found: ' + !!canvasElement);
+            
+            if (!canvasElement) {
+                log('ERROR: Canvas element not found!');
+                return;
+            }
+            
+            log('Creating Fabric.js canvas...');
+            
+            try {
+                canvas = new fabric.Canvas('mainCanvas', {
+                    width: 1080,
+                    height: 1080,
+                    backgroundColor: '#ffffff',
+                    preserveObjectStacking: true,
+                    selection: true
+                });
+                
+                log('Canvas created successfully');
+                log('Canvas width: ' + canvas.width);
+                log('Canvas height: ' + canvas.height);
+                log('Canvas zoom: ' + canvas.getZoom());
+                
+                // コンテナサイズを取得
+                const container = document.getElementById('canvasContainer');
+                const containerWidth = container.clientWidth;
+                const containerHeight = container.clientHeight;
+                
+                log('Container size: ' + containerWidth + ' x ' + containerHeight);
+                
+                // ズーム計算
+                const padding = 40;
+                const scaleX = (containerWidth - padding) / canvas.width;
+                const scaleY = (containerHeight - padding) / canvas.height;
+                const zoom = Math.min(scaleX, scaleY, 1);
+                
+                log('Calculated zoom: ' + zoom.toFixed(3) + ' (' + Math.round(zoom * 100) + '%)');
+                
+                // ズーム適用
+                canvas.setZoom(zoom);
+                log('Zoom applied');
+                
+                // テスト用にテキストを追加
+                const text = new fabric.IText('Test Text', {
+                    left: 540,
+                    top: 540,
+                    fontSize: 60,
+                    fill: '#ff0000',
+                    originX: 'center',
+                    originY: 'center'
+                });
+                
+                canvas.add(text);
+                log('Test text added');
+                
+                // 矩形を追加
+                const rect = new fabric.Rect({
+                    left: 200,
+                    top: 200,
+                    width: 200,
+                    height: 200,
+                    fill: '#00ff00'
+                });
+                
+                canvas.add(rect);
+                log('Test rectangle added');
+                
+                canvas.renderAll();
+                log('Canvas rendered');
+                
+                log('=== Test Complete ===');
+                
+            } catch (error) {
+                log('ERROR: ' + error.message);
+                log(error.stack);
+            }
+        });
+    </script>
+</body>
+</html>

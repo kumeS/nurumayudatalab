@@ -639,6 +639,19 @@ body.desktop-mode .inline-controls-panel {
     padding: 20px;
 }
 
+/* ★ Bug8 Fix: Independent Controls Container */
+/* Controls are NOW siblings of tool-panels, not children */
+/* This allows them to be visible regardless of which tab is active */
+.controls-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+/* Controls container inherits all positioning from toolbar */
+/* Individual control panels manage their own visibility via .active class */
+
 /* PC版：画像パネルのコントロールサイズ改善 */
 body.desktop-mode .image-controls-panel .control-group.compact {
     margin-bottom: 12px;

@@ -205,30 +205,7 @@ class ImageStorage {
         });
     }
 
-    /**
-     * Fetch image from URL and convert to blob
-     * @param {string} url - Image URL
-     * @returns {Promise<Blob>} Image blob
-     */
-    async fetchImageAsBlob(url) {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch image: ${response.statusText}`);
-            }
-            const blob = await response.blob();
 
-            // Verify it's an image
-            if (!blob.type.startsWith('image/')) {
-                throw new Error('URL does not point to an image');
-            }
-
-            return blob;
-        } catch (error) {
-            console.error('Error fetching image from URL:', error);
-            throw error;
-        }
-    }
 
     /**
      * Clear all images from database

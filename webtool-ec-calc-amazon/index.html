@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazon販売集計ダッシュボード</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><span class="nuruma-gradient">Amazon販売集計ダッシュボード</span></h1>
+            <div class="subtitle">トランザクションレポート（すべての取引タイプ）を分析</div>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">CSVファイルをドラッグ&ドロップ</div>
+                <div class="upload-subtext">複数ファイル同時アップロード可能（2000件制限対応）</div>
+                <input type="file" id="fileInput" class="file-input" accept=".csv" multiple>
+            </div>
+            <div class="upload-info">
+                <div class="info-item">📌 Amazonセラーセントラルで「レポート」→「ペイメント」→「トランザクション」を選択</div>
+                <div class="info-item">📌 取引タイプ：「すべてのトランザクション」を選択してエクスポート</div>
+                <div class="info-item">📌 2000件を超える場合は期間を分割して複数ファイルをエクスポート</div>
+                <div class="info-item">📌 複数月のデータは同時にドロップして統合分析が可能</div>
+            </div>
+            <div id="fileList" class="file-list"></div>
+
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>データを処理中...</div>
+        </div>
+
+        <div class="dashboard" id="dashboard">
+            <div class="period-selector" id="periodSelector"></div>
+
+            <div class="summary-cards" id="summaryCards">
+                <div class="card">
+                    <div class="card-label">総売上</div>
+                    <div class="card-value" id="totalSales">¥0</div>
+                    <div class="card-change positive" id="salesChange"></div>
+                </div>
+                <div class="card">
+                    <div class="card-label">売上手数料</div>
+                    <div class="card-value" id="totalSalesFees">¥0</div>
+                    <div class="card-change negative" id="salesFeesChange"></div>
+                </div>
+                <div class="card">
+                    <div class="card-label">粗利</div>
+                    <div class="card-value" id="grossProfit">¥0</div>
+                    <div class="card-change" id="grossChange"></div>
+                </div>
+                <div class="card">
+                    <div class="card-label">粗利率</div>
+                    <div class="card-value" id="grossMargin">0%</div>
+                </div>
+                <div class="summary-break" aria-hidden="true"></div>
+                <div class="card">
+                    <div class="card-label">合計経費</div>
+                    <div class="card-value" id="totalExpenses">¥0</div>
+                    <div class="card-change negative" id="expensesChange"></div>
+                </div>
+                <div class="card">
+                    <div class="card-label">純利益 (総売上-合計経費)</div>
+                    <div class="card-value" id="totalProfit">¥0</div>
+                    <div class="card-change" id="profitChange"></div>
+                </div>
+                <div class="card">
+                    <div class="card-label">利益率</div>
+                    <div class="card-value" id="profitMargin">0%</div>
+                </div>
+                <div class="summary-break" aria-hidden="true"></div>
+                <div class="card">
+                    <div class="card-label">返金額</div>
+                    <div class="card-value" id="totalRefunds">¥0</div>
+                    <div class="card-change negative" id="refundChange"></div>
+                </div>
+                <div class="card">
+                    <div class="card-label">返品数</div>
+                    <div class="card-value" id="refundCount">0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">返金率</div>
+                    <div class="card-value" id="refundRate">0%</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">注文数</div>
+                    <div class="card-value" id="orderCount">0</div>
+                    <div class="card-change" id="orderChange"></div>
+                </div>
+                <div class="card">
+                    <div class="card-label">トランザクション数</div>
+                    <div class="card-value" id="transactionCount">0</div>
+                    <div class="card-change" id="transactionChange"></div>
+                </div>
+                <div class="card">
+                    <div class="card-label">VINE商品数</div>
+                    <div class="card-value" id="vineCount">0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">VINE商品合計額</div>
+                    <div class="card-value" id="vineTotalAmount">¥0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">マルチチャネル配送数</div>
+                    <div class="card-value" id="multiChannelCount">0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">マルチチャネル配送額</div>
+                    <div class="card-value" id="multiChannelAmount">¥0</div>
+                </div>
+            </div>
+
+            <div class="charts-section">
+                <div class="chart-container">
+                    <div class="chart-title">📈 売上推移</div>
+                    <div class="chart-canvas">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">📊 収支構成</div>
+                    <div class="chart-canvas">
+                        <canvas id="profitChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <div class="table-tabs">
+                    <button class="tab-button active" data-tab="daily">日次集計</button>
+                    <button class="tab-button" data-tab="transaction">取引種別</button>
+                    <button class="tab-button" data-tab="product">商品別</button>
+                    <button class="tab-button" data-tab="productfee">商品ごとの手数料</button>
+                    <button class="tab-button" data-tab="fba">その他手数料</button>
+                    <button class="tab-button" data-tab="multichannel">マルチチャネル</button>
+                </div>
+                
+                <div class="table-content active" id="daily-tab">
+                    <div class="table-header">
+                        <button class="export-btn" onclick="dashboard.exportTableToCSV('daily')">📥 CSVエクスポート</button>
+                    </div>
+                    <table id="dailyTable">
+                        <thead>
+                            <tr>
+                                <th>日付</th>
+                                <th>売上</th>
+                                <th>売上手数料</th>
+                                <th>利益</th>
+                                <th>利益率</th>
+                                <th>注文数</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                
+                <div class="table-content" id="transaction-tab">
+                    <div class="table-header">
+                        <button class="export-btn" onclick="dashboard.exportTableToCSV('transaction')">📥 CSVエクスポート</button>
+                    </div>
+                    <table id="transactionTable">
+                        <thead>
+                            <tr>
+                                <th>取引種別</th>
+                                <th>件数</th>
+                                <th>金額</th>
+                                <th>構成比</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                
+                <div class="table-content" id="product-tab">
+                    <div class="table-header">
+                        <button class="export-btn" onclick="dashboard.exportTableToCSV('product')">📥 CSVエクスポート</button>
+                    </div>
+                    <table id="productTable">
+                        <thead>
+                            <tr>
+                                <th>商品</th>
+                                <th>売上</th>
+                                <th>売上手数料</th>
+                                <th>利益</th>
+                                <th>利益率</th>
+                                <th>販売個数</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                
+                <div class="table-content" id="productfee-tab">
+                    <div class="table-header">
+                        <button class="export-btn" onclick="dashboard.exportTableToCSV('productfee')">📥 CSVエクスポート</button>
+                    </div>
+                    <table id="productFeeTable">
+                        <thead>
+                            <tr>
+                                <th rowspan="2">商品</th>
+                                <th colspan="5" style="text-align:center; border-bottom: 1px solid #ddd;">通常注文</th>
+                                <th colspan="5" style="text-align:center; border-bottom: 1px solid #ddd;">マルチチャネル</th>
+                            </tr>
+                            <tr>
+                                <th>件数</th>
+                                <th>平均手数料</th>
+                                <th>最大手数料</th>
+                                <th>最小手数料</th>
+                                <th>CV値</th>
+                                <th>件数</th>
+                                <th>平均手数料</th>
+                                <th>最大手数料</th>
+                                <th>最小手数料</th>
+                                <th>CV値</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                
+                <div class="table-content" id="fba-tab">
+                    <div class="table-header">
+                        <button class="export-btn" onclick="dashboard.exportTableToCSV('fba')">📥 CSVエクスポート</button>
+                    </div>
+                    <table id="fbaTable">
+                        <thead>
+                            <tr>
+                                <th>その他手数料項目</th>
+                                <th>金額</th>
+                                <th>構成比</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                
+                <div class="table-content" id="multichannel-tab">
+                    <div class="table-header">
+                        <button class="export-btn" onclick="dashboard.exportTableToCSV('multichannel')">📥 CSVエクスポート</button>
+                    </div>
+                    <table id="multiChannelTable">
+                        <thead>
+                            <tr>
+                                <th>日付</th>
+                                <th>注文番号</th>
+                                <th>商品</th>
+                                <th>金額</th>
+                                <th>出品サービス</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

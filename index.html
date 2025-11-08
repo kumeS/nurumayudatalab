@@ -641,7 +641,7 @@
       <!-- E-commerce Tools Category -->
       <div class="category-section mb-12">
         <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-purple-300 pb-2">
-          <i class="fas fa-shopping-cart mr-3 text-purple-500"></i>EC系AIツール
+          <i class="fas fa-shopping-cart mr-3 text-purple-500"></i>EC系ツール
         </h3>
         <div id="ecommerceToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       </div>
@@ -676,6 +676,14 @@
           <i class="fas fa-cube mr-3 text-cyan-500"></i>3Dモデルシステム
         </h3>
         <div id="modelSystemsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      </div>
+
+      <!-- Image Editing Tools Category -->
+      <div class="category-section mb-12">
+        <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-pink-300 pb-2">
+          <i class="fas fa-image mr-3 text-pink-500"></i>画像編集ツール(開発中)
+        </h3>
+        <div id="imageEditingToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       </div>
       
       <!-- No Results Message -->
@@ -825,10 +833,10 @@
           "icon": "fa-search"
         },
         {
-          "title": "FleMa - フリマ専用画像編集",
-          "desc": "フリマアプリの出品画像を簡単編集。商品画像の調整、「新品未使用」「送料無料」などの売れる言葉を追加、トリミング・回転・一部ぼかしなど充実の機能。複数キャンバスで一括作業も可能",
-          "url": "./webtool-ec-flema-image-tool/index.html",
-          "icon": "fa-images"
+          "title": "Amazon 利益計算ツール",
+          "desc": "Amazon国内販売の利益自動計算ツール。販売価格・売上から各種の販売手数料を差し引いた粗利・純利益を即座に算出。",
+          "url": "./webtool-ec-calc-amazon/index.html",
+          "icon": "fa-calculator"
         }
       ],
       specialized: [
@@ -864,6 +872,14 @@
           "url": "./webtool-aikw-image-generation-3D-viewer/index.html",
           "icon": "fa-magic"
         }
+      ],
+      imageEditingTools: [
+        {
+          "title": "FleMa - フリマ専用画像編集",
+          "desc": "フリマアプリの出品画像を簡単編集。商品画像の調整、「新品未使用」「送料無料」などの売れる言葉を追加、トリミング・回転・一部ぼかしなど充実の機能。複数キャンバスで一括作業も可能",
+          "url": "./webtool-ec-flema-image-tool/index.html",
+          "icon": "fa-images"
+        }
       ]
     };
 
@@ -893,6 +909,7 @@
       const ecommerceGrid = document.getElementById('ecommerceToolsGrid');
       const specializedGrid = document.getElementById('specializedToolsGrid');
       const modelSystemsGrid = document.getElementById('modelSystemsGrid');
+      const imageEditingGrid = document.getElementById('imageEditingToolsGrid');
       
       // 各カテゴリーをレンダリング
       renderCategoryTools(generalGrid, toolCategories.general);
@@ -901,6 +918,7 @@
       renderCategoryTools(educationalGrid, toolCategories.educational);
       renderCategoryTools(specializedGrid, toolCategories.specialized);
       renderCategoryTools(modelSystemsGrid, toolCategories.modelSystems);
+      renderCategoryTools(imageEditingGrid, toolCategories.imageEditingTools);
       
       // ローディング表示を非表示にする
       loadingIndicator.style.display = 'none';

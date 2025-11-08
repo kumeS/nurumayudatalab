@@ -24,6 +24,92 @@ if (window.fabric?.Text?.prototype?._setTextStyles) {
     };
 }
 
+// ========== 共通ヘルパー関数 ==========
+
+// 触覚フィードバック＋通知のヘルパー
+function vibrateAndNotify(message, type = 'success', vibratePattern = 30) {
+    showNotification(message, type);
+    if (navigator.vibrate) {
+        navigator.vibrate(vibratePattern);
+    }
+}
+
+// コントロール非表示の共通処理
+function hideAllControls() {
+    if (typeof hideImageControls === 'function') {
+        hideImageControls();
+    }
+    if (typeof hideTextControls === 'function') {
+        hideTextControls();
+    }
+}
+
+// キャンバス状態の自動保存トリガー
+function saveCanvasState() {
+    if (typeof scheduleCanvasHistoryCapture === 'function') {
+        scheduleCanvasHistoryCapture();
+    }
+    if (typeof triggerQuickSave === 'function') {
+        triggerQuickSave();
+    }
+    if (typeof persistActiveCanvasState === 'function') {
+        persistActiveCanvasState();
+    }
+}
+
+// キャンバス取得と検証の共通処理
+function getValidCanvas() {
+    const canvas = typeof getCanvas === 'function' ? getCanvas() : null;
+    if (!canvas) {
+        console.warn('[getValidCanvas] Canvas not available');
+    }
+    return canvas;
+}
+
+// オブジェクト座標更新とレンダリングの共通処理
+function updateAndRender(obj, canvas = null) {
+    if (!canvas) {
+        canvas = getValidCanvas();
+    }
+    if (!canvas) return;
+    
+    if (obj && typeof obj.setCoords === 'function') {
+        obj.setCoords();
+    }
+    
+    if (typeof canvas.calcOffset === 'function') {
+        canvas.calcOffset();
+    }
+    
+    canvas.requestRenderAll();
+}
+
+// レイヤー操作の共通処理
+function moveLayer(direction, notificationMsg) {
+    const obj = getSelectedObject();
+    const canvas = getValidCanvas();
+    if (!obj || !canvas) return;
+    
+    switch(direction) {
+        case 'front':
+            canvas.bringToFront(obj);
+            break;
+        case 'back':
+            canvas.sendToBack(obj);
+            break;
+        case 'forward':
+            canvas.bringForward(obj);
+            break;
+        case 'backward':
+            canvas.sendBackward(obj);
+            break;
+    }
+    
+    canvas.renderAll();
+    vibrateAndNotify(notificationMsg, 'success');
+    saveCanvasState();
+}
+
 // タブ切り替え
 function switchTab(activeTab) {
     document.querySelectorAll('.tool-tab').forEach(tab => tab.classList.remove('active'));
@@ -33,14 +119,22 @@ function switchTab(activeTab) {
     const tabName = activeTab.dataset.tab;
     document.getElementById(tabName + 'Panel').classList.add('active');
 
-    // タブ切り替え時はサイドパネルを非表示にする
-    // （オブジェクト選択時に自動表示される）
-    if (typeof hideImageControls === 'function') {
-        hideImageControls();
-    }
-    if (typeof hideTextControls === 'function') {
-        hideTextControls();
-    }
+    // ★ Bug8 Fix #1: DON'T force-hide controls on tab switch
+    // Controls visibility is managed by handleObjectSelection()
+    // based on selected object type, not active tab
+    //
+    // This allows user to:
+    // - Switch tabs while editing an object
+    // - Access upload/creation tools while keeping edit controls visible
+    // - Have consistent behavior across tab switches
+    //
+    // REMOVED: Automatic hiding of controls on tab switch
+    // if (typeof hideImageControls === 'function') {
+    //     hideImageControls();
+    // }
+    // if (typeof hideTextControls === 'function') {
+    //     hideTextControls();
+    // }
 
     // 触覚フィードバック
     if (navigator.vibrate) {

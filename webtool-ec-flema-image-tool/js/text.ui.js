@@ -536,7 +536,6 @@ function deleteSelectedText() {
     hideTextControls();
     canvas.requestRenderAll();
 
-    if (navigator.vibrate) {
-        navigator.vibrate([50, 50, 50]);
-    }
+    vibrateAndNotify('テキストを削除しました', 'success', [50, 50, 50]);
+    saveCanvasState();
 }

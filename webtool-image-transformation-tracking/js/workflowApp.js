@@ -573,21 +573,7 @@ class WorkflowApp {
         document.getElementById('nodeContextMenu')?.classList.add('hidden');
     }
 
-    duplicateNode(nodeId) {
-        const sourceNode = workflowEngine.nodes.get(nodeId);
-        if (!sourceNode) return;
-        
-        const newNode = workflowEngine.createNode({
-            position: {
-                x: sourceNode.position.x + 50,
-                y: sourceNode.position.y + 50
-            },
-            images: [...sourceNode.images],
-            metadata: { ...sourceNode.metadata, duplicatedFrom: nodeId }
-        });
-        
-        console.log('Duplicated node:', newNode.id);
-    }
+
 
     async generatePromptForNode(nodeId) {
         const node = workflowEngine.nodes.get(nodeId);

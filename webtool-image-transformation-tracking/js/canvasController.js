@@ -1148,7 +1148,15 @@ class CanvasController {
             try {
                 // Fetch image from URL
                 console.log('Fetching image from URL:', url);
-                const blob = await imageStorage.fetchImageAsBlob(url);
+                console.log('Fetching image from URL:', url);
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch image: ${response.statusText}`);
+                }
+                const blob = await response.blob();
+                if (!blob.type.startsWith('image/')) {
+                    throw new Error('URL does not point to an image');
+                }
                 console.log('Image fetched successfully, size:', blob.size, 'type:', blob.type);
 
                 // Save to IndexedDB
@@ -2005,28 +2013,30 @@ class CanvasController {
     }
 
     uploadImageFileToNode(nodeId, file) {
-        const reader = new FileReader();
-        
-        reader.onload = (e) => {
-            const imageData = {
-                url: e.target.result,
-                thumbnail: e.target.result,
-                metadata: {
-                    name: file.name,
-                    size: file.size,
-                    type: file.type,
-                    uploadedAt: new Date().toISOString()
-                }
+        // Use workflowApp's consolidated upload method
+        if (window.app && window.app.uploadImageToNode) {
+            window.app.uploadImageToNode(nodeId, file);
+        } else {
+            // Fallback implementation
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageData = {
+                    url: e.target.result,
+                    thumbnail: e.target.result,
+                    metadata: {
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        uploadedAt: new Date().toISOString()
+                    }
+                };
+                workflowEngine.addImageToNode(nodeId, imageData);
             };
-            
-            workflowEngine.addImageToNode(nodeId, imageData);
-        };
-        
-        reader.onerror = (error) => {
-            console.error('Error reading file:', error);
-        };
-        
-        reader.readAsDataURL(file);
+            reader.onerror = (error) => {
+                console.error('Error reading file:', error);
+            };
+            reader.readAsDataURL(file);
+        }
     }
 
     showNodeDetails(nodeId) {
