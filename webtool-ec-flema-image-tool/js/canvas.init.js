@@ -251,6 +251,8 @@ function setupCanvasZoom() {
 }
 
 // キャンバスパンの設定
+let canvasViewportShortcutsReady = false;
+
 function setupCanvasPan(state = getActiveCanvasState()) {
     if (state) {
         attachCanvasPanHandlers(state);
@@ -258,6 +260,10 @@ function setupCanvasPan(state = getActiveCanvasState()) {
     if (!panInfrastructureReady) {
         initializeGlobalPanShortcuts();
         panInfrastructureReady = true;
+    }
+    if (!canvasViewportShortcutsReady) {
+        initializeCanvasViewportShortcuts();
+        canvasViewportShortcutsReady = true;
     }
 }
 
@@ -813,3 +819,51 @@ window.disposeCanvasById = disposeCanvasById;
 window.loadCanvasesFromProjectData = loadCanvasesFromProjectData;
 window.resetCanvasWorkspaceToDefault = resetCanvasWorkspaceToDefault;
 window.deleteCanvasById = handleCanvasDeletion;
+window.adjustCanvasViewportOffset = adjustCanvasViewportOffset;
+window.resetCanvasViewportOffset = resetCanvasViewportOffset;
+function initializeCanvasViewportShortcuts() {
+    const step = typeof CANVAS_VIEWPORT_NUDGE_STEP === 'number'
+        ? CANVAS_VIEWPORT_NUDGE_STEP
+        : 48;
+
+    document.addEventListener('keydown', (e) => {
+        if (!e.altKey || e.metaKey || e.ctrlKey) return;
+        const target = e.target;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+            return;
+        }
+
+        let dx = 0;
+        let dy = 0;
+        let handled = true;
+
+        switch (e.key) {
+            case 'ArrowUp':
+                dy = -step;
+                break;
+            case 'ArrowDown':
+                dy = step;
+                break;
+            case 'ArrowLeft':
+                dx = -step;
+                break;
+            case 'ArrowRight':
+                dx = step;
+                break;
+            case '0':
+                resetCanvasViewportOffset();
+                break;
+            default:
+                handled = false;
+        }
+
+        if (dx !== 0 || dy !== 0) {
+            adjustCanvasViewportOffset(dx, dy);
+            handled = true;
+        }
+
+        if (handled) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+}

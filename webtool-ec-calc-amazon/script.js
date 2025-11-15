@@ -592,7 +592,10 @@ class AmazonDashboard {
                 marketplaceFees: 0,   // マーケットプレイス配送サービス
                 storageFees: 0,       // FBA保管手数料
                 monthlyFees: 0,       // 月額登録料
-                advertisingFees: 0    // 広告費用
+                advertisingFees: 0,   // 広告費用（クーポン除く）
+                couponFees: 0,        // クーポンパフォーマンスに基づく料金
+                refundFees: 0,        // 返金
+                otherFees: 0          // その他手数料
             },
             salesFeeBreakdown: {
                 promotionDiscount: 0, // プロモーション割引合計
@@ -677,7 +680,10 @@ class AmazonDashboard {
                             marketplaceFees: 0,   // マーケットプレイス配送サービス
                             storageFees: 0,       // FBA保管手数料
                             monthlyFees: 0,       // 月額登録料
-                            advertisingFees: 0    // 広告費用
+                            advertisingFees: 0,   // 広告費用（クーポン除く）
+                            couponFees: 0,        // クーポンパフォーマンスに基づく料金
+                            refundFees: 0,        // 返金
+                            otherFees: 0          // その他手数料
                         },
                         salesFeeBreakdown: {
                             promotionDiscount: 0, // プロモーション割引合計
@@ -973,14 +979,18 @@ class AmazonDashboard {
                     // 返金額を純利益計算用に記録（合計JPY列の値をそのまま使用）
                     this.processedData.totalRefundAmount += total;  // 負の値
                     periodData.totalRefundAmount += total;
+                    
+                    // 返金額を表示用に記録（注意：これは経費ではなく、マイナスの売上）
+                    this.processedData.fbaFeeBreakdown.refundFees += refundAmount;
+                    periodData.fbaFeeBreakdown.refundFees += refundAmount;
                 } else if (transactionType === '在庫の払い戻し') {
                     // 在庫の払い戻しを純利益計算用に記録
                     this.processedData.totalInventoryRefund += total;
                     periodData.totalInventoryRefund += total;
+                } else {
+                    // その他手数料（FBA関連）細目の処理（注文と返金以外）
+                    this.processFbaFees(row, this.processedData.fbaFeeBreakdown, periodData.fbaFeeBreakdown);
                 }
-
-                // その他手数料（FBA関連）細目の処理
-                this.processFbaFees(row, this.processedData.fbaFeeBreakdown, periodData.fbaFeeBreakdown);
             }
         });
 
@@ -1008,8 +1018,10 @@ class AmazonDashboard {
         // 総注文数 = Amazon販売の一意な注文数 + マルチチャネル配送回数
         this.processedData.orderCount = this.processedData.orderBreakdown.amazonOrders + this.processedData.orderBreakdown.multiChannelOrders;
         
-        // その他手数料合計の計算
-        this.processedData.totalFbaFees = Object.values(this.processedData.fbaFeeBreakdown).reduce((sum, fee) => sum + fee, 0);
+        // その他手数料合計の計算（返金は除外）
+        this.processedData.totalFbaFees = Object.entries(this.processedData.fbaFeeBreakdown)
+            .filter(([key]) => key !== 'refundFees')
+            .reduce((sum, [, fee]) => sum + fee, 0);
         
         // 合計経費の計算（売上手数料 + その他手数料）
         this.processedData.totalExpenses = this.processedData.totalSalesFees + this.processedData.totalFbaFees;
@@ -1056,8 +1068,10 @@ class AmazonDashboard {
             // 期間別総注文数 = Amazon販売の一意な注文数 + マルチチャネル配送回数
             periodData.orderCount = periodData.orderBreakdown.amazonOrders + periodData.orderBreakdown.multiChannelOrders;
             
-            // 期間別その他手数料合計の計算
-            periodData.totalFbaFees = Object.values(periodData.fbaFeeBreakdown).reduce((sum, fee) => sum + fee, 0);
+            // 期間別その他手数料合計の計算（返金は除外）
+            periodData.totalFbaFees = Object.entries(periodData.fbaFeeBreakdown)
+                .filter(([key]) => key !== 'refundFees')
+                .reduce((sum, [, fee]) => sum + fee, 0);
             
             // 期間別合計経費の計算（売上手数料 + その他手数料）
             periodData.totalExpenses = periodData.totalSalesFees + periodData.totalFbaFees;
@@ -1130,8 +1144,16 @@ class AmazonDashboard {
         // クーポン関連手数料（クーポンパフォーマンスに基づく料金、クーポン参加料金）
         else if (transactionType === 'サービス料金' && productDetail.includes('クーポン')) {
             const fee = Math.abs(amazonFees);
-            globalBreakdown.advertisingFees += fee;  // 広告費用に含める
-            periodBreakdown.advertisingFees += fee;
+            globalBreakdown.couponFees += fee;
+            periodBreakdown.couponFees += fee;
+        }
+        // その他の手数料
+        else {
+            const fee = Math.abs(amazonFees) + Math.abs(other);
+            if (fee > 0) {
+                globalBreakdown.otherFees += fee;
+                periodBreakdown.otherFees += fee;
+            }
         }
     }
 
@@ -1147,7 +1169,15 @@ class AmazonDashboard {
         selector.innerHTML = '';
 
         // 各月のボタン（時系列順）
-        const periodEntries = Array.from(this.periods.entries()).sort();
+        const periodEntries = Array.from(this.periods.entries()).sort((a, b) => {
+            // 期間文字列を年月に変換して数値比較
+            const parseDate = (period) => {
+                const match = period.match(/(\d+)年(\d+)月/);
+                if (!match) return 0;
+                return parseInt(match[1]) * 100 + parseInt(match[2]);
+            };
+            return parseDate(a[0]) - parseDate(b[0]);
+        });
         let latestPeriod = null;
         
         periodEntries.forEach(([period, data], index) => {
@@ -1271,6 +1301,28 @@ class AmazonDashboard {
         const profitMarginRate = (data.totalSales || 0) > 0 ? (data.totalProfit / data.totalSales * 100).toFixed(1) : 0;
         const profitMarginEl = document.getElementById('profitMargin');
         if (profitMarginEl) profitMarginEl.textContent = profitMarginRate + '%';
+        
+        // 各手数料の表示
+        const shippingFeesEl = document.getElementById('shippingFees');
+        if (shippingFeesEl) {
+            shippingFeesEl.textContent = this.formatCurrency(data.fbaFeeBreakdown.shippingFees || 0);
+        }
+        const storageFeesEl = document.getElementById('storageFees');
+        if (storageFeesEl) {
+            storageFeesEl.textContent = this.formatCurrency(data.fbaFeeBreakdown.storageFees || 0);
+        }
+        const advertisingFeesEl = document.getElementById('advertisingFees');
+        if (advertisingFeesEl) {
+            advertisingFeesEl.textContent = this.formatCurrency(data.fbaFeeBreakdown.advertisingFees || 0);
+        }
+        const couponFeesEl = document.getElementById('couponFees');
+        if (couponFeesEl) {
+            couponFeesEl.textContent = this.formatCurrency(data.fbaFeeBreakdown.couponFees || 0);
+        }
+        const marketplaceFeesEl = document.getElementById('marketplaceFees');
+        if (marketplaceFeesEl) {
+            marketplaceFeesEl.textContent = this.formatCurrency(data.fbaFeeBreakdown.marketplaceFees || 0);
+        }
         
         // 返金率 = 返金額 / 総売上
         const refundRate = (data.totalSales || 0) > 0 ? (data.totalRefunds / data.totalSales * 100).toFixed(1) : 0;
@@ -1732,16 +1784,23 @@ class AmazonDashboard {
 
         // その他手数料（FBA関連）項目のリスト
         const fbaFeeItems = [
-            { key: 'returnFees', label: 'FBA在庫の返送手数料', icon: '📦' },
             { key: 'shippingFees', label: '納品時の輸送手数料', icon: '🚛' },
-            { key: 'marketplaceFees', label: 'マーケットプレイス配送サービス', icon: '📫' },
             { key: 'storageFees', label: 'FBA保管手数料', icon: '🏠' },
-            { key: 'monthlyFees', label: '月額登録料', icon: '📅' },
-            { key: 'advertisingFees', label: '広告費用', icon: '📢' }
+            { key: 'advertisingFees', label: '広告費用', icon: '📢' },
+            { key: 'couponFees', label: 'クーポンパフォーマンスに基づく料金', icon: '🎫' },
+            { key: 'marketplaceFees', label: 'マーケットプレイス配送サービス（請求）', icon: '📫' },
+            { key: 'refundFees', label: '返金', icon: '↩️' },
+            { key: 'otherFees', label: 'その他手数料合計', icon: '💼' }
         ];
 
-        // 全その他手数料の合計を計算
-        const totalFbaFees = Object.values(data.fbaFeeBreakdown).reduce((sum, fee) => sum + fee, 0);
+        // 全その他手数料の合計を計算（返金は除外、表示のみ）
+        const totalFbaFeesForDisplay = Object.entries(data.fbaFeeBreakdown)
+            .reduce((sum, [, fee]) => sum + fee, 0);
+        
+        // 合計経費（返金除く）
+        const totalExpenses = Object.entries(data.fbaFeeBreakdown)
+            .filter(([key]) => key !== 'refundFees')
+            .reduce((sum, [, fee]) => sum + fee, 0);
 
         fbaFeeItems.forEach(item => {
             const fee = data.fbaFeeBreakdown[item.key];
@@ -1755,26 +1814,27 @@ class AmazonDashboard {
                 // 金額
                 const amountCell = row.insertCell(1);
                 amountCell.textContent = this.formatCurrency(fee);
-                amountCell.className = 'profit-negative'; // 手数料なので赤色表示
+                // 返金は緑、その他は赤で表示
+                amountCell.className = item.key === 'refundFees' ? 'profit-positive' : 'profit-negative';
                 
                 // 構成比
                 const percentCell = row.insertCell(2);
-                const percent = totalFbaFees > 0 ? (fee / totalFbaFees * 100).toFixed(1) : 0;
+                const percent = totalFbaFeesForDisplay > 0 ? (fee / totalFbaFeesForDisplay * 100).toFixed(1) : 0;
                 percentCell.textContent = percent + '%';
             }
         });
 
         // 合計行を追加
-        if (totalFbaFees > 0) {
+        if (totalExpenses > 0 || data.fbaFeeBreakdown.refundFees > 0) {
             const totalRow = tbody.insertRow();
             totalRow.style.borderTop = '2px solid #ddd';
             totalRow.style.fontWeight = 'bold';
             
             const totalItemCell = totalRow.insertCell(0);
-            totalItemCell.innerHTML = '💰 <strong>その他手数料合計</strong>';
+            totalItemCell.innerHTML = '💰 <strong>合計経費（返金除く）</strong>';
             
             const totalAmountCell = totalRow.insertCell(1);
-            totalAmountCell.innerHTML = `<strong>${this.formatCurrency(totalFbaFees)}</strong>`;
+            totalAmountCell.innerHTML = `<strong>${this.formatCurrency(totalExpenses)}</strong>`;
             totalAmountCell.className = 'profit-negative';
             
             const totalPercentCell = totalRow.insertCell(2);
@@ -1782,11 +1842,11 @@ class AmazonDashboard {
         }
 
         // データがない場合のメッセージ
-        if (totalFbaFees === 0) {
+        if (totalExpenses === 0 && data.fbaFeeBreakdown.refundFees === 0) {
             const row = tbody.insertRow();
             const cell = row.insertCell(0);
             cell.colSpan = 3;
-            cell.textContent = 'その他手数料データがありません';
+            cell.textContent = '経費データがありません';
             cell.style.textAlign = 'center';
             cell.style.color = '#666';
             cell.style.fontStyle = 'italic';
@@ -2037,6 +2097,68 @@ class AmazonDashboard {
         }).format(amount);
     }
 
+    // 経費情報のポップアップ表示
+    showExpenseInfo(event) {
+        event.stopPropagation();
+        
+        // 既存のポップアップを削除
+        const existingPopup = document.querySelector('.expense-info-popup');
+        if (existingPopup) {
+            existingPopup.remove();
+            return;
+        }
+        
+        const data = this.getCurrentData();
+        
+        // ポップアップ要素を作成
+        const popup = document.createElement('div');
+        popup.className = 'expense-info-popup';
+        
+        // ポップアップの内容を設定
+        popup.innerHTML = `
+            <span class="popup-close" onclick="this.parentElement.remove()">×</span>
+            <h4>合計経費の内訳</h4>
+            <ul>
+                <li>売上手数料: ${this.formatCurrency(data.totalSalesFees || 0)}</li>
+                <li>納品時の輸送手数料: ${this.formatCurrency(data.fbaFeeBreakdown.shippingFees || 0)}</li>
+                <li>FBA保管手数料: ${this.formatCurrency(data.fbaFeeBreakdown.storageFees || 0)}</li>
+                <li>広告費用: ${this.formatCurrency(data.fbaFeeBreakdown.advertisingFees || 0)}</li>
+                <li>クーポンパフォーマンスに基づく料金: ${this.formatCurrency(data.fbaFeeBreakdown.couponFees || 0)}</li>
+                <li>マーケットプレイス配送サービス（請求）: ${this.formatCurrency(data.fbaFeeBreakdown.marketplaceFees || 0)}</li>
+                <li>その他手数料: ${this.formatCurrency(data.fbaFeeBreakdown.otherFees || 0)}</li>
+            </ul>
+        `;
+        
+        // ポップアップの位置を設定
+        document.body.appendChild(popup);
+        
+        const rect = event.target.getBoundingClientRect();
+        popup.style.left = `${rect.left}px`;
+        popup.style.top = `${rect.bottom + 10}px`;
+        
+        // 画面外にはみ出る場合の調整
+        const popupRect = popup.getBoundingClientRect();
+        if (popupRect.right > window.innerWidth) {
+            popup.style.left = `${window.innerWidth - popupRect.width - 20}px`;
+        }
+        if (popupRect.bottom > window.innerHeight) {
+            popup.style.top = `${rect.top - popupRect.height - 10}px`;
+            // 矢印を下に表示
+            popup.style.setProperty('--arrow-position', 'bottom');
+        }
+        
+        // クリックでポップアップを閉じる
+        const closePopup = (e) => {
+            if (!popup.contains(e.target)) {
+                popup.remove();
+                document.removeEventListener('click', closePopup);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', closePopup);
+        }, 0);
+    }
+
     // CSVエクスポート機能
     exportTableToCSV(tableType) {
         const data = this.getCurrentData();
@@ -2194,26 +2316,30 @@ class AmazonDashboard {
         let csv = 'その他手数料項目,金額,構成比\n';
         
         const fbaFeeItems = [
-            { key: 'returnFees', label: 'FBA在庫の返送手数料' },
             { key: 'shippingFees', label: '納品時の輸送手数料' },
-            { key: 'marketplaceFees', label: 'マーケットプレイス配送サービス' },
             { key: 'storageFees', label: 'FBA保管手数料' },
-            { key: 'monthlyFees', label: '月額登録料' },
-            { key: 'advertisingFees', label: '広告費用' }
+            { key: 'advertisingFees', label: '広告費用' },
+            { key: 'couponFees', label: 'クーポンパフォーマンスに基づく料金' },
+            { key: 'marketplaceFees', label: 'マーケットプレイス配送サービス（請求）' },
+            { key: 'refundFees', label: '返金' },
+            { key: 'otherFees', label: 'その他手数料合計' }
         ];
         
-        const totalFbaFees = Object.values(data.fbaFeeBreakdown).reduce((sum, fee) => sum + fee, 0);
+        const totalFbaFeesForDisplay = Object.values(data.fbaFeeBreakdown).reduce((sum, fee) => sum + fee, 0);
+        const totalExpenses = Object.entries(data.fbaFeeBreakdown)
+            .filter(([key]) => key !== 'refundFees')
+            .reduce((sum, [, fee]) => sum + fee, 0);
         
         fbaFeeItems.forEach(item => {
             const fee = data.fbaFeeBreakdown[item.key];
             if (fee > 0) {
-                const percent = totalFbaFees > 0 ? (fee / totalFbaFees * 100).toFixed(1) : 0;
+                const percent = totalFbaFeesForDisplay > 0 ? (fee / totalFbaFeesForDisplay * 100).toFixed(1) : 0;
                 csv += `${item.label},${fee},${percent}%\n`;
             }
         });
         
-        if (totalFbaFees > 0) {
-            csv += `その他手数料合計,${totalFbaFees},100.0%\n`;
+        if (totalExpenses > 0) {
+            csv += `合計経費（返金除く）,${totalExpenses},100.0%\n`;
         }
         
         return csv;

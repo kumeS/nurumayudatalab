@@ -3,146 +3,463 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas Test</title>
+    <title>Canvas Module Testbed</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
     <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: sans-serif;
+        body.harness-canvas-test {
+            background: #f4f6ff;
         }
-        
-        #canvasContainer {
-            width: 100%;
-            height: 600px;
-            background: #f0f0f0;
-            border: 2px solid #333;
-            position: relative;
+
+        body.harness-canvas-test .main-content {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) 340px;
+            gap: 18px;
+            align-items: stretch;
+        }
+
+        body.harness-canvas-test.toolbar-hidden .main-content {
+            display: block !important;
+        }
+
+        body.harness-canvas-test #canvasContainer {
+            padding-left: clamp(32px, 4vw, 80px);
+            padding-right: clamp(32px, 4vw, 80px);
+            background: #eef1ff;
+        }
+
+        body.harness-canvas-test .toolbar {
+            width: 340px;
+            flex: none;
+        }
+
+        body.harness-canvas-test.toolbar-hidden .main-content {
+            flex-direction: column;
+        }
+
+        body.harness-canvas-test.toolbar-hidden #canvasContainer {
+            padding-left: clamp(24px, 3vw, 60px);
+            padding-right: clamp(24px, 3vw, 60px);
+        }
+
+        .toolbar .harness-card {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(15, 20, 40, 0.08);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .harness-card h3 {
+            margin: 0 0 12px;
+            font-size: 15px;
             display: flex;
             align-items: center;
-            justify-content: center;
+            gap: 8px;
         }
-        
-        .canvas-slot {
-            position: relative;
+
+        .harness-card .btn-full {
+            width: 100%;
         }
-        
-        canvas {
-            border: 1px solid #999;
-            background: white !important;
+
+        .harness-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
         }
-        
-        #debug {
-            margin-top: 20px;
+
+        .harness-status-chip {
+            border: 1px solid rgba(15, 20, 40, 0.12);
+            border-radius: 12px;
             padding: 10px;
-            background: #e0e0e0;
-            font-family: monospace;
+            font-size: 13px;
+            color: #6e7191;
+            background: #fff;
+        }
+
+        .harness-status-chip strong {
+            display: block;
+            font-size: 18px;
+            color: #1b1f3a;
+        }
+
+        .log-card {
+            background: #090c1e !important;
+            border-color: rgba(255, 255, 255, 0.08) !important;
+            color: #e0e2ff;
+        }
+
+        .log-card header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        #debugOutput {
+            margin: 0;
             white-space: pre-wrap;
+            font-family: 'SFMono-Regular', Consolas, 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .move-controls {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(3, 60px);
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .move-controls button {
+            border-radius: 10px;
+            border: 1px solid rgba(15, 20, 40, 0.12);
+            background: #fff;
+            padding: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .move-controls button:hover {
+            background: #f2f4ff;
+        }
+
+        .notification-stack {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .notification {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(5, 7, 16, 0.92);
+            color: #fff;
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .notification-success {
+            border-color: rgba(74, 193, 255, 0.4);
+        }
+
+        .notification-error {
+            border-color: rgba(255, 107, 107, 0.45);
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 </head>
-<body>
-    <h1>Canvas Display Test</h1>
-    
-    <div id="canvasContainer">
-        <div class="canvas-slot">
-            <canvas id="mainCanvas" width="1080" height="1080"></canvas>
+<body class="desktop-mode harness-canvas-test">
+    <div class="app-container">
+        <header class="app-header">
+            <button class="btn-menu" id="projectMenuBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h1><i class="fas fa-magic"></i> Canvas Harness</h1>
+            <div class="header-actions">
+                <div class="save-indicator" id="saveIndicator">
+                    <i class="fas fa-check-circle"></i>
+                    <span>保存済</span>
+                </div>
+                <button class="btn-settings" id="undoBtn" title="1つ前の状態に戻る">
+                    <i class="fas fa-rotate-left"></i>
+                </button>
+                <button class="btn-settings" id="redoBtn" title="やり直す">
+                    <i class="fas fa-rotate-right"></i>
+                </button>
+                <div class="zoom-controls-header">
+                    <button class="zoom-btn-header" id="zoomOutBtn"><i class="fas fa-search-minus"></i></button>
+                    <span class="zoom-value-header" id="zoomValue">100%</span>
+                    <button class="zoom-btn-header" id="zoomInBtn"><i class="fas fa-search-plus"></i></button>
+                    <button class="zoom-btn-header" id="zoomResetBtn"><i class="fas fa-expand-arrows-alt"></i></button>
+                    <button class="zoom-btn-header" id="zoomFitBtn"><i class="fas fa-compress-arrows-alt"></i></button>
+                </div>
+            </div>
+        </header>
+
+        <div id="zoomIndicator" class="zoom-indicator">
+            <i class="fas fa-search-plus"></i>
+            <span id="zoomPercentage">100%</span>
         </div>
+
+        <main class="main-content">
+            <div class="canvas-workspace" id="canvasContainer">
+                <div class="canvas-stack" id="canvasStack">
+                    <div class="canvas-slot active" data-canvas-id="mainCanvas">
+                        <canvas id="mainCanvas" width="1080" height="1080"></canvas>
+                    </div>
+                </div>
+                <button class="btn-add-canvas" id="addCanvasBtn" type="button">
+                    <i class="fas fa-plus"></i>
+                    <span>キャンバスを追加</span>
+                </button>
+            </div>
+
+            <div class="toolbar" id="toolbar">
+                <div class="harness-card">
+                    <h3><i class="fas fa-wand-magic"></i> クイック操作</h3>
+                    <div class="btn-grid">
+                        <button class="btn-primary btn-full" id="addRectBtn"><i class="fas fa-vector-square"></i> 矩形</button>
+                        <button class="btn-primary btn-full" id="addTextBtn"><i class="fas fa-font"></i> テキスト</button>
+                        <button class="btn-secondary btn-full" id="fitCanvasBtn"><i class="fas fa-compress-arrows-alt"></i> 画面にフィット</button>
+                        <button class="btn-secondary btn-full" id="resetWorkspaceBtn"><i class="fas fa-rotate-right"></i> リセット</button>
+                        <button class="btn-secondary btn-full" id="toggleSidebarBtn"><i class="fas fa-eye-slash"></i> ツールバーを非表示</button>
+                    </div>
+                    <div class="move-controls">
+                        <span></span>
+                        <button id="moveCanvasUp" title="Alt + ↑"><i class="fas fa-arrow-up"></i></button>
+                        <span></span>
+                        <button id="moveCanvasLeft" title="Alt + ←"><i class="fas fa-arrow-left"></i></button>
+                        <button id="resetCanvasPositionBtn" title="Alt + 0"><i class="fas fa-dot-circle"></i></button>
+                        <button id="moveCanvasRight" title="Alt + →"><i class="fas fa-arrow-right"></i></button>
+                        <span></span>
+                        <button id="moveCanvasDown" title="Alt + ↓"><i class="fas fa-arrow-down"></i></button>
+                        <span></span>
+                    </div>
+                </div>
+
+                <div class="harness-card">
+                    <h3><i class="fas fa-layer-group"></i> ステータス</h3>
+                    <div class="harness-status-grid">
+                        <div class="harness-status-chip">Active<strong id="activeCanvasStatus">--</strong></div>
+                        <div class="harness-status-chip">Objects<strong id="objectCountStatus">0</strong></div>
+                        <div class="harness-status-chip">Zoom<strong id="canvasZoomStatus">100%</strong></div>
+                    </div>
+                </div>
+
+                <div class="harness-card log-card">
+                    <header>
+                        <h3><i class="fas fa-terminal"></i> デバッグログ</h3>
+                        <button class="btn-secondary" id="clearLogBtn" style="padding: 6px 12px; font-size: 12px;">
+                            <i class="fas fa-eraser"></i> クリア
+                        </button>
+                    </header>
+                    <pre id="debugOutput"></pre>
+                </div>
+            </div>
+        </main>
     </div>
-    
-    <div id="debug">Loading...</div>
-    
+
+    <div id="notificationStack" class="notification-stack" aria-live="polite"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
     <script>
-        let canvas = null;
-        let debugLog = [];
-        
-        function log(msg) {
-            debugLog.push(msg);
-            document.getElementById('debug').textContent = debugLog.join('\n');
-            console.log(msg);
-        }
-        
-        window.addEventListener('DOMContentLoaded', () => {
-            log('=== Canvas Test Start ===');
-            
-            const canvasElement = document.getElementById('mainCanvas');
-            log('Canvas element found: ' + !!canvasElement);
-            
-            if (!canvasElement) {
-                log('ERROR: Canvas element not found!');
-                return;
+        (function() {
+            function stub(name) {
+                return function(...args) {
+                    console.info(`[canvas-test] ${name}`, ...args);
+                };
             }
-            
-            log('Creating Fabric.js canvas...');
-            
-            try {
-                canvas = new fabric.Canvas('mainCanvas', {
-                    width: 1080,
-                    height: 1080,
-                    backgroundColor: '#ffffff',
-                    preserveObjectStacking: true,
-                    selection: true
+
+            function pickIcon(type) {
+                if (type === 'error') return 'fa-exclamation-circle';
+                if (type === 'success') return 'fa-circle-check';
+                if (type === 'warning') return 'fa-triangle-exclamation';
+                return 'fa-circle-info';
+            }
+
+            window.showNotification = window.showNotification || function(message, type = 'info') {
+                const stack = document.getElementById('notificationStack');
+                const note = document.createElement('div');
+                note.className = `notification notification-${type}`;
+                note.innerHTML = `<i class="fas ${pickIcon(type)}"></i><span>${message}</span>`;
+                (stack || document.body).appendChild(note);
+                requestAnimationFrame(() => note.classList.add('show'));
+                setTimeout(() => {
+                    note.classList.remove('show');
+                    note.addEventListener('transitionend', () => note.remove(), { once: true });
+                }, 2400);
+            };
+
+            window.triggerQuickSave = window.triggerQuickSave || stub('triggerQuickSave(stub)');
+            window.startAutoSave = window.startAutoSave || stub('startAutoSave(stub)');
+            window.stopAutoSave = window.stopAutoSave || stub('stopAutoSave(stub)');
+        })();
+    </script>
+
+    <script src="js/canvas.state.js"></script>
+    <script src="js/canvas.interaction.js"></script>
+    <script src="js/canvas.init.js"></script>
+
+    <script>
+        (function() {
+            const logBuffer = [];
+            const MAX_LOG = 80;
+
+            function appendLog(message) {
+                const timestamp = new Date().toLocaleTimeString('ja-JP', { hour12: false });
+                const formatted = `[${timestamp}] ${message}`;
+                logBuffer.push(formatted);
+                if (logBuffer.length > MAX_LOG) logBuffer.shift();
+                const output = document.getElementById('debugOutput');
+                if (output) {
+                    output.textContent = logBuffer.join('\n');
+                    output.scrollTop = output.scrollHeight;
+                }
+                console.log('[canvas-test]', message);
+            }
+
+            window.canvasTestLog = appendLog;
+
+            function refreshStatus() {
+                const activeId = typeof getActiveCanvasId === 'function' ? (getActiveCanvasId() || '--') : '--';
+                const canvas = typeof getCanvas === 'function' ? getCanvas() : null;
+                const objectCount = canvas ? canvas.getObjects().length : 0;
+                const zoom = canvas ? Math.round(canvas.getZoom() * 100) : 100;
+                document.getElementById('activeCanvasStatus').textContent = activeId;
+                document.getElementById('objectCountStatus').textContent = objectCount;
+                document.getElementById('canvasZoomStatus').textContent = `${zoom}%`;
+            }
+
+            function bindStatusListeners() {
+                const entries = typeof getCanvasCollection === 'function' ? getCanvasCollection() : [];
+                entries.forEach(entry => {
+                    if (!entry || !entry.canvas || entry.canvas.__harnessBound) return;
+                    ['object:added', 'object:removed', 'object:modified', 'after:render'].forEach(ev => {
+                        entry.canvas.on(ev, () => refreshStatus());
+                    });
+                    entry.canvas.__harnessBound = true;
                 });
-                
-                log('Canvas created successfully');
-                log('Canvas width: ' + canvas.width);
-                log('Canvas height: ' + canvas.height);
-                log('Canvas zoom: ' + canvas.getZoom());
-                
-                // コンテナサイズを取得
-                const container = document.getElementById('canvasContainer');
-                const containerWidth = container.clientWidth;
-                const containerHeight = container.clientHeight;
-                
-                log('Container size: ' + containerWidth + ' x ' + containerHeight);
-                
-                // ズーム計算
-                const padding = 40;
-                const scaleX = (containerWidth - padding) / canvas.width;
-                const scaleY = (containerHeight - padding) / canvas.height;
-                const zoom = Math.min(scaleX, scaleY, 1);
-                
-                log('Calculated zoom: ' + zoom.toFixed(3) + ' (' + Math.round(zoom * 100) + '%)');
-                
-                // ズーム適用
-                canvas.setZoom(zoom);
-                log('Zoom applied');
-                
-                // テスト用にテキストを追加
-                const text = new fabric.IText('Test Text', {
-                    left: 540,
-                    top: 540,
-                    fontSize: 60,
-                    fill: '#ff0000',
+            }
+
+            function addDemoRect() {
+                const canvas = typeof getCanvas === 'function' ? getCanvas() : null;
+                if (!canvas) return;
+                const rect = new fabric.Rect({
+                    width: 280,
+                    height: 180,
+                    rx: 24,
+                    ry: 24,
+                    left: 200 + Math.random() * 200,
+                    top: 200 + Math.random() * 200,
+                    fill: '#4ac1ff55',
+                    stroke: '#4ac1ff',
+                    strokeWidth: 4
+                });
+                canvas.add(rect);
+                canvas.setActiveObject(rect);
+                canvas.requestRenderAll();
+                scheduleCanvasHistoryCapture();
+                appendLog('矩形を追加しました');
+            }
+
+            function addDemoText() {
+                const canvas = typeof getCanvas === 'function' ? getCanvas() : null;
+                if (!canvas) return;
+                const text = new fabric.IText('Sample Text', {
+                    left: canvas.width / 2,
+                    top: canvas.height / 2,
+                    fontSize: 72,
+                    fill: '#333',
+                    fontWeight: 700,
                     originX: 'center',
                     originY: 'center'
                 });
-                
                 canvas.add(text);
-                log('Test text added');
-                
-                // 矩形を追加
-                const rect = new fabric.Rect({
-                    left: 200,
-                    top: 200,
-                    width: 200,
-                    height: 200,
-                    fill: '#00ff00'
-                });
-                
-                canvas.add(rect);
-                log('Test rectangle added');
-                
-                canvas.renderAll();
-                log('Canvas rendered');
-                
-                log('=== Test Complete ===');
-                
-            } catch (error) {
-                log('ERROR: ' + error.message);
-                log(error.stack);
+                canvas.setActiveObject(text);
+                canvas.requestRenderAll();
+                scheduleCanvasHistoryCapture();
+                appendLog('テキストを追加しました');
             }
-        });
+
+            function wireHarnessUi() {
+                document.getElementById('resetWorkspaceBtn').addEventListener('click', () => {
+                    resetCanvasWorkspaceToDefault();
+                    appendLog('ワークスペースを初期化しました');
+                    refreshStatus();
+                });
+
+                document.getElementById('fitCanvasBtn').addEventListener('click', () => {
+                    fitCanvasToContainer();
+                    appendLog('キャンバスを表示領域にフィット');
+                });
+
+                document.getElementById('addRectBtn').addEventListener('click', addDemoRect);
+                document.getElementById('addTextBtn').addEventListener('click', addDemoText);
+
+                document.getElementById('clearLogBtn').addEventListener('click', () => {
+                    logBuffer.length = 0;
+                    document.getElementById('debugOutput').textContent = '';
+                });
+
+                const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+                if (toggleSidebarBtn) {
+                    toggleSidebarBtn.addEventListener('click', () => {
+                        const hidden = document.body.classList.toggle('toolbar-hidden');
+                        toggleSidebarBtn.innerHTML = hidden
+                            ? '<i class="fas fa-eye"></i> ツールバーを表示'
+                            : '<i class="fas fa-eye-slash"></i> ツールバーを非表示';
+                        requestAnimationFrame(() => {
+                            fitCanvasToContainer();
+                            syncCanvasViewportSize({ recenter: true });
+                        });
+                    });
+                }
+
+                const nudgeStep = typeof CANVAS_VIEWPORT_NUDGE_STEP === 'number'
+                    ? CANVAS_VIEWPORT_NUDGE_STEP
+                    : 48;
+
+                const moveBindings = [
+                    ['moveCanvasUp', 0, -nudgeStep],
+                    ['moveCanvasDown', 0, nudgeStep],
+                    ['moveCanvasLeft', -nudgeStep, 0],
+                    ['moveCanvasRight', nudgeStep, 0]
+                ];
+
+                moveBindings.forEach(([id, dx, dy]) => {
+                    const btn = document.getElementById(id);
+                    if (btn) {
+                        btn.addEventListener('click', () => {
+                            adjustCanvasViewportOffset(dx, dy);
+                        });
+                    }
+                });
+
+                const resetPosBtn = document.getElementById('resetCanvasPositionBtn');
+                if (resetPosBtn) {
+                    resetPosBtn.addEventListener('click', () => {
+                        resetCanvasViewportOffset();
+                    });
+                }
+
+                const observer = new MutationObserver(() => bindStatusListeners());
+                observer.observe(document.getElementById('canvasStack'), { childList: true });
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                appendLog('DOM Ready. Fabric version: ' + (window.fabric ? fabric.version : 'N/A'));
+                initializeFabricCanvas();
+                setupZoomSlider();
+                resetCanvasHistory();
+                bindStatusListeners();
+                refreshStatus();
+                wireHarnessUi();
+                appendLog('キャンバスを初期化しました');
+            });
+        })();
     </script>
 </body>
 </html>

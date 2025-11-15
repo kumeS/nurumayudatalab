@@ -1,0 +1,71 @@
+## 現状の課題
+1. 大画面時にキャンバス周囲の余白が広く、キャンバス位置が視線より下に寄ってしまう。
+2. ツールバーがキャンバス領域と同じ背景色上に載っているため境界が曖昧で、視線の焦点が散る。
+3. キャンバスの視点（上下左右）を直感的に調整する手段が乏しく、サイドバーとの干渉が起きやすい。
+4. ツールバーの折りたたみ状態がわかりづらく、現在どちらのモードかが一目で判断できない。
+5. ハーネス用の補助カード（クイック操作・ログなど）がツールバーと混在し、情報密度が過剰になっている。
+
+## UI改善提案
+1. **キャンバス位置の再定義**
+   - キャンバスコンテナをビューポート中央＋上寄せ 60px を基本ポジションとし、余剰スペースが発生しても上部に吸着するアルゴリズムを導入。
+   - ハーネス環境では余白係数をさらに縮小（上下 24px）し、実際のアプリと乖離しないよう調整。
+
+2. **ツールバーの視覚的分離**
+   - ツールバー背景を白ベースのパネル化し、左右にシャドウまたは 1px ボーダーを追加。
+   - キャンバスエリアには淡いグラデーション＋内側シャドウを敷き、階層を明確化。
+
+3. **視点調整 UI の常設**
+   - ツールバーに "View" カードを設け、十字ボタンと「Alt+矢印」ショートカットの説明を配置。
+   - リセットボタン（Alt+0）を視覚化し、Viewport オフセットの状態を表示するバッジを追加。
+
+4. **折りたたみ状態の明示**
+   - トグルボタンに「ツールバーを表示/非表示」ラベルを常時表示し、状態連動のアイコン（eye / eye-slash）でフィードバック。
+   - 折りたたみ時は画面右端に細いハンドルを表示し、再展開操作を迷わないようにする。
+
+5. **ハーネス用カードの整理**
+   - クイック操作・ステータス・デバッグログをツールバーとは別の "Harness Panel" に集約し、用途別カラーリングで区分。
+   - 重要度の高いボタン（矩形/テキスト追加など）はメインヘッダー直下に再配置し、ツールバー内の密度を下げる。
+
+## 実装HowTo
+### 1. キャンバス位置の再定義
+1. `js/canvas.state.js` 内の `syncCanvasViewportSize` で算出している `targetTop` を「最小マージン + ユーザーオフセット」の式に変更し、上寄せの余白を `calcClamp(24px, viewport)` のようにCSS変数で管理。
+2. `canvas-test.html` と本番 `index.html` で `#canvasContainer` の padding を `clamp` で制御し、Desktop/Mobile/Harness でのルートクラスに応じて `:root` にカスタムプロパティ `--canvas-padding-top` を注入。
+3. 余白を縮めた結果スクロールナビ要素が重なる場合があるので、`canvas.slot` の `box-shadow` と `margin` を再計算し viewport 幅が 768px 未満では従来値をキープ。
+
+### 2. ツールバーの視覚的分離
+1. `css/style.css` の `.toolbar` に `background: #fff`, `border-left`, `box-shadow` を追加し、`body.desktop-mode` のときのみ適用されるようラップ。
+2. キャンバス側には `.canvas-workspace` に `background: linear-gradient`, `inset box-shadow` を付与し、ツールバーとの境界を明確化。
+3. ハーネス用 `canvas-test.html` に新しいユーティリティクラス（例:`harness-panel`, `panel-shadow`）を定義して再利用。
+
+### 3. 視点調整UI
+1. `canvas-test.html` の「クイック操作」カードの下に "View controls" カードを追加し、矢印ボタンの `click` で `adjustCanvasViewportOffset(dx, dy)` を呼ぶ。
+2. 本番UIのツールバーにも同じカードを組み込み、`Alt + Arrow` および `Alt + 0` ショートカットをツールチップで案内。
+3. オフセット状態を数値またはバッジで表示（例：`View offset: x=+32 / y=-48`）。`resetCanvasViewportOffset()` を押すとゼロ化＋バッジリセット。
+
+### 4. 折りたたみ状態の明示
+1. ヘッダー右上の `layoutToggleBtn` を「ツールバー表示切替ボタン」に名称変更し、aria-label と title を状態別に更新（`show / hide toolbar`）。
+2. 折りたたみ状態では `.toolbar` を完全に非表示にする代わりに、画面右端に 12px 幅の「開くハンドル」を CSS で追加し、クリックで展開。
+3. 状態を `body` クラス（例: `toolbar-collapsed`）に反映し、`localStorage` に保存して再訪時も復元。
+
+### 5. ハーネス補助カードの整理
+1. ハーネス専用の `<section class="harness-panel">` をキャンバス下に置き、カードをそこに集約。ツールバーには本番UIと同じ要素のみ残す。
+2. 各カードには用途別カラー（操作=オレンジ、ステータス=ブルー、ログ=ネイビー）を割り当て、`css/style.css` とは独立したスコープで管理。
+3. ユーザーがテストでよく使うボタン（矩形追加など）はヘッダー直下のアクションバーに移し、ツールバーの密度を軽減。
+
+## AI Vibe Coding プロンプト
+```
+You are implementing layout refinements for a Fabric.js SPA. Objectives:
+- Reduce canvas padding so it stays within 60px of the top boundary on desktop, and 24px in the harness mode.
+- Introduce a sidebar panel with a white background, soft shadow, and clear separation from the canvas column.
+- Add view controls (arrow buttons + reset) that call `adjustCanvasViewportOffset(dx, dy)` and expose Alt+Arrow shortcuts.
+- Implement a toolbar collapse toggle with an always-visible handle and synced body class/localStorage state.
+- Move harness-specific cards into a dedicated section below the canvas, leaving the real toolbar untouched.
+Modify `js/canvas.state.js`, `js/canvas.init.js`, `canvas-test.html`, and `css/style.css` accordingly. Keep comments concise, use existing helper APIs, and preserve DOM ids referenced elsewhere.
+```
+
+## 実行手順書
+1. `canvas.state.js`: 調整ロジック → padding変数導入 → `targetTop` 再計算 → 共有関数をエクスポート。
+2. `canvas.init.js`: ショートカット初期化関数を追加し、既存パン初期化ルーチンに組み込む。
+3. `css/style.css` & `canvas-test.html`: グリッドレイアウトに移行し、`.toolbar` 対 `.canvas-workspace` の配色・シャドウを設定。ハーネス用カードを新セクションに移動。
+4. ツールバー折りたたみ: ボタンの copy を更新し、`body` クラスの出し入れ＋`localStorage` に状態を保存。開閉ハンドルを CSS & JS で追加。
+5. すべての変更後に `python3 -m http.server 5173` で `canvas-test.html` を確認し、Zoom/フィット/Alt+矢印操作/ハンドル開閉が期待通りかを手動検証。

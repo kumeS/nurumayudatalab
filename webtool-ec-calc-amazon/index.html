@@ -62,7 +62,10 @@
                 </div>
                 <div class="summary-break" aria-hidden="true"></div>
                 <div class="card">
-                    <div class="card-label">合計経費</div>
+                    <div class="card-label">
+                        合計経費
+                        <span class="info-icon" onclick="dashboard.showExpenseInfo(event)">i</span>
+                    </div>
                     <div class="card-value" id="totalExpenses">¥0</div>
                     <div class="card-change negative" id="expensesChange"></div>
                 </div>
@@ -74,6 +77,27 @@
                 <div class="card">
                     <div class="card-label">利益率</div>
                     <div class="card-value" id="profitMargin">0%</div>
+                </div>
+                <div class="summary-break" aria-hidden="true"></div>
+                <div class="card">
+                    <div class="card-label">納品時の輸送手数料</div>
+                    <div class="card-value" id="shippingFees">¥0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">FBA保管手数料</div>
+                    <div class="card-value" id="storageFees">¥0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">広告費用</div>
+                    <div class="card-value" id="advertisingFees">¥0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">クーポン料金</div>
+                    <div class="card-value" id="couponFees">¥0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">マーケットプレイス配送サービス</div>
+                    <div class="card-value" id="marketplaceFees">¥0</div>
                 </div>
                 <div class="summary-break" aria-hidden="true"></div>
                 <div class="card">

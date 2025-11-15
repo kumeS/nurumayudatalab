@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Right Toolbar Testbed</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            background: #f3f5ff;
+        }
+
+        .harness-panel {
+            max-width: 1200px;
+            margin: 32px auto 64px;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 30px 80px rgba(15, 20, 40, 0.12);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .harness-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+        }
+
+        .harness-card {
+            border: 1px solid rgba(15, 20, 40, 0.08);
+            border-radius: 16px;
+            padding: 16px;
+            background: #f9f9ff;
+        }
+
+        .harness-card h3 {
+            margin: 0 0 10px;
+            font-size: 15px;
+            letter-spacing: 0.04em;
+            color: #1b1f3a;
+        }
+
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .quick-actions button {
+            flex: 1 1 160px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .status-chip {
+            border: 1px solid rgba(15, 20, 40, 0.12);
+            border-radius: 12px;
+            padding: 10px;
+            background: #fff;
+            font-size: 13px;
+            color: #6e7191;
+        }
+
+        .status-chip strong {
+            display: block;
+            font-size: 18px;
+            color: #1b1f3a;
+        }
+
+        .log-panel {
+            border: 1px solid rgba(15, 20, 40, 0.08);
+            border-radius: 16px;
+            padding: 16px;
+            background: #0a0c1d;
+            color: #e0e2ff;
+        }
+
+        .log-panel header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        #debugOutput {
+            margin: 0;
+            font-family: 'SFMono-Regular', Consolas, 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .harness-extra-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .notification-stack {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .notification {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: rgba(8, 10, 22, 0.92);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .notification-success {
+            border-color: rgba(74, 193, 255, 0.5);
+        }
+
+        .notification-error {
+            border-color: rgba(255, 107, 107, 0.5);
+        }
+    </style>
+</head>
+<body class="desktop-mode">
+    <div class="app-container">
+        <header class="app-header">
+            <button class="btn-menu" id="projectMenuBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h1><i class="fas fa-magic"></i> FleMa - Toolbar Harness</h1>
+            <div class="header-actions">
+                <div class="save-indicator" id="saveIndicator">
+                    <i class="fas fa-check-circle"></i>
+                    <span>保存済</span>
+                </div>
+                <button class="btn-settings" id="layoutToggleBtn" title="PC表示に切り替え" aria-label="PC表示に切り替え">
+                    <i class="fas fa-display"></i>
+                </button>
+                <button class="btn-settings" id="settingsBtn">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <button class="btn-settings" id="undoBtn" title="1つ前の状態に戻る (Ctrl+Z)" aria-label="1つ前の状態に戻る">
+                    <i class="fas fa-rotate-left"></i>
+                </button>
+                <button class="btn-settings" id="redoBtn" title="やり直す (Ctrl+Shift+Z)" aria-label="やり直す">
+                    <i class="fas fa-rotate-right"></i>
+                </button>
+                <button class="btn-export" id="exportBtn" title="エクスポート" aria-label="エクスポート">
+                    <i class="fas fa-download"></i>
+                </button>
+                <div class="zoom-controls-header">
+                    <button class="zoom-btn-header" id="zoomOutBtn" title="縮小">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <span class="zoom-value-header" id="zoomValue">100%</span>
+                    <button class="zoom-btn-header" id="zoomInBtn" title="拡大">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                    <button class="zoom-btn-header" id="zoomResetBtn" title="実寸表示 (100%)">
+                        <i class="fas fa-expand-arrows-alt"></i>
+                    </button>
+                    <button class="zoom-btn-header" id="zoomFitBtn" title="最大表示（画面に合わせる）">
+                        <i class="fas fa-compress-arrows-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div id="zoomIndicator" class="zoom-indicator">
+            <i class="fas fa-search-plus"></i>
+            <span id="zoomPercentage">100%</span>
+        </div>
+
+        <main class="main-content">
+            <div class="canvas-workspace" id="canvasContainer">
+                <div class="canvas-stack" id="canvasStack">
+                    <div class="canvas-slot active" data-canvas-id="mainCanvas">
+                        <canvas id="mainCanvas" width="1080" height="1080"></canvas>
+                    </div>
+                </div>
+                <button class="btn-add-canvas" id="addCanvasBtn" type="button" aria-label="キャンバスを追加">
+                    <i class="fas fa-plus"></i>
+                    <span>キャンバスを追加</span>
+                </button>
+            </div>
+
+            <div class="toolbar" id="toolbar">
+                <div class="tool-tabs">
+                    <button class="tool-tab active" data-tab="image">
+                        <i class="fas fa-image"></i>
+                        <span>商品画像</span>
+                    </button>
+                    <button class="tool-tab" data-tab="template">
+                        <i class="fas fa-sparkles"></i>
+                        <span>売れる装飾</span>
+                    </button>
+                </div>
+
+                <div class="tool-panel active" id="imagePanel">
+                    <h3>商品画像を追加</h3>
+                    <button class="btn-primary btn-full" id="uploadImageBtn">
+                        <i class="fas fa-camera"></i> 商品画像を選択
+                    </button>
+                    <input type="file" id="imageInput" accept="image/*" style="display: none;" multiple>
+                    <div class="image-url-import">
+                        <div class="image-url-row">
+                            <input type="url" id="imageUrlInput" placeholder="https://example.com/image.jpg" inputmode="url" autocomplete="off" spellcheck="false" aria-label="画像URLを入力">
+                            <button class="btn-secondary" id="importImageUrlBtn" type="button">
+                                <i class="fas fa-link"></i> URLから追加
+                            </button>
+                        </div>
+                        <small class="image-url-hint">直接貼り付けた画像URLからインポートできます</small>
+                    </div>
+
+                    <div class="image-history-section">
+                        <div class="image-history-header">
+                            <h3>
+                                <i class="fas fa-clock-rotate-left"></i> 最近使った画像
+                            </h3>
+                            <button class="btn-icon-small" id="refreshImageHistoryBtn" title="履歴を更新" aria-label="履歴を更新">
+                                <i class="fas fa-rotate"></i>
+                            </button>
+                        </div>
+                        <div class="image-history-grid" id="imageHistoryGrid">
+                            <div class="image-history-empty">
+                                <i class="fas fa-images"></i>
+                                <p>まだ画像を追加していません</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tool-panel" id="templatePanel">
+                    <h3>テキストを追加</h3>
+                    <button class="btn-primary btn-full" id="addTextBtn">
+                        <i class="fas fa-plus"></i> テキストを追加
+                    </button>
+
+                    <h3>① 売れる言葉を選ぶ</h3>
+                    <div class="template-grid">
+                        <button class="template-btn" data-template="新品未使用">新品未使用</button>
+                        <button class="template-btn" data-template="美品">美品</button>
+                        <button class="template-btn" data-template="送料無料">送料無料</button>
+                        <button class="template-btn" data-template="即日発送">即日発送</button>
+                        <button class="template-btn" data-template="値下げ交渉OK">値下げ交渉OK</button>
+                        <button class="template-btn" data-template="値下げ可能">値下げ可能</button>
+                        <button class="template-btn" data-template="限定品">限定品</button>
+                        <button class="template-btn" data-template="早い者勝ち">早い者勝ち</button>
+                        <button class="template-btn" data-template="セール中">セール中</button>
+                        <button class="template-btn" data-template="レア">レア</button>
+                        <button class="template-btn" data-template="お得">お得</button>
+                        <button class="template-btn" data-template="韓国限定">韓国限定</button>
+                        <button class="template-btn" data-template="韓国現地で購入">韓国現地で購入</button>
+                        <button class="template-btn" data-template="正規品">正規品</button>
+                        <button class="template-btn" data-template="韓国正規店で購入">韓国正規店で購入</button>
+                    </div>
+
+                    <div class="custom-template-section">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="customTemplateInput" placeholder="カスタム文言を入力..." maxlength="30">
+                            <button class="btn-secondary" id="addCustomTemplateBtn">
+                                <i class="fas fa-plus"></i> 追加
+                            </button>
+                        </div>
+                        <div id="customTemplateGrid" class="template-grid" style="margin-top: 12px;"></div>
+                    </div>
+
+                    <h3>② ロゴを追加（オプション）</h3>
+                    <div class="template-grid logo-grid">
+                        <button class="template-btn" data-logo="nurumayudatalab"><i class="fas fa-award"></i> ゆるま湯ロゴ</button>
+                        <button class="template-btn" data-logo="icon-star"><i class="fas fa-star"></i> スター</button>
+                        <button class="template-btn" data-logo="icon-gem"><i class="fas fa-gem"></i> ジュエル</button>
+                        <button class="template-btn" data-logo="icon-truck"><i class="fas fa-truck"></i> トラック</button>
+                        <button class="template-btn" data-logo="icon-ship"><i class="fas fa-shipping-fast"></i> 迅速発送</button>
+                        <button class="template-btn" data-logo="icon-handshake"><i class="fas fa-handshake"></i> 安心取引</button>
+                        <button class="template-btn" data-logo="icon-tags"><i class="fas fa-tags"></i> お得タグ</button>
+                        <button class="template-btn" data-logo="icon-crown"><i class="fas fa-crown"></i> クラウン</button>
+                        <button class="template-btn" data-logo="icon-fire"><i class="fas fa-fire"></i> 人気</button>
+                    </div>
+                </div>
+
+                <div class="controls-container">
+                    <div class="inline-controls-panel image-controls-panel active" id="imageControlsSection">
+                        <div class="image-controls-header">
+                            <h3><i class="fas fa-sliders-h"></i> 画像調整</h3>
+                            <button class="btn-icon" id="closeImageControlsPanel" aria-label="画像調整を閉じる">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <div class="image-controls-section image-controls-primary">
+                            <button class="btn-secondary btn-full" id="fitImageHeightBtn">
+                                <i class="fas fa-arrows-up-down"></i> 縦いっぱいにフィット
+                            </button>
+                        </div>
+
+                        <div class="image-controls-section">
+                            <h4>クイック補正</h4>
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-sun"></i> 輝度</span><span class="value" id="brightnessValue">0</span></label>
+                                <input type="range" id="brightness" min="-100" max="100" value="0" step="1">
+                            </div>
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-circle-half-stroke"></i> コントラスト</span><span class="value" id="contrastValue">0</span></label>
+                                <input type="range" id="contrast" min="0" max="200" value="0" step="1">
+                            </div>
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-palette"></i> 彩度</span><span class="value" id="saturationValue">0</span></label>
+                                <input type="range" id="saturation" min="0" max="200" value="0" step="1">
+                            </div>
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-droplet"></i> 色相</span><span class="value" id="hueValue">0</span></label>
+                                <input type="range" id="hue" min="0" max="360" value="0" step="1">
+                            </div>
+                            <button class="btn-secondary btn-full" id="resetFilters">
+                                <i class="fas fa-undo"></i> リセット
+                            </button>
+                        </div>
+
+                        <div class="image-controls-section">
+                            <h4>回転・反転</h4>
+                            <div class="btn-stack">
+                                <button class="btn-secondary" id="rotateImage90Btn">
+                                    <i class="fas fa-rotate-right"></i> 90度回転
+                                </button>
+                                <button class="btn-secondary" id="flipHorizontalBtn">
+                                    <i class="fas fa-left-right"></i> 水平反転
+                                </button>
+                                <button class="btn-secondary" id="flipVerticalBtn">
+                                    <i class="fas fa-up-down"></i> 垂直反転
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="image-controls-section">
+                            <h4>一部ぼかし</h4>
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-circle-half-stroke"></i> ぼかし半径</span><span class="value" id="blurRadiusValue">8px</span></label>
+                                <input type="range" id="blurRadius" min="2" max="30" value="8" step="1">
+                            </div>
+                            <div class="btn-stack">
+                                <button class="btn-primary" id="startPartialBlurBtn">
+                                    <i class="fas fa-square-dashed"></i> ぼかし開始
+                                </button>
+                                <button class="btn-primary" id="applyPartialBlurBtn" style="display: none;">
+                                    <i class="fas fa-check"></i> 適用
+                                </button>
+                                <button class="btn-secondary" id="cancelPartialBlurBtn" style="display: none;">
+                                    <i class="fas fa-times"></i> キャンセル
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="image-controls-section">
+                            <h4>トリミング</h4>
+                            <div class="btn-stack">
+                                <button class="btn-primary" id="startCroppingBtn">
+                                    <i class="fas fa-crop"></i> トリミング開始
+                                </button>
+                                <button class="btn-primary" id="applyCroppingBtn" style="display: none;">
+                                    <i class="fas fa-check"></i> 適用
+                                </button>
+                                <button class="btn-secondary" id="cancelCroppingBtn" style="display: none;">
+                                    <i class="fas fa-times"></i> キャンセル
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="image-controls-section">
+                            <h4>レイヤー操作</h4>
+                            <div class="btn-stack">
+                                <button class="btn-secondary" id="bringToFrontBtn">
+                                    <i class="fas fa-arrow-up"></i> 最前面へ
+                                </button>
+                                <button class="btn-secondary" id="bringForwardBtn">
+                                    <i class="fas fa-chevron-up"></i> 前へ
+                                </button>
+                                <button class="btn-secondary" id="sendBackwardBtn">
+                                    <i class="fas fa-chevron-down"></i> 後ろへ
+                                </button>
+                                <button class="btn-secondary" id="sendToBackBtn">
+                                    <i class="fas fa-arrow-down"></i> 最背面へ
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="image-controls-section">
+                            <h4>その他</h4>
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-adjust"></i> 背景削除の感度</span><span class="value" id="bgRemovalToleranceValue">50</span></label>
+                                <input type="range" id="bgRemovalTolerance" min="10" max="150" value="50" step="5">
+                                <small style="opacity: 0.7;">低い = 厳密、高い = 広範囲</small>
+                            </div>
+                            <button class="btn-secondary btn-full" id="removeBackgroundBtn">
+                                <i class="fas fa-cut"></i> 背景を自動削除 (β)
+                            </button>
+                            <button class="btn-danger btn-full" id="deleteImageBtn">
+                                <i class="fas fa-trash"></i> 画像を削除
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="inline-controls-panel text-controls-panel active" id="textControlsSection">
+                        <div class="text-controls-header">
+                            <h3><i class="fas fa-pen"></i> テキスト調整</h3>
+                            <button class="btn-icon" id="closeTextControlsPanel" aria-label="テキスト調整を閉じる">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <div class="text-controls-section">
+                            <label><span><i class="fas fa-keyboard"></i> テキスト</span></label>
+                            <textarea id="textContent" rows="3" placeholder="テキストを入力..."></textarea>
+                        </div>
+
+                        <div class="text-controls-grid">
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-text-height"></i> サイズ</span><span class="value" id="fontSizeValue">160px</span></label>
+                                <input type="range" id="fontSize" min="12" max="320" value="160" step="2">
+                            </div>
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-font"></i> フォント</span></label>
+                                <select id="fontFamily">
+                                    <option value="'Noto Sans JP', sans-serif">Noto Sans JP</option>
+                                    <option value="Arial, sans-serif">Arial</option>
+                                    <option value="'Times New Roman', serif">Times New Roman</option>
+                                    <option value="'Courier New', monospace">Courier New</option>
+                                    <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                                    <option value="Impact, fantasy">Impact</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="text-controls-grid">
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-fill"></i> 文字色</span></label>
+                                <div class="color-inputs">
+                                    <input type="color" id="textColor" value="#333333" class="color-chip">
+                                    <input type="text" id="textColorHex" value="#333333" maxlength="7">
+                                </div>
+                            </div>
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-fill-drip"></i> 背景</span></label>
+                                <div class="color-inputs">
+                                    <input type="color" id="textBgColor" value="#ffffff" class="color-chip">
+                                    <input type="text" id="textBgColorHex" value="#ffffff" maxlength="7">
+                                </div>
+                                <label class="checkbox-label small">
+                                    <input type="checkbox" id="textBgTransparent" checked>
+                                    背景透過
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="text-controls-section">
+                            <label><span><i class="fas fa-bold"></i> スタイル</span></label>
+                            <div class="btn-chip-group" id="textStyleGroup">
+                                <button class="btn-chip" data-style="bold"><i class="fas fa-bold"></i></button>
+                                <button class="btn-chip" data-style="italic"><i class="fas fa-italic"></i></button>
+                                <button class="btn-chip" data-style="underline"><i class="fas fa-underline"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="text-controls-grid">
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-rotate"></i> 回転</span><span class="value" id="textRotationValue">0°</span></label>
+                                <input type="range" id="textRotation" min="-180" max="180" value="0" step="1">
+                            </div>
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-expand"></i> 拡大</span><span class="value" id="textScaleValue">100%</span></label>
+                                <input type="range" id="textScale" min="50" max="200" value="100" step="5">
+                            </div>
+                            <div class="control-group compact">
+                                <label><span><i class="fas fa-layer-group"></i> 不透明度</span><span class="value" id="textOpacityValue">100%</span></label>
+                                <input type="range" id="textOpacity" min="0" max="100" value="100" step="5">
+                            </div>
+                        </div>
+
+                        <div class="text-controls-section text-effects-section">
+                            <label><span><i class="fas fa-magic"></i> 効果</span></label>
+                            <div class="effects-toggle">
+                                <label class="checkbox-label small">
+                                    <input type="checkbox" id="textShadow">
+                                    シャドウ
+                                </label>
+                                <div class="effect-controls" id="textShadowControls">
+                                    <div class="effect-control"><span>色</span><input type="color" id="textShadowColor" value="#000000" class="color-chip"></div>
+                                    <div class="effect-control">
+                                        <label><span>濃さ</span><span class="value" id="textShadowOpacityValue">40%</span></label>
+                                        <input type="range" id="textShadowOpacity" min="0" max="100" value="40" step="5">
+                                    </div>
+                                    <div class="effect-control">
+                                        <label><span>ぼかし</span><span class="value" id="textShadowBlurValue">6px</span></label>
+                                        <input type="range" id="textShadowBlur" min="0" max="50" value="6" step="1">
+                                    </div>
+                                    <div class="effect-control">
+                                        <label><span>距離</span><span class="value" id="textShadowOffsetValue">3px</span></label>
+                                        <input type="range" id="textShadowOffset" min="0" max="50" value="3" step="1">
+                                    </div>
+                                    <div class="effect-control">
+                                        <label><span>角度</span><span class="value" id="textShadowAngleValue">45°</span></label>
+                                        <input type="range" id="textShadowAngle" min="0" max="360" value="45" step="1">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="effects-toggle">
+                                <label class="checkbox-label small">
+                                    <input type="checkbox" id="textStroke">
+                                    アウトライン
+                                </label>
+                                <div class="effect-controls" id="textStrokeControls">
+                                    <div class="effect-control"><span>色</span><input type="color" id="textStrokeColor" value="#ffffff" class="color-chip"></div>
+                                    <div class="effect-control">
+                                        <label><span>太さ</span><span class="value" id="textStrokeWidthValue">4px</span></label>
+                                        <input type="range" id="textStrokeWidth" min="0" max="20" value="4" step="1">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="effects-typography">
+                                <div class="effect-control">
+                                    <label><span>字間</span><span class="value" id="textLetterSpacingValue">0</span></label>
+                                    <input type="range" id="textLetterSpacing" min="0" max="400" value="0" step="5">
+                                </div>
+                                <div class="effect-control">
+                                    <label><span>行間</span><span class="value" id="textLineHeightValue">100%</span></label>
+                                    <input type="range" id="textLineHeight" min="80" max="200" value="100" step="5">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="btn-stack">
+                            <button class="btn-secondary" id="textBringToFrontBtn"><i class="fas fa-arrow-up"></i> 最前面へ</button>
+                            <button class="btn-secondary" id="textBringForwardBtn"><i class="fas fa-chevron-up"></i> 前へ</button>
+                            <button class="btn-secondary" id="textSendBackwardBtn"><i class="fas fa-chevron-down"></i> 後ろへ</button>
+                            <button class="btn-secondary" id="textSendToBackBtn"><i class="fas fa-arrow-down"></i> 最背面へ</button>
+                            <button class="btn-secondary" id="duplicateTextBtn"><i class="fas fa-copy"></i> 複製</button>
+                            <button class="btn-danger" id="deleteTextBtn"><i class="fas fa-trash"></i> 削除</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <section class="harness-panel">
+        <div class="harness-grid">
+            <div class="harness-card">
+                <h3><i class="fas fa-wand-magic"></i> クイック追加</h3>
+                <div class="quick-actions">
+                    <button class="btn-primary" id="addDemoImageBtn"><i class="fas fa-image"></i> デモ画像</button>
+                    <button class="btn-primary" id="addDemoTextBtn"><i class="fas fa-font"></i> デモテキスト</button>
+                    <button class="btn-secondary" id="addLogoBtn"><i class="fas fa-award"></i> ロゴ</button>
+                </div>
+            </div>
+            <div class="harness-card">
+                <h3><i class="fas fa-display"></i> ビュー操作</h3>
+                <div class="quick-actions">
+                    <button class="btn-secondary" id="fitCanvasBtn"><i class="fas fa-compress-arrows-alt"></i> キャンバスフィット</button>
+                    <button class="btn-secondary" id="resetWorkspaceBtn"><i class="fas fa-rotate-right"></i> ワークスペース初期化</button>
+                </div>
+            </div>
+            <div class="harness-card">
+                <h3><i class="fas fa-layer-group"></i> ステータス</h3>
+                <div class="status-grid">
+                    <div class="status-chip">Active<strong id="activeCanvasStatus">--</strong></div>
+                    <div class="status-chip">Objects<strong id="objectCountStatus">0</strong></div>
+                    <div class="status-chip">Zoom<strong id="canvasZoomStatus">100%</strong></div>
+                </div>
+            </div>
+        </div>
+        <div class="log-panel">
+            <header>
+                <h3><i class="fas fa-terminal"></i> デバッグログ</h3>
+                <div class="harness-extra-controls">
+                    <button class="btn-secondary" id="showBothPanelsBtn"><i class="fas fa-columns"></i> 両パネル表示</button>
+                    <button class="btn-secondary" id="clearLogBtn"><i class="fas fa-eraser"></i> ログクリア</button>
+                </div>
+            </header>
+            <pre id="debugOutput"></pre>
+        </div>
+    </section>
+
+    <div id="notificationStack" class="notification-stack" aria-live="polite"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+    <script>
+        (function() {
+            function stub(name) {
+                return function(...args) {
+                    console.info(`[toolbar-test] ${name}`, ...args);
+                };
+            }
+
+            function pickIcon(type) {
+                if (type === 'error') return 'fa-exclamation-circle';
+                if (type === 'warning') return 'fa-triangle-exclamation';
+                if (type === 'success') return 'fa-circle-check';
+                return 'fa-circle-info';
+            }
+
+            window.showNotification = window.showNotification || function(message, type = 'info') {
+                const stack = document.getElementById('notificationStack');
+                const note = document.createElement('div');
+                note.className = `notification notification-${type}`;
+                note.innerHTML = `<i class="fas ${pickIcon(type)}"></i><span>${message}</span>`;
+                (stack || document.body).appendChild(note);
+                requestAnimationFrame(() => note.classList.add('show'));
+                setTimeout(() => {
+                    note.classList.remove('show');
+                    note.addEventListener('transitionend', () => note.remove(), { once: true });
+                }, 2600);
+            };
+
+            window.triggerQuickSave = window.triggerQuickSave || stub('triggerQuickSave(stub)');
+            window.startAutoSave = window.startAutoSave || stub('startAutoSave(stub)');
+            window.stopAutoSave = window.stopAutoSave || stub('stopAutoSave(stub)');
+            window.saveImageToHistory = window.saveImageToHistory || (async () => null);
+            window.displayImageHistory = window.displayImageHistory || (async () => null);
+            window.refreshImageHistory = window.refreshImageHistory || (async () => null);
+            window.switchTab = window.switchTab || stub('switchTab(stub)');
+        })();
+    </script>
+
+    <script src="js/canvas.state.js"></script>
+    <script src="js/canvas.interaction.js"></script>
+    <script src="js/canvas.init.js"></script>
+    <script src="js/image.core.js"></script>
+    <script src="js/image.advanced.js"></script>
+    <script src="js/text.core.js"></script>
+    <script src="js/text.ui.js"></script>
+
+    <script>
+        (function() {
+            const logBuffer = [];
+            const MAX_LOG = 120;
+            const demoImageSvg = encodeURIComponent(`<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ff9a5a" /><stop offset="100%" stop-color="#ffd25a" /></linearGradient></defs><rect width="800" height="600" fill="url(#grad)" rx="32"/><circle cx="170" cy="200" r="110" fill="rgba(255,255,255,0.4)" /><circle cx="560" cy="150" r="80" fill="rgba(255,255,255,0.35)" /><text x="400" y="340" font-size="120" font-family="'Noto Sans JP', sans-serif" text-anchor="middle" fill="#fff" font-weight="700">Demo</text></svg>`);
+            const demoImageUrl = `data:image/svg+xml;utf8,${demoImageSvg}`;
+
+            function appendLog(message) {
+                const timestamp = new Date().toLocaleTimeString('ja-JP', { hour12: false });
+                const entry = `[${timestamp}] ${message}`;
+                logBuffer.push(entry);
+                if (logBuffer.length > MAX_LOG) logBuffer.shift();
+                const output = document.getElementById('debugOutput');
+                if (output) {
+                    output.textContent = logBuffer.join('\n');
+                    output.scrollTop = output.scrollHeight;
+                }
+                console.log('[toolbar-test]', message);
+            }
+
+            function refreshStatus() {
+                const activeId = typeof getActiveCanvasId === 'function' ? (getActiveCanvasId() || '--') : '--';
+                const canvas = typeof getCanvas === 'function' ? getCanvas() : null;
+                const objectCount = canvas ? canvas.getObjects().length : 0;
+                const zoom = canvas ? Math.round(canvas.getZoom() * 100) : 100;
+                const activeLabel = document.getElementById('activeCanvasStatus');
+                const countLabel = document.getElementById('objectCountStatus');
+                const zoomLabel = document.getElementById('canvasZoomStatus');
+                if (activeLabel) activeLabel.textContent = activeId;
+                if (countLabel) countLabel.textContent = objectCount;
+                if (zoomLabel) zoomLabel.textContent = `${zoom}%`;
+            }
+
+            function bindCanvasLifecycle() {
+                const entries = typeof getCanvasCollection === 'function' ? getCanvasCollection() : [];
+                entries.forEach(entry => {
+                    if (!entry || !entry.canvas || entry.canvas.__toolbarBound) return;
+                    ['object:added', 'object:removed', 'object:modified', 'after:render'].forEach(eventName => {
+                        entry.canvas.on(eventName, () => refreshStatus());
+                    });
+                    entry.canvas.__toolbarBound = true;
+                });
+            }
+
+            function addDemoImage() {
+                addImageFromDataUrl(demoImageUrl, { fileName: 'demo-gradient.svg', skipHistory: true, offsetIndex: 0 }).then(() => {
+                    appendLog('デモ画像を追加しました');
+                    showImageControls();
+                    refreshStatus();
+                }).catch(err => {
+                    console.error(err);
+                    showNotification('デモ画像の追加に失敗しました', 'error');
+                });
+            }
+
+            function addDemoText() {
+                addNewText({ textContent: 'フリマ写真', fontSize: 180 });
+                appendLog('デモテキストを追加しました');
+                showTextControls();
+                refreshStatus();
+            }
+
+            function wireImageControls() {
+                ['brightness', 'contrast', 'saturation', 'hue'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.addEventListener('input', (e) => {
+                            handleFilterChange(e);
+                            appendLog(`${id} を ${e.target.value} に設定`);
+                        });
+                    }
+                });
+
+                [
+                    ['resetFilters', resetFilters, 'フィルターをリセットしました'],
+                    ['fitImageHeightBtn', fitImageToCanvasHeight, '画像を縦方向にフィットしました'],
+                    ['deleteImageBtn', deleteSelectedImage, '選択中の画像を削除しました'],
+                    ['rotateImage90Btn', rotateSelectedImage90, '画像を90°回転しました'],
+                    ['flipHorizontalBtn', flipSelectedImageHorizontal, '画像を水平反転しました'],
+                    ['flipVerticalBtn', flipSelectedImageVertical, '画像を垂直反転しました'],
+                    ['startPartialBlurBtn', startPartialBlur, '一部ぼかしモード開始'],
+                    ['applyPartialBlurBtn', applyPartialBlur, 'ぼかしを適用しました'],
+                    ['cancelPartialBlurBtn', cancelPartialBlur, 'ぼかしをキャンセルしました'],
+                    ['startCroppingBtn', startCropping, 'トリミングモード開始'],
+                    ['applyCroppingBtn', applyCropping, 'トリミングを適用しました'],
+                    ['cancelCroppingBtn', cancelCropping, 'トリミングをキャンセルしました'],
+                    ['removeBackgroundBtn', removeImageBackgroundQuick, '背景除去を実行しました']
+                ].forEach(([id, handler, msg]) => {
+                    const el = document.getElementById(id);
+                    if (el && typeof handler === 'function') {
+                        el.addEventListener('click', () => {
+                            handler();
+                            appendLog(msg);
+                        });
+                    }
+                });
+
+                [
+                    ['bringToFrontBtn', bringToFront],
+                    ['bringForwardBtn', bringForward],
+                    ['sendBackwardBtn', sendBackward],
+                    ['sendToBackBtn', sendToBack]
+                ].forEach(([id, fn]) => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('click', () => fn());
+                });
+
+                const blurRadiusInput = document.getElementById('blurRadius');
+                if (blurRadiusInput) {
+                    blurRadiusInput.addEventListener('input', (e) => {
+                        document.getElementById('blurRadiusValue').textContent = `${e.target.value}px`;
+                    });
+                }
+
+                const bgTolerance = document.getElementById('bgRemovalTolerance');
+                if (bgTolerance) {
+                    bgTolerance.addEventListener('input', (e) => {
+                        document.getElementById('bgRemovalToleranceValue').textContent = e.target.value;
+                    });
+                }
+
+                const uploadBtn = document.getElementById('uploadImageBtn');
+                const fileInput = document.getElementById('imageInput');
+                if (uploadBtn && fileInput) {
+                    uploadBtn.addEventListener('click', () => fileInput.click());
+                    fileInput.addEventListener('change', handleImageUpload);
+                }
+
+                const urlBtn = document.getElementById('importImageUrlBtn');
+                const urlInput = document.getElementById('imageUrlInput');
+                if (urlBtn && urlInput) {
+                    urlBtn.addEventListener('click', handleImageUrlImport);
+                    urlInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleImageUrlImport();
+                        }
+                    });
+                }
+            }
+
+            function wireTextControls() {
+                [
+                    ['textContent', 'input', updateSelectedText],
+                    ['fontSize', 'input', updateSelectedText],
+                    ['fontFamily', 'change', updateSelectedText],
+                    ['textColor', 'input', handleColorChange],
+                    ['textColorHex', 'input', handleHexColorChange],
+                    ['textBgColor', 'input', handleBgColorChange],
+                    ['textBgColorHex', 'input', handleBgHexColorChange],
+                    ['textBgTransparent', 'change', updateSelectedText],
+                    ['textShadow', 'change', updateSelectedText],
+                    ['textStroke', 'change', updateSelectedText],
+                    ['textShadowColor', 'input', updateSelectedText],
+                    ['textShadowOpacity', 'input', updateSelectedText],
+                    ['textShadowBlur', 'input', updateSelectedText],
+                    ['textShadowOffset', 'input', updateSelectedText],
+                    ['textShadowAngle', 'input', updateSelectedText],
+                    ['textStrokeColor', 'input', updateSelectedText],
+                    ['textStrokeWidth', 'input', updateSelectedText],
+                    ['textLetterSpacing', 'input', updateSelectedText],
+                    ['textLineHeight', 'input', updateSelectedText],
+                    ['textRotation', 'input', updateSelectedText],
+                    ['textScale', 'input', updateSelectedText],
+                    ['textOpacity', 'input', updateSelectedText],
+                    ['deleteTextBtn', 'click', deleteSelectedText],
+                    ['duplicateTextBtn', 'click', duplicateSelectedObject]
+                ].forEach(([id, eventName, handler]) => {
+                    const el = document.getElementById(id);
+                    if (el && typeof handler === 'function') {
+                        el.addEventListener(eventName, handler);
+                    }
+                });
+
+                document.querySelectorAll('#textStyleGroup [data-style]').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        this.classList.toggle('active');
+                        updateSelectedText();
+                    });
+                });
+
+                [
+                    ['textBringToFrontBtn', bringToFront],
+                    ['textBringForwardBtn', bringForward],
+                    ['textSendBackwardBtn', sendBackward],
+                    ['textSendToBackBtn', sendToBack]
+                ].forEach(([id, fn]) => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('click', fn);
+                });
+            }
+
+            function wireTabs() {
+                const tabs = document.querySelectorAll('.tool-tab');
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        tabs.forEach(btn => btn.classList.remove('active'));
+                        tab.classList.add('active');
+                        const target = tab.dataset.tab;
+                        document.querySelectorAll('.tool-panel').forEach(panel => {
+                            panel.classList.toggle('active', panel.id === `${target}Panel`);
+                        });
+                    });
+                });
+
+                const showBothBtn = document.getElementById('showBothPanelsBtn');
+                if (showBothBtn) {
+                    showBothBtn.addEventListener('click', () => {
+                        document.getElementById('imageControlsSection').classList.add('active');
+                        document.getElementById('textControlsSection').classList.add('active');
+                        appendLog('画像/テキストの両コントロールを開きました');
+                    });
+                }
+
+                const closeImage = document.getElementById('closeImageControlsPanel');
+                if (closeImage) {
+                    closeImage.addEventListener('click', () => hideImageControls());
+                }
+                const closeText = document.getElementById('closeTextControlsPanel');
+                if (closeText) {
+                    closeText.addEventListener('click', () => hideTextControls());
+                }
+            }
+
+            function wireHarnessButtons() {
+                const fitCanvasBtn = document.getElementById('fitCanvasBtn');
+                if (fitCanvasBtn) fitCanvasBtn.addEventListener('click', () => fitCanvasToContainer());
+
+                const resetBtn = document.getElementById('resetWorkspaceBtn');
+                if (resetBtn) resetBtn.addEventListener('click', () => resetCanvasWorkspaceToDefault());
+
+                document.getElementById('addDemoImageBtn').addEventListener('click', addDemoImage);
+                document.getElementById('addDemoTextBtn').addEventListener('click', addDemoText);
+                document.getElementById('addLogoBtn').addEventListener('click', () => addLogoText('nurumayudatalab'));
+
+                const clearLogBtn = document.getElementById('clearLogBtn');
+                if (clearLogBtn) clearLogBtn.addEventListener('click', () => {
+                    logBuffer.length = 0;
+                    document.getElementById('debugOutput').textContent = '';
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                appendLog('DOM Ready. Fabric version: ' + (window.fabric ? fabric.version : 'N/A'));
+                initializeFabricCanvas();
+                setupZoomSlider();
+                resetCanvasHistory();
+                wireImageControls();
+                wireTextControls();
+                wireTabs();
+                wireHarnessButtons();
+                bindCanvasLifecycle();
+                refreshStatus();
+
+                showImageControls();
+                showTextControls();
+                appendLog('キャンバス初期化が完了しました');
+            });
+        })();
+    </script>
+</body>
+</html>

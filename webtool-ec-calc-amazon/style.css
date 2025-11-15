@@ -669,6 +669,114 @@ tr:hover {
     }
 }
 
+/* Info icon and popup styles */
+.info-icon {
+    cursor: pointer;
+    font-size: 0.75em;
+    margin-left: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    font-weight: bold;
+    font-style: normal;
+    text-transform: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    user-select: none;
+    vertical-align: middle;
+}
+
+.info-icon:hover {
+    transform: scale(1.15);
+    box-shadow: 0 2px 8px rgba(255, 126, 95, 0.4);
+}
+
+.expense-info-popup {
+    position: fixed;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    padding: 20px;
+    z-index: 1000;
+    max-width: 400px;
+    animation: fadeIn 0.2s ease;
+}
+
+.expense-info-popup::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid white;
+    top: -10px;
+    left: 20px;
+}
+
+.expense-info-popup h4 {
+    margin: 0 0 15px 0;
+    color: var(--text-primary);
+    font-size: 16px;
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: 8px;
+}
+
+.expense-info-popup ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.expense-info-popup li {
+    padding: 8px 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.expense-info-popup li:last-child {
+    border-bottom: none;
+}
+
+.expense-info-popup li::before {
+    content: '• ';
+    color: var(--primary);
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+.popup-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    font-size: 20px;
+    color: var(--text-secondary);
+    line-height: 1;
+    padding: 5px;
+    transition: color 0.2s;
+}
+
+.popup-close:hover {
+    color: var(--danger-color);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -681,5 +789,11 @@ tr:hover {
     
     .summary-cards {
         grid-template-columns: 1fr;
+    }
+    
+    .expense-info-popup {
+        max-width: 90%;
+        left: 5% !important;
+        right: 5%;
     }
 }

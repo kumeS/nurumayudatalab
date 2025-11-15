@@ -76,6 +76,8 @@ let preferredCanvasSize = {
     width: DEFAULT_CANVAS_WIDTH,
     height: DEFAULT_CANVAS_HEIGHT
 };
+const CANVAS_VIEWPORT_NUDGE_STEP = 48;
+let canvasViewportOffset = { x: 0, y: 0 };
 
 // デバッグログ用フラグ（開発時に true にすることで詳細ログが出力される）
 const DEBUG_CANVAS = false;
@@ -88,20 +90,27 @@ window.DEFAULT_CANVAS_HEIGHT = DEFAULT_CANVAS_HEIGHT;
 function calculateAvailableViewportHeight() {
     const header = document.querySelector('.app-header');
     const toolbar = document.querySelector('.toolbar');
-    
+    const mainContent = document.querySelector('.main-content');
+
     const headerHeight = header ? header.offsetHeight : 96;
-    const toolbarHeight = toolbar ? toolbar.offsetHeight : 0;
-    
+    const toolbarHeight = (() => {
+        if (!toolbar || !mainContent) return 0;
+        // Toolbar only affects height when stacked vertically (mobile / column layout)
+        const flexDirection = window.getComputedStyle(mainContent).flexDirection || 'column';
+        const toolbarStacked = flexDirection.includes('column');
+        return toolbarStacked ? toolbar.offsetHeight : 0;
+    })();
+
     const vh = window.innerHeight;
     const availableHeight = vh - headerHeight - toolbarHeight;
-    
+
     console.log('[Bug6 Fix] Calculated available viewport height:', {
         windowHeight: vh,
         headerHeight,
         toolbarHeight,
         availableHeight
     });
-    
+
     return Math.max(availableHeight, 200); // Minimum 200px
 }
 
@@ -492,11 +501,16 @@ function syncCanvasViewportSizeForState(state, options = {}) {
 
 function syncCanvasViewportSize(options = {}) {
     if (!canvas) return;
-
     const container = document.getElementById('canvasContainer');
     if (!container) return;
 
     const { recenter = false } = options;
+
+    if (recenter) {
+        canvasViewportOffset.x = 0;
+        canvasViewportOffset.y = 0;
+    }
+
     const zoom = canvas.getZoom();
 
     const canvasWidth = canvas.width;
@@ -520,19 +534,20 @@ function syncCanvasViewportSize(options = {}) {
         const paddingTop = parseFloat(computedStyle.paddingTop || '0');
         const paddingBottom = parseFloat(computedStyle.paddingBottom || '0');
 
-        // 利用可能な領域の中心座標を計算
-        const availableWidth = container.clientWidth - paddingLeft - paddingRight;
-        const availableHeight = container.clientHeight - paddingTop - paddingBottom;
+        const availableWidth = Math.max(container.clientWidth - paddingLeft - paddingRight, 0);
+        const availableHeight = Math.max(container.clientHeight - paddingTop - paddingBottom, 0);
 
-        // wrapper を絶対配置
+        const baseLeft = paddingLeft + (availableWidth - canvasWidth) / 2;
+        const remaining = Math.max((availableHeight - canvasHeight) / 2, 0);
+        const baseTop = paddingTop + Math.min(remaining, 24);
+
+        const targetLeft = baseLeft + canvasViewportOffset.x;
+        const targetTop = baseTop + canvasViewportOffset.y;
+
         wrapper.style.position = 'absolute';
-        
-        // ★Bug6 Fix: Center horizontally
-        wrapper.style.left = `${paddingLeft + (availableWidth - canvasWidth) / 2}px`;
-        
-        // ★Bug6 Fix: Center vertically (changed from 30% positioning)
-        wrapper.style.top = `${paddingTop + (availableHeight - canvasHeight) / 2}px`;
-        
+        wrapper.style.left = `${targetLeft}px`;
+        wrapper.style.top = `${targetTop}px`;
+
         console.log('[Bug6 Fix] Canvas wrapper positioned:', {
             left: wrapper.style.left,
             top: wrapper.style.top,
@@ -652,6 +667,9 @@ function applyCanvasZoom(targetZoom, options = {}) {
         showZoomIndicator(clampedZoom);
     }
 
+    // ★Bug Fix: 再描画前にDOM上のラッパーへズーム・位置を同期
+    syncCanvasViewportSize({ recenter: centerOnView });
+
     canvas.requestRenderAll();
     persistActiveCanvasState();
 }
@@ -728,6 +746,18 @@ function fitCanvasToContainer() {
     persistActiveCanvasState();
     
     console.log('[Bug6 Fix] fitCanvasToContainer completed, final zoom:', fitZoom.toFixed(3));
+}
+
+function adjustCanvasViewportOffset(dx = 0, dy = 0) {
+    canvasViewportOffset.x += dx;
+    canvasViewportOffset.y += dy;
+    syncCanvasViewportSize();
+}
+
+function resetCanvasViewportOffset() {
+    canvasViewportOffset.x = 0;
+    canvasViewportOffset.y = 0;
+    syncCanvasViewportSize({ recenter: true });
 }
 
 
