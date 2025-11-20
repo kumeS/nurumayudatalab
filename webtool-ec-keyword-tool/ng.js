@@ -536,5 +536,13 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
   'ゼピリオン',
   'マークライデン',
   'markryden',
-  'fenruien'
+  'fenruien',
+
+  // 追加禁止ワードより追加
+  'オカモト',
+  'okamoto',
+  'ワークマン',
+  'workman',
+  'クロックス',
+  'crocs'
 ];
