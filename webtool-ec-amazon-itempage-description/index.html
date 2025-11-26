@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EC販売向け生成AIプロンプト作成ツール</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <header class="header">
+            <div class="header-content">
+                <div class="header-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                </div>
+                <div class="header-text">
+                    <h1>EC販売向け生成AIプロンプト作成ツール</h1>
+                    <p class="subtitle">定型プロンプトに変数を追加して、最適化されたプロンプトを生成</p>
+                    <div class="header-badges">
+                        <span class="badge" data-description="1688商品データからAmazon出品用の商品タイトル・キーワード・Bullet Points・商品説明文を自動生成します">Amazon商品ページ</span>
+                        <span class="badge" data-description="1688サプライヤーの信頼度を評価。営業年数・事業形態・返品率などを分析し、仕入れ先としての総合評価を提供します">1688店舗評価</span>
+                        <span class="badge" data-description="購入者レビューを分析し、顕在・潜在ニーズを抽出。商品ページのBullet Pointsと説明文を最適化します">レビュー分析</span>
+                        <span class="badge" data-description="アパレル商品の画像生成AIプロンプトを作成。商品の様々な角度・ディテール・着用シーンを網羅した10〜20個のプロンプトを生成します">画像生成</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- タブナビゲーション -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="amazon-product">
+                Amazon商品ページ
+            </button>
+            <button class="tab-button" data-tab="supplier-evaluation">
+                1688店舗評価
+            </button>
+            <button class="tab-button" data-tab="review-brushup">
+                レビュー分析
+            </button>
+            <button class="tab-button" data-tab="apparel-image">
+                画像生成
+            </button>
+        </div>
+
+        <!-- タブコンテンツ -->
+        <div class="tab-content active" id="amazon-product">
+            <div class="form-section">
+                <h2>Amazon商品ページ作成</h2>
+                <p class="info-note">※ 1688のコピペで中国語入力も可能です</p>
+                
+                <div class="form-group">
+                    <label for="product-name">
+                        商品名
+                    </label>
+                    <textarea 
+                        id="product-name" 
+                        rows="3" 
+                        placeholder="【コピー元】1688商品ページの「商品タイトル」部分をコピー&#10;&#10;【入力内容】1688の商品名をそのまま、または日本語に訳して入力&#10;例：レディース ワイドパンツ ハイウエスト 春夏 カジュアル&#10;&#10;中文：复制1688商品页面的标题部分 / 例：女士阔腿裤 高腰 春夏 休闲"
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="product-variation">
+                        商品バリエーション
+                    </label>
+                    <textarea 
+                        id="product-variation" 
+                        rows="3" 
+                        placeholder="【コピー元】1688商品ページの「规格选择」（バリエーション選択）部分をコピー&#10;&#10;【入力内容】Amazonで販売予定のバリエーションのみを入力（販売しないバリエーションは除外）&#10;例：カラー: ブラック、ベージュ、グレー / サイズ: S、M、L、XL&#10;&#10;中文：复制1688商品页面的「规格选择」部分，只输入在Amazon销售的规格 / 例：颜色：黑色、米色、灰色 / 尺码：S、M、L、XL"
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="product-spec">
+                        仕様・説明文など
+                    </label>
+                    <textarea 
+                        id="product-spec" 
+                        rows="6" 
+                        placeholder="【コピー元】1688商品ページの「商品详情」（商品詳細）部分全体をコピー&#10;折りたたまれている部分も展開してコピーしてください&#10;&#10;【含まれる情報】素材、サイズ詳細、機能、特徴、使用方法、注意事項など&#10;例：素材: ポリエステル85%、スパンデックス15% / 機能: ストレッチ性、速乾性、通気性 / 特徴: ハイウエストデザイン、ゆったりシルエット、オールシーズン対応&#10;&#10;中文：复制1688商品页面的「商品详情」全部内容（包括展开后的部分）/ 例：材质：聚酯纤维85%、氨纶15% / 功能：弹力、速干、透气 / 特点：高腰设计、宽松版型、四季适用"
+                    ></textarea>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="generatePrompt()">
+                        プロンプトを生成
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearForm()">
+                        クリア
+                    </button>
+                </div>
+                
+                <!-- AIサービスへのリンク -->
+                <div class="ai-links">
+                    <p class="ai-links-label">生成したプロンプトをAIサービスで使用:</p>
+                    <div class="ai-links-buttons">
+                        <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" class="btn-ai chatgpt">
+                            <span class="ai-icon">&#x1F916;</span>
+                            ChatGPT
+                        </a>
+                        <a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer" class="btn-ai gemini">
+                            <span class="ai-icon">&#x2728;</span>
+                            Gemini
+                        </a>
+                        <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer" class="btn-ai claude">
+                            <span class="ai-icon">&#x1F4AC;</span>
+                            Claude
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="supplier-evaluation">
+            <div class="form-section">
+                <h2>1688店舗評価</h2>
+                <p class="info-note">※ 1688のページ全体をCtrl+A → Ctrl+C → Ctrl+Vでコピペしてください</p>
+                
+                <!-- 店舗数選択 -->
+                <div class="form-group">
+                    <label for="store-count-select">
+                        比較する店舗数
+                    </label>
+                    <select id="store-count-select" onchange="updateStoreFields()">
+                        <option value="1">1店舗（単独評価）</option>
+                        <option value="2">2店舗（比較評価）</option>
+                        <option value="3">3店舗（比較評価）</option>
+                    </select>
+                </div>
+
+                <!-- 店舗A（常に表示） -->
+                <div class="store-section" id="store-a-section">
+                    <h3 class="store-heading">店舗A</h3>
+                    <div class="form-group">
+                        <label for="supplier-product-page-a">
+                            商品ページ情報
+                        </label>
+                        <textarea 
+                            id="supplier-product-page-a" 
+                            rows="8" 
+                            placeholder="商品ページの閉じてある部分をすべて開いた状態で、ページ全体を選択（Ctrl+A）してコピー＆ペーストしてください。&#10;&#10;中文：请将商品页面全部展开后，选择整个页面（Ctrl+A）进行复制粘贴。"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="supplier-company-page-a">
+                            会社概要ページ（公司档案/工厂档案）
+                        </label>
+                        <textarea 
+                            id="supplier-company-page-a" 
+                            rows="8" 
+                            placeholder="【取得方法】店舗ページ上部の会社名をクリック → 表示される会社情報ページで Ctrl+A → Ctrl+C → Ctrl+V&#10;&#10;【含まれる情報】成立年数、従業員数、登録資本金、工場面積、主要取引先、認証資格など&#10;&#10;中文：点击店铺页面上方的公司名称 → 在显示的【公司档案/工厂档案】页面按 Ctrl+A 全选后复制粘贴。"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="supplier-info-a">
+                            サプライヤー情報（ホバー表示）
+                        </label>
+                        <textarea 
+                            id="supplier-info-a" 
+                            rows="6" 
+                            placeholder="【取得方法】商品ページ内の会社名にマウスカーソルを乗せる（ホバー） → ポップアップで表示される情報をコピー&#10;&#10;【含まれる情報】店舗評価スコア、取引成功件数、リピート率、返金・紛争率、レスポンス時間、実力商家バッジなど&#10;&#10;中文：将鼠标悬停在商品页面内的公司名称上 → 复制弹出的信息（店铺评分、交易成功数、回头率等）。"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- 店舗B（2店舗以上の場合表示） -->
+                <div class="store-section" id="store-b-section" style="display: none;">
+                    <h3 class="store-heading">店舗B</h3>
+                    <div class="form-group">
+                        <label for="supplier-product-page-b">
+                            商品ページ情報
+                        </label>
+                        <textarea 
+                            id="supplier-product-page-b" 
+                            rows="8" 
+                            placeholder="商品ページの閉じてある部分をすべて開いた状態で、ページ全体を選択（Ctrl+A）してコピー＆ペーストしてください。&#10;&#10;中文：请将商品页面全部展开后，选择整个页面（Ctrl+A）进行复制粘贴。"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="supplier-company-page-b">
+                            会社概要ページ（公司档案/工厂档案）
+                        </label>
+                        <textarea 
+                            id="supplier-company-page-b" 
+                            rows="8" 
+                            placeholder="【取得方法】店舗ページ上部の会社名をクリック → 表示される会社情報ページで Ctrl+A → Ctrl+C → Ctrl+V&#10;&#10;【含まれる情報】成立年数、従業員数、登録資本金、工場面積、主要取引先、認証資格など&#10;&#10;中文：点击店铺页面上方的公司名称 → 在显示的【公司档案/工厂档案】页面按 Ctrl+A 全选后复制粘贴。"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="supplier-info-b">
+                            サプライヤー情報（ホバー表示）
+                        </label>
+                        <textarea 
+                            id="supplier-info-b" 
+                            rows="6" 
+                            placeholder="【取得方法】商品ページ内の会社名にマウスカーソルを乗せる（ホバー） → ポップアップで表示される情報をコピー&#10;&#10;【含まれる情報】店舗評価スコア、取引成功件数、リピート率、返金・紛争率、レスポンス時間、実力商家バッジなど&#10;&#10;中文：将鼠标悬停在商品页面内的公司名称上 → 复制弹出的信息（店铺评分、交易成功数、回头率等）。"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- 店舗C（3店舗の場合表示） -->
+                <div class="store-section" id="store-c-section" style="display: none;">
+                    <h3 class="store-heading">店舗C</h3>
+                    <div class="form-group">
+                        <label for="supplier-product-page-c">
+                            商品ページ情報
+                        </label>
+                        <textarea 
+                            id="supplier-product-page-c" 
+                            rows="8" 
+                            placeholder="商品ページの閉じてある部分をすべて開いた状態で、ページ全体を選択（Ctrl+A）してコピー＆ペーストしてください。&#10;&#10;中文：请将商品页面全部展开后，选择整个页面（Ctrl+A）进行复制粘贴。"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="supplier-company-page-c">
+                            会社概要ページ（公司档案/工厂档案）
+                        </label>
+                        <textarea 
+                            id="supplier-company-page-c" 
+                            rows="8" 
+                            placeholder="【取得方法】店舗ページ上部の会社名をクリック → 表示される会社情報ページで Ctrl+A → Ctrl+C → Ctrl+V&#10;&#10;【含まれる情報】成立年数、従業員数、登録資本金、工場面積、主要取引先、認証資格など&#10;&#10;中文：点击店铺页面上方的公司名称 → 在显示的【公司档案/工厂档案】页面按 Ctrl+A 全选后复制粘贴。"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="supplier-info-c">
+                            サプライヤー情報（ホバー表示）
+                        </label>
+                        <textarea 
+                            id="supplier-info-c" 
+                            rows="6" 
+                            placeholder="【取得方法】商品ページ内の会社名にマウスカーソルを乗せる（ホバー） → ポップアップで表示される情報をコピー&#10;&#10;【含まれる情報】店舗評価スコア、取引成功件数、リピート率、返金・紛争率、レスポンス時間、実力商家バッジなど&#10;&#10;中文：将鼠标悬停在商品页面内的公司名称上 → 复制弹出的信息（店铺评分、交易成功数、回头率等）。"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="generateSupplierPrompt()">
+                        プロンプトを生成
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearSupplierForm()">
+                        クリア
+                    </button>
+                </div>
+                
+                <!-- AIサービスへのリンク -->
+                <div class="ai-links">
+                    <p class="ai-links-label">生成したプロンプトをAIサービスで使用:</p>
+                    <div class="ai-links-buttons">
+                        <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" class="btn-ai chatgpt">
+                            <span class="ai-icon">&#x1F916;</span>
+                            ChatGPT
+                        </a>
+                        <a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer" class="btn-ai gemini">
+                            <span class="ai-icon">&#x2728;</span>
+                            Gemini
+                        </a>
+                        <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer" class="btn-ai claude">
+                            <span class="ai-icon">&#x1F4AC;</span>
+                            Claude
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="review-brushup">
+            <div class="form-section">
+                <h2>レビュー分析ブラッシュアップ</h2>
+                <p class="info-note">※ 購入者レビューを分析して商品ページを最適化します</p>
+                
+                <div class="form-group">
+                    <label for="brushup-variation">
+                        商品バリエーション
+                    </label>
+                    <textarea 
+                        id="brushup-variation" 
+                        rows="4" 
+                        placeholder="例：カラー: ブラック、ベージュ、グレー&#10;サイズ: S、M、L、XL&#10;素材: ポリエステル85%、スパンデックス15%&#10;&#10;この商品が持つバリエーション情報を記載してください。"
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="brushup-reviews">
+                        購入者レビュー
+                    </label>
+                    <textarea 
+                        id="brushup-reviews" 
+                        rows="10" 
+                        placeholder="競合商品や類似商品の購入者レビューをコピー＆ペーストしてください。&#10;&#10;例：&#10;「とても履き心地が良く、一日中快適でした。」&#10;「サイズ感がちょうど良く、体型カバーもできて嬉しいです。」&#10;「生地が薄めなので、春夏にぴったりです。」&#10;&#10;※ 複数のレビューを貼り付けることで、より詳細な分析が可能になります。"
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="brushup-current-page">
+                        現在のAmazon商品ページ（Bullet Points・商品説明文）
+                    </label>
+                    <textarea 
+                        id="brushup-current-page" 
+                        rows="10" 
+                        placeholder="現在のBullet Points（箇条書き）と商品説明文を貼り付けてください。&#10;&#10;例：&#10;【Bullet Points】&#10;・快適な履き心地：ストレッチ素材で動きやすい&#10;・オールシーズン対応：春夏秋冬使える&#10;...&#10;&#10;【商品説明文】&#10;このワイドパンツは...&#10;&#10;※ ブラッシュアップのベースとなる現在の商品ページ情報です。"
+                    ></textarea>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="generateBrushupPrompt()">
+                        プロンプトを生成
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearBrushupForm()">
+                        クリア
+                    </button>
+                </div>
+                
+                <!-- AIサービスへのリンク -->
+                <div class="ai-links">
+                    <p class="ai-links-label">生成したプロンプトをAIサービスで使用:</p>
+                    <div class="ai-links-buttons">
+                        <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" class="btn-ai chatgpt">
+                            <span class="ai-icon">&#x1F916;</span>
+                            ChatGPT
+                        </a>
+                        <a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer" class="btn-ai gemini">
+                            <span class="ai-icon">&#x2728;</span>
+                            Gemini
+                        </a>
+                        <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer" class="btn-ai claude">
+                            <span class="ai-icon">&#x1F4AC;</span>
+                            Claude
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="apparel-image">
+            <div class="form-section">
+                <h2>アパレル画像生成プロンプト</h2>
+                <p class="info-note">※ 商品の特徴を入力後、ターゲット属性を選択して画像生成プロンプトを作成します</p>
+                
+                <div class="form-group">
+                    <label for="apparel-product-name">
+                        商品名
+                    </label>
+                    <input 
+                        type="text" 
+                        id="apparel-product-name" 
+                        placeholder="例：レディース ワイドパンツ、メンズ デニムジャケット"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="apparel-description">
+                        商品説明（特徴・素材・カラーなど）
+                    </label>
+                    <textarea 
+                        id="apparel-description" 
+                        rows="4" 
+                        placeholder="例：ハイウエストデザインのワイドパンツ。素材はポリエステル85%、スパンデックス15%。カラーはブラック、ベージュ、グレーの3色展開。"
+                    ></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="apparel-gender">
+                            ターゲット性別
+                        </label>
+                        <select id="apparel-gender">
+                            <option value="female">女性</option>
+                            <option value="male">男性</option>
+                            <option value="unisex">ユニセックス</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="apparel-age">
+                            ターゲット年齢層
+                        </label>
+                        <select id="apparel-age">
+                            <option value="20s">20代</option>
+                            <option value="30s">30代</option>
+                            <option value="40s">40代</option>
+                            <option value="50s">50代以上</option>
+                            <option value="teens">10代</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="apparel-style">
+                        ファッションスタイル
+                    </label>
+                    <select id="apparel-style">
+                        <option value="casual">カジュアル</option>
+                        <option value="formal">フォーマル</option>
+                        <option value="outdoor">アウトドア</option>
+                        <option value="street">ストリート</option>
+                        <option value="business">ビジネス</option>
+                        <option value="elegant">エレガント</option>
+                        <option value="sporty">スポーティ</option>
+                        <option value="vintage">ヴィンテージ</option>
+                    </select>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="generateApparelPrompt()">
+                        プロンプトを生成
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearApparelForm()">
+                        クリア
+                    </button>
+                </div>
+                
+                <!-- AIサービスへのリンク -->
+                <div class="ai-links">
+                    <p class="ai-links-label">生成したプロンプトをAIサービスで使用:</p>
+                    <div class="ai-links-buttons">
+                        <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" class="btn-ai chatgpt">
+                            <span class="ai-icon">&#x1F916;</span>
+                            ChatGPT
+                        </a>
+                        <a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer" class="btn-ai gemini">
+                            <span class="ai-icon">&#x2728;</span>
+                            Gemini
+                        </a>
+                        <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer" class="btn-ai claude">
+                            <span class="ai-icon">&#x1F4AC;</span>
+                            Claude
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- モーダル（ポップアップ） -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>生成されたプロンプト</h2>
+                <button class="modal-close" onclick="closeModal()">
+                    ×
+                </button>
+            </div>
+            <div class="modal-body">
+                <textarea id="generated-prompt" readonly></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="copyPrompt()">
+                    クリップボードにコピー
+                </button>
+                <button class="btn btn-secondary" onclick="closeModal()">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- プロンプトテンプレートファイル（編集可能） -->
+    <script src="js/amazon-product-template.js"></script>
+    <script src="js/supplier-evaluation-template.js"></script>
+    <script src="js/supplier-comparison-template.js"></script>
+    <script src="js/review-brushup-template.js"></script>
+    <script src="js/apparel-image-template.js"></script>
+    
+    <!-- メインスクリプト -->
+    <script src="js/script.js"></script>
+    <script src="js/enhancements.js"></script>
+</body>
+</html>

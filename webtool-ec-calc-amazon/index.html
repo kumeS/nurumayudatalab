@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Amazon販売集計ダッシュボード</title>
+    <link rel="icon" href="../favicon/nu-circle.svg" type="image/svg+xml">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <link rel="stylesheet" href="style.css">
@@ -11,22 +12,62 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1><span class="nuruma-gradient">Amazon販売集計ダッシュボード</span></h1>
-            <div class="subtitle">トランザクションレポート（すべての取引タイプ）を分析</div>
+            <div class="header-top">
+                <h1>
+                    <svg class="header-icon" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 30H14V16H8V30Z" fill="url(#icon_gradient)" fill-opacity="0.8"/>
+                        <path d="M17 30H23V10H17V30Z" fill="url(#icon_gradient)" fill-opacity="0.8"/>
+                        <path d="M26 30H32V4H26V30Z" fill="url(#icon_gradient)" fill-opacity="0.8"/>
+                        <path d="M6 34H34" stroke="url(#icon_gradient)" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M6 20L14 12L22 16L34 4" stroke="url(#icon_gradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="icon_gradient" x1="6" y1="34" x2="34" y2="4" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#ff9966"/>
+                                <stop offset="1" stop-color="#ff5e62"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span class="nuruma-gradient">Amazon販売集計ダッシュボード v2</span>
+                </h1>
+                <span class="last-updated">Last Updated: 2025.11.27</span>
+            </div>
+            <div class="subtitle">
+                Amazonトランザクションレポート（全取引タイプ）をドラッグ＆ドロップで即座に分析。<br>
+                売上・粗利・純利益の推移可視化から、商品ごとの詳細な収支計算（原価・経費入力対応）、<br>
+                FBA手数料やマルチチャネル配送の分析まで、EC運営の意思決定を強力にサポートします。
+            </div>
         </div>
 
         <div class="upload-area" id="uploadArea">
             <div class="upload-zone" id="uploadZone">
-                <div class="upload-icon">📁</div>
+                <div class="upload-icon">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 16V4" stroke="url(#upload_gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 8L12 4L16 8" stroke="url(#upload_gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 16V20H4V16" stroke="url(#upload_gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="upload_gradient" x1="4" y1="20" x2="20" y2="4" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#ff9966"/>
+                                <stop offset="1" stop-color="#ff5e62"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
                 <div class="upload-text">CSVファイルをドラッグ&ドロップ</div>
                 <div class="upload-subtext">複数ファイル同時アップロード可能（2000件制限対応）</div>
                 <input type="file" id="fileInput" class="file-input" accept=".csv" multiple>
             </div>
-            <div class="upload-info">
-                <div class="info-item">📌 Amazonセラーセントラルで「レポート」→「ペイメント」→「トランザクション」を選択</div>
-                <div class="info-item">📌 取引タイプ：「すべてのトランザクション」を選択してエクスポート</div>
-                <div class="info-item">📌 2000件を超える場合は期間を分割して複数ファイルをエクスポート</div>
-                <div class="info-item">📌 複数月のデータは同時にドロップして統合分析が可能</div>
+            <div class="usage-toggle" onclick="dashboard.toggleUsageInfo(this)">
+                <span>使い方を表示</span>
+                <span style="font-size: 10px;">▼</span>
+            </div>
+            <div class="upload-info" id="usageInfo">
+                <div class="info-item"> サイドバーの「支払い」→「ペイメント」を選択</div>
+                <div class="info-item"> 「トランザクション」タブを選択（※レポートリポジトリではありません）</div>
+                <div class="info-item"> 取引タイプ・ステータス共に「すべてのトランザクション」を選択</div>
+                <div class="info-item"> 「日付範囲のカスタマイズ」で期間を選択し、更新ボタンをクリック</div>
+                <div class="info-item"> 2000件を超える場合は期間を分割して複数ファイルをエクスポート</div>
+                <div class="info-item"> 複数月のデータは同時にドロップして統合分析が可能</div>
             </div>
             <div id="fileList" class="file-list"></div>
 
@@ -39,6 +80,7 @@
 
         <div class="dashboard" id="dashboard">
             <div class="period-selector" id="periodSelector"></div>
+            <div class="sub-period-selector" id="subPeriodSelector" style="display: none;"></div>
 
             <div class="summary-cards" id="summaryCards">
                 <div class="card">
@@ -161,6 +203,7 @@
                     <button class="tab-button active" data-tab="daily">日次集計</button>
                     <button class="tab-button" data-tab="transaction">取引種別</button>
                     <button class="tab-button" data-tab="product">商品別</button>
+                    <button class="tab-button" data-tab="product-net-profit">商品別（純利益）</button>
                     <button class="tab-button" data-tab="productfee">商品ごとの手数料</button>
                     <button class="tab-button" data-tab="fba">その他手数料</button>
                     <button class="tab-button" data-tab="multichannel">マルチチャネル</button>
@@ -214,6 +257,35 @@
                                 <th>売上手数料</th>
                                 <th>利益</th>
                                 <th>利益率</th>
+                                <th>販売個数</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="table-content" id="product-net-profit-tab">
+                    <div class="alert-box" style="background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffeeba; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 20px;">⚠️</span>
+                        <div>
+                            <strong>注意:</strong> 正確な純利益を算出するためには、「商品別設定」にて各商品の原価と諸経費をアイテムごとに入力する必要があります。
+                        </div>
+                    </div>
+                    <div class="table-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <button class="btn-primary" onclick="dashboard.openProductSettingsModal()">⚙️ 商品別設定</button>
+                        <button class="export-btn" onclick="dashboard.exportTableToCSV('product-net-profit')">📥 CSVエクスポート</button>
+                    </div>
+                    <table id="productNetProfitTable">
+                        <thead>
+                            <tr>
+                                <th>商品</th>
+                                <th>親ASIN</th>
+                                <th>売上</th>
+                                <th>売上手数料</th>
+                                <th>原価・諸費用合計</th>
+                                <th>純利益</th>
+                                <th>1個あたりの利益</th>
+                                <th>純利益率</th>
                                 <th>販売個数</th>
                             </tr>
                         </thead>
@@ -286,7 +358,50 @@
         </div>
     </div>
 
+    <!-- 商品設定モーダル -->
+    <div id="productSettingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>商品別設定</h2>
+                <span class="close-modal" onclick="dashboard.closeProductSettingsModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">
+                    各商品の原価と諸費用を設定してください。<br>
+                    ※親ASINごと管理の場合は、平均原価を入力して近似することを推奨します。<br>
+                    ※原価と諸費用の両方が入力された場合のみ、純利益計算に反映されます。
+                </p>
+                <div class="settings-toolbar" style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-secondary" onclick="dashboard.exportProductSettingsCSV()">📤 設定用CSVエクスポート</button>
+                    <button class="btn-secondary" onclick="document.getElementById('settingsFileInput').click()">📥 設定CSVインポート</button>
+                    <input type="file" id="settingsFileInput" accept=".csv" style="display: none;" onchange="dashboard.importProductSettingsCSV(this.files[0])">
+                </div>
+                <div class="settings-table-container">
+                    <table id="productSettingsTable">
+                        <thead>
+                            <tr>
+                                <th>商品名</th>
+                                <th>商品フルネーム (任意)</th>
+                                <th>親ASIN (任意)</th>
+                                <th>原価 (円)</th>
+                                <th>諸費用 (円)</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="dashboard.closeProductSettingsModal()">キャンセル</button>
+                <button class="btn-primary" onclick="dashboard.saveProductSettings()">保存</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="script.js"></script>
+    <script src="js/data_manager.js"></script>
+    <script src="js/ui_manager.js"></script>
+    <script src="js/chart_manager.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>

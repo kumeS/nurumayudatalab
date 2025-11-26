@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI ThinkTank - 複数の思考パターンでAIを分析し、リアルタイムで結果を確認できる革新的な思考支援ツール">
+    <meta name="keywords" content="AI, ThinkTank, analysis, thinking patterns, chat interface, real-time">
+    <meta name="author" content="AI ThinkTank Team">
+
+    <!-- Open Graph Tags -->
+    <meta property="og:title" content="AI ThinkTank - 思考パターン分析ツール">
+    <meta property="og:description" content="複数の思考パターンでAIを分析し、リアルタイムで結果を確認">
+    <meta property="og:type" content="website">
+
+    <meta name="theme-color" content="#667eea">
+
+    <title>AI ThinkTank - 思考パターン分析ツール</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <!-- Environment configuration (if deployed) -->
+    <script src="env-config.js" defer onerror="console.log('Environment config not found, using manual API key setup')"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Skip to main content link -->
+        <a href="#main-content" class="skip-link">メインコンテンツにスキップ</a>
+        
+        <!-- ヘッダー -->
+        <header class="app-header" role="banner">
+            <div class="header-left">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="AI ThinkTank ロゴ">
+                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z"/>
+                    </svg>
+                    <h1>AI ThinkTank</h1>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="settings-btn" id="settingsBtn" 
+                        aria-label="設定を開く"
+                        aria-describedby="settings-hint"
+                        aria-expanded="false"
+                        aria-controls="settingsModal">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.65 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                    </svg>
+                    設定
+                </button>
+                <div id="settings-hint" class="sr-only">APIキーの設定やデフォルト動作を変更できます</div>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="app-main" role="main" id="main-content">
+            <!-- ライブリージョン用の告知エリア -->
+            <div class="live-regions" aria-live="polite" aria-atomic="false">
+                <div id="status-announcements" class="sr-only" aria-live="polite"></div>
+                <div id="progress-announcements" class="sr-only" aria-live="assertive"></div>
+                <div id="error-announcements" class="sr-only" aria-live="assertive" role="alert"></div>
+            </div>
+            
+            <div class="main-layout">
+                <!-- 左側: 入力セクション -->
+                <section class="input-section" role="form" aria-labelledby="input-section-title">
+                    <h2 id="input-section-title" class="sr-only">AI分析の入力セクション</h2>
+                    
+                    <div class="instruction-box" role="group" aria-labelledby="prompt-label">
+                        <div class="instruction-header">
+                            <label for="promptInput" id="prompt-label">指示文入力</label>
+                            <button type="button" class="sample-btn-inline" id="sampleBtn" 
+                                    aria-label="サンプル指示文を挿入"
+                                    aria-describedby="sample-hint">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                </svg>
+                                サンプル
+                            </button>
+                            <div id="sample-hint" class="sr-only">ランダムなサンプル指示文をテキストエリアに挿入します</div>
+                        </div>
+                        <textarea
+                            id="promptInput"
+                            placeholder="あなたの指示を入力してください"
+                            rows="6"
+                            aria-describedby="prompt-description"
+                            aria-required="true"
+                        ></textarea>
+                        <div id="prompt-description" class="sr-only">
+                            AIに分析して欲しい内容を入力してください。入力内容は自動的に保存されます。
+                        </div>
+                    </div>
+
+                    <div class="execution-settings" role="group" aria-labelledby="settings-title">
+                        <h3 id="settings-title" class="sr-only">実行設定</h3>
+                        <label class="checkbox-group">
+                            <input type="checkbox" id="enableImprovement" checked
+                                   aria-describedby="improvement-description">
+                            <span>Stage 1: 指示文改良を実行</span>
+                        </label>
+                        <div id="improvement-description" class="sr-only">
+                            チェックすると、AIが入力された指示文を改良してから分析します
+                        </div>
+                    </div>
+
+                    <div class="thinking-patterns" role="region" aria-labelledby="patterns-title">
+                        <div class="patterns-header">
+                            <h3 id="patterns-title">思考パターン選択</h3>
+                            <div class="pattern-summary" id="patternSummary" role="status" aria-live="polite">
+                                <span class="selected-count">選択済み: <strong id="selectedCount">0</strong>パターン</span>
+                                <span class="estimated-time">予想実行時間: <strong id="estimatedTime">0</strong>秒</span>
+                            </div>
+                        </div>
+
+                        <!-- プレセットパターン選択 -->
+                        <div class="preset-patterns" role="group" aria-labelledby="preset-title">
+                            <h4 id="preset-title">プレセットパターン</h4>
+                            <div class="preset-list" id="presetPatterns" role="radiogroup" 
+                                 aria-describedby="preset-description">
+                                <button class="preset-btn" data-preset="recommended" role="radio" aria-checked="false">推奨パターン</button>
+                                <button class="preset-btn" data-preset="comprehensive" role="radio" aria-checked="false">包括的分析</button>
+                                <button class="preset-btn" data-preset="creative" role="radio" aria-checked="false">創造的思考</button>
+                                <button class="preset-btn" data-preset="logical" role="radio" aria-checked="false">論理的分析</button>
+                                <button class="preset-btn" data-preset="critical" role="radio" aria-checked="false">批判的検討</button>
+                                <button class="preset-btn" data-preset="strategic" role="radio" aria-checked="false">戦略的思考</button>
+                                <button class="preset-btn" data-preset="practical" role="radio" aria-checked="false">実践的解決</button>
+                                <button class="preset-btn" data-preset="business" role="radio" aria-checked="false">ビジネス思考</button>
+                                <button class="preset-btn" data-preset="futuristic" role="radio" aria-checked="false">未来予測</button>
+                                <button class="preset-btn" data-preset="systems" role="radio" aria-checked="false">システム思考</button>
+                                <button class="preset-btn" data-preset="innovation" role="radio" aria-checked="false">イノベーション</button>
+                                <button class="preset-btn" data-preset="cultural" role="radio" aria-checked="false">文化・社会分析</button>
+                            </div>
+                            <div id="preset-description" class="sr-only">
+                                事前に用意されたパターン組み合わせです。選択すると関連する思考パターンが自動的に選択されます。
+                            </div>
+                        </div>
+
+                        <!-- Main Action Buttons -->
+                        <div class="main-action-buttons" role="group" aria-labelledby="action-title">
+                            <h4 id="action-title" class="sr-only">メインアクション</h4>
+                            <button class="btn btn-primary btn-large" id="executeBtn" 
+                                    aria-describedby="execute-description">
+                                <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
+                                </svg>
+                                <span class="btn-text">実行開始</span>
+                            </button>
+                            <button class="btn btn-secondary" id="clearBtn" 
+                                    aria-describedby="clear-description">クリア</button>
+                            <button class="btn btn-secondary" id="saveSettingsBtn" 
+                                    aria-describedby="save-description">設定保存</button>
+                            
+                            <div id="execute-description" class="sr-only">選択された思考パターンでAI分析を実行します</div>
+                            <div id="clear-description" class="sr-only">入力内容と選択状態をすべてクリアします</div>
+                            <div id="save-description" class="sr-only">現在の設定をデフォルトとして保存します</div>
+                        </div>
+
+                        <!-- Subtle Toolbar -->
+                        <div class="subtle-toolbar" role="toolbar" aria-label="思考パターン設定">
+                            <button type="button" class="subtle-toggle" id="toggleAdvancedPatterns" 
+                                    aria-expanded="false" 
+                                    aria-controls="advancedPatternsGrid"
+                                    aria-label="詳細な思考パターンを選択">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M7,10L12,15L17,10H7Z"/>
+                                </svg>
+                                <span>詳細な思考パターンを選択</span>
+                            </button>
+                        </div>
+
+                        <div class="patterns-grid" id="advancedPatternsGrid">
+                            <div class="pattern-category">
+                                <div class="category-header">
+                                    <h4>基本思考</h4>
+                                    <div class="category-controls">
+                                        <button type="button" class="btn btn-xs btn-outline" id="selectAllBasic">全選択</button>
+                                        <button type="button" class="btn btn-xs btn-outline" id="deselectAllBasic">全解除</button>
+                                    </div>
+                                </div>
+                                <div class="pattern-list" id="basicPatterns">
+                                    <!-- Patterns will be populated by JavaScript -->
+                                </div>
+                            </div>
+                            <div class="pattern-category">
+                                <div class="category-header">
+                                    <h4>専門思考</h4>
+                                    <div class="category-controls">
+                                        <button type="button" class="btn btn-xs btn-outline" id="selectAllExpert">全選択</button>
+                                        <button type="button" class="btn btn-xs btn-outline" id="deselectAllExpert">全解除</button>
+                                    </div>
+                                </div>
+                                <div class="pattern-list" id="expertPatterns">
+                                    <!-- Patterns will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bulk-controls">
+                            <button type="button" class="btn btn-sm btn-secondary" id="selectAllBtn">全パターン選択</button>
+                            <button type="button" class="btn btn-sm btn-secondary" id="deselectAllBtn">全パターン解除</button>
+                            <button type="button" class="btn btn-sm btn-secondary" id="resetToDefaultBtn">デフォルトに戻す</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 右側: AIチャットパネル -->
+                <aside class="ai-panel" id="aiPanel" role="complementary" aria-labelledby="ai-panel-title">
+                    <div class="ai-panel-header">
+                        <h2 class="ai-panel-title" id="ai-panel-title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z"/>
+                            </svg>
+                            AI ThinkTank 分析結果
+                        </h2>
+                        <div class="panel-status" id="panelStatus" role="status" aria-live="polite">
+                            <span class="status-indicator waiting">待機中</span>
+                        </div>
+                    </div>
+                    <div class="ai-panel-content" id="aiPanelContent">
+                        <div class="chat-messages" id="chatMessages" 
+                             role="log" 
+                             aria-live="polite" 
+                             aria-label="AI分析結果のメッセージログ">
+                            <div class="welcome-message">
+                                <div class="message-avatar" aria-hidden="true">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z"/>
+                                    </svg>
+                                </div>
+                                <div class="message-content">
+                                    <h3>🚀 AI ThinkTank へようこそ！</h3>
+                                    <p>複数の思考パターンでAI分析を実行し、リアルタイムで結果を表示します。</p>
+                                    <ol aria-label="使用手順">
+                                        <li>指示文を入力</li>
+                                        <li>思考パターンを選択</li>
+                                        <li>「実行開始」をクリック</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-progress" id="chatProgress" 
+                             style="display: none;"
+                             role="progressbar" 
+                             aria-live="polite"
+                             aria-describedby="progress-text">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <div class="progress-text" id="progressText">処理中...</div>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </main>
+
+        <!-- Pattern Info Modal -->
+        <div class="modal hidden" id="patternInfoModal" 
+             role="dialog" 
+             aria-modal="true" 
+             aria-labelledby="patternInfoTitle"
+             aria-describedby="patternInfoDescription">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="patternInfoTitle">思考パターン詳細</h3>
+                    <button class="close-btn" id="closePatternInfoBtn" 
+                            aria-label="モーダルを閉じる" 
+                            type="button">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="pattern-detail">
+                        <h4>概要</h4>
+                        <p id="patternInfoDescription" class="pattern-overview"></p>
+                        
+                        <h4>使用するプロンプト</h4>
+                        <div id="patternInfoPrompt" class="pattern-prompt" role="code"></div>
+                        
+                        <div class="pattern-meta">
+                            <span id="patternInfoCategory" class="pattern-category-badge"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="closePatternInfoModalBtn" type="button">閉じる</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal hidden" id="settingsModal" 
+             role="dialog" 
+             aria-modal="true" 
+             aria-labelledby="settingsModalTitle">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="settingsModalTitle">設定</h3>
+                    <button class="close-btn" id="closeSettingsBtn" 
+                            aria-label="モーダルを閉じる" 
+                            type="button">×</button>
+                </div>
+                <div class="modal-body">
+                    <form role="form" aria-labelledby="settingsModalTitle">
+                        <fieldset class="settings-group">
+                            <legend>AI API設定</legend>
+                            <div class="api-settings">
+                                <div class="input-group">
+                                    <label for="ioApiKey">IO Intelligence API Key</label>
+                                    <div class="api-key-notice" id="api-key-notice">
+                                        <p>IO Intelligence APIを使用するにはAPIキーが必要です。</p>
+                                        <p><a href="https://io.intelligence.jp" 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              aria-label="IO Intelligenceサイトを新しいタブで開く">IO Intelligence</a>でアカウントを作成してAPIキーを取得してください。</p>
+                                    </div>
+                                    <div class="api-key-input">
+                                        <input type="password" 
+                                               id="ioApiKey" 
+                                               placeholder="APIキーを入力" 
+                                               class="setting-input"
+                                               aria-describedby="api-key-notice api-key-security-note"
+                                               autocomplete="off">
+                                        <button type="button" 
+                                                class="toggle-visibility" 
+                                                data-target="ioApiKey"
+                                                aria-label="APIキーの表示切り替え"
+                                                aria-pressed="false">👁️</button>
+                                    </div>
+                                    <button type="button" 
+                                            class="save-api-key setting-btn" 
+                                            id="saveTokenBtn"
+                                            aria-describedby="api-key-security-note">保存</button>
+                                    <small id="api-key-security-note" class="setting-description">
+                                        ※ APIキーはブラウザのローカルストレージに安全に保存されます
+                                    </small>
+                                </div>
+                            </div>
+                        </fieldset>
+                        <fieldset class="settings-group">
+                            <legend>デフォルト設定</legend>
+                            <label class="checkbox-group">
+                                <input type="checkbox" 
+                                       id="autoImproveDefault" 
+                                       checked
+                                       aria-describedby="auto-improve-description">
+                                <span>指示文改良を自動実行</span>
+                            </label>
+                            <div id="auto-improve-description" class="sr-only">
+                                チェックすると、新しい実行時に指示文改良が自動的に有効になります
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="saveSettingsModalBtn" type="button">保存</button>
+                    <button class="btn btn-secondary" id="cancelSettingsBtn" type="button">キャンセル</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Overlay -->
+        <div class="progress-overlay hidden" id="progressOverlay">
+            <div class="progress-content">
+                <h3>実行中...</h3>
+                <div class="progress-list" id="progressList">
+                    <!-- Progress items will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 3-Step Progress Animation -->
+        <div class="progress-wrapper" id="progressWrapper" aria-hidden="true">
+            <div class="progress-overlay-backdrop">
+                <div class="progress-modal">
+                    <div class="progress-header">
+                        <h3>AI 処理進行状況</h3>
+                    </div>
+                    <div class="three-stage-progress" role="status" aria-live="polite">
+                        <div class="stages-container">
+                            <div class="stage-item stage-pending" id="stage1">
+                                <div class="stage-icon">
+                                    <i class="stage-icon-inner fas fa-circle" id="stage1Icon"></i>
+                                </div>
+                                <div class="stage-content">
+                                    <div class="stage-title">第1段階：仕様分析と最適化</div>
+                                    <div class="stage-status" id="stage1Text">待機中</div>
+                                </div>
+                            </div>
+                            
+                            <div class="stage-item stage-pending" id="stage2">
+                                <div class="stage-icon">
+                                    <i class="stage-icon-inner fas fa-circle" id="stage2Icon"></i>
+                                </div>
+                                <div class="stage-content">
+                                    <div class="stage-title">第2段階：統合AIモデル生成</div>
+                                    <div class="stage-status" id="stage2Text">待機中</div>
+                                </div>
+                            </div>
+                            
+                            <div class="stage-item stage-pending" id="stage3">
+                                <div class="stage-icon">
+                                    <i class="stage-icon-inner fas fa-circle" id="stage3Icon"></i>
+                                </div>
+                                <div class="stage-content">
+                                    <div class="stage-title">第3段階：品質検証と最終調整</div>
+                                    <div class="stage-status" id="stage3Text">待機中</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core utility scripts -->
+    <script src="js/bridge.js"></script>
+    <script src="js/config/env-config.js"></script>
+    <script src="js/utils/accessibility.js"></script>
+    <script src="js/utils/storage.js"></script>
+
+    <!-- Component scripts -->
+    <script src="js/components/ThinkingPatterns.js"></script>
+    <script src="js/components/PromptImprover.js"></script>
+    <script src="js/components/WorkflowManager.js"></script>
+
+    <!-- Service scripts -->
+    <script src="js/services/AIService.js"></script>
+
+    <!-- Main application -->
+    <script src="js/inline-app.js"></script>
+</body>
+</html>

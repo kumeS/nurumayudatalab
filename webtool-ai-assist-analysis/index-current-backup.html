@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI ThinkTank - 複数の思考パターンでAIを分析し、リアルタイムで結果を確認できる革新的な思考支援ツール">
+    <meta name="keywords" content="AI, ThinkTank, analysis, thinking patterns, chat interface, real-time">
+    <meta name="author" content="AI ThinkTank Team">
+
+    <!-- Open Graph Tags -->
+    <meta property="og:title" content="AI ThinkTank - 思考パターン分析ツール">
+    <meta property="og:description" content="複数の思考パターンでAIを分析し、リアルタイムで結果を確認">
+    <meta property="og:type" content="website">
+
+    <meta name="theme-color" content="#ff6b35">
+
+    <title>AI ThinkTank - 思考パターン分析ツール</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Skip to main content link -->
+        <a href="#main-content" class="skip-link">メインコンテンツにスキップ</a>
+        
+        <!-- Header -->
+        <header class="app-header" role="banner">
+            <div class="header-content">
+                <h1 class="app-title">
+                    <svg class="app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" role="img" aria-label="AI ThinkTank ロゴ">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                    AI ThinkTank
+                </h1>
+                <p class="app-subtitle">複数の思考パターンでAIを分析する革新的ツール</p>
+            </div>
+            <div class="header-actions">
+                <button id="settingsBtn" class="btn-icon" 
+                        aria-label="設定を開く" 
+                        aria-describedby="settings-hint"
+                        aria-expanded="false"
+                        aria-controls="settingsModal"
+                        title="設定">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v6m0 6v6m5.2-13.2l-4.2 4.2m-1.8 1.8l-4.2 4.2M23 12h-6m-6 0H5m13.2 5.2l-4.2-4.2m-1.8-1.8l-4.2-4.2"/>
+                    </svg>
+                </button>
+                <button id="historyBtn" class="btn-icon" aria-label="履歴" title="履歴">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                </button>
+                <div id="settings-hint" class="sr-only">APIキーの設定やデフォルト動作を変更できます</div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content" role="main" id="main-content">
+            <!-- Live regions for accessibility -->
+            <div class="live-regions" aria-live="polite" aria-atomic="false">
+                <div id="status-announcements" class="sr-only" aria-live="polite"></div>
+                <div id="progress-announcements" class="sr-only" aria-live="assertive"></div>
+                <div id="error-announcements" class="sr-only" aria-live="assertive" role="alert"></div>
+            </div>
+            
+            <!-- Prompt Input Section -->
+            <section class="section prompt-section">
+                <div class="section-header">
+                    <h2 class="section-title" id="prompt-label">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20h9"/>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                        </svg>
+                        実行プロンプト
+                    </h2>
+                    <button id="clearPromptBtn" class="btn-text" aria-label="プロンプトをクリア">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                        クリア
+                    </button>
+                </div>
+                <div class="prompt-input-wrapper">
+                    <textarea 
+                        id="promptInput" 
+                        class="prompt-textarea" 
+                        placeholder="分析したいプロンプトを入力してください...&#10;&#10;例：&#10;- 新しいビジネスアイデアを考案する&#10;- 複雑な問題を多角的に分析する&#10;- 創造的なソリューションを探索する"
+                        rows="6"
+                        aria-labelledby="prompt-label"
+                        aria-describedby="prompt-description"
+                        aria-required="true"
+                    ></textarea>
+                    <div id="prompt-description" class="sr-only">
+                        AIに分析して欲しい内容を入力してください。入力内容は自動的に保存されます。
+                    </div>
+                    <div class="prompt-actions">
+                        <button id="samplePromptBtn" class="btn-secondary"
+                                aria-label="サンプルプロンプトを挿入"
+                                aria-describedby="sample-hint">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 11l3 3L22 4"/>
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                            </svg>
+                            サンプルプロンプト
+                        </button>
+                        <div class="char-count" aria-live="polite">
+                            <span id="charCount">0</span> / 5000
+                        </div>
+                        <div id="sample-hint" class="sr-only">ランダムなサンプルプロンプトをテキストエリアに挿入します</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Execution Settings -->
+            <section class="section">
+                <div class="execution-settings" role="group" aria-labelledby="settings-title">
+                    <h3 id="settings-title" class="sr-only">実行設定</h3>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="enableImprovement" checked
+                               aria-describedby="improvement-description">
+                        <span>Stage 1: プロンプト改善を実行</span>
+                    </label>
+                    <div id="improvement-description" class="sr-only">
+                        チェックすると、AIが入力されたプロンプトを改善してから思考パターンを適用します
+                    </div>
+                </div>
+            </section>
+
+            <!-- Thinking Patterns Selection -->
+            <section class="section patterns-section">
+                <div class="section-header">
+                    <h2 class="section-title" id="patterns-title">思考パターン選択</h2>
+                    <div class="pattern-controls">
+                        <div class="pattern-summary" id="patternSummary" role="status" aria-live="polite">
+                            <span class="selected-count">選択済み: <strong id="selectedCount">0</strong>パターン</span>
+                            <span class="separator">|</span>
+                            <span class="estimated-time">予想時間: <strong id="estimatedTime">0</strong>秒</span>
+                        </div>
+                        <button id="selectAllPatternsBtn" class="btn-text">すべて選択</button>
+                        <button id="deselectAllPatternsBtn" class="btn-text">すべて解除</button>
+                        <select id="patternPresetSelect" class="preset-select" 
+                                aria-label="プリセット選択"
+                                aria-describedby="preset-description">
+                            <option value="">プリセットを選択...</option>
+                        </select>
+                        <div id="preset-description" class="sr-only">
+                            事前に用意されたパターン組み合わせです。選択すると関連する思考パターンが自動的に選択されます。
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="patternsContainer" class="patterns-grid" role="group" aria-labelledby="patterns-title">
+                    <!-- Dynamically populated by JavaScript -->
+                </div>
+            </section>
+
+            <!-- Execution Controls -->
+            <section class="section execution-section">
+                <div class="execution-controls" role="group" aria-labelledby="action-title">
+                    <h3 id="action-title" class="sr-only">メインアクション</h3>
+                    <button id="executeBtn" class="btn-primary btn-large"
+                            aria-describedby="execute-description">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        実行
+                    </button>
+                    <button id="cancelBtn" class="btn-secondary btn-large" style="display: none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        </svg>
+                        キャンセル
+                    </button>
+                    <div id="execute-description" class="sr-only">選択された思考パターンでAI分析を実行します</div>
+                </div>
+
+                <!-- Progress Indicator -->
+                <div id="progressWrapper" class="progress-wrapper" style="display: none;" role="status" aria-live="polite">
+                    <div class="progress-content">
+                        <div class="progress-header">
+                            <h3 id="progressTitle" class="progress-title">処理中...</h3>
+                            <button id="closeProgressBtn" class="btn-icon btn-icon-sm" aria-label="閉じる">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="progress-steps">
+                            <div class="progress-step" data-step="1">
+                                <div class="step-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 20h9"/>
+                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                                    </svg>
+                                </div>
+                                <div class="step-content">
+                                    <div class="step-title">Stage 1</div>
+                                    <div class="step-description">プロンプト改善</div>
+                                </div>
+                            </div>
+                            <div class="progress-step" data-step="2">
+                                <div class="step-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <path d="M12 6v6l4 2"/>
+                                    </svg>
+                                </div>
+                                <div class="step-content">
+                                    <div class="step-title">Stage 2</div>
+                                    <div class="step-description">思考パターン実行</div>
+                                </div>
+                            </div>
+                            <div class="progress-step" data-step="3">
+                                <div class="step-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <div class="step-content">
+                                    <div class="step-title">Stage 3</div>
+                                    <div class="step-description">結果生成</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div id="progressBar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <div id="progressMessage" class="progress-message"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="resultsSection" class="section results-section" style="display: none;">
+                <div class="section-header">
+                    <h2 class="section-title">実行結果</h2>
+                    <div class="result-controls">
+                        <button id="exportResultsBtn" class="btn-text">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            エクスポート
+                        </button>
+                        <button id="clearResultsBtn" class="btn-text">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                            クリア
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Improved Prompt -->
+                <div id="improvedPromptContainer" class="result-card improved-prompt-card" style="display: none;">
+                    <h3 class="result-card-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M8 12h8"/>
+                            <path d="M12 8v8"/>
+                        </svg>
+                        改善されたプロンプト
+                    </h3>
+                    <div id="improvedPromptContent" class="result-content"></div>
+                </div>
+
+                <!-- Pattern Results -->
+                <div id="patternResultsContainer" class="pattern-results-grid">
+                    <!-- Dynamically populated by JavaScript -->
+                </div>
+            </section>
+        </main>
+
+        <!-- Pattern Info Modal -->
+        <div class="modal" id="patternInfoModal" 
+             role="dialog" 
+             aria-modal="true" 
+             aria-labelledby="patternInfoTitle"
+             aria-describedby="patternInfoDescription"
+             style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="patternInfoTitle">思考パターン詳細</h3>
+                    <button class="btn-icon" id="closePatternInfoBtn" 
+                            aria-label="モーダルを閉じる" 
+                            type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="pattern-detail">
+                        <h4>概要</h4>
+                        <p id="patternInfoDescription" class="pattern-overview"></p>
+                        
+                        <h4>使用するプロンプト</h4>
+                        <div id="patternInfoPrompt" class="pattern-prompt" role="code"></div>
+                        
+                        <div class="pattern-meta">
+                            <span id="patternInfoCategory" class="pattern-category-badge"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="closePatternInfoModalBtn" type="button">閉じる</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal" role="dialog" aria-labelledby="settingsModalTitle" aria-modal="true" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="settingsModalTitle" class="modal-title">設定</h2>
+                    <button id="closeSettingsBtn" class="btn-icon" aria-label="閉じる">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form role="form" aria-labelledby="settingsModalTitle">
+                        <fieldset class="settings-section">
+                            <legend class="settings-subtitle">API設定</legend>
+                            <div class="form-group">
+                                <label for="ioIntelligenceApiKey" class="form-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 8px;">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                    </svg>
+                                    IO Intelligence API Key
+                                    <span class="label-badge">必須</span>
+                                </label>
+                                <div class="api-key-notice" id="api-key-notice">
+                                    <p>IO Intelligence APIを使用するにはAPIキーが必要です。</p>
+                                    <p><a href="https://api.intelligence.io.solutions" target="_blank" rel="noopener noreferrer">APIキーを取得</a></p>
+                                </div>
+                                <div class="api-key-input">
+                                    <input 
+                                        type="password" 
+                                        id="ioIntelligenceApiKey" 
+                                        class="form-input" 
+                                        placeholder="sk-..." 
+                                        aria-describedby="ioKeyHelp api-key-security-note"
+                                        autocomplete="off"
+                                    />
+                                    <button type="button" 
+                                            class="toggle-visibility" 
+                                            data-target="ioIntelligenceApiKey"
+                                            aria-label="APIキーの表示切り替え"
+                                            aria-pressed="false">👁️</button>
+                                </div>
+                                <small id="ioKeyHelp" class="form-help">
+                                    <a href="https://api.intelligence.io.solutions" target="_blank" rel="noopener noreferrer">
+                                        APIキーを取得
+                                    </a>
+                                </small>
+                                <small id="api-key-security-note" class="setting-description">
+                                    ※ APIキーはブラウザのローカルストレージに安全に保存されます
+                                </small>
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="settings-section">
+                            <legend class="settings-subtitle">デフォルト設定</legend>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="autoSaveEnabled" checked />
+                                    <span>自動保存を有効にする</span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" 
+                                           id="autoImproveDefault" 
+                                           checked
+                                           aria-describedby="auto-improve-description">
+                                    <span>指示文改良を自動実行</span>
+                                </label>
+                                <div id="auto-improve-description" class="sr-only">
+                                    チェックすると、新しい実行時に指示文改良が自動的に有効になります
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="darkModeEnabled" />
+                                    <span>ダークモードを有効にする</span>
+                                </label>
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button id="cancelSettingsBtn" class="btn-secondary">キャンセル</button>
+                    <button id="saveSettingsBtn" class="btn-primary">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Modal -->
+        <div id="historyModal" class="modal" role="dialog" aria-labelledby="historyModalTitle" aria-modal="true" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="historyModalTitle" class="modal-title">実行履歴</h2>
+                    <button id="closeHistoryBtn" class="btn-icon" aria-label="閉じる">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="historyContainer" class="history-list">
+                        <!-- Dynamically populated by JavaScript -->
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <p>実行履歴がありません</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="clearHistoryBtn" class="btn-secondary">履歴をクリア</button>
+                    <button id="closeHistoryModalBtn" class="btn-primary">閉じる</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Configuration and core utilities (consolidated) -->
+    <script src="js/config.js"></script>
+    <script src="js/core.js"></script>
+    
+    <!-- Storage utilities -->
+    <script src="js/utils/storage.js"></script>
+    
+    <!-- Components (non-module classes) -->
+    <script src="js/components/ThinkingPatterns.js"></script>
+    <script src="js/components/PromptImprover.js"></script>
+    <script src="js/components/WorkflowManager.js"></script>
+    
+    <!-- Services (non-module classes) -->
+    <script src="js/services/AIService.js"></script>
+    
+    <!-- Main application -->
+    <script src="js/app.js"></script>
+</body>
+</html>

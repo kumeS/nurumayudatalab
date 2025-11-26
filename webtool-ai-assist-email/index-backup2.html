@@ -1,0 +1,3389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-powered Web Editor (AWE) - シンプルなWebベースのAIエディターでメール作成を効率化">
+    <meta name="keywords" content="AI, editor, email, productivity, web app, artificial intelligence">
+    <meta name="author" content="AIeditor Team">
+    
+    <!-- Open Graph Tags -->
+    <meta property="og:title" content="AI-powered Web Editor (AWE)">
+    <meta property="og:description" content="AIが文脈を理解してメール作成を支援する革新的なWebエディター">
+    <meta property="og:type" content="website">
+    
+    <meta name="theme-color" content="#667eea">
+    
+    <title>AI-powered Web Editor (AWE)</title>
+    
+    <style>
+/* ===== CSS RESET ===== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+/* ===== CSS CUSTOM PROPERTIES ===== */
+:root {
+    /* Colors - Light Mode */
+    --primary-color: #667eea;
+    --primary-dark: #5a67d8;
+    --primary-light: #7c8ff5;
+    --secondary-color: #f093fb;
+    --accent-color: #4fd1c7;
+    
+    --text-primary: #1a202c;
+    --text-secondary: #4a5568;
+    --text-muted: #718096;
+    --text-inverse: #ffffff;
+    
+    --background-primary: #ffffff;
+    --background-secondary: #f7fafc;
+    --background-tertiary: #edf2f7;
+    
+    --border-color: #e2e8f0;
+    --border-focus: #667eea;
+    
+    --success-color: #38a169;
+    --warning-color: #d69e2e;
+    --error-color: #e53e3e;
+    
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+    
+    /* Typography */
+    --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    
+    --font-size-xs: 0.75rem;   /* 12px */
+    --font-size-sm: 0.875rem;  /* 14px */
+    --font-size-base: 1rem;    /* 16px */
+    --font-size-lg: 1.125rem;  /* 18px */
+    --font-size-xl: 1.25rem;   /* 20px */
+    --font-size-2xl: 1.5rem;   /* 24px */
+    --font-size-3xl: 1.875rem; /* 30px */
+    
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.625;
+    
+    /* Spacing */
+    --space-1: 0.25rem;  /* 4px */
+    --space-2: 0.5rem;   /* 8px */
+    --space-3: 0.75rem;  /* 12px */
+    --space-4: 1rem;     /* 16px */
+    --space-5: 1.25rem;  /* 20px */
+    --space-6: 1.5rem;   /* 24px */
+    --space-8: 2rem;     /* 32px */
+    --space-10: 2.5rem;  /* 40px */
+    --space-12: 3rem;    /* 48px */
+    --space-16: 4rem;    /* 64px */
+    
+    /* Borders & Radius */
+    --border-width: 1px;
+    --border-radius-sm: 0.25rem;
+    --border-radius: 0.375rem;
+    --border-radius-md: 0.5rem;
+    --border-radius-lg: 0.75rem;
+    
+    /* Animations */
+    --transition-fast: 0.15s ease-out;
+    --transition-base: 0.2s ease-out;
+    --transition-slow: 0.3s ease-out;
+    
+    /* Layout */
+    --header-height: 60px;
+    --toolbar-height: 48px;
+    --ai-panel-width: 320px;
+    --prompt-section-height: 80px;
+    
+    /* Z-index scale */
+    --z-dropdown: 1000;
+    --z-sticky: 1020;
+    --z-fixed: 1030;
+    --z-modal-backdrop: 1040;
+    --z-modal: 1050;
+    --z-popover: 1060;
+    --z-tooltip: 1070;
+}
+
+/* Dark mode colors */
+[data-theme="dark"] {
+    /* Colors - Dark Mode */
+    --primary-color: #7c8ff5;
+    --primary-dark: #667eea;
+    --primary-light: #9ca8ff;
+    --secondary-color: #f093fb;
+    --accent-color: #4fd1c7;
+    
+    --text-primary: #e2e8f0;
+    --text-secondary: #cbd5e0;
+    --text-muted: #a0aec0;
+    --text-inverse: #1a202c;
+    
+    --background-primary: #1a202c;
+    --background-secondary: #2d3748;
+    --background-tertiary: #4a5568;
+    
+    --border-color: #4a5568;
+    --border-focus: #7c8ff5;
+    
+    --success-color: #48bb78;
+    --warning-color: #ed8936;
+    --error-color: #f56565;
+    
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Theme transition */
+* {
+    transition: background-color var(--transition-base), 
+                border-color var(--transition-base), 
+                color var(--transition-base);
+}
+
+/* ===== BASE STYLES ===== */
+html {
+    scroll-behavior: smooth;
+    font-size: 16px;
+}
+
+body {
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-normal);
+    line-height: var(--line-height-normal);
+    color: var(--text-primary);
+    background-color: var(--background-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+}
+
+/* Skip Link for Accessibility */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    padding: var(--space-2) var(--space-4);
+    text-decoration: none;
+    border-radius: var(--border-radius);
+    z-index: var(--z-tooltip);
+    transition: top var(--transition-fast);
+}
+
+.skip-link:focus {
+    top: 6px;
+}
+
+/* ===== HEADER ===== */
+.app-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    background: var(--background-primary);
+    border-bottom: var(--border-width) solid var(--border-color);
+    z-index: var(--z-fixed);
+}
+
+.header-content {
+    height: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 var(--space-4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.logo-icon {
+    flex-shrink: 0;
+}
+
+.logo-text {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-color);
+}
+
+.save-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.save-indicator {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--border-radius-sm);
+    background: var(--background-secondary);
+}
+
+.save-indicator.saving {
+    color: var(--warning-color);
+    background: #fef5e7;
+}
+
+.save-indicator.saved {
+    color: var(--success-color);
+    background: #f0fff4;
+}
+
+.save-indicator.error {
+    color: var(--error-color);
+    background: #fed7d7;
+}
+
+.header-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.nav-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.nav-button:hover {
+    background: var(--background-secondary);
+    color: var(--text-primary);
+}
+
+.nav-button:focus {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+}
+
+/* ===== MAIN LAYOUT ===== */
+.app-main {
+    margin-top: var(--header-height);
+    min-height: calc(100vh - var(--header-height));
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== TOOLBAR ===== */
+.toolbar {
+    height: var(--toolbar-height);
+    background: var(--background-secondary);
+    border-bottom: var(--border-width) solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-4);
+    gap: var(--space-4);
+    overflow-x: auto;
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+}
+
+.toolbar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 32px;
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid transparent;
+    background: var(--background-primary);
+    color: var(--text-primary);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.toolbar-btn:hover {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+}
+
+.toolbar-btn:focus {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+}
+
+.toolbar-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.toolbar-btn:disabled:hover {
+    background: var(--background-primary);
+    color: var(--text-primary);
+}
+
+.toolbar-btn.active {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+}
+
+.toolbar-divider {
+    width: var(--border-width);
+    height: 20px;
+    background: var(--border-color);
+    margin: 0 var(--space-2);
+}
+
+.ai-btn {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: var(--text-inverse);
+}
+
+.ai-btn:hover {
+    background: linear-gradient(135deg, var(--primary-dark), var(--secondary-color));
+}
+
+/* ===== EDITOR LAYOUT ===== */
+.editor-layout {
+    display: grid;
+    grid-template-columns: 1fr var(--ai-panel-width);
+    flex: 1;
+    min-height: 0;
+}
+
+.editor-section {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-right: var(--border-width) solid var(--border-color);
+    background: var(--background-primary);
+}
+
+/* ===== EMAIL HEADER ===== */
+.email-header {
+    background: var(--background-secondary);
+    border-bottom: var(--border-width) solid var(--border-color);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.email-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.email-field label {
+    min-width: 60px;
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.email-input {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--background-primary);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    transition: all var(--transition-fast);
+}
+
+.email-input:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.email-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* ===== MAIN EDITOR ===== */
+.editor-textarea {
+    flex: 1;
+    padding: var(--space-6);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-relaxed);
+    border: none;
+    outline: none;
+    resize: none;
+    background: transparent;
+    color: var(--text-primary);
+    min-height: 400px;
+    overflow-y: auto;
+}
+
+.editor-textarea:empty::before {
+    content: attr(data-placeholder);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.editor-textarea:focus {
+    background: var(--background-secondary);
+}
+
+/* Rich Text Formatting */
+.editor-textarea strong,
+.editor-textarea b {
+    font-weight: var(--font-weight-bold);
+}
+
+.editor-textarea em,
+.editor-textarea i {
+    font-style: italic;
+}
+
+.editor-textarea u {
+    text-decoration: underline;
+}
+
+.editor-textarea ul,
+.editor-textarea ol {
+    padding-left: var(--space-6);
+    margin: var(--space-2) 0;
+}
+
+.editor-textarea li {
+    margin: var(--space-1) 0;
+}
+
+/* Grammar Check Indicators */
+.grammar-indicators {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.grammar-error {
+    border-bottom: 2px wavy var(--error-color);
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.grammar-suggestion {
+    border-bottom: 2px wavy var(--warning-color);
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+/* ===== AI CHAT CONTAINER ===== */
+.ai-chat-container {
+    background: var(--background-secondary);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--space-4);
+    box-shadow: var(--shadow-sm);
+}
+
+.ai-chat-container.collapsed .ai-chat-content {
+    display: none;
+}
+
+.ai-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3);
+    border-bottom: var(--border-width) solid var(--border-color);
+    background: var(--background-primary);
+}
+
+.ai-chat-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.toggle-chat-btn {
+    padding: var(--space-1);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.toggle-chat-btn:hover {
+    background: var(--background-tertiary);
+    color: var(--text-primary);
+}
+
+.ai-chat-content {
+    padding: var(--space-3);
+    min-height: 200px;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+.ai-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: var(--space-3);
+    padding-right: var(--space-2);
+}
+
+.chat-welcome {
+    text-align: center;
+    color: var(--text-muted);
+    padding: var(--space-4);
+    font-style: italic;
+}
+
+.chat-message {
+    margin-bottom: var(--space-3);
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.chat-message.user .chat-message-content {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    margin-left: var(--space-8);
+    border-radius: var(--border-radius) var(--border-radius) var(--border-radius-sm) var(--border-radius);
+}
+
+.chat-message.ai .chat-message-content {
+    background: var(--background-tertiary);
+    color: var(--text-primary);
+    margin-right: var(--space-8);
+    border-radius: var(--border-radius) var(--border-radius) var(--border-radius) var(--border-radius-sm);
+}
+
+.chat-message.error .chat-message-content {
+    background: var(--error-color);
+    color: var(--text-inverse);
+}
+
+.chat-message.temporary .chat-message-content {
+    opacity: 0.7;
+    animation: pulse 1.5s infinite;
+}
+
+.chat-message-content {
+    padding: var(--space-3);
+    border-radius: var(--border-radius);
+    word-wrap: break-word;
+    line-height: 1.5;
+}
+
+.chat-message-time {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-top: var(--space-1);
+    text-align: right;
+}
+
+.chat-message.user .chat-message-time {
+    text-align: right;
+}
+
+.chat-message.ai .chat-message-time {
+    text-align: left;
+}
+
+.ai-chat-input-container {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+.ai-chat-input {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--background-primary);
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-base);
+    transition: all var(--transition-fast);
+}
+
+.ai-chat-input:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.ai-chat-send-btn {
+    padding: var(--space-2);
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ai-chat-send-btn:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.ai-chat-send-btn:active {
+    transform: translateY(0);
+}
+
+/* ===== CONTACT FORM ===== */
+.contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.form-field label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+}
+
+.form-input {
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--background-primary);
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.apply-contact-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.apply-contact-btn:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.apply-contact-btn:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ===== AI PANEL ===== */
+.ai-panel {
+    background: var(--background-secondary);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.ai-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4);
+    border-bottom: var(--border-width) solid var(--border-color);
+    background: var(--background-primary);
+}
+
+.ai-panel-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+}
+
+.close-panel-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.close-panel-btn:hover {
+    background: var(--background-secondary);
+    color: var(--text-primary);
+}
+
+.ai-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-4);
+}
+
+.ai-section {
+    margin-bottom: var(--space-6);
+}
+
+.ai-section-title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--space-3);
+}
+
+/* AI Suggestions */
+.suggestions-list,
+.grammar-results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.suggestion-item,
+.grammar-item {
+    padding: var(--space-3);
+    background: var(--background-primary);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.suggestion-item:hover,
+.grammar-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.suggestion-text {
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.suggestion-confidence {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.no-suggestions,
+.no-issues {
+    padding: var(--space-4);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+}
+
+/* Tone Options */
+.tone-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.tone-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.tone-option:hover {
+    background: var(--background-primary);
+}
+
+.tone-option input[type="radio"] {
+    accent-color: var(--primary-color);
+}
+
+/* Templates */
+.templates-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.template-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    background: var(--background-primary);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--border-radius);
+    text-align: left;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.template-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.template-name {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+}
+
+.template-desc {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+/* ===== AI PROMPT SECTION ===== */
+.ai-prompt-section {
+    background: var(--background-primary);
+    border-top: var(--border-width) solid var(--border-color);
+    padding: var(--space-4);
+}
+
+.prompt-input-container {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.prompt-input {
+    flex: 1;
+    padding: var(--space-3) var(--space-4);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    background: var(--background-secondary);
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+}
+
+.prompt-input:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    background: var(--background-primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.prompt-submit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border: none;
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border-radius: var(--border-radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.prompt-submit-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.prompt-submit-btn:focus {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+}
+
+.prompt-suggestions {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.prompt-suggestion {
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid var(--border-color);
+    background: var(--background-secondary);
+    color: var(--text-secondary);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.prompt-suggestion:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* ===== LOADING & MODAL COMPONENTS ===== */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal);
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-base);
+}
+
+.loading-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.loading-spinner {
+    text-align: center;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--space-3);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    top: calc(var(--header-height) + var(--space-4));
+    right: var(--space-4);
+    z-index: var(--z-popover);
+    max-width: 400px;
+}
+
+.toast {
+    background: var(--background-primary);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--space-4);
+    margin-bottom: var(--space-2);
+    box-shadow: var(--shadow-lg);
+    transform: translateX(100%);
+    transition: transform var(--transition-base);
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast.success {
+    border-color: var(--success-color);
+    background: #f0fff4;
+}
+
+.toast.error {
+    border-color: var(--error-color);
+    background: #fed7d7;
+}
+
+.toast.warning {
+    border-color: var(--warning-color);
+    background: #fef5e7;
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal);
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-base);
+}
+
+.modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: var(--background-primary);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-xl);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    transform: scale(0.9);
+    transition: transform var(--transition-base);
+}
+
+.modal-overlay.show .modal-content {
+    transform: scale(1);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-6);
+    border-bottom: var(--border-width) solid var(--border-color);
+}
+
+.modal-header h2 {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+}
+
+.close-modal-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.close-modal-btn:hover {
+    background: var(--background-secondary);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: var(--space-6);
+}
+
+.setting-group {
+    margin-bottom: var(--space-4);
+}
+
+.setting-group label {
+    display: block;
+    margin-bottom: var(--space-2);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+}
+
+.setting-group input[type="range"] {
+    width: 100%;
+    margin: var(--space-2) 0;
+}
+
+.setting-group input[type="checkbox"] {
+    margin-right: var(--space-2);
+    accent-color: var(--primary-color);
+}
+
+.setting-input {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--background-primary);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-2);
+    transition: all var(--transition-fast);
+}
+
+.setting-input:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.setting-description {
+    display: block;
+    margin-top: var(--space-1);
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.setting-description.danger {
+    color: var(--error-color);
+    font-weight: var(--font-weight-medium);
+}
+
+.setting-btn {
+    padding: var(--space-2) var(--space-4);
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.setting-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.setting-btn.danger {
+    background: var(--error-color);
+    color: var(--text-inverse);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    justify-content: center;
+}
+
+.setting-btn.danger:hover:not(:disabled) {
+    background: #c53030;
+    box-shadow: var(--shadow-md);
+}
+
+.setting-btn.danger:active {
+    background: #9c2626;
+    transform: translateY(0);
+}
+
+/* Shortcuts Help */
+.shortcuts-help {
+    position: fixed;
+    bottom: var(--space-4);
+    left: var(--space-4);
+    background: var(--background-primary);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-lg);
+    max-width: 300px;
+    z-index: var(--z-popover);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all var(--transition-base);
+}
+
+.shortcuts-help.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.shortcuts-list {
+    margin-top: var(--space-3);
+}
+
+.shortcuts-list dt {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--primary-color);
+    margin-bottom: var(--space-1);
+}
+
+.shortcuts-list dd {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+    margin-left: 0;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Tablet (768px - 1023px) */
+@media (max-width: 1023px) {
+    :root {
+        --ai-panel-width: 280px;
+    }
+    
+    .editor-layout {
+        grid-template-columns: 1fr;
+        position: relative;
+    }
+    
+    .ai-panel {
+        position: fixed;
+        top: calc(var(--header-height) + var(--toolbar-height));
+        right: 0;
+        bottom: var(--prompt-section-height);
+        width: var(--ai-panel-width);
+        z-index: var(--z-dropdown);
+        transform: translateX(100%);
+        transition: transform var(--transition-base);
+        box-shadow: var(--shadow-xl);
+    }
+    
+    .ai-panel.show {
+        transform: translateX(0);
+    }
+    
+    .toolbar {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: var(--toolbar-height);
+        padding: var(--space-2) var(--space-4);
+    }
+    
+    .header-content {
+        padding: 0 var(--space-3);
+    }
+    
+    .logo-text {
+        font-size: var(--font-size-lg);
+    }
+}
+
+/* Mobile (767px and below) */
+@media (max-width: 767px) {
+    :root {
+        --header-height: 50px;
+        --toolbar-height: auto;
+        --ai-panel-width: 100%;
+        --prompt-section-height: 120px;
+    }
+    
+    .header-content {
+        padding: 0 var(--space-2);
+    }
+    
+    .logo-section {
+        gap: var(--space-3);
+    }
+    
+    .logo-text {
+        display: none;
+    }
+    
+    .save-indicator {
+        font-size: var(--font-size-xs);
+        padding: var(--space-1);
+    }
+    
+    .toolbar {
+        padding: var(--space-2);
+        gap: var(--space-2);
+    }
+    
+    .toolbar-btn {
+        min-height: 36px;
+        padding: var(--space-2);
+        font-size: var(--font-size-xs);
+    }
+    
+    .toolbar-btn span {
+        display: none;
+    }
+    
+    .ai-panel {
+        top: calc(var(--header-height) + var(--toolbar-height));
+        bottom: var(--prompt-section-height);
+        width: 100%;
+        transform: translateY(100%);
+    }
+    
+    .ai-panel.show {
+        transform: translateY(0);
+    }
+    
+    .editor-textarea {
+        padding: var(--space-4);
+        font-size: var(--font-size-base);
+    }
+    
+    .ai-prompt-section {
+        padding: var(--space-3);
+    }
+    
+    .prompt-input-container {
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+    
+    .prompt-input {
+        padding: var(--space-3);
+    }
+    
+    .prompt-submit-btn {
+        width: 100%;
+        height: 40px;
+    }
+    
+    .prompt-suggestions {
+        justify-content: center;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: var(--space-4);
+    }
+    
+    .toast-container {
+        top: calc(var(--header-height) + var(--space-2));
+        right: var(--space-2);
+        left: var(--space-2);
+        max-width: none;
+    }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    :root {
+        --border-color: #000000;
+        --text-secondary: #000000;
+        --background-secondary: #ffffff;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .skip-link:focus {
+        transition: none;
+    }
+}
+
+/* Print styles */
+@media print {
+    .app-header,
+    .toolbar,
+    .ai-panel,
+    .ai-prompt-section,
+    .loading-overlay,
+    .toast-container,
+    .modal-overlay,
+    .shortcuts-help {
+        display: none !important;
+    }
+    
+    .app-main {
+        margin-top: 0;
+    }
+    
+    .editor-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .editor-textarea {
+        padding: 0;
+        background: transparent;
+        color: #000000;
+    }
+}
+
+/* Focus visible polyfill support */
+.js-focus-visible :focus:not(.focus-visible) {
+    outline: none;
+}
+
+/* Utility classes */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.invisible {
+    visibility: hidden !important;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.theme-toggle:hover {
+    background: var(--background-secondary);
+}
+
+.theme-toggle:focus {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+}
+
+.theme-toggle svg {
+    width: 20px;
+    height: 20px;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.theme-toggle:hover svg {
+    color: var(--text-primary);
+}
+
+/* Sun and Moon icon animations */
+.theme-icon {
+    position: absolute;
+    transition: all var(--transition-base);
+}
+
+.theme-icon.sun {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+.theme-icon.moon {
+    opacity: 0;
+    transform: rotate(180deg) scale(0.5);
+}
+
+[data-theme="dark"] .theme-icon.sun {
+    opacity: 0;
+    transform: rotate(180deg) scale(0.5);
+}
+
+[data-theme="dark"] .theme-icon.moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+/* Email Actions */
+.email-actions {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: var(--border-width) solid var(--border-color);
+}
+
+.email-action-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border: var(--border-width) solid var(--border-color);
+    background: var(--background-primary);
+    color: var(--text-primary);
+    border-radius: var(--border-radius-lg);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.email-action-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.email-action-btn.send-btn {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border-color: var(--primary-color);
+}
+
+.email-action-btn.send-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Email Preview Modal */
+.email-preview-modal .modal-content {
+    max-width: 700px;
+}
+
+.email-preview-body {
+    padding: var(--space-6);
+}
+
+.email-preview-field {
+    margin-bottom: var(--space-3);
+    padding: var(--space-2) 0;
+    font-size: var(--font-size-sm);
+}
+
+.email-preview-field strong {
+    color: var(--text-secondary);
+    margin-right: var(--space-2);
+    min-width: 80px;
+    display: inline-block;
+}
+
+.email-preview-separator {
+    height: var(--border-width);
+    background: var(--border-color);
+    margin: var(--space-4) 0;
+}
+
+.email-preview-body-content {
+    background: var(--background-secondary);
+    border-radius: var(--border-radius);
+    padding: var(--space-4);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-relaxed);
+    color: var(--text-primary);
+    white-space: pre-wrap;
+}
+    </style>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-editor" class="skip-link">メインエディターにスキップ</a>
+    
+    <!-- Header -->
+    <header class="app-header" role="banner">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="logo">
+                    <svg class="logo-icon" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
+                        <circle cx="16" cy="16" r="14" fill="#667eea"/>
+                        <text x="16" y="20" font-family="Arial" font-size="12" fill="white" text-anchor="middle">AI</text>
+                    </svg>
+                    <h1 class="logo-text">AWE</h1>
+                </div>
+                <div class="save-status" id="save-status" role="status" aria-live="polite">
+                    <span class="save-indicator" id="save-indicator">保存済み</span>
+                </div>
+            </div>
+            
+            <nav class="header-nav" role="navigation">
+                <button class="theme-toggle" id="theme-toggle" type="button" aria-label="テーマを切り替え">
+                    <svg class="theme-icon sun" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,15.31L23.31,12L20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31Z" fill="currentColor"/>
+                    </svg>
+                    <svg class="theme-icon moon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95M17.33,17.97C14.5,17.81 11.7,16.64 9.53,14.5C7.36,12.31 6.2,9.5 6.04,6.68C3.23,9.82 3.34,14.4 6.35,17.41C9.37,20.43 14,20.54 17.33,17.97Z" fill="currentColor"/>
+                    </svg>
+                </button>
+                <button class="nav-button" id="settings-btn" type="button" aria-label="設定を開く">
+                    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Application -->
+    <main class="app-main" role="main">
+        <!-- Toolbar -->
+        <div class="toolbar" role="toolbar" aria-label="編集ツールバー">
+            <!-- Format Buttons -->
+            <div class="toolbar-group format-group">
+                <button class="toolbar-btn" id="bold-btn" type="button" aria-label="太字" data-format="bold">
+                    <strong>B</strong>
+                </button>
+                <button class="toolbar-btn" id="italic-btn" type="button" aria-label="斜体" data-format="italic">
+                    <em>I</em>
+                </button>
+                <button class="toolbar-btn" id="underline-btn" type="button" aria-label="下線" data-format="underline">
+                    <u>U</u>
+                </button>
+                <div class="toolbar-divider" aria-hidden="true"></div>
+                <button class="toolbar-btn" id="list-btn" type="button" aria-label="リスト" data-format="list">
+                    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7,5H21V7H7V5M7,13V11H21V13H7M4,4.5A1.5,1.5 0 0,1 5.5,6A1.5,1.5 0 0,1 4,7.5A1.5,1.5 0 0,1 2.5,6A1.5,1.5 0 0,1 4,4.5M4,10.5A1.5,1.5 0 0,1 5.5,12A1.5,1.5 0 0,1 4,13.5A1.5,1.5 0 0,1 2.5,12A1.5,1.5 0 0,1 4,10.5M7,19V17H21V19H7M4,16.5A1.5,1.5 0 0,1 5.5,18A1.5,1.5 0 0,1 4,19.5A1.5,1.5 0 0,1 2.5,18A1.5,1.5 0 0,1 4,16.5Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- AI Tools -->
+            <div class="toolbar-group ai-group">
+                <div class="toolbar-divider" aria-hidden="true"></div>
+                <button class="toolbar-btn ai-btn" id="ai-suggest-btn" type="button" aria-label="AI提案">
+                    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z" fill="currentColor"/>
+                    </svg>
+                    AI提案
+                </button>
+                <button class="toolbar-btn tone-btn" id="tone-btn" type="button" aria-label="トーン切替">
+                    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12,2C13.1,2 14,2.9 14,4C14,5.1 13.1,6 12,6C10.9,6 10,5.1 10,4C10,2.9 10.9,2 12,2M21,9V7L15,1H5C3.89,1 3,1.89 3,3V21A2,2 0 0,0 5,23H19A2,2 0 0,0 21,21V9M19,9H14V4H19V9Z" fill="currentColor"/>
+                    </svg>
+                    トーン
+                </button>
+            </div>
+
+            <!-- Undo/Redo -->
+            <div class="toolbar-group history-group">
+                <div class="toolbar-divider" aria-hidden="true"></div>
+                <button class="toolbar-btn" id="undo-btn" type="button" aria-label="元に戻す" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z" fill="currentColor"/>
+                    </svg>
+                </button>
+                <button class="toolbar-btn" id="redo-btn" type="button" aria-label="やり直し" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18.4,10.6C16.55,9 14.15,8 11.5,8C6.85,8 2.92,11.03 1.53,15.22L3.9,16C4.95,12.81 7.96,10.5 11.5,10.5C13.46,10.5 15.23,11.22 16.62,12.38L13,16H22V7L18.4,10.6Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- AI Chat Panel (Top) -->
+        <div class="ai-chat-container" id="ai-chat-container">
+            <div class="ai-chat-header">
+                <h3 class="ai-chat-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z"/>
+                    </svg>
+                    AIチャット
+                </h3>
+                <button class="toggle-chat-btn" id="toggle-chat-btn" type="button" aria-label="チャットパネルを切り替え">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7,10L12,15L17,10H7Z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="ai-chat-content" id="ai-chat-content">
+                <div class="ai-chat-messages" id="ai-chat-messages" style="display: none;">
+                    <!-- Chat messages will appear here only when active -->
+                </div>
+                <div class="ai-chat-input-container">
+                    <input type="text" class="ai-chat-input" id="ai-chat-input" placeholder="AIに質問または指示を入力...">
+                    <button class="ai-chat-send-btn" id="ai-chat-send-btn" type="button" aria-label="送信">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Editor Layout -->
+        <div class="editor-layout">
+            <!-- Main Editor -->
+            <section class="editor-section" role="region" aria-label="メインエディター">
+                <!-- Email Header Fields -->
+                <div class="email-header" id="email-header">
+                    <div class="email-field">
+                        <label for="email-to">宛先:</label>
+                        <input type="email" id="email-to" class="email-input" placeholder="recipient@example.com" multiple>
+                    </div>
+                    <div class="email-field">
+                        <label for="email-subject">件名:</label>
+                        <input type="text" id="email-subject" class="email-input" placeholder="メールの件名を入力してください">
+                    </div>
+                </div>
+                
+                <div 
+                    class="editor-textarea" 
+                    id="main-editor"
+                    contenteditable="true" 
+                    role="textbox" 
+                    aria-multiline="true"
+                    aria-label="メール本文編集エリア"
+                    data-placeholder="メール本文をここに入力してください..."
+                ></div>
+                
+                <!-- Grammar Check Indicators -->
+                <div class="grammar-indicators" id="grammar-indicators" aria-live="polite"></div>
+            </section>
+
+            <!-- AI Panel -->
+            <aside class="ai-panel" id="ai-panel" role="complementary" aria-label="AI支援パネル">
+                <div class="ai-panel-header">
+                    <h2 class="ai-panel-title">AI アシスタント</h2>
+                    <button class="close-panel-btn" id="close-ai-panel" type="button" aria-label="AI パネルを閉じる">
+                        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="ai-panel-content">
+                    <!-- AI Suggestions -->
+                    <div class="ai-section" id="suggestions-section">
+                        <h3 class="ai-section-title">文章補完提案</h3>
+                        <div class="suggestions-list" id="suggestions-list" role="list">
+                            <div class="no-suggestions">AI提案を生成するには、テキストを入力してTabキーを押してください</div>
+                        </div>
+                    </div>
+
+                    <!-- Grammar Check -->
+                    <div class="ai-section" id="grammar-section">
+                        <h3 class="ai-section-title">文法チェック</h3>
+                        <div class="grammar-results" id="grammar-results" role="list">
+                            <div class="no-issues">文法上の問題は見つかりませんでした</div>
+                        </div>
+                    </div>
+
+                    <!-- Tone Adjustment -->
+                    <div class="ai-section" id="tone-section">
+                        <h3 class="ai-section-title">トーン調整</h3>
+                        <div class="tone-options" role="radiogroup" aria-label="トーン選択">
+                            <label class="tone-option">
+                                <input type="radio" name="tone" value="formal" checked>
+                                <span>フォーマル</span>
+                            </label>
+                            <label class="tone-option">
+                                <input type="radio" name="tone" value="casual">
+                                <span>カジュアル</span>
+                            </label>
+                            <label class="tone-option">
+                                <input type="radio" name="tone" value="friendly">
+                                <span>友好的</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Templates -->
+                    <div class="ai-section" id="templates-section">
+                        <h3 class="ai-section-title">テンプレート</h3>
+                        <div class="templates-list" id="templates-list">
+                            <button class="template-item" data-template="business-email">
+                                <span class="template-name">ビジネスメール</span>
+                                <span class="template-desc">正式なビジネスメールテンプレート</span>
+                            </button>
+                            <button class="template-item" data-template="thank-you">
+                                <span class="template-name">お礼メール</span>
+                                <span class="template-desc">感謝の気持ちを表すメール</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Contact Information -->
+                    <div class="ai-section" id="contact-section">
+                        <h3 class="ai-section-title">相手先情報</h3>
+                        <div class="contact-form">
+                            <div class="form-field">
+                                <label for="contact-name">氏名</label>
+                                <input type="text" id="contact-name" class="form-input" placeholder="田中太郎">
+                            </div>
+                            <div class="form-field">
+                                <label for="contact-company">所属</label>
+                                <input type="text" id="contact-company" class="form-input" placeholder="株式会社○○">
+                            </div>
+                            <div class="form-field">
+                                <label for="contact-relation">関係性</label>
+                                <select id="contact-relation" class="form-input">
+                                    <option value="">選択してください</option>
+                                    <option value="customer">お客様</option>
+                                    <option value="partner">パートナー</option>
+                                    <option value="colleague">同僚</option>
+                                    <option value="superior">上司</option>
+                                    <option value="subordinate">部下</option>
+                                    <option value="vendor">取引先</option>
+                                    <option value="client">クライアント</option>
+                                    <option value="other">その他</option>
+                                </select>
+                            </div>
+                            <button class="apply-contact-btn" id="apply-contact-btn" type="button">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/>
+                                </svg>
+                                情報を適用
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- AI Prompt Input -->
+        <div class="ai-prompt-section" role="region" aria-label="AI プロンプト入力">
+            <div class="prompt-input-container">
+                <input 
+                    type="text" 
+                    class="prompt-input" 
+                    id="ai-prompt-input"
+                    placeholder="この文章をよりフォーマルにして"
+                    aria-label="AI への指示を入力"
+                />
+                <button class="prompt-submit-btn" id="prompt-submit-btn" type="button" aria-label="AI に指示を送信">
+                    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="prompt-suggestions">
+                <button class="prompt-suggestion" data-prompt="この文章を要約して">要約</button>
+                <button class="prompt-suggestion" data-prompt="この文章を詳しく展開して">展開</button>
+                <button class="prompt-suggestion" data-prompt="文法をチェックして">文法チェック</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Indicator -->
+    <div class="loading-overlay" id="loading-overlay" role="status" aria-label="処理中" aria-hidden="true">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p class="loading-text">AI が処理中...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container" role="region" aria-label="通知" aria-live="polite"></div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal" role="dialog" aria-labelledby="settings-title" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="settings-title">設定</h2>
+                <button class="close-modal-btn" id="close-settings-modal" type="button" aria-label="設定を閉じる">
+                    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label for="font-size-slider">フォントサイズ</label>
+                    <input type="range" id="font-size-slider" min="14" max="24" value="16" aria-label="フォントサイズ調整">
+                    <span id="font-size-display">16px</span>
+                </div>
+                
+                <div class="setting-group">
+                    <label for="api-token-input">API認証トークン</label>
+                    <input type="password" id="api-token-input" class="setting-input" placeholder="AIeditor_AUTH トークンを入力">
+                    <button type="button" id="save-token-btn" class="setting-btn">保存</button>
+                </div>
+                
+                <div class="setting-group">
+                    <label for="model-selector">使用するAIモデル</label>
+                    <select id="model-selector" class="setting-input">
+                        <option value="openai/gpt-oss-120b">GPT-OSS-120B (デフォルト)</option>
+                    </select>
+                    <small class="setting-description">APIから利用可能なモデル一覧を取得して選択できます</small>
+                </div>
+                
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="auto-save-toggle" checked>
+                        自動保存を有効にする
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="grammar-check-toggle" checked>
+                        リアルタイム文法チェック
+                    </label>
+                </div>
+
+                <div class="setting-group">
+                    <button type="button" id="clear-all-data-btn" class="setting-btn danger">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                        </svg>
+                        全データをクリア
+                    </button>
+                    <small class="setting-description danger">APIキー、設定、チャット履歴を全て削除します（元に戻せません）</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Help -->
+    <div class="shortcuts-help" id="shortcuts-help" role="dialog" aria-labelledby="shortcuts-title" aria-hidden="true">
+        <div class="shortcuts-content">
+            <h3 id="shortcuts-title">キーボードショートカット</h3>
+            <dl class="shortcuts-list">
+                <dt>Tab</dt><dd>AI提案を受け入れ</dd>
+                <dt>Ctrl+G / Cmd+G</dt><dd>文法チェック</dd>
+                <dt>Ctrl+T / Cmd+T</dt><dd>トーン切替</dd>
+                <dt>Ctrl+S / Cmd+S</dt><dd>手動保存</dd>
+                <dt>Ctrl+Z / Cmd+Z</dt><dd>元に戻す</dd>
+                <dt>Ctrl+Y / Cmd+Y</dt><dd>やり直し</dd>
+                <dt>Esc</dt><dd>パネル/モーダルを閉じる</dd>
+            </dl>
+        </div>
+    </div>
+
+    <!-- Theme Toggle Script -->
+    <script>
+        // Theme management
+        const themeToggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        
+        // Load saved theme or default to light
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        html.setAttribute('data-theme', savedTheme);
+        
+        // Theme toggle handler
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                
+                // Update button aria-label
+                themeToggle.setAttribute('aria-label', 
+                    newTheme === 'light' ? 'ダークモードに切り替え' : 'ライトモードに切り替え'
+                );
+            });
+            
+            // Set initial aria-label
+            themeToggle.setAttribute('aria-label', 
+                savedTheme === 'light' ? 'ダークモードに切り替え' : 'ライトモードに切り替え'
+            );
+        }
+        
+        // System theme detection (optional)
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        if (!localStorage.getItem('theme')) {
+            const systemTheme = mediaQuery.matches ? 'dark' : 'light';
+            html.setAttribute('data-theme', systemTheme);
+            localStorage.setItem('theme', systemTheme);
+        }
+        
+        // Listen for system theme changes
+        mediaQuery.addListener((e) => {
+            if (!localStorage.getItem('theme-user-preference')) {
+                const systemTheme = e.matches ? 'dark' : 'light';
+                html.setAttribute('data-theme', systemTheme);
+            }
+        });
+        
+        // Mark when user manually changes theme
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                localStorage.setItem('theme-user-preference', 'true');
+            });
+        }
+    </script>
+    
+    <!-- Main Application Script (Inline) -->
+    <script>
+// Inline Application - Browser Compatible Version
+// This is a simplified version that doesn't require ES modules
+
+class SimpleAIEditor {
+    constructor() {
+        this.editor = document.getElementById('main-editor');
+        this.history = [];
+        this.historyIndex = -1;
+        this.availableModels = [];
+        this.currentModel = 'openai/gpt-oss-120b'; // デフォルトモデル
+        this.db = null;
+        this.dbName = 'AIEditorDB';
+        this.dbVersion = 1;
+        this.init();
+    }
+
+    async init() {
+        if (!this.editor) return;
+        
+        // Initialize IndexedDB first
+        await this.initDB();
+        
+        this.setupEditor();
+        this.setupToolbar();
+        this.setupAIPanel();
+        this.setupSettings();
+        this.setupPrompts();
+        this.setupEmailFunctions();
+        await this.loadModelSettings();
+        
+        console.log('SimpleAIEditor initialized');
+    }
+
+    // IndexedDB Database initialization
+    async initDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.dbVersion);
+            
+            request.onerror = () => {
+                console.error('IndexedDB initialization failed:', request.error);
+                resolve(); // Don't fail initialization if DB is not available
+            };
+            
+            request.onsuccess = () => {
+                this.db = request.result;
+                console.log('IndexedDB initialized successfully');
+                resolve();
+            };
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                
+                // Create settings store
+                if (!db.objectStoreNames.contains('settings')) {
+                    const settingsStore = db.createObjectStore('settings', { keyPath: 'key' });
+                    console.log('Settings store created');
+                }
+                
+                // Create models store
+                if (!db.objectStoreNames.contains('models')) {
+                    const modelsStore = db.createObjectStore('models', { keyPath: 'id' });
+                    console.log('Models store created');
+                }
+                
+                // Note: Chat history store removed - we don't store chat history
+            };
+        });
+    }
+
+    // Generic method to save data to IndexedDB
+    async saveToDB(storeName, data) {
+        if (!this.db) {
+            console.warn('Database not available, falling back to localStorage');
+            localStorage.setItem(`${storeName}_${data.key || data.id}`, JSON.stringify(data));
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([storeName], 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.put(data);
+            
+            request.onerror = () => {
+                console.error(`Failed to save to ${storeName}:`, request.error);
+                // Fallback to localStorage
+                localStorage.setItem(`${storeName}_${data.key || data.id}`, JSON.stringify(data));
+                resolve();
+            };
+            
+            request.onsuccess = () => {
+                console.log(`Data saved to ${storeName}:`, data.key || data.id);
+                resolve();
+            };
+        });
+    }
+
+    // Generic method to load data from IndexedDB
+    async loadFromDB(storeName, key) {
+        if (!this.db) {
+            console.warn('Database not available, falling back to localStorage');
+            const data = localStorage.getItem(`${storeName}_${key}`);
+            return data ? JSON.parse(data) : null;
+        }
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([storeName], 'readonly');
+            const store = transaction.objectStore(storeName);
+            const request = store.get(key);
+            
+            request.onerror = () => {
+                console.error(`Failed to load from ${storeName}:`, request.error);
+                // Fallback to localStorage
+                const data = localStorage.getItem(`${storeName}_${key}`);
+                resolve(data ? JSON.parse(data) : null);
+            };
+            
+            request.onsuccess = () => {
+                resolve(request.result || null);
+            };
+        });
+    }
+
+    // Load all data from a store
+    async loadAllFromDB(storeName) {
+        if (!this.db) {
+            console.warn('Database not available, cannot load all data');
+            return [];
+        }
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([storeName], 'readonly');
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
+            
+            request.onerror = () => {
+                console.error(`Failed to load all from ${storeName}:`, request.error);
+                resolve([]);
+            };
+            
+            request.onsuccess = () => {
+                resolve(request.result || []);
+            };
+        });
+    }
+
+    setupEditor() {
+        // Add to history initially
+        this.addToHistory('');
+        
+        // Content change handler
+        this.editor.addEventListener('input', () => {
+            this.addToHistory(this.editor.textContent);
+            this.updateToolbarState();
+        });
+
+        // Keyboard shortcuts
+        this.editor.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key.toLowerCase()) {
+                    case 'b':
+                        e.preventDefault();
+                        this.applyFormat('bold');
+                        break;
+                    case 'i':
+                        e.preventDefault();
+                        this.applyFormat('italic');
+                        break;
+                    case 'u':
+                        e.preventDefault();
+                        this.applyFormat('underline');
+                        break;
+                    case 'z':
+                        e.preventDefault();
+                        this.undo();
+                        break;
+                    case 'y':
+                        e.preventDefault();
+                        this.redo();
+                        break;
+                }
+            }
+        });
+    }
+
+    setupToolbar() {
+        // Format buttons
+        document.getElementById('bold-btn')?.addEventListener('click', () => {
+            this.applyFormat('bold');
+        });
+
+        document.getElementById('italic-btn')?.addEventListener('click', () => {
+            this.applyFormat('italic');
+        });
+
+        document.getElementById('underline-btn')?.addEventListener('click', () => {
+            this.applyFormat('underline');
+        });
+
+        document.getElementById('list-btn')?.addEventListener('click', () => {
+            this.applyFormat('list');
+        });
+
+        // AI buttons
+        document.getElementById('ai-suggest-btn')?.addEventListener('click', () => {
+            this.generateAISuggestion();
+        });
+
+        document.getElementById('tone-btn')?.addEventListener('click', () => {
+            this.toggleAIPanel();
+        });
+
+        // Undo/Redo buttons
+        document.getElementById('undo-btn')?.addEventListener('click', () => {
+            this.undo();
+        });
+
+        document.getElementById('redo-btn')?.addEventListener('click', () => {
+            this.redo();
+        });
+
+        this.updateToolbarState();
+    }
+
+    setupAIPanel() {
+        const aiPanel = document.getElementById('ai-panel');
+        const closeBtn = document.getElementById('close-ai-panel');
+        
+        closeBtn?.addEventListener('click', () => {
+            aiPanel?.classList.remove('show');
+        });
+
+        // Template buttons
+        const templateBtns = document.querySelectorAll('.template-item');
+        templateBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const templateType = btn.getAttribute('data-template');
+                this.insertTemplate(templateType);
+            });
+        });
+
+        // Tone options
+        const toneOptions = document.querySelectorAll('input[name="tone"]');
+        toneOptions.forEach(option => {
+            option.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.applyTone(e.target.value);
+                }
+            });
+        });
+
+        // AI Chat setup
+        this.setupAIChat();
+        
+        // Contact information setup
+        this.setupContactForm();
+    }
+
+    setupAIChat() {
+        const toggleChatBtn = document.getElementById('toggle-chat-btn');
+        const aiChatContainer = document.getElementById('ai-chat-container');
+        const aiChatSendBtn = document.getElementById('ai-chat-send-btn');
+        const aiChatInput = document.getElementById('ai-chat-input');
+
+        // Chat toggle button
+        toggleChatBtn?.addEventListener('click', () => {
+            aiChatContainer?.classList.toggle('collapsed');
+        });
+
+        // Chat send button
+        aiChatSendBtn?.addEventListener('click', () => {
+            this.sendChatMessage();
+        });
+
+        // Chat input enter key
+        aiChatInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.sendChatMessage();
+            }
+        });
+    }
+
+    async sendChatMessage() {
+        const chatInput = document.getElementById('ai-chat-input');
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        // Clear input immediately
+        chatInput.value = '';
+        
+        // Show processing toast
+        this.showToast('AIが処理中...', 'info');
+
+        try {
+            const currentContent = this.editor.textContent;
+            const prompt = currentContent 
+                ? `以下のメール内容を参考に、「${message}」の指示に従ってメールを改善または作成してください。\n\n現在のメール内容：\n${currentContent}\n\n指示：${message}`
+                : `「${message}」の指示に従ってメールを作成してください。`;
+                
+            const response = await this.callOpenAIAPI(currentContent, prompt);
+            
+            if (response && response.choices && response.choices[0]) {
+                const aiResponse = response.choices[0].message.content.trim();
+                
+                // Directly insert the AI response into the editor
+                this.editor.innerHTML = aiResponse.replace(/\n/g, '<br>');
+                this.addToHistory(this.editor.innerHTML);
+                
+                this.showToast('AIがメールを更新しました', 'success');
+            } else {
+                throw new Error('AI応答の形式が不正です');
+            }
+        } catch (error) {
+            console.error('AI処理に失敗:', error);
+            this.showToast('AI処理に失敗しました: ' + error.message, 'error');
+        }
+    }
+
+
+    setupContactForm() {
+        const applyContactBtn = document.getElementById('apply-contact-btn');
+        
+        // Load saved contact information
+        this.loadContactInfo();
+        
+        applyContactBtn?.addEventListener('click', () => {
+            this.applyContactInfo();
+        });
+
+        // Auto-save contact info when fields change
+        const contactFields = ['contact-name', 'contact-company', 'contact-relation'];
+        contactFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            field?.addEventListener('change', () => {
+                this.saveContactInfo();
+            });
+        });
+    }
+
+    async getContactInfo() {
+        return {
+            name: document.getElementById('contact-name')?.value || '',
+            company: document.getElementById('contact-company')?.value || '',
+            relation: document.getElementById('contact-relation')?.value || ''
+        };
+    }
+
+    async saveContactInfo() {
+        const contactInfo = await this.getContactInfo();
+        await this.saveToDB('settings', {
+            key: 'contact_info',
+            value: contactInfo,
+            timestamp: Date.now()
+        });
+    }
+
+    async loadContactInfo() {
+        const contactData = await this.loadFromDB('settings', 'contact_info');
+        if (contactData && contactData.value) {
+            const info = contactData.value;
+            const nameField = document.getElementById('contact-name');
+            const companyField = document.getElementById('contact-company');
+            const relationField = document.getElementById('contact-relation');
+            
+            if (nameField) nameField.value = info.name || '';
+            if (companyField) companyField.value = info.company || '';
+            if (relationField) relationField.value = info.relation || '';
+        }
+    }
+
+    async applyContactInfo() {
+        const info = await this.getContactInfo();
+        
+        if (!info.name) {
+            this.showToast('相手先の氏名を入力してください', 'warning');
+            return;
+        }
+
+        // Generate appropriate greeting based on relation
+        let greeting = this.generateGreeting(info);
+        
+        // Create email template with contact information
+        let emailContent = `${greeting}\n\n`;
+        
+        // Add spacing for content
+        emailContent += '[メール本文をここに入力してください]\n\n';
+        
+        // Add closing based on relation
+        let closing = this.generateClosing(info.relation);
+        emailContent += closing;
+        
+        // Insert into editor
+        this.editor.innerHTML = emailContent.replace(/\n/g, '<br>');
+        this.addToHistory(this.editor.innerHTML);
+        
+        // Also set email recipient if available
+        const emailToField = document.getElementById('email-to');
+        if (emailToField && !emailToField.value) {
+            emailToField.placeholder = `${info.company ? info.company + 'の' : ''}${info.name}さんのメールアドレス`;
+        }
+        
+        this.showToast('相手先情報を適用しました', 'success');
+    }
+
+    generateGreeting(info) {
+        let greeting = '';
+        
+        if (info.company) {
+            greeting += `${info.company}\n`;
+        }
+        
+        greeting += `${info.name}様\n\n`;
+        
+        // Add appropriate opening based on relation
+        switch (info.relation) {
+            case 'customer':
+            case 'client':
+                greeting += 'いつもお世話になっております。';
+                break;
+            case 'partner':
+            case 'vendor':
+                greeting += 'いつもお世話になっております。';
+                break;
+            case 'colleague':
+                greeting += 'お疲れさまです。';
+                break;
+            case 'superior':
+                greeting += 'お疲れさまです。';
+                break;
+            case 'subordinate':
+                greeting += 'お疲れさまです。';
+                break;
+            default:
+                greeting += 'いつもお世話になっております。';
+        }
+        
+        return greeting;
+    }
+
+    generateClosing(relation) {
+        let closing = '';
+        
+        switch (relation) {
+            case 'customer':
+            case 'client':
+                closing = 'ご不明な点がございましたら、お気軽にお声がけください。\n\nよろしくお願いいたします。';
+                break;
+            case 'partner':
+            case 'vendor':
+                closing = '引き続きよろしくお願いいたします。';
+                break;
+            case 'colleague':
+            case 'subordinate':
+                closing = 'よろしくお願いします。';
+                break;
+            case 'superior':
+                closing = 'よろしくお願いいたします。';
+                break;
+            default:
+                closing = 'よろしくお願いいたします。';
+        }
+        
+        return closing;
+    }
+
+    setupSettings() {
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const closeSettingsBtn = document.getElementById('close-settings-modal');
+        
+        settingsBtn?.addEventListener('click', () => {
+            settingsModal?.classList.add('show');
+        });
+
+        closeSettingsBtn?.addEventListener('click', () => {
+            settingsModal?.classList.remove('show');
+        });
+
+        // Font size slider
+        const fontSizeSlider = document.getElementById('font-size-slider');
+        const fontSizeDisplay = document.getElementById('font-size-display');
+        
+        fontSizeSlider?.addEventListener('input', (e) => {
+            const size = e.target.value + 'px';
+            this.editor.style.fontSize = size;
+            fontSizeDisplay.textContent = size;
+        });
+
+        // API Token save button
+        const saveTokenBtn = document.getElementById('save-token-btn');
+        const apiTokenInput = document.getElementById('api-token-input');
+        
+        saveTokenBtn?.addEventListener('click', () => {
+            const token = apiTokenInput.value.trim();
+            if (token) {
+                this.setAuthToken(token);
+                apiTokenInput.value = '';
+            } else {
+                this.showToast('トークンを入力してください', 'warning');
+            }
+        });
+
+        // Load existing token (masked)
+        this.getAuthToken().then(existingToken => {
+            if (existingToken && apiTokenInput) {
+                apiTokenInput.placeholder = '認証トークンが設定済み (新しいトークンで上書きします)';
+            }
+        });
+
+        // Model selector event handler
+        const modelSelector = document.getElementById('model-selector');
+        modelSelector?.addEventListener('change', (e) => {
+            const selectedModel = e.target.value;
+            this.setCurrentModel(selectedModel);
+        });
+
+        // Clear all data button
+        const clearDataBtn = document.getElementById('clear-all-data-btn');
+        clearDataBtn?.addEventListener('click', () => {
+            this.clearAllData();
+        });
+    }
+
+    setupPrompts() {
+        const promptInput = document.getElementById('ai-prompt-input');
+        const promptSubmit = document.getElementById('prompt-submit-btn');
+        const promptSuggestions = document.querySelectorAll('.prompt-suggestion');
+        
+        promptSubmit?.addEventListener('click', () => {
+            this.handlePrompt(promptInput.value);
+        });
+
+        promptInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.handlePrompt(promptInput.value);
+            }
+        });
+
+        promptSuggestions.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const prompt = e.target.getAttribute('data-prompt');
+                this.handlePrompt(prompt);
+            });
+        });
+    }
+
+    applyFormat(format) {
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+
+        const range = selection.getRangeAt(0);
+        const selectedText = range.toString();
+
+        if (!selectedText) return;
+
+        let element;
+        switch (format) {
+            case 'bold':
+                element = document.createElement('strong');
+                break;
+            case 'italic':
+                element = document.createElement('em');
+                break;
+            case 'underline':
+                element = document.createElement('u');
+                break;
+            case 'list':
+                this.applyListFormat();
+                return;
+        }
+
+        if (element) {
+            element.textContent = selectedText;
+            range.deleteContents();
+            range.insertNode(element);
+            this.addToHistory(this.editor.innerHTML);
+        }
+    }
+
+    applyListFormat() {
+        const content = this.editor.textContent;
+        const lines = content.split('\n');
+        const newLines = lines.map(line => {
+            if (line.trim().startsWith('•')) {
+                return line.replace(/^\s*•\s*/, '');
+            } else if (line.trim()) {
+                return '• ' + line;
+            }
+            return line;
+        });
+        
+        this.editor.innerHTML = newLines.join('<br>');
+        this.addToHistory(this.editor.innerHTML);
+    }
+
+    async generateAISuggestion() {
+        const content = this.editor.textContent;
+        if (!content.trim()) {
+            this.showToast('テキストを入力してからAI提案を使用してください', 'warning');
+            return;
+        }
+
+        this.showToast('AI提案を生成中...', 'info');
+
+        try {
+            const response = await this.callOpenAIAPI(content, 'この文章を改善して、より読みやすく丁寧な表現にしてください。');
+            
+            if (response && response.choices && response.choices[0]) {
+                const suggestion = response.choices[0].message.content.trim();
+                this.displayAISuggestion(suggestion);
+                this.toggleAIPanel(true);
+                this.showToast('AI提案を生成しました', 'success');
+            } else {
+                throw new Error('AI応答の形式が不正です');
+            }
+        } catch (error) {
+            console.error('AI提案の生成に失敗:', error);
+            this.showToast('AI提案の生成に失敗しました', 'error');
+            
+            // フォールバック: シミュレートされた提案
+            const fallbackSuggestions = [
+                'この文章をより丁寧な表現に変更しました。',
+                '専門的な語彙を使用して文章を改善しました。',
+                '文章の構造を整理して読みやすくしました。'
+            ];
+            const randomSuggestion = fallbackSuggestions[Math.floor(Math.random() * fallbackSuggestions.length)];
+            this.displayAISuggestion(randomSuggestion);
+            this.toggleAIPanel(true);
+        }
+    }
+
+    displayAISuggestion(suggestion) {
+        const suggestionsList = document.getElementById('suggestions-list');
+        if (!suggestionsList) return;
+
+        suggestionsList.innerHTML = `
+            <div class="suggestion-item" onclick="aiEditor.applySuggestionText('${suggestion}')">
+                <div class="suggestion-text">${suggestion}</div>
+                <div class="suggestion-confidence">信頼度: 85%</div>
+            </div>
+        `;
+    }
+
+    applySuggestionText(suggestion) {
+        this.showToast('AI提案を適用しました: ' + suggestion, 'success');
+    }
+
+    toggleAIPanel(show = null) {
+        const aiPanel = document.getElementById('ai-panel');
+        if (!aiPanel) return;
+
+        if (show === null) {
+            aiPanel.classList.toggle('show');
+        } else if (show) {
+            aiPanel.classList.add('show');
+        } else {
+            aiPanel.classList.remove('show');
+        }
+    }
+
+    insertTemplate(templateType) {
+        let subject = '';
+        let content = '';
+        
+        switch (templateType) {
+            case 'business-email':
+                subject = 'ビジネス関連のご連絡';
+                content = `○○様
+
+いつもお世話になっております。
+[会社名/氏名]です。
+
+[本文内容をここに記載してください]
+
+何かご不明点がございましたら、お気軽にお声がけください。
+
+よろしくお願いいたします。
+
+[署名]
+[会社名]
+[連絡先]`;
+                break;
+            case 'thank-you':
+                subject = 'お礼';
+                content = `○○様
+
+お忙しい中、[内容]をいただき、誠にありがとうございます。
+
+[感謝の詳細をここに記載してください]
+
+今後ともどうぞよろしくお願いいたします。
+
+[署名]
+[会社名]
+[連絡先]`;
+                break;
+        }
+
+        // 件名を設定
+        const subjectField = document.getElementById('email-subject');
+        if (subjectField) {
+            subjectField.value = subject;
+        }
+
+        // 本文を設定
+        this.editor.innerHTML = content.replace(/\n/g, '<br>');
+        this.addToHistory(this.editor.innerHTML);
+        this.showToast('メールテンプレートを挿入しました', 'success');
+    }
+
+    async callOpenAIAPI(content, instruction) {
+        const apiEndpoint = 'https://api.intelligence.io.solutions/api/v1/openai/gpt-oss-120b';
+        const authToken = await this.getAuthToken();
+        
+        if (!authToken) {
+            throw new Error('API認証トークンが設定されていません。環境変数 AIeditor_AUTH を設定してください。');
+        }
+
+        const requestBody = {
+            model: this.currentModel.replace('openai/', ''), // Remove provider prefix for API
+            messages: [
+                {
+                    role: "system",
+                    content: "あなたは日本語の文章作成と編集を支援するAIアシスタントです。ユーザーの要求に応じて、文章の改善、トーン調整、文法チェックを行います。"
+                },
+                {
+                    role: "user",
+                    content: `${instruction}\n\n対象の文章：\n${content}`
+                }
+            ],
+            max_tokens: 1000,
+            temperature: 0.7
+        };
+
+        const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+        }
+
+        return await response.json();
+    }
+
+    async getAuthToken() {
+        // Try IndexedDB first, then fallback to environment variables
+        const tokenData = await this.loadFromDB('settings', 'auth_token');
+        if (tokenData && tokenData.value) {
+            return tokenData.value;
+        }
+        
+        // Fallback to environment variables or global variables
+        return window.AIeditor_AUTH || '';
+    }
+
+    async setAuthToken(token) {
+        const tokenData = {
+            key: 'auth_token',
+            value: token,
+            timestamp: Date.now()
+        };
+        
+        await this.saveToDB('settings', tokenData);
+        this.showToast('API認証トークンを保存しました', 'success');
+        
+        // トークンが設定されたらモデル一覧を取得
+        await this.fetchAvailableModels();
+    }
+
+    async fetchAvailableModels() {
+        const authToken = await this.getAuthToken();
+        if (!authToken) {
+            console.warn('認証トークンが設定されていないため、モデル一覧を取得できません');
+            return;
+        }
+
+        try {
+            const response = await fetch('https://api.intelligence.io.solutions/api/v1/models', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`モデル一覧取得に失敗: ${response.status} ${response.statusText}`);
+            }
+
+            const modelsData = await response.json();
+            this.availableModels = this.parseModelsResponse(modelsData);
+            
+            // IndexedDBに保存
+            await this.saveToDB('models', {
+                id: 'available_models', 
+                models: this.availableModels,
+                timestamp: Date.now()
+            });
+            
+            this.updateModelSelector();
+            console.log('利用可能なモデル:', this.availableModels.length, '個');
+            
+        } catch (error) {
+            console.error('モデル一覧の取得に失敗:', error);
+            this.showToast('モデル一覧の取得に失敗しました', 'error');
+            
+            // キャッシュされたモデル一覧があれば使用
+            this.loadCachedModels();
+        }
+    }
+
+    parseModelsResponse(response) {
+        // APIレスポンスの構造に応じてパースする
+        let models = [];
+        
+        if (response.data && Array.isArray(response.data)) {
+            // OpenAI形式の場合
+            models = response.data.map(model => ({
+                id: model.id || model.model,
+                name: model.id || model.model,
+                description: model.description || model.id || model.model,
+                created: model.created,
+                owned_by: model.owned_by
+            }));
+        } else if (Array.isArray(response)) {
+            // 配列形式の場合
+            models = response.map(model => ({
+                id: model.id || model.model || model.name,
+                name: model.name || model.id || model.model,
+                description: model.description || model.name || model.id
+            }));
+        } else if (response.models && Array.isArray(response.models)) {
+            // models配列がある場合
+            models = response.models.map(model => ({
+                id: model.id || model.model,
+                name: model.name || model.id || model.model,
+                description: model.description || model.name || model.id
+            }));
+        }
+
+        // デフォルトモデルが含まれているかチェック
+        const hasDefault = models.some(model => model.id === this.currentModel);
+        if (!hasDefault) {
+            models.unshift({
+                id: this.currentModel,
+                name: 'GPT-OSS-120B (デフォルト)',
+                description: 'デフォルトの高性能言語モデル'
+            });
+        }
+
+        return models;
+    }
+
+    async loadCachedModels() {
+        const cachedData = await this.loadFromDB('models', 'available_models');
+        if (cachedData && cachedData.models) {
+            try {
+                this.availableModels = cachedData.models;
+                this.updateModelSelector();
+                console.log('キャッシュされたモデル一覧を読み込みました');
+            } catch (error) {
+                console.error('キャッシュされたモデル一覧の読み込みに失敗:', error);
+            }
+        } else {
+            // キャッシュがない場合はデフォルトモデルのみ
+            this.availableModels = [{
+                id: this.currentModel,
+                name: 'GPT-OSS-120B (デフォルト)',
+                description: 'デフォルトの高性能言語モデル'
+            }];
+            this.updateModelSelector();
+        }
+    }
+
+    async loadModelSettings() {
+        // 保存されたモデル設定を読み込み
+        const savedModelData = await this.loadFromDB('settings', 'selected_model');
+        if (savedModelData && savedModelData.value) {
+            this.currentModel = savedModelData.value;
+        }
+        
+        // 認証トークンがあればモデル一覧を取得
+        const authToken = await this.getAuthToken();
+        if (authToken) {
+            await this.fetchAvailableModels();
+        } else {
+            await this.loadCachedModels();
+        }
+    }
+
+    updateModelSelector() {
+        const modelSelector = document.getElementById('model-selector');
+        if (!modelSelector) return;
+
+        // Clear existing options
+        modelSelector.innerHTML = '';
+        
+        // Add available models as options
+        this.availableModels.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.name;
+            option.title = model.description;
+            
+            if (model.id === this.currentModel) {
+                option.selected = true;
+            }
+            
+            modelSelector.appendChild(option);
+        });
+
+        console.log(`モデル選択ドロップダウンを更新: ${this.availableModels.length}個のモデル`);
+    }
+
+    updateCurrentModelDisplay() {
+        // Update the save status indicator to show current model
+        const saveStatus = document.getElementById('save-status');
+        if (saveStatus) {
+            const selectedModel = this.availableModels.find(model => model.id === this.currentModel);
+            const modelName = selectedModel ? selectedModel.name : this.currentModel;
+            const saveIndicator = document.getElementById('save-indicator');
+            if (saveIndicator) {
+                saveIndicator.title = `現在のモデル: ${modelName}`;
+            }
+        }
+    }
+
+    async clearAllData() {
+        const confirmed = confirm(
+            'この操作により、以下のデータが完全に削除されます：\n' +
+            '• API認証トークン\n' +
+            '• モデル設定\n' +
+            '• 保存された設定\n' +
+            '\nこの操作は元に戻せません。続行しますか？'
+        );
+        
+        if (!confirmed) return;
+
+        try {
+            // Clear IndexedDB data
+            if (this.db) {
+                // Clear settings store
+                const settingsTransaction = this.db.transaction(['settings'], 'readwrite');
+                const settingsStore = settingsTransaction.objectStore('settings');
+                await new Promise((resolve, reject) => {
+                    const clearRequest = settingsStore.clear();
+                    clearRequest.onsuccess = () => resolve();
+                    clearRequest.onerror = () => reject(clearRequest.error);
+                });
+
+                // Clear models store
+                const modelsTransaction = this.db.transaction(['models'], 'readwrite');
+                const modelsStore = modelsTransaction.objectStore('models');
+                await new Promise((resolve, reject) => {
+                    const clearRequest = modelsStore.clear();
+                    clearRequest.onsuccess = () => resolve();
+                    clearRequest.onerror = () => reject(clearRequest.error);
+                });
+            }
+
+            // Clear localStorage fallback data
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('AIeditor_') || key.startsWith('settings_') || key.startsWith('models_'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+
+            // Reset to defaults
+            this.currentModel = 'openai/gpt-oss-120b';
+            this.availableModels = [{
+                id: this.currentModel,
+                name: 'GPT-OSS-120B (デフォルト)',
+                description: 'デフォルトの高性能言語モデル'
+            }];
+            
+            this.updateModelSelector();
+
+            // Clear API token input placeholder
+            const apiTokenInput = document.getElementById('api-token-input');
+            if (apiTokenInput) {
+                apiTokenInput.placeholder = 'AIeditor_AUTH トークンを入力';
+            }
+
+            this.showToast('全てのデータが削除されました', 'success');
+            
+        } catch (error) {
+            console.error('データクリアに失敗:', error);
+            this.showToast('データクリアに失敗しました: ' + error.message, 'error');
+        }
+    }
+
+    async setCurrentModel(modelId) {
+        this.currentModel = modelId;
+        
+        // Save to IndexedDB
+        await this.saveToDB('settings', {
+            key: 'selected_model',
+            value: modelId,
+            timestamp: Date.now()
+        });
+        
+        const selectedModel = this.availableModels.find(model => model.id === modelId);
+        const modelName = selectedModel ? selectedModel.name : modelId;
+        
+        this.showToast(`モデルを ${modelName} に変更しました`, 'success');
+        this.updateCurrentModelDisplay();
+    }
+
+    async applyTone(tone) {
+        const content = this.editor.textContent;
+        if (!content.trim()) {
+            this.showToast('テキストを入力してからトーン調整を使用してください', 'warning');
+            return;
+        }
+
+        let instruction = '';
+        switch (tone) {
+            case 'formal':
+                instruction = 'この文章を丁寧で正式なビジネス文書のトーンに調整してください。';
+                break;
+            case 'casual':
+                instruction = 'この文章を親しみやすくカジュアルなトーンに調整してください。';
+                break;
+            case 'friendly':
+                instruction = 'この文章を温かみがあり友好的なトーンに調整してください。';
+                break;
+        }
+
+        this.showToast('トーンを調整中...', 'info');
+
+        try {
+            const response = await this.callOpenAIAPI(content, instruction);
+            
+            if (response && response.choices && response.choices[0]) {
+                const adjustedText = response.choices[0].message.content.trim();
+                this.editor.innerHTML = adjustedText.replace(/\n/g, '<br>');
+                this.addToHistory(this.editor.innerHTML);
+                
+                let message = '';
+                switch (tone) {
+                    case 'formal':
+                        message = 'フォーマルなトーンに調整しました';
+                        break;
+                    case 'casual':
+                        message = 'カジュアルなトーンに調整しました';
+                        break;
+                    case 'friendly':
+                        message = '友好的なトーンに調整しました';
+                        break;
+                }
+                this.showToast(message, 'success');
+            } else {
+                throw new Error('AI応答の形式が不正です');
+            }
+        } catch (error) {
+            console.error('トーン調整に失敗:', error);
+            this.showToast('トーン調整に失敗しました: ' + error.message, 'error');
+        }
+    }
+
+    async handlePrompt(prompt) {
+        if (!prompt.trim()) return;
+
+        const content = this.editor.textContent;
+        if (!content.trim()) {
+            this.showToast('テキストを入力してからAIプロンプトを使用してください', 'warning');
+            return;
+        }
+
+        this.showToast('AI処理中...', 'info');
+        
+        try {
+            const response = await this.callOpenAIAPI(content, prompt);
+            
+            if (response && response.choices && response.choices[0]) {
+                const result = response.choices[0].message.content.trim();
+                
+                // 結果を提案として表示
+                this.displayAISuggestion(result);
+                this.toggleAIPanel(true);
+                this.showToast('AI処理が完了しました', 'success');
+                document.getElementById('ai-prompt-input').value = '';
+            } else {
+                throw new Error('AI応答の形式が不正です');
+            }
+        } catch (error) {
+            console.error('AI処理に失敗:', error);
+            this.showToast('AI処理に失敗しました: ' + error.message, 'error');
+        }
+    }
+
+    addToHistory(content) {
+        if (this.history.length > 0 && this.history[this.historyIndex] === content) {
+            return;
+        }
+
+        if (this.historyIndex < this.history.length - 1) {
+            this.history = this.history.slice(0, this.historyIndex + 1);
+        }
+
+        this.history.push(content);
+        this.historyIndex = this.history.length - 1;
+
+        if (this.history.length > 50) {
+            this.history.shift();
+            this.historyIndex--;
+        }
+
+        this.updateToolbarState();
+    }
+
+    undo() {
+        if (this.canUndo()) {
+            this.historyIndex--;
+            this.restoreFromHistory();
+        }
+    }
+
+    redo() {
+        if (this.canRedo()) {
+            this.historyIndex++;
+            this.restoreFromHistory();
+        }
+    }
+
+    canUndo() {
+        return this.historyIndex > 0;
+    }
+
+    canRedo() {
+        return this.historyIndex < this.history.length - 1;
+    }
+
+    restoreFromHistory() {
+        if (this.historyIndex >= 0 && this.historyIndex < this.history.length) {
+            this.editor.innerHTML = this.history[this.historyIndex];
+            this.updateToolbarState();
+        }
+    }
+
+    updateToolbarState() {
+        const undoBtn = document.getElementById('undo-btn');
+        const redoBtn = document.getElementById('redo-btn');
+
+        if (undoBtn) {
+            undoBtn.disabled = !this.canUndo();
+        }
+
+        if (redoBtn) {
+            redoBtn.disabled = !this.canRedo();
+        }
+    }
+
+    setupEmailFunctions() {
+        // メール送信ボタンの追加（プロンプトセクションに）
+        const promptSection = document.querySelector('.ai-prompt-section');
+        if (promptSection) {
+            const emailActions = document.createElement('div');
+            emailActions.className = 'email-actions';
+            emailActions.innerHTML = `
+                <button class="email-action-btn preview-btn" id="email-preview-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24">
+                        <path d="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z" fill="currentColor"/>
+                    </svg>
+                    プレビュー
+                </button>
+                <button class="email-action-btn send-btn" id="email-send-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24">
+                        <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z" fill="currentColor"/>
+                    </svg>
+                    送信
+                </button>
+            `;
+            promptSection.appendChild(emailActions);
+
+            // イベントリスナーを追加
+            document.getElementById('email-preview-btn')?.addEventListener('click', () => {
+                this.previewEmail();
+            });
+
+            document.getElementById('email-send-btn')?.addEventListener('click', () => {
+                this.sendEmail();
+            });
+        }
+    }
+
+    getEmailData() {
+        return {
+            to: document.getElementById('email-to')?.value || '',
+            subject: document.getElementById('email-subject')?.value || '',
+            body: this.editor.textContent || ''
+        };
+    }
+
+    previewEmail() {
+        const emailData = this.getEmailData();
+        
+        if (!emailData.to || !emailData.subject || !emailData.body.trim()) {
+            this.showToast('宛先、件名、本文を入力してください', 'warning');
+            return;
+        }
+
+        // プレビューモーダルを作成
+        const previewModal = this.createPreviewModal(emailData);
+        document.body.appendChild(previewModal);
+        
+        setTimeout(() => {
+            previewModal.classList.add('show');
+        }, 10);
+    }
+
+    createPreviewModal(emailData) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay email-preview-modal';
+        modal.innerHTML = `
+            <div class="modal-content email-preview-content">
+                <div class="modal-header">
+                    <h2>メールプレビュー</h2>
+                    <button class="close-modal-btn" id="close-preview-modal">
+                        <svg width="24" height="24" viewBox="0 0 24 24">
+                            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body email-preview-body">
+                    <div class="email-preview-field">
+                        <strong>宛先:</strong> ${emailData.to}
+                    </div>
+                    <div class="email-preview-field">
+                        <strong>件名:</strong> ${emailData.subject}
+                    </div>
+                    <div class="email-preview-separator"></div>
+                    <div class="email-preview-body-content">
+                        ${emailData.body.replace(/\n/g, '<br>').replace(/\s\s+/g, '&nbsp;&nbsp;')}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 閉じるボタンのイベントリスナー
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal || e.target.id === 'close-preview-modal' || e.target.closest('.close-modal-btn')) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.remove();
+                }, 300);
+            }
+        });
+
+        // ESCキーで閉じる
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.remove();
+                    document.removeEventListener('keydown', handleEscape);
+                }, 300);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+
+        return modal;
+    }
+
+    sendEmail() {
+        const emailData = this.getEmailData();
+        
+        if (!emailData.to || !emailData.subject || !emailData.body.trim()) {
+            this.showToast('宛先、件名、本文を入力してください', 'warning');
+            return;
+        }
+
+        // メール送信のシミュレーション
+        this.showToast('メールを送信中...', 'info');
+        
+        setTimeout(() => {
+            // 実際のメール送信APIをここで呼び出す
+            // この例ではシミュレーション
+            this.showToast('メールを送信しました！', 'success');
+            
+            // 送信後、フィールドをクリア（オプション）
+            // this.clearEmailFields();
+        }, 2000);
+    }
+
+    clearEmailFields() {
+        document.getElementById('email-to').value = '';
+        document.getElementById('email-subject').value = '';
+        this.editor.innerHTML = '';
+        this.addToHistory('');
+    }
+
+    showToast(message, type = 'info') {
+        const toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type} show`;
+        toast.textContent = message;
+
+        toastContainer.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 3000);
+    }
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    window.aiEditor = new SimpleAIEditor();
+});
+
+// Fallback initialization
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!window.aiEditor) {
+            window.aiEditor = new SimpleAIEditor();
+        }
+    });
+} else {
+    if (!window.aiEditor) {
+        window.aiEditor = new SimpleAIEditor();
+    }
+}    </script>
+</body>
+</html>
