@@ -27,6 +27,23 @@ class AmazonDashboard {
         }
         
         this.setupEventListeners();
+        this.setupScrollPositionRestore();
+    }
+
+    setupScrollPositionRestore() {
+        // ページ離脱前にスクロール位置を保存
+        window.addEventListener('beforeunload', () => {
+            sessionStorage.setItem('amazon_dashboard_scroll_y', window.scrollY.toString());
+        });
+
+        // スクロール位置を復元（DOMContentLoadedまたはloadイベント後）
+        const savedScrollY = sessionStorage.getItem('amazon_dashboard_scroll_y');
+        if (savedScrollY !== null) {
+            // 少し遅延させて確実にコンテンツがレンダリングされた後にスクロール
+            requestAnimationFrame(() => {
+                window.scrollTo(0, parseInt(savedScrollY, 10));
+            });
+        }
     }
 
     setupEventListeners() {
@@ -238,6 +255,11 @@ class AmazonDashboard {
                 csvContent = this.dataManager.generateMultiChannelCSV(data);
                 filename = `マルチチャネル_${period}.csv`;
                 break;
+            case 'inventory-forecast':
+                const forecastData = this.dataManager.generateInventoryForecastData();
+                csvContent = this.dataManager.generateInventoryForecastCSV(forecastData);
+                filename = `仕入予測_${period}.csv`;
+                break;
         }
         
         this.downloadCSV(csvContent, filename);
@@ -375,6 +397,10 @@ class AmazonDashboard {
 
     toggleUsageInfo(btn) {
         this.uiManager.toggleUsageInfo(btn);
+    }
+
+    toggleFileList(btn) {
+        this.uiManager.toggleFileList(btn);
     }
 
     showExpenseInfo(event) {

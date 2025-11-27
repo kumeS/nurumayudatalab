@@ -8,6 +8,12 @@ class UIManager {
             column: 'date',
             direction: 'asc'
         };
+        
+        const savedForecastSortState = localStorage.getItem('amazon_dashboard_forecast_sort_state');
+        this.forecastSortState = savedForecastSortState ? JSON.parse(savedForecastSortState) : {
+            column: 'total',
+            direction: 'desc'
+        };
     }
 
     updateUI(currentPeriod, currentSubPeriod) {
@@ -197,6 +203,7 @@ class UIManager {
         this.updateProductFeeTable(data);
         this.updateFbaTable(data);
         this.updateMultiChannelTable(data);
+        this.updateInventoryForecastTable();
     }
 
     updateDailyTable(data) {
@@ -757,8 +764,28 @@ class UIManager {
 
     displayLoadedFiles() {
         const fileList = document.getElementById('fileList');
-        fileList.innerHTML = '<div style="font-weight: 600; margin-bottom: 10px; color: #333;">📊 読み込み済みファイル</div>';
-        fileList.classList.add('active');
+        const fileListToggle = document.getElementById('fileListToggle');
+        
+        fileList.innerHTML = '';
+        // fileList.classList.add('active'); // 自動で開かないように変更
+
+        const fileCount = this.dataManager.loadedFiles.size;
+        
+        if (fileCount > 0) {
+            // トグルボタンを表示し、件数を更新
+            fileListToggle.style.display = 'inline-flex';
+            const textSpan = fileListToggle.querySelector('span:first-child');
+            
+            // 現在開いているかどうかでテキストを変える
+            if (fileList.classList.contains('active')) {
+                textSpan.textContent = `読み込み済みファイルを隠す (${fileCount})`;
+            } else {
+                textSpan.textContent = `読み込み済みファイルを表示 (${fileCount})`;
+            }
+        } else {
+            fileListToggle.style.display = 'none';
+            fileList.classList.remove('active');
+        }
 
         this.dataManager.loadedFiles.forEach((fileData, fileName) => {
             const fileItem = document.createElement('div');
@@ -791,6 +818,23 @@ class UIManager {
             
             fileList.appendChild(fileItem);
         });
+    }
+
+    toggleFileList(btn) {
+        const list = document.getElementById('fileList');
+        list.classList.toggle('active');
+        
+        const textSpan = btn.querySelector('span:first-child');
+        const arrowSpan = btn.querySelector('span:last-child');
+        const fileCount = this.dataManager.loadedFiles.size;
+        
+        if (list.classList.contains('active')) {
+            textSpan.textContent = `読み込み済みファイルを隠す (${fileCount})`;
+            arrowSpan.textContent = '▲';
+        } else {
+            textSpan.textContent = `読み込み済みファイルを表示 (${fileCount})`;
+            arrowSpan.textContent = '▼';
+        }
     }
 
     resetUI() {
@@ -826,6 +870,7 @@ class UIManager {
         document.querySelector('#productTable tbody').innerHTML = '';
         document.querySelector('#fbaTable tbody').innerHTML = '';
         document.querySelector('#multiChannelTable tbody').innerHTML = '';
+        document.querySelector('#inventoryForecastTable tbody').innerHTML = '';
 
         document.getElementById('periodSelector').innerHTML = '';
         const subSelector = document.getElementById('subPeriodSelector');
@@ -1076,6 +1121,152 @@ class UIManager {
                 document.body.removeChild(modal);
                 resolve(false);
             };
+        });
+    }
+
+    updateInventoryForecastTable() {
+        const table = document.querySelector('#inventoryForecastTable');
+        if (!table) return;
+        
+        // ヘッダーの再構築（ソート機能のため）
+        const thead = table.querySelector('thead');
+        if (thead) {
+            thead.innerHTML = '';
+            const headerRow = thead.insertRow();
+            
+            const headers = [
+                { id: 'product', label: '商品名' },
+                { id: '0', label: '1月' }, { id: '1', label: '2月' }, { id: '2', label: '3月' },
+                { id: '3', label: '4月' }, { id: '4', label: '5月' }, { id: '5', label: '6月' },
+                { id: '6', label: '7月' }, { id: '7', label: '8月' }, { id: '8', label: '9月' },
+                { id: '9', label: '10月' }, { id: '10', label: '11月' }, { id: '11', label: '12月' },
+                { id: 'total', label: '合計' }
+            ];
+
+            headers.forEach(h => {
+                const th = document.createElement('th');
+                th.textContent = h.label;
+                th.style.cursor = 'pointer';
+                th.style.userSelect = 'none';
+                
+                if (this.forecastSortState.column === h.id) {
+                    th.textContent += this.forecastSortState.direction === 'asc' ? ' ↑' : ' ↓';
+                    th.style.backgroundColor = '#e9ecef';
+                }
+
+                th.onclick = () => {
+                    if (this.forecastSortState.column === h.id) {
+                        this.forecastSortState.direction = this.forecastSortState.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.forecastSortState.column = h.id;
+                        this.forecastSortState.direction = 'desc'; // 数値が多い順が見やすいのでデフォルト降順
+                    }
+                    localStorage.setItem('amazon_dashboard_forecast_sort_state', JSON.stringify(this.forecastSortState));
+                    this.updateInventoryForecastTable();
+                };
+                
+                headerRow.appendChild(th);
+            });
+        }
+
+        const tbody = table.querySelector('tbody');
+        tbody.innerHTML = '';
+
+        const forecastData = this.dataManager.generateInventoryForecastData();
+        
+        // データ配列化とソート
+        const sortedProducts = Object.entries(forecastData).map(([product, data]) => {
+            const total = data.counts.reduce((acc, val) => acc + val, 0);
+            return {
+                product,
+                counts: data.counts,
+                details: data.details,
+                season: data.season,
+                total,
+                maxCount: Math.max(...data.counts)
+            };
+        }).sort((a, b) => {
+            const col = this.forecastSortState.column;
+            const dir = this.forecastSortState.direction === 'asc' ? 1 : -1;
+            
+            if (col === 'product') {
+                return a.product.localeCompare(b.product) * dir;
+            } else if (col === 'total') {
+                return (a.total - b.total) * dir;
+            } else {
+                // 月ごとのソート (0-11)
+                const monthIndex = parseInt(col);
+                if (!isNaN(monthIndex)) {
+                    return (a.counts[monthIndex] - b.counts[monthIndex]) * dir;
+                }
+            }
+            return 0;
+        });
+
+        sortedProducts.forEach(item => {
+            const setting = this.dataManager.productSettings[item.product] || {};
+            const displayName = setting.fullName || item.product;
+            
+            const row = tbody.insertRow();
+            
+            // 商品名
+            const nameCell = row.insertCell(0);
+            nameCell.className = 'product-name-cell';
+            
+            // シーズンごとの色分けクラス追加
+            if (item.season !== 'all') {
+                nameCell.classList.add(`season-${item.season}`);
+            }
+
+            const div = document.createElement('div');
+            div.className = 'name-wrapper';
+            const textDiv = document.createElement('div');
+            textDiv.className = 'name-text';
+            textDiv.textContent = displayName;
+            const hoverDiv = document.createElement('div');
+            hoverDiv.className = 'name-hover';
+            hoverDiv.textContent = displayName;
+            div.appendChild(textDiv);
+            div.appendChild(hoverDiv);
+            div.title = displayName;
+            nameCell.appendChild(div);
+
+            // 1-12月
+            item.counts.forEach((count, index) => {
+                const cell = row.insertCell();
+                cell.textContent = count > 0 ? count.toLocaleString() : '-';
+                cell.style.textAlign = 'center';
+                cell.style.color = count > 0 ? '#333' : '#ccc';
+                
+                // ヒートマップ（グラデーション）
+                // 商品ごとの最大値を基準にする
+                if (count > 0 && item.maxCount > 0) {
+                    const ratio = count / item.maxCount;
+                    // オレンジ色 (255, 153, 102) をベースに透明度で濃淡
+                    // 最小でも少し色をつけるために 0.1 を足す
+                    const alpha = (ratio * 0.7) + 0.05;
+                    cell.style.backgroundColor = `rgba(255, 153, 102, ${alpha})`;
+                }
+
+                // ツールチップ（過去の販売数と仕入推奨レンジ）
+                if (item.details && item.details[index]) {
+                    const detail = item.details[index];
+                    if (detail.avgSales > 0) {
+                        const minRange = Math.round(detail.avgSales * 0.5);
+                        const maxRange = Math.round(detail.avgSales * 2);
+                        
+                        cell.style.position = 'relative';
+                        cell.classList.add('forecast-cell-tooltip');
+                        cell.dataset.tooltip = `過去の販売数(平均): ${detail.avgSales.toFixed(1)}個 | 仕入推奨: ${minRange}〜${maxRange}個`;
+                    }
+                }
+            });
+
+            // 合計
+            const totalCell = row.insertCell();
+            totalCell.textContent = item.total.toLocaleString();
+            totalCell.style.fontWeight = 'bold';
+            totalCell.style.textAlign = 'center';
         });
     }
 }

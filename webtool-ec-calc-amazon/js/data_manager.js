@@ -663,4 +663,113 @@ class DataManager {
             });
         return csv;
     }
+
+    generateInventoryForecastData() {
+        const allData = this.data;
+        const productMonthlyStats = {};
+
+        // 1. 商品・月ごとの販売数を集計
+        allData.forEach(row => {
+            if (!row['日付'] || row['トランザクションの種類'] !== '注文に対する支払い') return;
+            
+            const date = new Date(row['日付']);
+            const month = date.getMonth(); // 0-11
+            const year = date.getFullYear();
+            const product = row['商品の詳細'];
+            
+            if (!product || product === '不明') return;
+
+            if (!productMonthlyStats[product]) {
+                productMonthlyStats[product] = Array(12).fill(0).map(() => ({ total: 0, years: new Set() }));
+            }
+
+            productMonthlyStats[product][month].total++;
+            productMonthlyStats[product][month].years.add(year);
+        });
+
+        // 2. 平均販売数を計算し、仕入れ推奨月（1ヶ月前）にマッピング
+        const result = {};
+
+        Object.keys(productMonthlyStats).forEach(product => {
+            const forecast = Array(12).fill(0);
+            const forecastDetails = Array(12).fill(null);
+            
+            // 各月の予測販売数を計算（平均）
+            const monthlyForecast = productMonthlyStats[product].map(stat => {
+                const yearCount = stat.years.size;
+                return yearCount > 0 ? Math.ceil(stat.total / yearCount) : 0;
+            });
+
+            // 仕入れ推奨月にマッピング
+            // 仕入れ月 M の推奨数 = 販売月 M+1 の予測数
+            for (let i = 0; i < 12; i++) {
+                const salesMonth = (i + 1) % 12; // 0(1月) -> 1(2月), 11(12月) -> 0(1月)
+                forecast[i] = monthlyForecast[salesMonth];
+                
+                // 詳細データを保存
+                forecastDetails[i] = {
+                    salesMonth: salesMonth + 1, // 表示用月 (1-12)
+                    avgSales: monthlyForecast[salesMonth], // 平均販売数（=推奨仕入数）
+                    yearCount: productMonthlyStats[product][salesMonth].years.size // データ年数
+                };
+            }
+
+            // シーズン判定 (販売月ベース)
+            // forecast[i] は i+1月の仕入れ数 = i+2月の販売予測
+            // 春(3-5月販売) = 2-4月仕入れ = forecast[1], forecast[2], forecast[3]
+            // 夏(6-8月販売) = 5-7月仕入れ = forecast[4], forecast[5], forecast[6]
+            // 秋(9-11月販売) = 8-10月仕入れ = forecast[7], forecast[8], forecast[9]
+            // 冬(12-2月販売) = 11-1月仕入れ = forecast[10], forecast[11], forecast[0]
+
+            const seasonCounts = {
+                spring: forecast[1] + forecast[2] + forecast[3],
+                summer: forecast[4] + forecast[5] + forecast[6],
+                autumn: forecast[7] + forecast[8] + forecast[9],
+                winter: forecast[10] + forecast[11] + forecast[0]
+            };
+
+            const total = Object.values(seasonCounts).reduce((a, b) => a + b, 0);
+            let season = 'all';
+
+            if (total > 0) {
+                const maxSeason = Object.entries(seasonCounts).reduce((a, b) => a[1] > b[1] ? a : b);
+                // 特定のシーズンが45%以上を占める場合はそのシーズンとする
+                if (maxSeason[1] / total >= 0.45) {
+                    season = maxSeason[0];
+                }
+            }
+
+            result[product] = {
+                counts: forecast,
+                details: forecastDetails,
+                season: season
+            };
+        });
+
+        return result;
+    }
+
+    generateInventoryForecastCSV(forecastData) {
+        let csv = '商品,1月仕入,2月仕入,3月仕入,4月仕入,5月仕入,6月仕入,7月仕入,8月仕入,9月仕入,10月仕入,11月仕入,12月仕入,年間合計,シーズン\n';
+        
+        Object.entries(forecastData).forEach(([product, data]) => {
+            const counts = data.counts;
+            const season = data.season;
+            const setting = this.productSettings[product] || {};
+            const displayName = setting.fullName || product;
+            const total = counts.reduce((a, b) => a + b, 0);
+            
+            const seasonName = {
+                'spring': '春',
+                'summer': '夏',
+                'autumn': '秋',
+                'winter': '冬',
+                'all': '通年'
+            }[season] || '通年';
+
+            csv += `"${displayName}",${counts.join(',')},${total},${seasonName}\n`;
+        });
+        
+        return csv;
+    }
 }

@@ -63,14 +63,14 @@ class ChartManager {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: '売上',
+                    label: 'Amazon販売売上',
                     data: salesData,
                     borderColor: '#FF9900',
                     backgroundColor: 'rgba(255, 153, 0, 0.1)',
                     tension: 0.4,
                     fill: true
                 }, {
-                    label: '利益',
+                    label: '粗利',
                     data: profitData,
                     borderColor: '#00A862',
                     backgroundColor: 'rgba(0, 168, 98, 0.1)',

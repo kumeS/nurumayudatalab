@@ -21,34 +21,62 @@
 
 * {
     margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+    .upload-info {
+        margin-top: 20px;
+        padding: 24px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+        border-radius: var(--radius-lg);
+        font-size: 14px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        display: none;
+        box-shadow: 0 18px 40px rgba(255, 94, 98, 0.12);
+    }
 
-body {
-    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
-    background-color: var(--bg-color);
-    background-image: 
-        radial-gradient(at 0% 0%, rgba(255, 153, 102, 0.05) 0px, transparent 50%),
-        radial-gradient(at 100% 0%, rgba(0, 201, 255, 0.05) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(146, 254, 157, 0.05) 0px, transparent 50%),
-        radial-gradient(at 0% 100%, rgba(255, 94, 98, 0.05) 0px, transparent 50%);
-    background-attachment: fixed;
-    min-height: 100vh;
-    padding: 30px 20px;
-    color: var(--text-primary);
-    line-height: 1.6;
-}
+    .upload-info.active {
+        display: block;
+        animation: slideDown 0.3s ease;
+    }
 
-.nuruma-gradient {
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-}
+    .info-item {
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px solid rgba(0, 0, 0, 0.03);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
+    }
 
+    .info-item + .info-item {
+        margin-top: 12px;
+    }
+
+    .info-item-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(255, 153, 102, 0.15), rgba(255, 94, 98, 0.12));
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+        flex-shrink: 0;
+    }
+
+    .info-item-icon svg {
+        width: 26px;
+        height: 26px;
+    }
+
+    .info-item-text {
+        flex: 1;
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.6;
+    }
 .btn-primary {
     background: linear-gradient(135deg, var(--primary), var(--secondary));
     color: white;
@@ -257,19 +285,7 @@ body {
     animation: slideDown 0.3s ease;
 }
 
-.info-item {
-    color: var(--text-secondary);
-    margin-bottom: 10px;
-    line-height: 1.5;
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-}
 
-.info-item::before {
-    content: "📌";
-    font-size: 14px;
-}
 
 .file-list {
     margin-top: 25px;
@@ -627,6 +643,7 @@ tr:hover td {
     background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .modal-body {
@@ -876,23 +893,7 @@ body {
     font-size: 13px;
 }
 
-.upload-info {
-    margin-top: 20px;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    font-size: 13px;
-}
 
-.info-item {
-    color: var(--text-secondary);
-    margin-bottom: 8px;
-    line-height: 1.4;
-}
-
-.info-item:last-child {
-    margin-bottom: 0;
-}
 
 .file-list {
     margin-top: 20px;
@@ -1650,18 +1651,106 @@ tr:hover {
     100% { transform: rotate(360deg); }
 }
 
-@media (max-width: 768px) {
-    .charts-section {
-        grid-template-columns: 1fr;
-    }
-    
-    .summary-cards {
-        grid-template-columns: 1fr;
-    }
-    
-    .expense-info-popup {
-        max-width: 90%;
-        left: 5% !important;
-        right: 5%;
-    }
+/* Inventory Forecast Table Styles */
+#inventoryForecastTable th:not(:first-child) {
+    text-align: center;
+}
+
+/* シーズンごとの商品名装飾 */
+.season-spring .name-text { 
+    border-left: 4px solid #ff9a9e; 
+    background: linear-gradient(to right, rgba(255, 154, 158, 0.1), transparent);
+}
+.season-summer .name-text { 
+    border-left: 4px solid #4facfe; 
+    background: linear-gradient(to right, rgba(79, 172, 254, 0.1), transparent);
+}
+.season-autumn .name-text { 
+    border-left: 4px solid #ff9966; 
+    background: linear-gradient(to right, rgba(255, 153, 102, 0.1), transparent);
+}
+.season-winter .name-text { 
+    border-left: 4px solid #a18cd1; 
+    background: linear-gradient(to right, rgba(161, 140, 209, 0.1), transparent);
+}
+
+/* 仕入予測テーブルのレイアウト調整（ズレ防止） */
+#inventoryForecastTable {
+    table-layout: fixed; /* 列幅を固定 */
+}
+
+#inventoryForecastTable th,
+#inventoryForecastTable td {
+    padding: 10px 4px;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#inventoryForecastTable th:first-child,
+#inventoryForecastTable td:first-child {
+    width: 250px; /* 商品名カラム */
+    text-align: left;
+}
+
+#inventoryForecastTable th:not(:first-child),
+#inventoryForecastTable td:not(:first-child) {
+    width: 60px; /* 月・合計カラム */
+    text-align: center;
+}
+
+#inventoryForecastTable td:not(:first-child) {
+    font-family: 'Monaco', 'Consolas', monospace; /* 数字を等幅フォントに */
+}
+
+/* 仕入予測テーブルのカスタムツールチップ */
+#inventoryForecastTable td.forecast-cell-tooltip {
+    overflow: visible;
+}
+
+.forecast-cell-tooltip {
+    position: relative;
+}
+
+.forecast-cell-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(45, 52, 54, 0.95);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    z-index: 100;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 6px;
+}
+
+.forecast-cell-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(45, 52, 54, 0.95);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.forecast-cell-tooltip:hover::after,
+.forecast-cell-tooltip:hover::before {
+    opacity: 1;
+    visibility: visible;
 }
