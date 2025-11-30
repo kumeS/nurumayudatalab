@@ -24,10 +24,22 @@
     
     <div class="upload-area">
       <div class="upload-zone" id="dropZone">
-        <span class="upload-icon">📁</span>
-        <p class="upload-text">XLSXファイルをドラッグ＆ドロップ</p>
-        <p class="upload-subtext">または クリックしてファイルを選択（複数対応）</p>
-        <p class="upload-note">※ 一度に20ファイル程度までの読み込みを推奨しています。それ以上はブラウザ性能に依存します。</p>
+        <div class="upload-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 16V4" stroke="url(#upload_gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 8L12 4L16 8" stroke="url(#upload_gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M20 16V20H4V16" stroke="url(#upload_gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="upload_gradient" x1="4" y1="20" x2="20" y2="4" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#ff9966"/>
+                <stop offset="1" stop-color="#ff5e62"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="upload-text">XLSXファイルをドラッグ&ドロップ</div>
+        <div class="upload-subtext">または クリックしてファイルを選択（複数対応）</div>
+        <div class="upload-note">※ 一度に20ファイル程度までの読み込みを推奨しています。それ以上はブラウザ性能に依存します。</div>
         <input type="file" id="fileInput" multiple accept=".xlsx,.xls">
       </div>
     </div>
@@ -44,6 +56,7 @@
           <option value="ship-desc">出荷数量が多い順</option>
           <option value="ship-asc">出荷数量が少ない順</option>
           <option value="domestic-desc">中国内送料が高い順</option>
+          <option value="url-asc">商品ページのURL順</option>
         </select>
       </label>
     </div>

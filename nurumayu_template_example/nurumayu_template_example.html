@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nurumayu UIテンプレート - 使用例</title>
+    <link rel="stylesheet" href="nurumayu_template.css">
+</head>
+<body>
+    <div style="max-width: 1400px; margin: 0 auto;">
+
+        <!-- ========================================
+             1. ヘッダーサンプル
+             ======================================== -->
+        <div class="header">
+            <h1>
+                <svg class="header-icon" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="header_icon_gradient" x1="6" y1="34" x2="34" y2="4" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#ff9966"/>
+                            <stop offset="1" stop-color="#ff5e62"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M8 30H14V16H8V30Z" fill="url(#header_icon_gradient)" fill-opacity="0.8"/>
+                    <path d="M17 30H23V10H17V30Z" fill="url(#header_icon_gradient)" fill-opacity="0.8"/>
+                    <path d="M26 30H32V4H26V30Z" fill="url(#header_icon_gradient)" fill-opacity="0.8"/>
+                    <path d="M6 34H34" stroke="url(#header_icon_gradient)" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                <span class="nuruma-gradient">Nurumayu UIテンプレート</span>
+            </h1>
+            <div style="color: var(--text-secondary); font-size: 15px; margin-top: 10px;">
+                モダンで洗練されたUIコンポーネントのサンプル集
+            </div>
+        </div>
+
+        <!-- ========================================
+             2. ボタンサンプル
+             ======================================== -->
+        <div class="card animate-fadeIn">
+            <h2 style="margin-bottom: 20px;">ボタンサンプル</h2>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <button class="btn-primary">プライマリーボタン</button>
+                <button class="btn-secondary">セカンダリーボタン</button>
+                <button class="btn-success">成功ボタン</button>
+            </div>
+        </div>
+
+        <!-- ========================================
+             3. カードグリッドサンプル
+             ======================================== -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 25px; margin-top: 30px;">
+            <div class="card">
+                <div class="card-label">総売上</div>
+                <div class="card-value">¥1,234,567</div>
+                <div class="card-change positive">↑ 15.3%</div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">粗利益</div>
+                <div class="card-value">¥567,890</div>
+                <div class="card-change positive">↑ 8.2%</div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">経費</div>
+                <div class="card-value">¥234,567</div>
+                <div class="card-change negative">↓ 3.1%</div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">純利益</div>
+                <div class="card-value">¥333,323</div>
+                <div class="card-change positive">↑ 12.5%</div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             4. アップロードゾーンサンプル
+             ======================================== -->
+        <div style="background: white; border-radius: var(--radius-lg); padding: 30px; margin-top: 30px; box-shadow: var(--card-shadow);">
+            <h2 style="margin-bottom: 20px;">ファイルアップロード</h2>
+            <div class="upload-zone">
+                <div class="upload-icon">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="upload_gradient" x1="4" y1="20" x2="20" y2="4" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#ff9966"/>
+                                <stop offset="1" stop-color="#ff5e62"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M12 16V4" stroke="url(#upload_gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M8 8L12 4L16 8" stroke="url(#upload_gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 16V20H4V16" stroke="url(#upload_gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div style="color: var(--text-primary); font-size: 18px; font-weight: 700; margin-bottom: 10px;">
+                    ファイルをドラッグ&ドロップ
+                </div>
+                <div style="color: var(--text-secondary); font-size: 14px;">
+                    またはクリックしてファイルを選択
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             5. タブサンプル
+             ======================================== -->
+        <div style="background: white; border-radius: var(--radius-lg); padding: 30px; margin-top: 30px; box-shadow: var(--card-shadow);">
+            <h2 style="margin-bottom: 20px;">タブナビゲーション</h2>
+            <div class="table-tabs">
+                <button class="tab-button active">概要</button>
+                <button class="tab-button">詳細データ</button>
+                <button class="tab-button">統計情報</button>
+                <button class="tab-button">設定</button>
+            </div>
+            <div style="padding: 20px; color: var(--text-secondary);">
+                タブコンテンツがここに表示されます
+            </div>
+        </div>
+
+        <!-- ========================================
+             6. テーブルサンプル
+             ======================================== -->
+        <div style="background: white; border-radius: var(--radius-lg); padding: 30px; margin-top: 30px; box-shadow: var(--card-shadow);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>データテーブル</h2>
+                <button class="btn-success">📥 エクスポート</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>日付</th>
+                        <th>商品名</th>
+                        <th>売上</th>
+                        <th>利益</th>
+                        <th>利益率</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2025-01-01</td>
+                        <td>商品A</td>
+                        <td>¥50,000</td>
+                        <td class="profit-positive">¥15,000</td>
+                        <td class="profit-positive">30.0%</td>
+                    </tr>
+                    <tr>
+                        <td>2025-01-02</td>
+                        <td>商品B</td>
+                        <td>¥30,000</td>
+                        <td class="profit-positive">¥9,000</td>
+                        <td class="profit-positive">30.0%</td>
+                    </tr>
+                    <tr>
+                        <td>2025-01-03</td>
+                        <td>商品C</td>
+                        <td>¥20,000</td>
+                        <td class="profit-negative">-¥2,000</td>
+                        <td class="profit-negative">-10.0%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ========================================
+             7. バッジサンプル
+             ======================================== -->
+        <div class="card" style="margin-top: 30px;">
+            <h2 style="margin-bottom: 20px;">バッジ</h2>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <span class="badge badge-primary">新着</span>
+                <span class="badge badge-success">完了</span>
+                <span class="badge badge-danger">エラー</span>
+                <span class="badge badge-warning">警告</span>
+                <span class="badge badge-info">情報</span>
+            </div>
+        </div>
+
+        <!-- ========================================
+             8. 期間セレクターサンプル
+             ======================================== -->
+        <div class="period-selector" style="margin-top: 30px;">
+            <button class="period-button">今日</button>
+            <button class="period-button">今週</button>
+            <button class="period-button active">今月</button>
+            <button class="period-button">先月</button>
+            <button class="period-button">今年</button>
+            <button class="period-button">全期間</button>
+        </div>
+
+        <!-- ========================================
+             9. ローディングスピナーサンプル
+             ======================================== -->
+        <div class="card" style="margin-top: 30px;">
+            <h2 style="margin-bottom: 20px;">ローディングスピナー</h2>
+            <div style="text-align: center; padding: 40px;">
+                <div class="spinner" style="margin: 0 auto 20px;"></div>
+                <div style="color: var(--text-secondary);">データを読み込み中...</div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             10. チャートコンテナサンプル
+             ======================================== -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 30px; margin-top: 30px;">
+            <div class="chart-container">
+                <div class="chart-title">📈 売上推移</div>
+                <div class="chart-canvas" style="display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+                    チャートがここに表示されます
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">📊 収支構成</div>
+                <div class="chart-canvas" style="display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+                    チャートがここに表示されます
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             11. グラデーションテキストサンプル
+             ======================================== -->
+        <div class="card" style="margin-top: 30px;">
+            <h1 class="nuruma-gradient" style="font-size: 36px; margin-bottom: 15px;">
+                グラデーションテキスト
+            </h1>
+            <p style="color: var(--text-secondary);">
+                .nuruma-gradientクラスを使用すると、テキストにブランドカラーのグラデーションを適用できます。
+            </p>
+        </div>
+
+        <!-- ========================================
+             12. インフォアイコンサンプル
+             ======================================== -->
+        <div class="card" style="margin-top: 30px; margin-bottom: 40px;">
+            <h2 style="margin-bottom: 20px;">
+                インフォアイコン
+                <span class="info-icon">i</span>
+            </h2>
+            <p style="color: var(--text-secondary);">
+                インフォアイコンをホバーすると、追加情報を表示できます。<br>
+                ツールチップ機能を実装することで、ユーザーエクスペリエンスを向上させます。
+            </p>
+        </div>
+
+        <!-- モーダルボタン -->
+        <div class="text-center" style="margin: 40px 0;">
+            <button class="btn-primary" onclick="document.getElementById('sampleModal').classList.add('active')">
+                モーダルを開く
+            </button>
+        </div>
+
+    </div>
+
+    <!-- ========================================
+         モーダルサンプル
+         ======================================== -->
+    <div class="modal" id="sampleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>サンプルモーダル</h2>
+                <span class="close-modal" onclick="document.getElementById('sampleModal').classList.remove('active')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; line-height: 1.8;">
+                    これはモーダルウィンドウのサンプルです。<br>
+                    重要な情報や詳細な設定画面などを表示するのに適しています。
+                </p>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: var(--radius-md); border-left: 4px solid var(--primary);">
+                    <strong>ポイント:</strong><br>
+                    - 背景をクリックしても閉じるようにJavaScriptを実装できます<br>
+                    - Escキーで閉じる機能も追加可能です<br>
+                    - アニメーション付きで滑らかに表示されます
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="document.getElementById('sampleModal').classList.remove('active')">キャンセル</button>
+                <button class="btn-primary" onclick="alert('確定しました！'); document.getElementById('sampleModal').classList.remove('active')">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // モーダル背景クリックで閉じる
+        document.getElementById('sampleModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('active');
+            }
+        });
+
+        // タブ切り替え
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // 期間セレクター
+        document.querySelectorAll('.period-button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.period-button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // アップロードゾーンのドラッグ&ドロップ
+        const uploadZone = document.querySelector('.upload-zone');
+        if (uploadZone) {
+            uploadZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+
+            uploadZone.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+
+            uploadZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                alert('ファイルがドロップされました！');
+            });
+
+            uploadZone.addEventListener('click', function() {
+                alert('ファイル選択ダイアログを開きます');
+            });
+        }
+    </script>
+</body>
+</html>

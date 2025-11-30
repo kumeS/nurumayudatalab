@@ -8,3 +8,30 @@ CSVをドラッグ＆ドロップした際にブラウザのデフォルト挙�
 [解決策]
 1. グローバルなdragenter/dragover/dragleave/dropリスナーを旧実装同様にバブリングフェーズ（useCapture=false）で登録し、preventDefaultが確実に発火するよう戻す。
 2. setupEventListeners()の呼び出しをinit()完了後に移す、もしくはhandleFiles内でDB初期化完了を待つガードを入れ、dbがnullの状態でsaveDataToDBを呼ばないようにする。
+
+[解決日] 2025-11-30
+
+[実装した修正内容]
+1. イベントリスナーを2つのメソッドに分割
+   - setupGlobalDragDropPrevention(): constructor内で即座に実行、ブラウザのデフォルト挙動を抑止（capture: false維持）
+   - setupFileAndUIHandlers(): init()のIndexedDB初期化完了後に実行、ファイル処理リスナーを安全に設定
+
+2. handleFiles()に第1防衛線を追加
+   - DB未初期化時は最大10秒待機するガード処理
+   - タイムアウト時はユーザーにエラーメッセージを表示
+
+3. processFileWithDuplicateCheck()に第2防衛線を追加
+   - saveDataToDB()呼び出し前に念のため二重チェック
+   - this.dataManager.dbがnullの場合は処理をスキップしてエラーログ出力
+
+4. chart_manager.jsの重複宣言エラーを修正
+   - line 73の `const selmonDaily` 重複宣言を削除
+
+[検証結果]
+- ✅ 2025_08_セルモン.csv (3件) アップロード成功
+- ✅ 2025_9_1～2025_9_30の期間の取引.csv (174件) アップロード成功
+- ✅ IndexedDBへの保存成功
+- ✅ ダッシュボード表示正常
+- ✅ コンソールにDB関連エラーなし
+
+[ステータス] ✅ 解決済み

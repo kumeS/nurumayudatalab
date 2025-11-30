@@ -1,0 +1,973 @@
+/*
+ * ========================================
+ * Nurumayu UI Design Template v1.0
+ * ========================================
+ *
+ * 【デザインコンセプト】
+ * - 温かみのあるオレンジ系グラデーションをメインカラーに採用
+ * - モダンで洗練されたカードベースのレイアウト
+ * - 滑らかなアニメーションとホバーエフェクト
+ * - 直感的で視認性の高いUIコンポーネント
+ *
+ * 【主な特徴】
+ * 1. グラデーション効果の積極的活用
+ * 2. 柔らかいシャドウと丸みのある角
+ * 3. インタラクティブなホバー/アクティブ状態
+ * 4. SVGアイコンへのグラデーション適用
+ * 5. スムーズなトランジションアニメーション
+ *
+ * 【使い方】
+ * 1. このファイルを新規プロジェクトにインポート
+ * 2. カラー変数をカスタマイズ（必要に応じて）
+ * 3. 各クラスを適用してコンポーネントを構築
+ *
+ * 【カスタマイズ方法】
+ * - :root内の変数を変更してカラースキームを調整
+ * - グラデーション角度や色配分を変更して雰囲気を変更
+ * - アニメーション速度やイージング関数を調整
+ *
+ * 【ブラウザサポート】
+ * - Chrome/Edge (最新版)
+ * - Firefox (最新版)
+ * - Safari (最新版)
+ * - backdrop-filter使用のため、一部古いブラウザでは代替スタイルが適用されます
+ */
+
+/* ========================================
+   1. CSS変数定義（カラーパレット・サイズ）
+   ======================================== */
+:root {
+    /* メインカラー：オレンジ系グラデーション */
+    --primary: #ff9966;
+    --secondary: #ff5e62;
+
+    /* アクセントカラー：青系グラデーション */
+    --accent: #00C9FF;
+    --accent-secondary: #92FE9D;
+
+    /* テキストカラー */
+    --text-primary: #2d3436;
+    --text-secondary: #636e72;
+
+    /* 背景カラー */
+    --bg-color: #f0f2f5;
+    --card-bg: #ffffff;
+
+    /* シャドウ */
+    --card-shadow: 0 10px 20px rgba(0, 0, 0, 0.05), 0 6px 6px rgba(0, 0, 0, 0.05);
+    --hover-shadow: 0 15px 30px rgba(255, 94, 98, 0.15), 0 10px 10px rgba(0, 0, 0, 0.05);
+
+    /* ステータスカラー */
+    --success-color: #00b894;
+    --danger-color: #d63031;
+    --warning-color: #fdcb6e;
+    --info-color: #0984e3;
+
+    /* サイズ定義 */
+    --radius-lg: 20px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+
+    /* トランジション速度 */
+    --transition-speed: 0.3s;
+}
+
+/* ========================================
+   2. リセット・基本スタイル
+   ======================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+/* ========================================
+   3. グラデーション定義（汎用クラス）
+   ======================================== */
+
+/* テキストグラデーション */
+.nuruma-gradient {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* 背景グラデーション */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+}
+
+.bg-gradient-accent {
+    background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+}
+
+.bg-gradient-success {
+    background: linear-gradient(135deg, var(--success-color), #00cec9);
+}
+
+.bg-gradient-subtle {
+    background: linear-gradient(135deg, rgba(255, 153, 102, 0.05), rgba(255, 94, 98, 0.1));
+}
+
+/* ========================================
+   4. SVGアイコン用グラデーション定義
+   ======================================== */
+
+/*
+ * SVG内で使用するグラデーション定義
+ * 使用例：
+ * <svg>
+ *   <defs>
+ *     <linearGradient id="icon_gradient" ...>...</linearGradient>
+ *   </defs>
+ *   <path fill="url(#icon_gradient)" .../>
+ * </svg>
+ */
+
+/* グラデーション定義サンプル（HTMLに挿入して使用） */
+/*
+<defs>
+    <linearGradient id="icon_gradient" x1="0%" y1="0%" x2="100%" y2="100%" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#ff9966"/>
+        <stop offset="100%" stop-color="#ff5e62"/>
+    </linearGradient>
+</defs>
+*/
+
+/* ========================================
+   5. ボタンスタイル
+   ======================================== */
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(255, 94, 98, 0.3);
+    letter-spacing: 0.5px;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 94, 98, 0.4);
+    filter: brightness(1.1);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background: white;
+    color: var(--text-secondary);
+    border: 1px solid #ddd;
+    padding: 0.8rem 1.5rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+}
+
+.btn-secondary:hover {
+    background: #f8f9fa;
+    border-color: #ccc;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--success-color), #00cec9);
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    box-shadow: 0 4px 10px rgba(0, 184, 148, 0.3);
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 184, 148, 0.4);
+    filter: brightness(1.1);
+}
+
+/* ========================================
+   6. カードデザイン
+   ======================================== */
+
+.card {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: 25px;
+    box-shadow: var(--card-shadow);
+    transition: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.03);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* カード上部のグラデーションバー */
+.card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    opacity: 0.8;
+}
+
+.card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--hover-shadow);
+}
+
+/* カードラベル */
+.card-label {
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* カード値 */
+.card-value {
+    color: var(--text-primary);
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 5px;
+    letter-spacing: -0.5px;
+}
+
+/* カード変動表示 */
+.card-change {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+}
+
+.card-change.positive {
+    color: var(--success-color);
+    background: rgba(0, 184, 148, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+}
+
+.card-change.negative {
+    color: var(--danger-color);
+    background: rgba(214, 48, 49, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+}
+
+/* ========================================
+   7. ヘッダーデザイン
+   ======================================== */
+
+.header {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: var(--radius-lg);
+    padding: 30px 40px;
+    margin-bottom: 30px;
+    box-shadow: var(--card-shadow);
+    animation: slideDown 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.header h1 {
+    font-size: 32px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: var(--text-primary);
+}
+
+/* ヘッダーアイコンのホバーエフェクト */
+.header-icon {
+    filter: drop-shadow(0 4px 8px rgba(255, 94, 98, 0.3));
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.header:hover .header-icon {
+    transform: translateY(-2px) scale(1.1);
+    filter: drop-shadow(0 8px 12px rgba(255, 94, 98, 0.4));
+}
+
+/* ========================================
+   8. アップロードエリア
+   ======================================== */
+
+.upload-zone {
+    border: 3px dashed #e0e0e0;
+    border-radius: var(--radius-md);
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    background: #fafafa;
+    position: relative;
+    overflow: hidden;
+}
+
+.upload-zone::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 153, 102, 0.1), rgba(255, 94, 98, 0.1));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 0;
+}
+
+.upload-zone:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.upload-zone:hover::before {
+    opacity: 1;
+}
+
+.upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0, 201, 255, 0.05);
+    transform: scale(1.01);
+}
+
+.upload-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    display: inline-block;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+    transition: transform 0.3s ease;
+}
+
+.upload-zone:hover .upload-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+/* ========================================
+   9. テーブルスタイル
+   ======================================== */
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+th {
+    background: #f8f9fa;
+    color: var(--text-secondary);
+    font-weight: 700;
+    text-align: left;
+    padding: 15px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #eee;
+    white-space: nowrap;
+}
+
+th:first-child {
+    border-top-left-radius: var(--radius-sm);
+}
+
+th:last-child {
+    border-top-right-radius: var(--radius-sm);
+}
+
+td {
+    padding: 15px;
+    border-bottom: 1px solid #f0f0f0;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover td {
+    background: rgba(255, 153, 102, 0.03);
+}
+
+/* 利益表示カラー */
+.profit-positive {
+    color: var(--success-color);
+    font-weight: 700;
+}
+
+.profit-negative {
+    color: var(--danger-color);
+    font-weight: 700;
+}
+
+/* ========================================
+   10. タブスタイル
+   ======================================== */
+
+.table-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 0;
+    border-bottom: 2px solid #f0f0f0;
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+
+.tab-button {
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+}
+
+.tab-button:hover {
+    color: var(--primary);
+    background: rgba(255, 153, 102, 0.05);
+}
+
+.tab-button.active {
+    color: white;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    box-shadow: 0 4px 10px rgba(255, 94, 98, 0.3);
+}
+
+/* ========================================
+   11. モーダルスタイル
+   ======================================== */
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    animation: fadeIn 0.3s ease;
+}
+
+.modal.active {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 1000px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+    animation: slideDown 0.3s ease;
+    border: none;
+}
+
+.modal-header {
+    background: linear-gradient(to right, #f8f9fa, #fff);
+    padding: 25px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    font-size: 24px;
+    background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+}
+
+.close-modal {
+    color: var(--text-secondary);
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.close-modal:hover {
+    color: var(--danger-color);
+}
+
+.modal-body {
+    padding: 30px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    padding: 20px 30px;
+    background: #f8f9fa;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* ========================================
+   12. アニメーション定義
+   ======================================== */
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* アニメーションクラス */
+.animate-slideDown {
+    animation: slideDown 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.8s ease;
+}
+
+.animate-slideIn {
+    animation: slideIn 0.4s ease;
+}
+
+.animate-bounce {
+    animation: bounce 2s infinite;
+}
+
+/* ========================================
+   13. ローディングスピナー
+   ======================================== */
+
+.spinner {
+    border: 4px solid rgba(255, 153, 102, 0.1);
+    border-top: 4px solid var(--primary);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+}
+
+.loading {
+    display: none;
+    text-align: center;
+    padding: 40px;
+}
+
+.loading.active {
+    display: block;
+}
+
+/* ========================================
+   14. スクロールバーカスタマイズ
+   ======================================== */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #bbb;
+}
+
+/* ========================================
+   15. インフォアイコン
+   ======================================== */
+
+.info-icon {
+    cursor: pointer;
+    font-size: 0.75em;
+    margin-left: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    font-weight: bold;
+    font-style: normal;
+    text-transform: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    user-select: none;
+    vertical-align: middle;
+}
+
+.info-icon:hover {
+    transform: scale(1.15);
+    box-shadow: 0 2px 8px rgba(255, 126, 95, 0.4);
+}
+
+/* ========================================
+   16. バッジ
+   ======================================== */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-primary {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+}
+
+.badge-success {
+    background: var(--success-color);
+}
+
+.badge-danger {
+    background: var(--danger-color);
+}
+
+.badge-warning {
+    background: var(--warning-color);
+}
+
+.badge-info {
+    background: var(--info-color);
+}
+
+/* ========================================
+   17. 期間セレクター
+   ======================================== */
+
+.period-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: white;
+    padding: 15px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--card-shadow);
+}
+
+.period-button {
+    padding: 8px 20px;
+    border: 2px solid transparent;
+    background: #f0f2f5;
+    color: var(--text-secondary);
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.period-button:hover {
+    background: #e4e6eb;
+    transform: translateY(-1px);
+}
+
+.period-button.active {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    box-shadow: 0 4px 10px rgba(255, 94, 98, 0.3);
+}
+
+/* ========================================
+   18. レスポンシブデザイン
+   ======================================== */
+
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    .header {
+        padding: 20px;
+    }
+
+    .header h1 {
+        font-size: 24px;
+    }
+
+    .card {
+        padding: 20px;
+    }
+
+    .card-value {
+        font-size: 22px;
+    }
+
+    .modal-content {
+        width: 95%;
+    }
+}
+
+/* ========================================
+   19. ユーティリティクラス
+   ======================================== */
+
+/* 中央配置 */
+.text-center {
+    text-align: center;
+}
+
+/* フレックス */
+.flex {
+    display: flex;
+}
+
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.flex-between {
+    display: flex;
+    justify-content: space-between;
+}
+
+/* 余白 */
+.mt-10 { margin-top: 10px; }
+.mt-20 { margin-top: 20px; }
+.mt-30 { margin-top: 30px; }
+.mb-10 { margin-bottom: 10px; }
+.mb-20 { margin-bottom: 20px; }
+.mb-30 { margin-bottom: 30px; }
+
+/* 表示切り替え */
+.hidden {
+    display: none;
+}
+
+.visible {
+    display: block;
+}
+
+/* ========================================
+   20. チャートコンテナ
+   ======================================== */
+
+.chart-container {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: 30px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid rgba(0,0,0,0.03);
+}
+
+.chart-title {
+    color: var(--text-primary);
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.chart-canvas {
+    position: relative;
+    height: 350px;
+}
+
+/* ========================================
+   使用例とテンプレート
+   ========================================
+
+【基本カード】
+<div class="card">
+    <div class="card-label">ラベル</div>
+    <div class="card-value">¥10,000</div>
+    <div class="card-change positive">+5%</div>
+</div>
+
+【ボタン】
+<button class="btn-primary">プライマリーボタン</button>
+<button class="btn-secondary">セカンダリーボタン</button>
+<button class="btn-success">成功ボタン</button>
+
+【グラデーションテキスト】
+<h1 class="nuruma-gradient">グラデーションタイトル</h1>
+
+【SVGアイコン（グラデーション付き）】
+<svg width="40" height="40" viewBox="0 0 40 40">
+    <defs>
+        <linearGradient id="icon_gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ff9966"/>
+            <stop offset="100%" stop-color="#ff5e62"/>
+        </linearGradient>
+    </defs>
+    <rect width="40" height="40" fill="url(#icon_gradient)"/>
+</svg>
+
+【モーダル】
+<div class="modal" id="myModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>モーダルタイトル</h2>
+            <span class="close-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+            モーダルコンテンツ
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary">キャンセル</button>
+            <button class="btn-primary">確定</button>
+        </div>
+    </div>
+</div>
+
+【タブ】
+<div class="table-tabs">
+    <button class="tab-button active">タブ1</button>
+    <button class="tab-button">タブ2</button>
+    <button class="tab-button">タブ3</button>
+</div>
+
+【バッジ】
+<span class="badge badge-primary">新着</span>
+<span class="badge badge-success">成功</span>
+<span class="badge badge-danger">エラー</span>
+
+*/
+
+/* ========================================
+   カスタマイズのヒント
+   ========================================
+
+   1. カラースキームの変更:
+      :root内の--primary, --secondaryを変更
+      例: 青系にする場合
+      --primary: #4facfe;
+      --secondary: #00f2fe;
+
+   2. 角の丸みを調整:
+      --radius-lg, --radius-md, --radius-smを変更
+
+   3. アニメーション速度:
+      --transition-speedを変更
+
+   4. シャドウの強さ:
+      --card-shadow, --hover-shadowを調整
+
+   5. グラデーション角度の変更:
+      linear-gradient(135deg, ...) の135degを変更
+      0deg = 下から上
+      90deg = 左から右
+      180deg = 上から下
+      270deg = 右から左
+
+   ======================================== */

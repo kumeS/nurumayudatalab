@@ -70,7 +70,6 @@ class ChartManager {
                 return total - selmon;
             });
             profitData = allDates.map(date => data.dailyData[date] ? data.dailyData[date].profit : 0);
-            const selmonDaily = data.selmonDailyData || {};
             selmonData = allDates.map(date => selmonDaily[date] ? (selmonDaily[date].sales || 0) : 0);
             selmonNetSeries = allDates.map(date => {
                 const entry = selmonDaily[date];

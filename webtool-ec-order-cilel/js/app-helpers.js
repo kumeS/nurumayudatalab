@@ -72,6 +72,13 @@ function formatShipmentValue(value) {
   return value;
 }
 
+function getFirstUrl(siteUrlText) {
+  if (!siteUrlText) return '';
+  const matches = String(siteUrlText).match(/https?:\/\/[^\s]+/g);
+  if (!matches || matches.length === 0) return '';
+  return matches[0];
+}
+
 function renderProductLinks(siteUrlText) {
   if (!siteUrlText) return '';
   const matches = String(siteUrlText).match(/https?:\/\/[^\s]+/g);
@@ -99,6 +106,21 @@ function sortProducts(items) {
   if (productSortMode === 'default') return items;
   const sorted = [...items];
   const isAsc = productSortMode.endsWith('-asc');
+
+  // URL順の場合は文字列ソート
+  if (productSortMode === 'url-asc') {
+    sorted.sort((a, b) => {
+      const urlA = getFirstUrl(a.siteUrl) || '';
+      const urlB = getFirstUrl(b.siteUrl) || '';
+      if (!urlA && !urlB) return 0;
+      if (!urlA) return 1;
+      if (!urlB) return -1;
+      return urlA.localeCompare(urlB);
+    });
+    return sorted;
+  }
+
+  // 数値ソート
   sorted.sort((a, b) => {
     const valA = getSortMetric(a, productSortMode);
     const valB = getSortMetric(b, productSortMode);

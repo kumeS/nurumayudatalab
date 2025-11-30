@@ -3,25 +3,28 @@ class AmazonDashboard {
         this.dataManager = new DataManager();
         this.uiManager = new UIManager(this.dataManager, this);
         this.chartManager = new ChartManager(this.dataManager, this.uiManager);
-        
+
         this.currentPeriod = null;
         this.currentSubPeriod = 'all';
-        
-        // イベントリスナーを初期化の最初に設定（DOM要素が存在することを前提）
-        // これにより、データの読み込みを待たずにドラッグ＆ドロップの制御が有効になる
-        // IMPORTANT: Do not move file-handling logic ahead of IndexedDB init.
-        // setupEventListeners must only trigger uploads after init() resolves,
-        // otherwise saveDataToDB will run with this.dataManager.db === null.
-        this.setupEventListeners();
+
+        // グローバルなドラッグ＆ドロップ防止を最初に設定
+        // これにより、データの読み込みを待たずにブラウザのデフォルト挙動を抑止できる
+        this.setupGlobalDragDropPrevention();
 
         this.init();
     }
 
     async init() {
         await this.dataManager.initIndexedDB();
+
+        // IndexedDB初期化完了後にファイル処理リスナーを設定
+        // IMPORTANT: これによりhandleFiles→saveDataToDBが呼ばれた際に
+        // this.dataManager.dbがnullにならないことを保証
+        this.setupFileAndUIHandlers();
+
         this.dataManager.loadProductSettings();
         const hasData = await this.dataManager.loadDataFromDB();
-        
+
         this.currentPeriod = localStorage.getItem('amazon_dashboard_current_period');
         this.currentSubPeriod = localStorage.getItem('amazon_dashboard_current_sub_period') || 'all';
         const savedTab = localStorage.getItem('amazon_dashboard_active_tab') || 'daily';
@@ -34,12 +37,11 @@ class AmazonDashboard {
         }
     }
 
-    setupEventListeners() {
+    setupGlobalDragDropPrevention() {
         const uploadZone = document.getElementById('uploadZone');
-        const fileInput = document.getElementById('fileInput');
 
         // ---------------------------------------------------------
-        // 1. Window/Document全体でのドラッグ＆ドロップ無効化 (Global Prevention)
+        // Window/Document全体でのドラッグ＆ドロップ無効化 (Global Prevention)
         // ---------------------------------------------------------
         // ブラウザのデフォルト動作（ファイルを開く/ダウンロード）を阻止
         // IMPORTANT: keep these listeners in the bubbling phase. Moving them
@@ -63,18 +65,25 @@ class AmazonDashboard {
             window.addEventListener(eventName, preventGlobal, globalDragOptions);
             document.addEventListener(eventName, preventGlobal, globalDragOptions);
         });
+    }
+
+    setupFileAndUIHandlers() {
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
 
         // ---------------------------------------------------------
-        // 2. UploadZoneでのドラッグ＆ドロップ有効化 (Local Handling)
+        // UploadZoneでのドラッグ＆ドロップ有効化とファイル処理 (Local Handling)
         // ---------------------------------------------------------
+        // IMPORTANT: このメソッドはIndexedDB初期化後に呼ばれるため、
+        // handleFiles→saveDataToDBが安全に実行できる
         uploadZone.addEventListener('click', () => fileInput.click());
-        
+
         uploadZone.addEventListener('dragenter', (e) => {
             e.preventDefault();
             e.stopPropagation(); // バブリングを止めてGlobalに行かせない
             uploadZone.classList.add('drag-over');
         });
-        
+
         uploadZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation(); // バブリングを止めてGlobalに行かせない
@@ -85,7 +94,7 @@ class AmazonDashboard {
         uploadZone.addEventListener('dragleave', (e) => {
             e.preventDefault();
             e.stopPropagation(); // バブリングを止めてGlobalに行かせない
-            
+
             // relatedTargetがuploadZoneの内部にある場合はクラスを削除しない
             if (e.relatedTarget && uploadZone.contains(e.relatedTarget)) {
                 return;
@@ -96,9 +105,9 @@ class AmazonDashboard {
         uploadZone.addEventListener('drop', (e) => {
             e.preventDefault();
             e.stopPropagation(); // バブリングを止めてGlobalに行かせない
-            
+
             uploadZone.classList.remove('drag-over');
-            
+
             const files = e.dataTransfer.files;
             if (files && files.length > 0) {
                 this.handleFiles(files);
@@ -129,7 +138,24 @@ class AmazonDashboard {
     }
 
     async handleFiles(files) {
-        const csvFiles = Array.from(files).filter(file => 
+        // CRITICAL: IndexedDB初期化完了を待つ
+        // this.dataManager.dbがnullの状態でsaveDataToDBを呼ばないようにする
+        if (!this.dataManager.db) {
+            console.log('IndexedDB初期化を待機中...');
+            // DB初期化が完了するまで最大10秒待機
+            let waitCount = 0;
+            while (!this.dataManager.db && waitCount < 100) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                waitCount++;
+            }
+
+            if (!this.dataManager.db) {
+                alert('データベースの初期化に失敗しました。ページをリロードしてください。');
+                return;
+            }
+        }
+
+        const csvFiles = Array.from(files).filter(file =>
             file.type === 'text/csv' || file.name.endsWith('.csv')
         );
 
@@ -173,6 +199,13 @@ class AmazonDashboard {
             timestamp: new Date().toISOString(),
             sourceType
         });
+
+        // CRITICAL: saveDataToDB呼び出し前にDB初期化を確認
+        // 通常はhandleFiles()で既にチェック済みだが、念のため二重チェック
+        if (!this.dataManager.db) {
+            console.error('DB未初期化エラー: saveDataToDBをスキップします');
+            return;
+        }
 
         await this.dataManager.saveDataToDB(file.name, rows, file.size, sourceType);
         console.log(`${file.name}を読み込みました (${rows.length}件)`);
@@ -430,6 +463,10 @@ class AmazonDashboard {
 
     toggleUsageInfo(btn) {
         this.uiManager.toggleUsageInfo(btn);
+    }
+
+    toggleFileList(btn) {
+        this.uiManager.toggleFileList(btn);
     }
 
     showExpenseInfo(event) {
