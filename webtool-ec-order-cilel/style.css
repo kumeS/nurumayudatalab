@@ -761,6 +761,15 @@ body {
   border-color: var(--primary);
 }
 
+/* 同じ画像の連動ハイライト */
+.thumbnail-img.highlighted {
+  border-color: var(--secondary);
+  border-width: 2.5px;
+  transform: scale(2);
+  z-index: 12;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25), 0 0 12px rgba(255, 94, 98, 0.6);
+}
+
 .no-images {
   font-size: 12px;
   color: var(--text-secondary);

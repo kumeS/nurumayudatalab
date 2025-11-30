@@ -414,6 +414,22 @@ function extractImageUrl(text) {
   return null;
 }
 
+// Build a highlight key for thumbnails; keep search params to avoid over-grouping
+function buildImageKey(imageUrl) {
+  if (!imageUrl) return '';
+  if (imageUrl.startsWith('data:')) {
+    return imageUrl.slice(0, 200); // keep it short for data URIs
+  }
+  try {
+    const urlObj = new URL(imageUrl, window.location.href);
+    // Keep search params to avoid過剰マージ; hashは無視
+    urlObj.hash = '';
+    return urlObj.toString();
+  } catch (e) {
+    return imageUrl;
+  }
+}
+
 function collectSituationEntries(item) {
   if (!item) return [];
   if (Array.isArray(item._situations) && item._situations.length > 0) {
@@ -566,14 +582,17 @@ function renderSummaryContent() {
     const items = data.items || [];
     const orderMeta = data.orderMeta || {};
 
-    // Collect all unique images from items
+    // Collect all images (allow duplicates; grouping is done by highlight key = raw URL)
     const images = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const imageUrl = item._embeddedImage || extractImageUrl(item.photo) || extractImageUrl(item.siteUrl);
-      if (imageUrl && !images.includes(imageUrl)) {
-        images.push(imageUrl);
-      }
+      if (!imageUrl) continue;
+      const imageKey = String(imageUrl);
+      images.push({
+        imageUrl,
+        imageKey
+      });
     }
 
     // Parse international shipping
@@ -666,8 +685,11 @@ function renderSummaryContent() {
     // Render image thumbnails
     let imageThumbnails = '<div class="image-thumbnails">';
     if (file.images.length > 0) {
-      file.images.forEach(imageUrl => {
-        imageThumbnails += `<img src="${imageUrl}" alt="商品" class="thumbnail-img" onerror="this.style.display='none'">`;
+      file.images.forEach(imageInfo => {
+        const imageUrl = imageInfo.imageUrl;
+        const imageKey = (imageInfo.imageKey || buildImageKey(imageUrl) || '').trim();
+        const highlightKey = (imageInfo.imageUrl || imageKey || '').trim();
+        imageThumbnails += `<img src="${escapeHtml(imageUrl)}" alt="商品" class="thumbnail-img" data-image-url="${escapeHtml(imageUrl)}" data-image-key="${escapeHtml(imageKey)}" data-highlight-key="${escapeHtml(highlightKey)}" onerror="this.style.display='none'">`;
       });
     } else {
       imageThumbnails += '<span class="no-images">画像なし</span>';
@@ -698,4 +720,30 @@ function renderSummaryContent() {
       renderSummaryContent();
     });
   }
+
+  attachSummaryThumbnailHover();
+}
+
+// Highlight identical thumbnails across the summary table on hover/focus
+function attachSummaryThumbnailHover() {
+  const thumbnails = Array.from(document.querySelectorAll('.thumbnail-img'));
+  if (thumbnails.length === 0) return;
+
+  const syncHighlight = (key, shouldHighlight) => {
+    if (!key) return;
+    thumbnails.forEach(img => {
+      if (img.dataset.highlightKey === key) {
+        img.classList.toggle('highlighted', shouldHighlight);
+      }
+    });
+  };
+
+  thumbnails.forEach(thumbnail => {
+    const key = thumbnail.dataset.highlightKey;
+    if (!key) return; // skip thumbnails without product key (URL + unit price)
+    thumbnail.addEventListener('mouseenter', () => syncHighlight(key, true));
+    thumbnail.addEventListener('mouseleave', () => syncHighlight(key, false));
+    thumbnail.addEventListener('focus', () => syncHighlight(key, true));
+    thumbnail.addEventListener('blur', () => syncHighlight(key, false));
+  });
 }
