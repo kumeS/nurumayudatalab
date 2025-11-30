@@ -1,30 +1,72 @@
 function getDisplayData() {
   if (currentTab === 'all') {
     const merged = Object.values(allData).flatMap(d => d.items);
-    const uniqueMap = new Map();
-    merged.forEach(item => {
-      const url = (item.siteUrl || '').trim();
-      const unitPrice = String(item.unitPriceCny || '').trim();
-      if (!url && !unitPrice) {
-        const fallbackKey = JSON.stringify({
-          variant: (item.variant || '').trim(),
-          subtotal: (item.subtotal || '').toString().replace(/[^\d.]/g, '')
-        });
-        if (!uniqueMap.has(fallbackKey)) {
-          uniqueMap.set(fallbackKey, { ...item, _files: [item._fileName] });
-        } else {
-          uniqueMap.get(fallbackKey)._files.push(item._fileName);
+
+    // 重複をまとめるモードが有効な場合
+    if (mergeAllDuplicates) {
+      const uniqueMap = new Map();
+      merged.forEach(item => {
+        const url = (item.siteUrl || '').trim();
+        const unitPrice = String(item.unitPriceCny || '').trim();
+
+        // URL or unitPrice がない場合のフォールバックキー
+        if (!url && !unitPrice) {
+          const fallbackKey = JSON.stringify({
+            variant: (item.variant || '').trim(),
+            subtotal: (item.subtotal || '').toString().replace(/[^\d.]/g, '')
+          });
+
+          if (!uniqueMap.has(fallbackKey)) {
+            uniqueMap.set(fallbackKey, {
+              ...item,
+              _files: [item._fileName],
+              _situations: collectSituationEntries(item)
+            });
+          } else {
+            const existing = uniqueMap.get(fallbackKey);
+            existing._files.push(item._fileName);
+            appendSituationEntries(existing, collectSituationEntries(item));
+            console.log(`[Fallback] Merging item. Current situations:`, existing._situations);
+            // 金額を合計
+            const existingSubtotal = parseFloat(String(existing.subtotal).replace(/[¥,]/g, '')) || 0;
+            const itemSubtotal = parseFloat(String(item.subtotal).replace(/[¥,]/g, '')) || 0;
+            existing.subtotal = existingSubtotal + itemSubtotal;
+            // 数量を合計
+            existing.orderQty = (parseFloat(existing.orderQty) || 0) + (parseFloat(item.orderQty) || 0);
+            existing.shipQty = (parseFloat(existing.shipQty) || 0) + (parseFloat(item.shipQty) || 0);
+          }
+          return;
         }
-        return;
-      }
-      const key = `${url}|${unitPrice}`;
-      if (!uniqueMap.has(key)) {
-        uniqueMap.set(key, { ...item, _files: [item._fileName] });
-      } else {
-        uniqueMap.get(key)._files.push(item._fileName);
-      }
-    });
-    return Array.from(uniqueMap.values());
+
+        const key = `${url}|${unitPrice}`;
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, {
+            ...item,
+            _files: [item._fileName],
+            _situations: collectSituationEntries(item)
+          });
+        } else {
+          const existing = uniqueMap.get(key);
+          existing._files.push(item._fileName);
+          appendSituationEntries(existing, collectSituationEntries(item));
+          console.log(`[URL/Price] Merging item. Current situations:`, existing._situations);
+          // 金額を合計
+          const existingSubtotal = parseFloat(String(existing.subtotal).replace(/[¥,]/g, '')) || 0;
+          const itemSubtotal = parseFloat(String(item.subtotal).replace(/[¥,]/g, '')) || 0;
+          existing.subtotal = existingSubtotal + itemSubtotal;
+          // 数量を合計
+          existing.orderQty = (parseFloat(existing.orderQty) || 0) + (parseFloat(item.orderQty) || 0);
+          existing.shipQty = (parseFloat(existing.shipQty) || 0) + (parseFloat(item.shipQty) || 0);
+        }
+      });
+      return Array.from(uniqueMap.values());
+    }
+
+    // 重複をまとめないモード: すべての商品を表示
+    return merged.map(item => ({
+      ...item,
+      _files: [item._fileName]
+    }));
   }
   return allData[currentTab]?.items || [];
 }
@@ -36,16 +78,38 @@ function renderContent() {
     return;
   }
 
-  // Show product sort controls for non-summary tabs
+  // Show product sort controls and merge duplicates button for 'all' tab
   const tabControls = document.querySelector('.tab-controls');
   if (tabControls) {
     tabControls.style.display = '';
+
+    // Add merge duplicates button for 'all' tab only
+    if (currentTab === 'all') {
+      const existingMergeBtn = tabControls.querySelector('.merge-duplicates-control');
+      if (!existingMergeBtn) {
+        const mergeControl = document.createElement('label');
+        mergeControl.className = 'merge-duplicates-control';
+        mergeControl.innerHTML = `
+          <input type="checkbox" id="mergeDuplicatesCheckbox" ${mergeAllDuplicates ? 'checked' : ''}>
+          重複をまとめる
+        `;
+        tabControls.appendChild(mergeControl);
+      }
+    } else {
+      // Remove merge duplicates button for other tabs
+      const existingMergeBtn = tabControls.querySelector('.merge-duplicates-control');
+      if (existingMergeBtn) {
+        existingMergeBtn.remove();
+      }
+    }
   }
 
   const data = getDisplayData();
   const displayData = sortProducts(data);
   const hasData = displayData.length > 0;
   document.body.classList.toggle('has-data', hasData);
+  // Add class to hide situation text when merging duplicates
+  document.body.classList.toggle('merge-duplicates-mode', currentTab === 'all' && mergeAllDuplicates);
   if (!hasData) {
     productGrid.innerHTML = '';
     stats.innerHTML = ''; orderInfo.innerHTML = ''; return;
@@ -187,7 +251,7 @@ function renderContent() {
             ${item.arrivalDate ? `<div class="detail-item"><label>到着予定日</label><span>${escapeHtml(item.arrivalDate)}</span></div>` : ''}
             ${item.inspectionPlan ? `<div class="detail-item"><label>検品ﾌﾟﾗﾝ</label><span>${escapeHtml(item.inspectionPlan)}</span></div>` : ''}
           </div>
-          ${item.situation ? `<div class="situation-note">📝 ${escapeHtml(item.situation)}</div>` : ''}
+          ${item._situations && item._situations.length > 0 ? (console.log('Rendering situations for item:', item._situations), renderSituations(item._situations)) : item.situation ? `<div class="situation-note">📝 ${escapeHtml(item.situation)}</div>` : ''}
           ${renderProductLinks(item.siteUrl)}
           ${currentTab === 'all' ? renderFileTags(item._files || [item._fileName]) : ''}
         </div>
@@ -206,7 +270,115 @@ function extractImageUrl(text) {
   return null;
 }
 
+function collectSituationEntries(item) {
+  if (!item) return [];
+  if (Array.isArray(item._situations) && item._situations.length > 0) {
+    return item._situations
+      .map(entry => normalizeSituationEntry(entry, item._fileName))
+      .filter(Boolean);
+  }
+  const normalized = normalizeSituationEntry(item.situation, item._fileName);
+  return normalized ? [normalized] : [];
+}
+
+function appendSituationEntries(targetItem, entries) {
+  if (!targetItem) return;
+  if (!Array.isArray(entries) || entries.length === 0) return;
+  if (!Array.isArray(targetItem._situations)) {
+    targetItem._situations = [];
+  }
+  
+  entries.forEach(newEntry => {
+    if (!newEntry || !newEntry.text) return;
+    
+    // Find existing entry with same text
+    const existingEntry = targetItem._situations.find(e => e.text === newEntry.text);
+    
+    if (existingEntry) {
+      // Merge file info if different
+      if (newEntry.file) {
+        if (!existingEntry.file) {
+          existingEntry.file = newEntry.file;
+        } else {
+          const currentFiles = existingEntry.file.split(', ');
+          if (!currentFiles.includes(newEntry.file)) {
+            existingEntry.file += `, ${newEntry.file}`;
+          }
+        }
+      }
+    } else {
+      targetItem._situations.push(newEntry);
+    }
+  });
+}
+
+function normalizeSituationEntry(rawEntry, fallbackFile) {
+  if (!rawEntry) return null;
+  if (typeof rawEntry === 'string') {
+    const trimmed = rawEntry.trim();
+    if (!trimmed) return null;
+    return { text: trimmed, file: fallbackFile || null };
+  }
+  if (typeof rawEntry === 'object') {
+    const rawText = rawEntry.text ?? rawEntry.situation ?? rawEntry.value ?? rawEntry.note;
+    const trimmed = rawText !== undefined && rawText !== null
+      ? String(rawText).trim()
+      : '';
+    if (!trimmed) return null;
+    return {
+      text: trimmed,
+      file: rawEntry.file || rawEntry.source || rawEntry._fileName || fallbackFile || null
+    };
+  }
+  const fallback = String(rawEntry).trim();
+  if (!fallback) return null;
+  return { text: fallback, file: fallbackFile || null };
+}
+
 // formatNumber is now in app-utils.js
+
+function renderSituations(situations) {
+  if (!Array.isArray(situations) || situations.length === 0) {
+    return '';
+  }
+  
+  // Filter out empty entries - entries should already be normalized objects
+  const validEntries = situations.filter(entry => {
+    if (!entry) return false;
+    // Handle both object format {text, file} and legacy string format
+    if (typeof entry === 'object' && entry.text) return true;
+    if (typeof entry === 'string' && entry.trim()) return true;
+    return false;
+  });
+  
+  if (validEntries.length === 0) {
+    return '';
+  }
+
+  const colors = [
+    'rgba(0, 201, 255, 0.15)',
+    'rgba(146, 254, 157, 0.15)',
+    'rgba(255, 153, 102, 0.15)',
+    'rgba(255, 94, 98, 0.15)',
+    'rgba(253, 203, 110, 0.15)',
+    'rgba(155, 89, 182, 0.15)'
+  ];
+
+  return `<div class="situation-panels">
+    ${validEntries.map((entry, idx) => {
+      const bgColor = colors[idx % colors.length];
+      // Handle both object format and legacy string format
+      const text = typeof entry === 'object' ? entry.text : String(entry).trim();
+      const file = typeof entry === 'object' ? entry.file : null;
+      const sourceTag = file ? `<span class="situation-source">${escapeHtml(file)}</span>` : '';
+      return `<div class="situation-panel" style="background: ${bgColor};">
+        <span class="situation-icon">📝</span>
+        <span class="situation-text">${escapeHtml(text)}</span>
+        ${sourceTag}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
 
 function formatDomesticShipping(val, exchangeRate) {
   if (!val || val === '-') return '-';
@@ -243,6 +415,7 @@ function renderSummaryContent() {
   let totalOrderQty = 0;
   let totalShipQty = 0;
   let totalSubtotal = 0;
+  let totalInternationalShipping = 0;
 
   let fileData = fileNames.map(fileName => {
     const data = allData[fileName];
@@ -259,13 +432,26 @@ function renderSummaryContent() {
       }
     }
 
+    // Parse international shipping
+    let intlShipping = 0;
+    if (orderMeta.costBreakdown && orderMeta.costBreakdown.internationalShipping) {
+       intlShipping = parseNumeric(orderMeta.costBreakdown.internationalShipping);
+       if (isNaN(intlShipping)) intlShipping = 0;
+    }
+
     const fileTotal = {
       fileName,
       itemCount: items.length,
       orderQty: sumField(items, 'orderQty'),
       shipQty: sumField(items, 'shipQty'),
       subtotal: sumSubtotal(items),
+      internationalShipping: intlShipping,
       orderDate: orderMeta.orderDate || '-',
+      orderNo: orderMeta.orderNo || '-',
+      shippingDate: orderMeta.shippingDate || '-',
+      totalPayment: orderMeta.totalPayment || '-',
+      costBreakdown: orderMeta.costBreakdown || null,
+      shippingInfo: orderMeta.shippingInfo || null,
       images: images
     };
 
@@ -273,6 +459,7 @@ function renderSummaryContent() {
     totalOrderQty += fileTotal.orderQty;
     totalShipQty += fileTotal.shipQty;
     totalSubtotal += fileTotal.subtotal;
+    totalInternationalShipping += fileTotal.internationalShipping;
 
     return fileTotal;
   });
@@ -307,7 +494,8 @@ function renderSummaryContent() {
     <div class="stat-card"><h3>商品種類合計</h3><div class="value">${totalItems}</div></div>
     <div class="stat-card"><h3>発注数量合計</h3><div class="value">${totalOrderQty}</div></div>
     <div class="stat-card"><h3>出荷数量合計</h3><div class="value">${totalShipQty}</div></div>
-    <div class="stat-card"><h3>小計合計</h3><div class="value">¥${totalSubtotal.toLocaleString()}</div></div>`;
+    <div class="stat-card"><h3>商品代合計</h3><div class="value">¥${totalSubtotal.toLocaleString()}</div></div>
+    <div class="stat-card"><h3>国際送料合計</h3><div class="value">¥${totalInternationalShipping.toLocaleString()}</div></div>`;
 
   // Render file summary table with sort control
   let html = '<div class="summary-table-container">';
@@ -328,7 +516,7 @@ function renderSummaryContent() {
   html += '</div>';
   html += '</div>';
   html += '<table class="summary-table">';
-  html += '<thead><tr><th>ファイル名</th><th>商品画像</th><th>注文日</th><th>商品種類</th><th>発注数量</th><th>出荷数量</th><th>小計</th></tr></thead><tbody>';
+  html += '<thead><tr><th>ファイル名</th><th>商品画像</th><th>注文日</th><th>商品種類</th><th>発注数量</th><th>出荷数量</th><th>商品代(小計)</th><th>国際送料</th></tr></thead><tbody>';
 
   fileData.forEach(file => {
     // Render image thumbnails
@@ -350,6 +538,7 @@ function renderSummaryContent() {
       <td class="number">${file.orderQty}</td>
       <td class="number">${file.shipQty}</td>
       <td class="price">¥${file.subtotal.toLocaleString()}</td>
+      <td class="price">¥${file.internationalShipping.toLocaleString()}</td>
     </tr>`;
   });
 

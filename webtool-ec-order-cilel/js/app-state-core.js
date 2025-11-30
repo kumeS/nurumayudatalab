@@ -4,6 +4,7 @@ let fileOrder = [];
 let draggingFile = null;
 let productSortMode = 'default';
 let summarySortMode = localStorage.getItem('CiLELViewerSummarySortMode') || 'default';
+let mergeAllDuplicates = localStorage.getItem('CiLELViewerMergeAllDuplicates') === 'true';
 // Remove global exchangeRate as we now calculate per-file
 
 // LOCAL_CACHE_KEY is now in app-utils.js
@@ -35,6 +36,12 @@ let db = null;
 
 // IndexedDB functions
 function initDB() {
+  if (!window.indexedDB) {
+    console.warn('IndexedDB not supported');
+    restoreFromLocalCache();
+    return;
+  }
+
   const request = indexedDB.open(DB_NAME, DB_VERSION);
   
   request.onerror = () => {

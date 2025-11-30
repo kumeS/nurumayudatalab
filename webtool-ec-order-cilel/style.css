@@ -26,15 +26,14 @@ body {
 .container { max-width: 1400px; margin: 0 auto; }
 
 .header {
-  background: rgba(255,255,255,0.8); backdrop-filter: blur(10px);
+  background: #ffffff;
   border-radius: var(--radius-lg); padding: 24px 30px; margin-bottom: 20px;
-  box-shadow: var(--card-shadow); animation: slideDown 0.5s ease;
-  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: var(--card-shadow);
+  border: 1px solid rgba(0,0,0,0.05);
 }
 .header h1 {
   font-size: 28px; display: flex; align-items: center; gap: 12px;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  color: var(--secondary);
 }
 .subtitle { color: var(--text-secondary); font-size: 14px; margin-top: 5px; }
 
@@ -187,6 +186,10 @@ body {
 }
 .tab-close:hover { opacity: 1; }
 .tab.active .tab-close { color: white; }
+.tab.active .tab-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
 .tab-clear {
   background: #f8f9fa; border-color: var(--danger-color);
 }
@@ -252,9 +255,9 @@ body {
   font-size: 14px; color: var(--text-primary); font-weight: 700;
 }
 
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 25px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 25px; }
 .stat-card {
-  background: var(--card-bg); border-radius: var(--radius-md); padding: 18px;
+  background: var(--card-bg); border-radius: var(--radius-md); padding: 12px 15px;
   box-shadow: var(--card-shadow); position: relative; overflow: hidden;
   transition: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid rgba(0,0,0,0.03);
@@ -331,6 +334,55 @@ body {
   border-left: 3px solid var(--warning-color);
 }
 
+.situation-panels {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.situation-panel {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-primary);
+  border-left: 3px solid rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition-speed) ease;
+}
+
+.situation-panel:hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.situation-panel .situation-icon {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.situation-panel .situation-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.situation-panel .situation-source {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--primary);
+  background: rgba(255, 153, 102, 0.15);
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* Hide situation text when merging duplicates */
+/* body.merge-duplicates-mode .situation-note {
+  display: none;
+} */
+
 .product-link {
   display: inline-block; margin-top: 10px; padding: 6px 14px;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
@@ -344,9 +396,19 @@ body {
   display: inline-block; padding: 3px 8px; background: rgba(255,153,102,0.15);
   border-radius: 20px; font-size: 10px; color: var(--primary); font-weight: 600; margin-top: 8px;
 }
-.tab-controls { margin-bottom: 10px; font-size: 14px; color: var(--text-secondary); display: none; }
+.tab-controls {
+  margin-bottom: 10px; font-size: 14px; color: var(--text-secondary); display: none;
+  display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+}
 .tab-controls select { margin-left: 6px; padding: 6px 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; }
-.has-data .tab-controls { display: block; }
+.tab-controls .merge-duplicates-control {
+  display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;
+}
+.tab-controls .merge-duplicates-control input[type="checkbox"] {
+  cursor: pointer; width: 16px; height: 16px;
+}
+
+.has-data .tab-controls { display: flex; }
 .summary-link {
   margin-left: 12px;
   font-size: 12px;
@@ -405,11 +467,11 @@ body {
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-20px);
+    transform: translateY(-20px) translateZ(0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) translateZ(0);
   }
 }
 
@@ -480,10 +542,22 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 0 16px 0;
+  padding: 16px 0;
   border-bottom: 3px solid var(--primary);
-  margin-bottom: 16px;
-  gap: 40px;
+  margin-bottom: 20px;
+  gap: 20px;
+  width: 100%;
+}
+
+.summary-header h2 {
+  color: var(--text-primary);
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
 }
 
 .summary-table-container h2 {
@@ -496,6 +570,7 @@ body {
   gap: 12px;
   background: transparent;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .summary-sort-control {
@@ -661,6 +736,8 @@ body {
   color: var(--text-secondary);
   font-style: italic;
 }
+
+
 
 /* ========================================
    ボタンスタイル

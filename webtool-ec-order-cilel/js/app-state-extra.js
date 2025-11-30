@@ -242,7 +242,11 @@ function renderTabs() {
 async function removeFile(fileName) {
   if (confirm(`${fileName} を削除しますか？`)) {
     delete allData[fileName];
-    await deleteDataFromDB(fileName);
+    try {
+      await deleteDataFromDB(fileName);
+    } catch (e) {
+      console.warn('Failed to delete from DB:', e);
+    }
     fileOrder = fileOrder.filter(name => name !== fileName);
     if (currentTab === fileName) {
       currentTab = 'all';
@@ -277,3 +281,12 @@ if (tabs) {
   tabs.addEventListener('drop', handleTabDrop);
   tabs.addEventListener('dragend', handleTabDragEnd);
 }
+
+// Attach merge duplicates checkbox change listener
+document.addEventListener('change', (event) => {
+  if (event.target.id === 'mergeDuplicatesCheckbox') {
+    mergeAllDuplicates = event.target.checked;
+    localStorage.setItem('CiLELViewerMergeAllDuplicates', mergeAllDuplicates.toString());
+    renderContent();
+  }
+});

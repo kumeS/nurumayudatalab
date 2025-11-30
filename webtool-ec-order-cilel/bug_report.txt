@@ -171,3 +171,83 @@ mcp__chrome-devtools__take_snapshot()
 ## 参考リンク
 - MDN: DataTransfer.dropEffect https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer/dropEffect
 - MDN: Event.stopPropagation() https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation
+
+---
+
+# サマリー表示レイアウトの不具合とロールバック - 調査・修正レポート
+
+## 発生日時
+2025-11-30
+
+## 症状
+「ファイル別集計」タブにおいて、新しいパネル型（カード型）レイアウトを採用したところ、右端の情報（画像やボタンなど）が見切れて表示される問題が発生。CSS GridやFlexboxでの調整を試みたが、レスポンシブ対応と情報密度の両立が困難であった。
+
+## 根本原因
+1. **レイアウトの適合性**: 多列データ（ファイル名、画像群、日付、数量、金額など）を表示するには、カード型レイアウトよりもテーブル型レイアウトの方が適していた。
+2. **CSS Gridの複雑化**: 画像サムネイルのグリッド（10列）と親コンテナのグリッドが競合し、`overflow`の制御が複雑化した。
+
+## 解決方法
+ユーザーの要望に基づき、旧バージョン（`webtool-ec-order-cilel-old`）のテーブル構造にロールバックを実施。
+
+### 修正1: レンダリングロジックの復元 (js/app-render.js)
+- `renderSummaryContent` 関数を書き換え、`div.summary-panel` の生成をやめ、`table.summary-table` を生成するように変更。
+- カラム構成を「ファイル名」「商品画像」「注文日」「商品種類」「発注数量」「出荷数量」「小計」に戻した。
+
+### 修正2: スタイルの復元 (style.css)
+- `.summary-panel` 関連のCSS（Grid/Flexレイアウト用）を削除。
+- 旧バージョンの `.summary-table` 関連のCSSを移植・適用。
+
+## 教訓
+- **データ密度とレイアウト**: 比較や一覧性が重要なデータ（集計表など）においては、モダンなカードUIよりも伝統的なテーブルUIの方が優れている場合が多い。
+- **ロールバックの判断**: レイアウト調整に時間がかかりすぎる場合、安定していた旧仕様に戻す判断も重要。
+
+## 修正ファイル一覧
+- js/app-render.js
+- style.css
+
+---
+
+# ファイル削除ボタンが機能しないバグ - 調査・修正レポート
+
+## 発生日時
+2025-11-30
+
+## 症状
+タブ上の「✕」ボタン（ファイル削除ボタン）をクリックしても、削除確認ダイアログが表示されず、何も起こらない（あるいはタブ切り替えが発生してしまう）。
+
+## 根本原因
+イベントハンドラ内でのDOM要素取得と条件判定の記述順序、および変数スコープの扱いにおいて、冗長かつ不安定な実装となっていた。
+
+### 問題のコード（修正前）
+```javascript
+if (event.target.closest('.tab-close')) {
+  event.preventDefault();
+  event.stopPropagation();
+  const deleteBtn = event.target.closest('.tab-close'); // 2回目の取得
+  // ...
+}
+```
+`closest`メソッドを条件式内で呼び出し、その直後に変数代入のために再度呼び出していた。論理的には動作するはずだが、DOM探索のコストが無駄にかかる上、コードの意図が不明瞭であった。また、何らかの要因でイベントターゲットの参照が不安定になった場合に正しく動作しないリスクがあった。
+
+## 解決方法
+DOM要素の取得を変数宣言として最初に行い、その変数の存在チェックを行う形にリファクタリングした。
+
+### 修正コード（修正後）
+```javascript
+const deleteBtn = event.target.closest('.tab-close'); // 最初に取得
+if (deleteBtn) {
+  event.preventDefault();
+  event.stopPropagation();
+  // deleteBtn をそのまま使用
+  const fileName = decodeTabValue(deleteBtn.dataset.file);
+  // ...
+}
+```
+
+## 教訓
+- **DOM探索の効率化**: 同一のDOM要素探索（`closest`や`querySelector`）を複数回行うのは避け、一度変数に格納して再利用すべきである。
+- **可読性と堅牢性**: 「取得してから判定する」というパターンを徹底することで、予期せぬバグを防ぎ、コードの意図を明確にできる。
+
+## 修正ファイル一覧
+- js/app-state-extra.js
+
