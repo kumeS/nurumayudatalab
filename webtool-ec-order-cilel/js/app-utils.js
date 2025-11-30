@@ -61,19 +61,7 @@ function sumField(items, key) {
   }, 0);
 }
 
-/**
- * アイテム配列からsubtotalフィールドの合計を計算
- * @param {Array} items - アイテム配列
- * @returns {number} 小計合計
- */
-function sumSubtotal(items) {
-  if (!Array.isArray(items)) return 0;
-  return items.reduce((sum, item) => {
-    const val = parseFloat(String(item.subtotal || '').replace(/[¥,]/g, ''));
-    return sum + (isNaN(val) ? 0 : val);
-  }, 0);
-}
-
+// sumSubtotal removed - use sumField(items, 'subtotal') instead
 // ============================================================
 // キャッシュ操作関連
 // ============================================================

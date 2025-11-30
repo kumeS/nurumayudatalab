@@ -20,20 +20,69 @@ function getDisplayData() {
             uniqueMap.set(fallbackKey, {
               ...item,
               _files: [item._fileName],
-              _situations: collectSituationEntries(item)
+              _situations: collectSituationEntries(item),
+              _variants: [item.variant || ''],
+              _arrivalDates: item.arrivalDate ? [item.arrivalDate] : [],
+              _orderDates: item._orderMeta?.orderDate ? [item._orderMeta.orderDate] : [],
+              _totalOrderQty: parseFloat(item.orderQty) || 0,
+              _totalShipQty: parseFloat(item.shipQty) || 0
             });
           } else {
             const existing = uniqueMap.get(fallbackKey);
             existing._files.push(item._fileName);
             appendSituationEntries(existing, collectSituationEntries(item));
+
+            // Collect unique variants
+            if (item.variant && !existing._variants.includes(item.variant)) {
+              existing._variants.push(item.variant);
+            }
+
+            // Collect unique arrival dates
+            if (item.arrivalDate && !existing._arrivalDates.includes(item.arrivalDate)) {
+              existing._arrivalDates.push(item.arrivalDate);
+            }
+
+            // Collect unique order dates
+            if (item._orderMeta?.orderDate && !existing._orderDates.includes(item._orderMeta.orderDate)) {
+              existing._orderDates.push(item._orderMeta.orderDate);
+            }
+
             console.log(`[Fallback] Merging item. Current situations:`, existing._situations);
+
+            // 数量を合計（加重平均計算用）
+            const itemOrderQty = parseFloat(item.orderQty) || 0;
+            const itemShipQty = parseFloat(item.shipQty) || 0;
+            existing._totalOrderQty += itemOrderQty;
+            existing._totalShipQty += itemShipQty;
+
             // 金額を合計
             const existingSubtotal = parseFloat(String(existing.subtotal).replace(/[¥,]/g, '')) || 0;
             const itemSubtotal = parseFloat(String(item.subtotal).replace(/[¥,]/g, '')) || 0;
             existing.subtotal = existingSubtotal + itemSubtotal;
+
             // 数量を合計
-            existing.orderQty = (parseFloat(existing.orderQty) || 0) + (parseFloat(item.orderQty) || 0);
-            existing.shipQty = (parseFloat(existing.shipQty) || 0) + (parseFloat(item.shipQty) || 0);
+            existing.orderQty = existing._totalOrderQty;
+            existing.shipQty = existing._totalShipQty;
+
+            // 中国内送料を合計
+            const existingDomestic = parseFloat(String(existing.domesticShip || '').replace(/[^\d.]/g, '')) || 0;
+            const itemDomestic = parseFloat(String(item.domesticShip || '').replace(/[^\d.]/g, '')) || 0;
+            if (existingDomestic > 0 || itemDomestic > 0) {
+              existing.domesticShip = existingDomestic + itemDomestic;
+            }
+
+            // 加重平均で単価を再計算
+            if (existing._totalOrderQty > 0 && existing.subtotal > 0) {
+              const avgPriceJpy = existing.subtotal / existing._totalOrderQty;
+              existing.unitPriceJpy = avgPriceJpy;
+
+              // CNY単価も再計算（為替レート逆算）
+              const existingCnyPrice = parseFloat(String(existing.unitPriceCny || '').replace(/[^\d.]/g, '')) || 0;
+              const itemCnyPrice = parseFloat(String(item.unitPriceCny || '').replace(/[^\d.]/g, '')) || 0;
+              if (existingCnyPrice > 0 || itemCnyPrice > 0) {
+                existing.unitPriceCny = ((existingCnyPrice * (existing._totalOrderQty - itemOrderQty)) + (itemCnyPrice * itemOrderQty)) / existing._totalOrderQty;
+              }
+            }
           }
           return;
         }
@@ -43,20 +92,69 @@ function getDisplayData() {
           uniqueMap.set(key, {
             ...item,
             _files: [item._fileName],
-            _situations: collectSituationEntries(item)
+            _situations: collectSituationEntries(item),
+            _variants: [item.variant || ''],
+            _arrivalDates: item.arrivalDate ? [item.arrivalDate] : [],
+            _orderDates: item._orderMeta?.orderDate ? [item._orderMeta.orderDate] : [],
+            _totalOrderQty: parseFloat(item.orderQty) || 0,
+            _totalShipQty: parseFloat(item.shipQty) || 0
           });
         } else {
           const existing = uniqueMap.get(key);
           existing._files.push(item._fileName);
           appendSituationEntries(existing, collectSituationEntries(item));
+
+          // Collect unique variants
+          if (item.variant && !existing._variants.includes(item.variant)) {
+            existing._variants.push(item.variant);
+          }
+
+          // Collect unique arrival dates
+          if (item.arrivalDate && !existing._arrivalDates.includes(item.arrivalDate)) {
+            existing._arrivalDates.push(item.arrivalDate);
+          }
+
+          // Collect unique order dates
+          if (item._orderMeta?.orderDate && !existing._orderDates.includes(item._orderMeta.orderDate)) {
+            existing._orderDates.push(item._orderMeta.orderDate);
+          }
+
           console.log(`[URL/Price] Merging item. Current situations:`, existing._situations);
+
+          // 数量を合計（加重平均計算用）
+          const itemOrderQty = parseFloat(item.orderQty) || 0;
+          const itemShipQty = parseFloat(item.shipQty) || 0;
+          existing._totalOrderQty += itemOrderQty;
+          existing._totalShipQty += itemShipQty;
+
           // 金額を合計
           const existingSubtotal = parseFloat(String(existing.subtotal).replace(/[¥,]/g, '')) || 0;
           const itemSubtotal = parseFloat(String(item.subtotal).replace(/[¥,]/g, '')) || 0;
           existing.subtotal = existingSubtotal + itemSubtotal;
+
           // 数量を合計
-          existing.orderQty = (parseFloat(existing.orderQty) || 0) + (parseFloat(item.orderQty) || 0);
-          existing.shipQty = (parseFloat(existing.shipQty) || 0) + (parseFloat(item.shipQty) || 0);
+          existing.orderQty = existing._totalOrderQty;
+          existing.shipQty = existing._totalShipQty;
+
+          // 中国内送料を合計
+          const existingDomestic = parseFloat(String(existing.domesticShip || '').replace(/[^\d.]/g, '')) || 0;
+          const itemDomestic = parseFloat(String(item.domesticShip || '').replace(/[^\d.]/g, '')) || 0;
+          if (existingDomestic > 0 || itemDomestic > 0) {
+            existing.domesticShip = existingDomestic + itemDomestic;
+          }
+
+          // 加重平均で単価を再計算
+          if (existing._totalOrderQty > 0 && existing.subtotal > 0) {
+            const avgPriceJpy = existing.subtotal / existing._totalOrderQty;
+            existing.unitPriceJpy = avgPriceJpy;
+
+            // CNY単価も再計算（為替レート逆算）
+            const existingCnyPrice = parseFloat(String(existing.unitPriceCny || '').replace(/[^\d.]/g, '')) || 0;
+            const itemCnyPrice = parseFloat(String(item.unitPriceCny || '').replace(/[^\d.]/g, '')) || 0;
+            if (existingCnyPrice > 0 || itemCnyPrice > 0) {
+              existing.unitPriceCny = ((existingCnyPrice * (existing._totalOrderQty - itemOrderQty)) + (itemCnyPrice * itemOrderQty)) / existing._totalOrderQty;
+            }
+          }
         }
       });
       return Array.from(uniqueMap.values());
@@ -81,7 +179,7 @@ function renderContent() {
   // Show product sort controls and merge duplicates button for 'all' tab
   const tabControls = document.querySelector('.tab-controls');
   if (tabControls) {
-    tabControls.style.display = '';
+    tabControls.style.display = ''; // Restore display property managed by CSS classes
 
     // Add merge duplicates button for 'all' tab only
     if (currentTab === 'all') {
@@ -120,12 +218,28 @@ function renderContent() {
   if (currentTab !== 'all' && allData[currentTab]?.exchangeRate) {
     currentExchangeRate = allData[currentTab].exchangeRate;
   } else if (currentTab === 'all') {
-    // Calculate average exchange rate from all files
-    const rates = Object.values(allData)
-      .map(d => d.exchangeRate)
-      .filter(r => r !== null && r !== undefined);
-    if (rates.length > 0) {
-      currentExchangeRate = rates.reduce((sum, r) => sum + r, 0) / rates.length;
+    // Calculate weighted average exchange rate from all files
+    // Weight by total product cost (subtotal sum) for each file
+    let totalWeightedRate = 0;
+    let totalWeight = 0;
+
+    Object.values(allData).forEach(fileData => {
+      if (fileData.exchangeRate && fileData.items) {
+        // Calculate total product cost for this file (sum of subtotals)
+        const fileTotalCost = fileData.items.reduce((sum, item) => {
+          const subtotal = parseFloat(String(item.subtotal).replace(/[¥,]/g, '')) || 0;
+          return sum + subtotal;
+        }, 0);
+
+        if (fileTotalCost > 0) {
+          totalWeightedRate += fileData.exchangeRate * fileTotalCost;
+          totalWeight += fileTotalCost;
+        }
+      }
+    });
+
+    if (totalWeight > 0) {
+      currentExchangeRate = totalWeightedRate / totalWeight;
     }
   }
 
@@ -229,26 +343,56 @@ function renderContent() {
     // Use file-specific exchange rate for domestic shipping
     const fileExchangeRate = allData[item._fileName]?.exchangeRate || currentExchangeRate;
     
+    // Display variant(s) - show all if consolidated with tags
+    let variantDisplay;
+    if (item._variants && item._variants.length > 0) {
+      // Use tags for all consolidated items (1 or more)
+      variantDisplay = `<div class="tag-container">${item._variants.map(v => {
+        const variantText = escapeHtml(v || '');
+        const isLong = variantText.length > 30;
+        return `<span class="variant-tag${isLong ? ' variant-tag-long' : ''}">${variantText}</span>`;
+      }).join('')}</div>`;
+    } else if (item.variant && item.variant.length > 50) {
+      // Long single variant text - allow wrapping
+      variantDisplay = `<div class="tag-container"><span class="variant-tag variant-tag-long">${escapeHtml(item.variant)}</span></div>`;
+    } else {
+      // Short single variant - display as text
+      variantDisplay = escapeHtml(item.variant) || '詳細なし';
+    }
+
+    // Display arrival date(s) - show all if consolidated with tags
+    const arrivalDateDisplay = item._arrivalDates && item._arrivalDates.length > 0
+      ? `<div class="tag-container">${item._arrivalDates.map(d => `<span class="date-tag">${escapeHtml(d)}</span>`).join('')}</div>`
+      : item.arrivalDate ? escapeHtml(item.arrivalDate) : null;
+
+    // Display order date(s) - show all if consolidated with tags, or single date if available
+    const orderDateDisplay = item._orderDates && item._orderDates.length > 0
+      ? `<div class="detail-item"><label>注文日</label><div class="tag-container">${item._orderDates.map(d => `<span class="date-tag">${escapeHtml(d)}</span>`).join('')}</div></div>`
+      : item._orderMeta?.orderDate
+        ? `<div class="detail-item"><label>注文日</label><span>${escapeHtml(item._orderMeta.orderDate)}</span></div>`
+        : '';
+
     html += `
       <div class="product-card">
         <div class="product-header">
-          ${imageUrl ? 
-            `<img class="product-image" src="${imageUrl}" alt="商品" onerror="this.outerHTML='<div class=\\'product-image error\\'>画像なし</div>'">` : 
+          ${imageUrl ?
+            `<img class="product-image" src="${imageUrl}" alt="商品" onerror="this.outerHTML='<div class=\\'product-image error\\'>画像なし</div>'">` :
             `<div class="product-image error">画像なし</div>`}
           <div class="product-main">
-            <div class="product-variant">${escapeHtml(item.variant) || '詳細なし'}</div>
+            <div class="product-variant">${variantDisplay}</div>
             <div class="product-price">¥${formatNumber(item.subtotal)}</div>
             <div class="product-price-detail">単価: ¥${formatNumber(item.unitPriceJpy)} × ${item.orderQty || '-'}個</div>
           </div>
         </div>
         <div class="product-details">
           <div class="detail-grid">
+            ${orderDateDisplay}
             <div class="detail-item"><label>発注数量</label><span>${item.orderQty || '-'}</span></div>
             <div class="detail-item"><label>出荷数量</label><span>${formatShipmentValue(item.shipQty)}</span></div>
             <div class="detail-item"><label>状態</label>${statusContent}</div>
             <div class="detail-item"><label>中国内送料</label><span>${formatDomesticShipping(item.domesticShip, fileExchangeRate)}</span></div>
             ${item.shopOrder ? `<div class="detail-item"><label>ショップ発注</label><span>${escapeHtml(item.shopOrder)}</span></div>` : ''}
-            ${item.arrivalDate ? `<div class="detail-item"><label>到着予定日</label><span>${escapeHtml(item.arrivalDate)}</span></div>` : ''}
+            ${arrivalDateDisplay ? `<div class="detail-item"><label>到着予定日</label><span>${arrivalDateDisplay}</span></div>` : ''}
             ${item.inspectionPlan ? `<div class="detail-item"><label>検品ﾌﾟﾗﾝ</label><span>${escapeHtml(item.inspectionPlan)}</span></div>` : ''}
           </div>
           ${item._situations && item._situations.length > 0 ? (console.log('Rendering situations for item:', item._situations), renderSituations(item._situations)) : item.situation ? `<div class="situation-note">📝 ${escapeHtml(item.situation)}</div>` : ''}
@@ -444,7 +588,7 @@ function renderSummaryContent() {
       itemCount: items.length,
       orderQty: sumField(items, 'orderQty'),
       shipQty: sumField(items, 'shipQty'),
-      subtotal: sumSubtotal(items),
+      subtotal: sumField(items, 'subtotal'),
       internationalShipping: intlShipping,
       orderDate: orderMeta.orderDate || '-',
       orderNo: orderMeta.orderNo || '-',

@@ -215,12 +215,8 @@ function decodeTabValue(value) {
 }
 
 function renderTabs() {
-  let orderedNames = fileOrder.filter(name => allData[name]);
-  const missing = Object.keys(allData).filter(name => !orderedNames.includes(name));
-  if (missing.length > 0) {
-    orderedNames = [...orderedNames, ...missing];
-    fileOrder = orderedNames;
-  }
+  syncFileOrder(); // Consolidate file ordering logic
+  const orderedNames = fileOrder.filter(name => allData[name]);
   if (orderedNames.length === 0) { tabs.innerHTML = ''; return; }
 
   // Add fixed tabs (全体まとめ and 全体集計)

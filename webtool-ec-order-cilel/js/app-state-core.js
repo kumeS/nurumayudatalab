@@ -323,7 +323,12 @@ function preventDefaultDragBehavior(event) {
     return;
   }
 
-  // Only prevent default OUTSIDE upload zone to stop unwanted downloads
+  // Allow drag behavior on tabs (for tab reordering)
+  if (event.target.closest && (event.target.closest('.tabs') || event.target.closest('[draggable="true"]'))) {
+    return;
+  }
+
+  // Only prevent default OUTSIDE upload zone and tabs to stop unwanted downloads
   event.preventDefault();
   event.stopPropagation();
 
