@@ -18,7 +18,7 @@ class ChartManager {
             this.charts.sales.destroy();
         }
 
-        let labels, salesData, profitData, selmonData, selmonNetSeries;
+        let labels, salesData, profitData;
 
         if (currentPeriod === 'all') {
             const monthlyData = new Map();
@@ -26,24 +26,15 @@ class ChartManager {
             this.dataManager.periods.forEach((periodData, period) => {
                 let totalSales = 0;
                 let totalProfit = 0;
-                let selmonSales = 0;
-                let selmonNet = 0;
                 
                 Object.values(periodData.dailyData).forEach(dayData => {
                     totalSales += dayData.sales || 0;
                     totalProfit += dayData.profit || 0;
                 });
-                Object.values(periodData.selmonDailyData || {}).forEach(entry => {
-                    if (!entry) return;
-                    selmonSales += entry.sales || 0;
-                    selmonNet += (entry.sales || 0) - (entry.expenses || 0);
-                });
                 
                 monthlyData.set(period, {
-                    amazonSales: totalSales - selmonSales,
-                    profit: totalProfit,
-                    selmonSales: selmonSales,
-                    selmonNet: selmonNet
+                    sales: totalSales,
+                    profit: totalProfit
                 });
             });
             
@@ -54,29 +45,12 @@ class ChartManager {
             });
             
             labels = sortedMonths;
-            salesData = sortedMonths.map(month => {
-                const item = monthlyData.get(month);
-                return item ? item.amazonSales : 0;
-            });
+            salesData = sortedMonths.map(month => monthlyData.get(month).sales);
             profitData = sortedMonths.map(month => monthlyData.get(month).profit);
-            selmonData = sortedMonths.map(month => monthlyData.get(month).selmonSales || 0);
-            selmonNetSeries = sortedMonths.map(month => monthlyData.get(month).selmonNet || 0);
         } else {
             const allDates = this.uiManager.generateContinuousDates(data.dailyData, currentPeriod);
-            const selmonDaily = data.selmonDailyData || {};
-            salesData = allDates.map(date => {
-                const total = data.dailyData[date] ? data.dailyData[date].sales : 0;
-                const selmon = selmonDaily[date] ? (selmonDaily[date].sales || 0) : 0;
-                return total - selmon;
-            });
+            salesData = allDates.map(date => data.dailyData[date] ? data.dailyData[date].sales : 0);
             profitData = allDates.map(date => data.dailyData[date] ? data.dailyData[date].profit : 0);
-            const selmonDaily = data.selmonDailyData || {};
-            selmonData = allDates.map(date => selmonDaily[date] ? (selmonDaily[date].sales || 0) : 0);
-            selmonNetSeries = allDates.map(date => {
-                const entry = selmonDaily[date];
-                if (!entry) return 0;
-                return (entry.sales || 0) - (entry.expenses || 0);
-            });
             
             labels = allDates.map(date => {
                 const d = new Date(date);
@@ -84,52 +58,25 @@ class ChartManager {
             });
         }
 
-        let combinedProfitData = profitData;
-        if (Array.isArray(selmonNetSeries) && selmonNetSeries.length === profitData.length) {
-            combinedProfitData = profitData.map((value, index) => {
-                const selmonNet = selmonNetSeries[index] || 0;
-                const amazonOnly = value - selmonNet;
-                return amazonOnly + selmonNet;
-            });
-        }
-
-        const datasets = [{
-            label: 'Amazon販売売上',
-            data: salesData,
-            borderColor: '#FF9900',
-            backgroundColor: 'rgba(255, 153, 0, 0.1)',
-            tension: 0.4,
-            fill: true
-        }];
-
-        const hasSelmonData = Array.isArray(selmonData) && selmonData.some(value => value !== 0);
-        if (hasSelmonData) {
-            datasets.push({
-                label: 'セルモン売上',
-                data: selmonData,
-                borderColor: '#7F7FD5',
-                backgroundColor: 'rgba(127, 127, 213, 0.15)',
-                tension: 0.3,
-                fill: false,
-                borderDash: [6, 4],
-                pointRadius: 3
-            });
-        }
-
-        datasets.push({
-            label: '粗利',
-            data: combinedProfitData,
-            borderColor: '#00A862',
-            backgroundColor: 'rgba(0, 168, 98, 0.1)',
-            tension: 0.4,
-            fill: true
-        });
-
         this.charts.sales = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: datasets
+                datasets: [{
+                    label: 'Amazon販売売上',
+                    data: salesData,
+                    borderColor: '#FF9900',
+                    backgroundColor: 'rgba(255, 153, 0, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: '粗利',
+                    data: profitData,
+                    borderColor: '#00A862',
+                    backgroundColor: 'rgba(0, 168, 98, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
             },
             options: {
                 responsive: true,

@@ -99,12 +99,6 @@ class UIManager {
 
     updateSummaryCards(currentPeriod, currentSubPeriod) {
         const data = this.dataManager.getCurrentData(currentPeriod, currentSubPeriod);
-        const selmonSummary = data.selmonSummary || {
-            totalSales: 0,
-            totalExpenses: 0,
-            categoryTotals: { sales: 0, advertising: 0, other: 0 },
-            mallSales: {}
-        };
         
         document.getElementById('totalSales').textContent = this.formatCurrency(data.totalSales);
         document.getElementById('totalSalesFees').textContent = this.formatCurrency(data.totalSalesFees || data.totalFees);
@@ -177,14 +171,10 @@ class UIManager {
         }
 
         const salesBreakdown = data.salesBreakdown || { productPrice: 0, otherAmount: 0 };
-        const salesTooltipItems = [
+        this.attachSummaryTooltip('totalSales', [
             { label: '商品価格合計', value: salesBreakdown.productPrice },
             { label: 'その他', value: salesBreakdown.otherAmount }
-        ];
-        if (selmonSummary.totalSales > 0) {
-            salesTooltipItems.push({ label: 'セルモン販売', value: selmonSummary.totalSales });
-        }
-        this.attachSummaryTooltip('totalSales', salesTooltipItems);
+        ]);
         
         const salesFeeBreakdown = data.salesFeeBreakdown || { promotionDiscount: 0, amazonFees: 0, multiChannelFees: 0 };
         this.attachSummaryTooltip('totalSalesFees', [
@@ -192,93 +182,16 @@ class UIManager {
             { label: 'Amazon手数料', value: salesFeeBreakdown.amazonFees },
             { label: 'マルチチャネル配送手数料', value: salesFeeBreakdown.multiChannelFees }
         ]);
-        const expenseTooltipItems = [
+        this.attachSummaryTooltip('totalExpenses', [
             { label: '売上手数料', value: data.totalSalesFees || data.totalFees },
             { label: 'その他手数料合計', value: data.totalFbaFees || 0 }
-        ];
-        if (selmonSummary.totalExpenses > 0) {
-            expenseTooltipItems.push({ label: 'セルモン経費', value: selmonSummary.totalExpenses });
-        }
-        this.attachSummaryTooltip('totalExpenses', expenseTooltipItems);
+        ]);
         
-        const orderBreakdown = data.orderBreakdown || { amazonOrders: 0, multiChannelOrders: 0, selmonOrders: 0 };
-        const orderItems = [
+        const orderBreakdown = data.orderBreakdown || { amazonOrders: 0, multiChannelOrders: 0 };
+        this.attachOrderTooltip('orderCount', [
             { label: 'Amazon販売', value: orderBreakdown.amazonOrders },
             { label: 'マルチチャネル配送', value: orderBreakdown.multiChannelOrders }
-        ];
-        if (orderBreakdown.selmonOrders !== undefined) {
-            orderItems.push({ label: 'セルモン', value: orderBreakdown.selmonOrders });
-        }
-        this.attachOrderTooltip('orderCount', orderItems);
-
-        this.updateSelmonPanel(selmonSummary);
-    }
-
-    updateSelmonPanel(summary) {
-        const panel = document.getElementById('selmonPanel');
-        if (!panel) return;
-        const categoryTotals = summary.categoryTotals || { sales: 0, advertising: 0, other: 0 };
-        const hasData = (summary.totalSales || 0) !== 0 || (summary.totalExpenses || 0) !== 0;
-        panel.style.display = hasData ? 'block' : 'none';
-        if (!hasData) return;
-
-        const salesEl = document.getElementById('selmonSalesValue');
-        if (salesEl) salesEl.textContent = this.formatCurrency(categoryTotals.sales || 0);
-
-        const adEl = document.getElementById('selmonAdValue');
-        if (adEl) adEl.textContent = this.formatCurrency(categoryTotals.advertising || 0);
-
-        const otherEl = document.getElementById('selmonOtherValue');
-        if (otherEl) otherEl.textContent = this.formatCurrency(categoryTotals.other || 0);
-
-        const net = (summary.totalSales || 0) - (summary.totalExpenses || 0);
-        const netEl = document.getElementById('selmonNetValue');
-        if (netEl) {
-            netEl.textContent = this.formatCurrency(net);
-            netEl.classList.remove('profit-positive', 'profit-negative');
-            netEl.classList.add(net >= 0 ? 'profit-positive' : 'profit-negative');
-        }
-
-        const netRateEl = document.getElementById('selmonNetRate');
-        if (netRateEl) {
-            const rate = (summary.totalSales || 0) > 0 ? (net / summary.totalSales * 100).toFixed(1) + '%' : '-';
-            netRateEl.textContent = `利益率 ${rate}`;
-        }
-
-        const mallBody = document.getElementById('selmonMallTableBody');
-        if (mallBody) {
-            mallBody.innerHTML = '';
-            const entries = Object.entries(summary.mallSales || {})
-                .map(([mall, value]) => {
-                    if (typeof value === 'number') {
-                        return [mall, { amount: value, quantity: 0 }];
-                    }
-                    return [mall, value || { amount: 0, quantity: 0 }];
-                })
-                .sort((a, b) => (b[1].amount || 0) - (a[1].amount || 0));
-            if (entries.length === 0) {
-                const row = mallBody.insertRow();
-                const cell = row.insertCell();
-                cell.colSpan = 3;
-                cell.className = 'selmon-mall-empty';
-                cell.textContent = 'セルモン販売データがありません';
-            } else {
-                entries.forEach(([mall, data]) => {
-                    const amount = data.amount || 0;
-                    const qty = data.quantity || 0;
-                    const row = mallBody.insertRow();
-                    row.insertCell(0).textContent = mall;
-                    const amountCell = row.insertCell(1);
-                    const share = categoryTotals.sales > 0 ? (amount / categoryTotals.sales * 100).toFixed(1) : null;
-                    const percentHtml = share !== null ? `<span class="selmon-mall-percent">${share}%</span>` : '';
-                    amountCell.innerHTML = percentHtml ? `${this.formatCurrency(amount)} ${percentHtml}` : this.formatCurrency(amount);
-                    amountCell.className = 'selmon-mall-amount';
-                    const qtyCell = row.insertCell(2);
-                    qtyCell.textContent = qty ? qty.toLocaleString() : '-';
-                    qtyCell.className = 'selmon-mall-qty';
-                });
-            }
-        }
+        ]);
     }
 
     updateTables(currentPeriod, currentSubPeriod) {
@@ -888,23 +801,17 @@ class UIManager {
                     periodStr = `${start.getMonth()+1}/${start.getDate()} - ${end.getMonth()+1}/${end.getDate()}`;
                 }
             }
-            const badge = this.getFileBadge(fileData.sourceType);
-            const sourceLabel = this.getFileSourceLabel(fileData.sourceType);
-            const safeFileName = fileName.replace(/'/g, "\\'");
             
             fileItem.innerHTML = `
                 <div class="file-item-name">
-                    ${badge}
-                    ${fileName}
+                    📄 ${fileName}
                 </div>
                 <div class="file-item-info">
-                    <span>${periodStr || '-'}</span>
+                    <span>${periodStr}</span>
                     <span>${fileSize}</span>
                     <span>${fileData.data.length}件</span>
-                    <span class="file-item-source">${sourceLabel}</span>
                     <div class="file-item-buttons">
-                        <button onclick="dashboard.downloadLoadedFile('${safeFileName}')" style="background: var(--primary); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">ダウンロード</button>
-                        <button onclick="dashboard.removeFile('${safeFileName}')" style="background: var(--danger-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">削除</button>
+                        <button onclick="dashboard.removeFile('${fileName}')" style="background: var(--danger-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">削除</button>
                     </div>
                 </div>
             `;
@@ -947,21 +854,6 @@ class UIManager {
         const refundRateEl = document.getElementById('refundRate');
         if (refundRateEl) refundRateEl.textContent = '0%';
         document.getElementById('transactionCount').textContent = '0';
-
-        const selmonPanel = document.getElementById('selmonPanel');
-        if (selmonPanel) selmonPanel.style.display = 'none';
-        ['selmonSalesValue', 'selmonAdValue', 'selmonOtherValue', 'selmonNetValue'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = '¥0';
-        });
-        const selmonNetValue = document.getElementById('selmonNetValue');
-        if (selmonNetValue) selmonNetValue.classList.remove('profit-positive', 'profit-negative');
-        const netRateEl = document.getElementById('selmonNetRate');
-        if (netRateEl) netRateEl.textContent = '';
-        const mallBody = document.getElementById('selmonMallTableBody');
-        if (mallBody) {
-            mallBody.innerHTML = '<tr><td colspan="3" class="selmon-mall-empty">セルモン販売データがありません</td></tr>';
-        }
 
         const vineCountEl = document.getElementById('vineCount');
         if (vineCountEl) vineCountEl.textContent = '0';
@@ -1376,16 +1268,5 @@ class UIManager {
             totalCell.style.fontWeight = 'bold';
             totalCell.style.textAlign = 'center';
         });
-    }
-
-    getFileBadge(sourceType = 'amazon') {
-        if (sourceType === 'selmon') {
-            return '<span class="file-badge file-badge--selmon">セル</span>';
-        }
-        return '<span class="file-badge file-badge--amazon">AMZ</span>';
-    }
-
-    getFileSourceLabel(sourceType = 'amazon') {
-        return sourceType === 'selmon' ? 'セルモン' : 'Amazon';
     }
 }

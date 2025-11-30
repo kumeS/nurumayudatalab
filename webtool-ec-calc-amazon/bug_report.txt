@@ -1,0 +1,10 @@
+[不具合概要]
+CSVをドラッグ＆ドロップした際にブラウザのデフォルト挙動（ファイル自動ダウンロード）が発生し、またIndexedDB初期化前に保存処理が走ることでアップロードが失敗する。
+
+[原因]
+1. js/main.js 33-64行のドラッグ＆ドロップ抑止処理をキャプチャフェーズで行うよう変更したため、バブリングフェーズでのpreventDefaultが効かずブラウザ標準のファイル開封/ダウンロードが復活した。
+2. コンストラクタ内でinit()完了前にsetupEventListeners()を実行しているため、IndexedDB接続が確立する前にhandleFiles→saveDataToDBが呼ばれ、this.dataManager.dbがnullのままになる。
+
+[解決策]
+1. グローバルなdragenter/dragover/dragleave/dropリスナーを旧実装同様にバブリングフェーズ（useCapture=false）で登録し、preventDefaultが確実に発火するよう戻す。
+2. setupEventListeners()の呼び出しをinit()完了後に移す、もしくはhandleFiles内でDB初期化完了を待つガードを入れ、dbがnullの状態でsaveDataToDBを呼ばないようにする。

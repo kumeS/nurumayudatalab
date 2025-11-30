@@ -1,0 +1,173 @@
+# ファイルアップロード時の自動ダウンロードバグ - 調査・修正レポート
+
+## 発生日時
+2025-11-30
+
+## 症状
+XLSXファイルをアップロードすると、ファイルが自動的にブラウザでダウンロードされる
+
+## 根本原因（3つ）
+
+### 1. 重複イベントリスナー
+- `app-state-core.js:178` と `app-file-input.js:5-7` で同じクリックイベントが重複登録
+- ファイル選択ダイアログが2回開かれる可能性
+
+### 2. グローバルpreventDefaultの過剰適用
+- `preventDefaultDragBehavior`関数がupload-zone内でも`dropEffect='copy'`を設定
+- この設定がブラウザのデフォルト動作（ダウンロード）をトリガー
+
+### 3. イベント伝播の制御不足
+- dropZoneのイベントハンドラーで`stopPropagation()`が不足
+- グローバルリスナーとの競合が発生
+
+## 解決方法
+
+### 修正1: preventDefaultDragBehavior関数の改善 (app-state-core.js:327-332)
+```javascript
+function preventDefaultDragBehavior(event) {
+  if (!event) return;
+
+  // upload-zone内では何もしない → ブラウザのデフォルト動作を許可
+  if (event.target.closest && event.target.closest('.upload-zone')) {
+    return;
+  }
+
+  // upload-zone外でのみpreventDefault
+  event.preventDefault();
+  event.stopPropagation();
+
+  // dropEffect='none'でダウンロードを完全阻止
+  if (event.dataTransfer && event.type !== 'dragleave') {
+    event.dataTransfer.dropEffect = 'none';
+    event.dataTransfer.effectAllowed = 'none';
+  }
+}
+```
+
+### 修正2: 重複イベントリスナーの削除 (app-file-input.js)
+```javascript
+// DISABLED: 重複防止のためコメントアウト
+// (function(){
+//   const dropZone = document.getElementById('dropZone');
+//   const fileInput = document.getElementById('fileInput');
+//   if (dropZone && fileInput) {
+//     dropZone.addEventListener('click', () => {
+//       fileInput.click();
+//     });
+//   }
+// })();
+```
+
+### 修正3: dropZoneイベントハンドラーの改善 (app-state-core.js:201-210)
+```javascript
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  e.stopPropagation();  // 追加: イベント伝播を防止
+  dropZone.classList.remove('dragover');
+
+  // ファイルのみ処理
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    handleFiles(e.dataTransfer.files);
+  }
+});
+```
+
+### 修正4: グローバルリスナーにキャプチャフェーズ追加 (app-state-core.js:176)
+```javascript
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  window.addEventListener(eventName, preventDefaultDragBehavior, true); // capture phase
+});
+```
+
+## 検証結果
+✅ FT6705-00013.xlsxのアップロード成功
+✅ 自動ダウンロード発生せず
+✅ 商品データ正常表示（17種類、393個）
+
+---
+
+## MCPでのファイルアップロード検証方法
+
+### 1. Playwright MCPの使用
+
+#### 基本構文
+```javascript
+mcp__playwright__upload_file
+```
+
+#### パラメータ
+- `uid`: ページスナップショットから取得した要素のuid
+- `filePath`: アップロードするファイルの絶対パス
+
+#### 注意点
+⚠️ **upload_fileツールの制限:**
+- file input要素を直接クリックできる場合のみ動作
+- 複雑なUI（カスタムアップロードエリア等）では失敗する可能性
+
+### 2. 代替方法: evaluate_scriptの使用
+
+#### 推奨アプローチ
+```javascript
+mcp__chrome-devtools__evaluate_script
+{
+  "function": "() => {
+    const dropZone = document.getElementById('dropZone');
+    if (dropZone) {
+      dropZone.click();
+      return 'Clicked on dropZone';
+    }
+    return 'dropZone not found';
+  }"
+}
+```
+
+#### メリット
+- より柔軟な操作が可能
+- カスタムUIでも対応可能
+- エラーハンドリングが容易
+
+### 3. 実際の検証フロー
+
+```javascript
+// 1. ページに移動
+mcp__chrome-devtools__navigate_page({ url: "file://..." })
+
+// 2. スナップショット取得
+mcp__chrome-devtools__take_snapshot()
+
+// 3. アップロードエリアをクリック（evaluate_script推奨）
+mcp__chrome-devtools__evaluate_script({
+  function: "() => { document.getElementById('dropZone').click(); return 'OK'; }"
+})
+
+// 4. コンソールログ確認
+mcp__chrome-devtools__list_console_messages()
+
+// 5. 結果のスナップショット取得
+mcp__chrome-devtools__take_snapshot()
+```
+
+## 教訓
+
+### Do（推奨）
+✅ upload-zone内外で異なるイベントハンドリング
+✅ stopPropagation()で イベント伝播を制御
+✅ dropEffect='none'でupload-zone外のドロップを完全阻止
+✅ キャプチャフェーズでグローバルリスナーを早期実行
+
+### Don't（非推奨）
+❌ 全イベントで一律preventDefault()を実行
+❌ イベントリスナーの重複登録
+❌ dropEffect='copy'をupload-zone内で設定
+❌ グローバルとローカルのイベントハンドラー競合を放置
+
+## 修正ファイル一覧
+- js/app-state-core.js
+- js/app-file-input.js
+- js/app-state-extra.js
+- js/app-helpers.js
+- js/app-render.js
+
+## 参考リンク
+- MDN: DataTransfer.dropEffect https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer/dropEffect
+- MDN: Event.stopPropagation() https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation

@@ -49,8 +49,7 @@ class DataManager {
                             data: fileData.data,
                             fileName: fileData.fileName,
                             fileSize: fileData.fileSize,
-                            timestamp: fileData.timestamp,
-                            sourceType: fileData.sourceType || this.inferSourceType(fileData.data)
+                            timestamp: fileData.timestamp
                         });
                     });
                     
@@ -66,7 +65,7 @@ class DataManager {
         }
     }
 
-    async saveDataToDB(fileName, data, fileSize, sourceType) {
+    async saveDataToDB(fileName, data, fileSize) {
         try {
             const transaction = this.db.transaction(['fileData'], 'readwrite');
             const store = transaction.objectStore('fileData');
@@ -75,8 +74,7 @@ class DataManager {
                 fileName: fileName,
                 data: data,
                 fileSize: fileSize,
-                timestamp: new Date().toISOString(),
-                sourceType: sourceType
+                timestamp: new Date().toISOString()
             };
             
             await store.put(fileData);
@@ -154,10 +152,6 @@ class DataManager {
         const orderTypeMap = new Map();
 
         rows.forEach(row => {
-            if (row.__source === 'selmon') {
-                this.processSelmonRow(row, result, orderTypeMap);
-                return;
-            }
             const date = row['日付'];
             const transactionType = row['トランザクションの種類'];
             const orderNumber = row['注文番号'];
@@ -313,35 +307,27 @@ class DataManager {
         });
         
         const amazonUniqueOrders = new Set();
-        const selmonOrders = new Set();
         allUniqueOrders.forEach(orderId => {
             const orderType = orderTypeMap.get(orderId);
-            if (orderType === 'multiChannel') return;
-            if (orderType === 'selmon') {
-                selmonOrders.add(orderId);
-            } else {
+            if (orderType !== 'multiChannel') {
                 amazonUniqueOrders.add(orderId);
             }
         });
         
         result.orderBreakdown = { 
             amazonOrders: amazonUniqueOrders.size,
-            multiChannelOrders: result.multiChannelData.count,
-            selmonOrders: selmonOrders.size
+            multiChannelOrders: result.multiChannelData.count
         };
         
-        result.orderCount = result.orderBreakdown.amazonOrders + 
-                           result.orderBreakdown.multiChannelOrders + 
-                           result.orderBreakdown.selmonOrders;
+        result.orderCount = result.orderBreakdown.amazonOrders + result.orderBreakdown.multiChannelOrders;
         
         result.totalFbaFees = Object.entries(result.fbaFeeBreakdown)
             .filter(([key]) => key !== 'refundFees')
             .reduce((sum, [, fee]) => sum + fee, 0);
         
-        result.totalSales += result.selmonSummary.totalSales;
-        result.totalExpenses = result.totalSalesFees + result.totalFbaFees + result.selmonSummary.totalExpenses;
+        result.totalExpenses = result.totalSalesFees + result.totalFbaFees;
         
-        const grossProfit = result.totalSales - (result.totalSalesFees + result.selmonSummary.totalExpenses);
+        const grossProfit = result.totalSales - result.totalSalesFees;
         result.totalProfit = grossProfit - result.totalFbaFees + result.totalRefundAmount + result.totalInventoryRefund;
         
         Object.keys(result.dailyData).forEach(date => {
@@ -383,19 +369,8 @@ class DataManager {
             vineData: { count: 0, totalAmount: 0, products: [] },
             multiChannelData: { count: 0, totalAmount: 0, orders: [] },
             salesBreakdown: { productPrice: 0, otherAmount: 0 },
-            orderBreakdown: { amazonOrders: 0, multiChannelOrders: 0, selmonOrders: 0 },
-            productFeeData: {},
-            selmonSummary: {
-                totalSales: 0,
-                totalExpenses: 0,
-                categoryTotals: {
-                    sales: 0,
-                    advertising: 0,
-                    other: 0
-                },
-                mallSales: {}
-            },
-            selmonDailyData: {}
+            orderBreakdown: { amazonOrders: 0, multiChannelOrders: 0 },
+            productFeeData: {}
         };
     }
 
@@ -428,93 +403,6 @@ class DataManager {
         }
     }
 
-    processSelmonRow(row, result, orderTypeMap) {
-        const date = row['日付'] || row['売上日時'];
-        if (!date) return;
-        const normalizedDate = this.normalizeDateKey(date);
-
-        if (!result.dailyData[date]) {
-            result.dailyData[date] = {
-                sales: 0,
-                fees: 0,
-                profit: 0,
-                orders: new Set(),
-                refunds: 0
-            };
-        }
-        if (normalizedDate && !result.selmonDailyData[normalizedDate]) {
-            result.selmonDailyData[normalizedDate] = { sales: 0, expenses: 0 };
-        }
-
-        const category = (row['セルモン_売上区分名'] || row['売上区分名'] || '').trim() || '不明';
-        const detail = row['セルモン_明細'] || row['明細'] || row['商品の詳細'] || 'セルモン商品';
-        const amount = parseFloat(row['セルモン_金額']) || parseFloat(row['税込合計金額(円)']) || parseFloat(row['合計 (JPY)']) || 0;
-        const mall = row['セルモン_モール名'] || row['モール名'] || 'モール不明';
-        const orderNumber = row['注文番号'] || row['マルチチャネル出荷明細番号'] || row['明細ID'] || `${date}_${detail}`;
-        const quantityValue = Number(row['セルモン_個数'] || row['個数'] || 1);
-        const quantity = Number.isFinite(quantityValue) && quantityValue > 0 ? quantityValue : 1;
-
-        const transactionKey = `セルモン / ${category}`;
-        if (!result.transactionTypes[transactionKey]) {
-            result.transactionTypes[transactionKey] = { count: 0, amount: 0 };
-        }
-        result.transactionTypes[transactionKey].count++;
-        result.transactionTypes[transactionKey].amount += amount;
-
-        if (category === '販売売上') {
-            const saleAmount = amount;
-            result.selmonSummary.totalSales += saleAmount;
-            result.selmonSummary.categoryTotals.sales += saleAmount;
-            if (!result.selmonSummary.mallSales[mall]) {
-                result.selmonSummary.mallSales[mall] = { amount: 0, quantity: 0 };
-            }
-            result.selmonSummary.mallSales[mall].amount += saleAmount;
-            result.selmonSummary.mallSales[mall].quantity += quantity;
-            if (normalizedDate) {
-                result.selmonDailyData[normalizedDate].sales += saleAmount;
-            }
-        
-            result.dailyData[date].sales += saleAmount;
-            result.dailyData[date].profit += saleAmount;
-            const productName = row['商品の詳細'] || `[セルモン] ${detail}`;
-            if (!result.productData[productName]) {
-                result.productData[productName] = { sales: 0, fees: 0, profit: 0, count: 0 };
-            }
-            result.productData[productName].sales += saleAmount;
-            result.productData[productName].profit += saleAmount;
-            result.productData[productName].count += quantity;
-
-            const orderId = `selmon_${orderNumber}`;
-            result.dailyData[date].orders.add(orderId);
-            orderTypeMap.set(orderId, 'selmon');
-        } else {
-            const expenseAmount = Math.abs(amount);
-            result.selmonSummary.totalExpenses += expenseAmount;
-            if (category === '広告費') {
-                result.selmonSummary.categoryTotals.advertising += expenseAmount;
-            } else {
-                result.selmonSummary.categoryTotals.other += expenseAmount;
-            }
-            result.dailyData[date].fees += expenseAmount;
-            result.dailyData[date].profit -= expenseAmount;
-            if (normalizedDate) {
-                result.selmonDailyData[normalizedDate].expenses += expenseAmount;
-            }
-        }
-    }
-
-    normalizeDateKey(value) {
-        if (!value) return '';
-        const dateObj = new Date(value);
-        if (!isNaN(dateObj)) {
-            const year = dateObj.getFullYear();
-            const month = dateObj.getMonth() + 1;
-            const day = dateObj.getDate();
-            return `${year}/${month}/${day}`;
-        }
-        return value;
-    }
-
     async parseCSVToArray(file) {
         return new Promise((resolve) => {
             Papa.parse(file, {
@@ -522,69 +410,17 @@ class DataManager {
                 skipEmptyLines: true,
                 encoding: 'UTF-8',
                 complete: (results) => {
-                    const fields = (results.meta && results.meta.fields) ? results.meta.fields : [];
-                    if (this.isSelmonCsv(fields)) {
-                        const rows = this.normalizeSelmonRows(results.data);
-                        resolve({ rows, type: 'selmon' });
-                        return;
-                    }
-                    if (this.isAmazonCsv(fields)) {
-                        const rows = this.normalizeAmazonRows(results.data);
-                        resolve({ rows, type: 'amazon' });
-                        return;
-                    }
-                    console.warn('認識できないCSVフォーマットのため読み込みをスキップしました:', file.name);
-                    resolve({ rows: [], type: 'unknown' });
+                    const data = results.data.filter(row => {
+                        return row['日付'] && row['トランザクションの種類'];
+                    });
+                    resolve(data);
                 },
                 error: (error) => {
                     console.error('CSV解析エラー:', error);
-                    resolve({ rows: [], type: 'unknown' });
+                    resolve([]);
                 }
             });
         });
-    }
-
-    isAmazonCsv(fields) {
-        return fields.includes('日付') && fields.includes('トランザクションの種類');
-    }
-
-    isSelmonCsv(fields) {
-        return fields.includes('売上日時') && fields.includes('売上区分名') && fields.includes('税込合計金額(円)');
-    }
-
-    normalizeAmazonRows(rows) {
-        return rows
-            .filter(row => row['日付'] && row['トランザクションの種類'])
-            .map(row => ({ ...row, __source: 'amazon' }));
-    }
-
-    normalizeSelmonRows(rows) {
-        return rows
-            .filter(row => row['売上日時'] && row['売上区分名'] && row['税込合計金額(円)'])
-            .map(row => {
-                const amount = parseFloat(row['税込合計金額(円)']) || 0;
-                const detail = row['明細'] || '不明';
-                const normalized = { ...row };
-                normalized.__source = 'selmon';
-                normalized['日付'] = this.normalizeDateKey(row['売上日時']);
-                normalized['トランザクションの種類'] = `セルモン/${row['売上区分名']}`;
-                normalized['商品の詳細'] = `[セルモン] ${detail}`;
-                normalized['注文番号'] = row['マルチチャネル出荷明細番号'] || row['明細ID'] || `SEL-${row['売上日時']}-${row['売上区分名']}`;
-                normalized['合計 (JPY)'] = amount;
-                normalized['セルモン_売上区分名'] = row['売上区分名'];
-                normalized['セルモン_明細'] = detail;
-                normalized['セルモン_モール名'] = row['モール名'] || '';
-                normalized['セルモン_金額'] = amount;
-                normalized['セルモン_個数'] = row['個数'] ? Number(row['個数']) : null;
-                return normalized;
-            });
-    }
-
-    inferSourceType(rows) {
-        if (!rows || rows.length === 0) return 'amazon';
-        if (rows[0].__source) return rows[0].__source;
-        if (rows[0]['売上日時'] || rows[0]['売上区分名']) return 'selmon';
-        return 'amazon';
     }
 
     loadProductSettings() {
@@ -834,7 +670,7 @@ class DataManager {
 
         // 1. 商品・月ごとの販売数を集計
         allData.forEach(row => {
-            if (!row['日付'] || row.__source === 'selmon' || row['トランザクションの種類'] !== '注文に対する支払い') return;
+            if (!row['日付'] || row['トランザクションの種類'] !== '注文に対する支払い') return;
             
             const date = new Date(row['日付']);
             const month = date.getMonth(); // 0-11

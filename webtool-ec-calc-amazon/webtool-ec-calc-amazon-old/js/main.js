@@ -7,13 +7,6 @@ class AmazonDashboard {
         this.currentPeriod = null;
         this.currentSubPeriod = 'all';
         
-        // イベントリスナーを初期化の最初に設定（DOM要素が存在することを前提）
-        // これにより、データの読み込みを待たずにドラッグ＆ドロップの制御が有効になる
-        // IMPORTANT: Do not move file-handling logic ahead of IndexedDB init.
-        // setupEventListeners must only trigger uploads after init() resolves,
-        // otherwise saveDataToDB will run with this.dataManager.db === null.
-        this.setupEventListeners();
-
         this.init();
     }
 
@@ -32,83 +25,60 @@ class AmazonDashboard {
             document.getElementById('dashboard').classList.add('active');
             this.switchTab(savedTab);
         }
+        
+        this.setupEventListeners();
+        this.setupScrollPositionRestore();
+    }
+
+    setupScrollPositionRestore() {
+        // ページ離脱前にスクロール位置を保存
+        window.addEventListener('beforeunload', () => {
+            sessionStorage.setItem('amazon_dashboard_scroll_y', window.scrollY.toString());
+        });
+
+        // スクロール位置を復元（DOMContentLoadedまたはloadイベント後）
+        const savedScrollY = sessionStorage.getItem('amazon_dashboard_scroll_y');
+        if (savedScrollY !== null) {
+            // 少し遅延させて確実にコンテンツがレンダリングされた後にスクロール
+            requestAnimationFrame(() => {
+                window.scrollTo(0, parseInt(savedScrollY, 10));
+            });
+        }
     }
 
     setupEventListeners() {
         const uploadZone = document.getElementById('uploadZone');
         const fileInput = document.getElementById('fileInput');
 
-        // ---------------------------------------------------------
-        // 1. Window/Document全体でのドラッグ＆ドロップ無効化 (Global Prevention)
-        // ---------------------------------------------------------
-        // ブラウザのデフォルト動作（ファイルを開く/ダウンロード）を阻止
-        // IMPORTANT: keep these listeners in the bubbling phase. Moving them
-        // to capture=true will re-enable the browser's native file open/download
-        // behavior (see bug_report.txt) even if preventDefault is called.
-        const preventGlobal = (e) => {
-            e.preventDefault();
-            const isInsideUploadZone = uploadZone && (e.target === uploadZone || uploadZone.contains(e.target));
+        window.addEventListener('dragover', (e) => e.preventDefault(), false);
+        window.addEventListener('drop', (e) => e.preventDefault(), false);
 
-            if (!isInsideUploadZone) {
-                e.stopPropagation();
-                if (e.dataTransfer) {
-                    e.dataTransfer.dropEffect = 'none';
-                }
-            }
-        };
-
-        // windowとdocumentの両方に設定
-        const globalDragOptions = { capture: false, passive: false };
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            window.addEventListener(eventName, preventGlobal, globalDragOptions);
-            document.addEventListener(eventName, preventGlobal, globalDragOptions);
-        });
-
-        // ---------------------------------------------------------
-        // 2. UploadZoneでのドラッグ＆ドロップ有効化 (Local Handling)
-        // ---------------------------------------------------------
         uploadZone.addEventListener('click', () => fileInput.click());
-        
-        uploadZone.addEventListener('dragenter', (e) => {
-            e.preventDefault();
-            e.stopPropagation(); // バブリングを止めてGlobalに行かせない
-            uploadZone.classList.add('drag-over');
-        });
         
         uploadZone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            e.stopPropagation(); // バブリングを止めてGlobalに行かせない
-            e.dataTransfer.dropEffect = 'copy'; // ドロップ可能（コピー）
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'copy';
             uploadZone.classList.add('drag-over');
         });
 
         uploadZone.addEventListener('dragleave', (e) => {
             e.preventDefault();
-            e.stopPropagation(); // バブリングを止めてGlobalに行かせない
-            
-            // relatedTargetがuploadZoneの内部にある場合はクラスを削除しない
-            if (e.relatedTarget && uploadZone.contains(e.relatedTarget)) {
-                return;
+            e.stopPropagation();
+            if (!uploadZone.contains(e.relatedTarget)) {
+                uploadZone.classList.remove('drag-over');
             }
-            uploadZone.classList.remove('drag-over');
         });
 
         uploadZone.addEventListener('drop', (e) => {
             e.preventDefault();
-            e.stopPropagation(); // バブリングを止めてGlobalに行かせない
-            
+            e.stopPropagation();
             uploadZone.classList.remove('drag-over');
-            
-            const files = e.dataTransfer.files;
-            if (files && files.length > 0) {
-                this.handleFiles(files);
-            }
+            this.handleFiles(e.dataTransfer.files);
         });
 
         fileInput.addEventListener('change', (e) => {
             this.handleFiles(e.target.files);
-            // ファイル選択後にinputをリセット（同じファイルを再度選択できるように）
-            fileInput.value = '';
         });
 
         document.querySelectorAll('.tab-button').forEach(button => {
@@ -153,10 +123,8 @@ class AmazonDashboard {
     }
 
     async processFileWithDuplicateCheck(file) {
-        const { rows, type } = await this.dataManager.parseCSVToArray(file);
-        if (!rows || rows.length === 0) return;
-
-        const sourceType = type || this.dataManager.inferSourceType(rows);
+        const tempData = await this.dataManager.parseCSVToArray(file);
+        if (tempData.length === 0) return;
 
         if (this.dataManager.loadedFiles.has(file.name)) {
             const shouldReplace = await this.uiManager.showDuplicateConfirmation(file.name);
@@ -167,15 +135,14 @@ class AmazonDashboard {
         }
 
         this.dataManager.loadedFiles.set(file.name, {
-            data: rows,
+            data: tempData,
             fileName: file.name,
             fileSize: file.size,
-            timestamp: new Date().toISOString(),
-            sourceType
+            timestamp: new Date().toISOString()
         });
 
-        await this.dataManager.saveDataToDB(file.name, rows, file.size, sourceType);
-        console.log(`${file.name}を読み込みました (${rows.length}件)`);
+        await this.dataManager.saveDataToDB(file.name, tempData, file.size);
+        console.log(`${file.name}を読み込みました (${tempData.length}件)`);
     }
 
     updateDashboard() {
@@ -432,15 +399,13 @@ class AmazonDashboard {
         this.uiManager.toggleUsageInfo(btn);
     }
 
+    toggleFileList(btn) {
+        this.uiManager.toggleFileList(btn);
+    }
+
     showExpenseInfo(event) {
         this.uiManager.showExpenseInfo(event);
     }
 }
 
-// DOMContentLoadedを待ってから初期化し、グローバル変数に代入
-let dashboard;
-document.addEventListener('DOMContentLoaded', () => {
-    dashboard = new AmazonDashboard();
-    // HTML内のonclick属性からアクセスできるようにwindowオブジェクトに登録
-    window.dashboard = dashboard;
-});
+const dashboard = new AmazonDashboard();

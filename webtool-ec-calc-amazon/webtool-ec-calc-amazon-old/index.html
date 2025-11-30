@@ -34,8 +34,7 @@
             <div class="subtitle">
                 Amazonトランザクションレポート（全取引タイプ）をドラッグ＆ドロップで即座に分析。<br>
                 売上・粗利・純利益の推移可視化から、商品ごとの詳細な収支計算（原価・経費入力対応）、<br>
-                FBA手数料やマルチチャネル配送の分析まで、EC運営の意思決定を強力にサポートします。<br>
-                さらにセルモンのレポートも読み込めるようになり、必要な指標をワンストップで確認できます。
+                FBA手数料やマルチチャネル配送の分析まで、EC運営の意思決定を強力にサポートします。
             </div>
         </div>
 
@@ -165,23 +164,6 @@
                     </span>
                     <span class="info-item-text">複数月のデータは同時にドロップして統合分析が可能</span>
                 </div>
-                <div class="info-item">
-                    <span class="info-item-icon" aria-hidden="true">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <defs>
-                                <linearGradient id="usage_grad_selmon" x1="4" y1="20" x2="20" y2="4" gradientUnits="userSpaceOnUse">
-                                    <stop stop-color="#ff9966"/>
-                                    <stop offset="1" stop-color="#ff5e62"/>
-                                </linearGradient>
-                            </defs>
-                            <rect x="5" y="4" width="14" height="16" rx="2" stroke="url(#usage_grad_selmon)" stroke-width="1.5"/>
-                            <path d="M8 8H16" stroke="url(#usage_grad_selmon)" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M8 12H16" stroke="url(#usage_grad_selmon)" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M8 16H13" stroke="url(#usage_grad_selmon)" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                    </span>
-                    <span class="info-item-text">セルモンデータも加えるには、セルモンの「売上管理 &gt; 売上レポート」をCSVで出力し、このエリアにアップロードしてください。</span>
-                </div>
             </div>
             
             <div id="fileListToggle" class="usage-toggle" style="display: none;" onclick="dashboard.toggleFileList(this)">
@@ -299,50 +281,6 @@
                 <div class="card">
                     <div class="card-label">マルチチャネル配送額</div>
                     <div class="card-value" id="multiChannelAmount">¥0</div>
-                </div>
-            </div>
-
-            <div class="selmon-panel" id="selmonPanel" style="display: none;">
-                <div class="selmon-panel-header">
-                    <div class="selmon-panel-icon">🧾</div>
-                    <div>
-                        <div class="selmon-panel-title">セルモン売上管理データ</div>
-                        <div class="selmon-panel-subtitle">セルモンの売上レポート分をAmazon指標へ自動加算</div>
-                    </div>
-                </div>
-                <div class="selmon-card-grid">
-                    <div class="selmon-card">
-                        <div class="selmon-card-label">販売売上</div>
-                        <div class="selmon-card-value" id="selmonSalesValue">¥0</div>
-                    </div>
-                    <div class="selmon-card">
-                        <div class="selmon-card-label">広告費</div>
-                        <div class="selmon-card-value" id="selmonAdValue">¥0</div>
-                    </div>
-                    <div class="selmon-card">
-                        <div class="selmon-card-label">その他</div>
-                        <div class="selmon-card-value" id="selmonOtherValue">¥0</div>
-                    </div>
-                    <div class="selmon-card">
-                        <div class="selmon-card-label">セルモン純利益</div>
-                        <div class="selmon-card-value" id="selmonNetValue">¥0</div>
-                        <div class="selmon-card-note" id="selmonNetRate"></div>
-                    </div>
-                </div>
-                <div class="selmon-mall-table">
-                    <div class="selmon-mall-title">モール別販売売上</div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>モール</th>
-                                <th>売上</th>
-                                <th>販売個数</th>
-                            </tr>
-                        </thead>
-                        <tbody id="selmonMallTableBody">
-                            <tr><td colspan="3" class="selmon-mall-empty">セルモン販売データがありません</td></tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>
 
