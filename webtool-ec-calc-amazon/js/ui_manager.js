@@ -985,7 +985,7 @@ class UIManager {
         if (subSelector) subSelector.style.display = 'none';
     }
 
-    showExpenseInfo(event) {
+    showNetProfitInfo(event) {
         event.stopPropagation();
         
         const existingPopup = document.querySelector('.expense-info-popup');
@@ -1001,6 +1001,123 @@ class UIManager {
         
         popup.innerHTML = `
             <span class="popup-close" onclick="this.parentElement.remove()">×</span>
+            <h4>純利益の内訳</h4>
+            <ul>
+                <li>総売上: ${this.formatCurrency(data.totalSales || 0)}</li>
+                <li>合計経費: -${this.formatCurrency(data.totalExpenses || 0)}</li>
+                <li>在庫の払い戻し: ${this.formatCurrency(data.totalInventoryRefund || 0)}</li>
+                <li style="border-top: 1px solid #ccc; margin-top: 5px; padding-top: 5px; font-weight: bold;">
+                    純利益: ${this.formatCurrency(data.totalProfit)}
+                </li>
+            </ul>
+            <p style="font-size: 0.8em; color: #666; margin-top: 10px;">
+                ※純利益 = 総売上 - 合計経費 + 在庫の払い戻し<br>
+                ※返金額は合計経費に含まれています。
+            </p>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        const rect = event.target.getBoundingClientRect();
+        popup.style.left = `${rect.left}px`;
+        popup.style.top = `${rect.bottom + 10}px`;
+        
+        const popupRect = popup.getBoundingClientRect();
+        if (popupRect.right > window.innerWidth) {
+            popup.style.left = `${window.innerWidth - popupRect.width - 20}px`;
+        }
+        if (popupRect.bottom > window.innerHeight) {
+            popup.style.top = `${rect.top - popupRect.height - 10}px`;
+            popup.style.setProperty('--arrow-position', 'bottom');
+        }
+        
+        const closePopup = (e) => {
+            if (!popup.contains(e.target)) {
+                popup.remove();
+                document.removeEventListener('click', closePopup);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', closePopup);
+        }, 0);
+    }
+
+    showGrossProfitInfo(event) {
+        event.stopPropagation();
+        
+        const existingPopup = document.querySelector('.expense-info-popup');
+        if (existingPopup) {
+            existingPopup.remove();
+            return;
+        }
+        
+        const data = this.dataManager.getCurrentData(this.main.currentPeriod, this.main.currentSubPeriod);
+        const gross = (data.totalSales || 0) - (data.totalSalesFees || data.totalFees || 0);
+        
+        const popup = document.createElement('div');
+        popup.className = 'expense-info-popup';
+        
+        popup.innerHTML = `
+            <span class="popup-close" onclick="this.parentElement.remove()">×</span>
+            <h4>粗利の内訳</h4>
+            <ul>
+                <li>総売上: ${this.formatCurrency(data.totalSales || 0)}</li>
+                <li>売上手数料: -${this.formatCurrency(data.totalSalesFees || 0)}</li>
+                <li style="border-top: 1px solid #ccc; margin-top: 5px; padding-top: 5px; font-weight: bold;">
+                    粗利: ${this.formatCurrency(gross)}
+                </li>
+            </ul>
+            <p style="font-size: 0.8em; color: #666; margin-top: 10px;">
+                ※粗利 = 総売上 - 売上手数料<br>
+                ※その他経費（FBA手数料など）は含まれていません。
+            </p>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        const rect = event.target.getBoundingClientRect();
+        popup.style.left = `${rect.left}px`;
+        popup.style.top = `${rect.bottom + 10}px`;
+        
+        const popupRect = popup.getBoundingClientRect();
+        if (popupRect.right > window.innerWidth) {
+            popup.style.left = `${window.innerWidth - popupRect.width - 20}px`;
+        }
+        if (popupRect.bottom > window.innerHeight) {
+            popup.style.top = `${rect.top - popupRect.height - 10}px`;
+            popup.style.setProperty('--arrow-position', 'bottom');
+        }
+        
+        const closePopup = (e) => {
+            if (!popup.contains(e.target)) {
+                popup.remove();
+                document.removeEventListener('click', closePopup);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', closePopup);
+        }, 0);
+    }
+
+    showExpenseInfo(event) {
+        event.stopPropagation();
+        
+        const existingPopup = document.querySelector('.expense-info-popup');
+        if (existingPopup) {
+            existingPopup.remove();
+            return;
+        }
+        
+        const data = this.dataManager.getCurrentData(this.main.currentPeriod, this.main.currentSubPeriod);
+        
+        const popup = document.createElement('div');
+        popup.className = 'expense-info-popup';
+        
+        const selmonExpenses = data.selmonSummary ? data.selmonSummary.totalExpenses : 0;
+        const selmonRow = selmonExpenses > 0 ? `<li>セルモン経費: ${this.formatCurrency(selmonExpenses)}</li>` : '';
+
+        popup.innerHTML = `
+            <span class="popup-close" onclick="this.parentElement.remove()">×</span>
             <h4>合計経費の内訳</h4>
             <ul>
                 <li>売上手数料: ${this.formatCurrency(data.totalSalesFees || 0)}</li>
@@ -1009,8 +1126,69 @@ class UIManager {
                 <li>広告費用: ${this.formatCurrency(data.fbaFeeBreakdown.advertisingFees || 0)}</li>
                 <li>クーポンパフォーマンスに基づく料金: ${this.formatCurrency(data.fbaFeeBreakdown.couponFees || 0)}</li>
                 <li>マーケットプレイス配送サービス（請求）: ${this.formatCurrency(data.fbaFeeBreakdown.marketplaceFees || 0)}</li>
+                <li>返金: ${this.formatCurrency(data.fbaFeeBreakdown.refundFees || 0)}</li>
                 <li>その他手数料: ${this.formatCurrency(data.fbaFeeBreakdown.otherFees || 0)}</li>
+                ${selmonRow}
             </ul>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        const rect = event.target.getBoundingClientRect();
+        popup.style.left = `${rect.left}px`;
+        popup.style.top = `${rect.bottom + 10}px`;
+        
+        const popupRect = popup.getBoundingClientRect();
+        if (popupRect.right > window.innerWidth) {
+            popup.style.left = `${window.innerWidth - popupRect.width - 20}px`;
+        }
+        if (popupRect.bottom > window.innerHeight) {
+            popup.style.top = `${rect.top - popupRect.height - 10}px`;
+            popup.style.setProperty('--arrow-position', 'bottom');
+        }
+        
+        const closePopup = (e) => {
+            if (!popup.contains(e.target)) {
+                popup.remove();
+                document.removeEventListener('click', closePopup);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', closePopup);
+        }, 0);
+    }
+
+    showSalesFeesInfo(event) {
+        event.stopPropagation();
+        
+        const existingPopup = document.querySelector('.expense-info-popup');
+        if (existingPopup) {
+            existingPopup.remove();
+            return;
+        }
+        
+        const data = this.dataManager.getCurrentData(this.main.currentPeriod, this.main.currentSubPeriod);
+        const breakdown = data.salesFeeBreakdown || { promotionDiscount: 0, amazonFees: 0, multiChannelFees: 0 };
+        const vineAmount = data.vineData ? data.vineData.totalAmount : 0;
+        
+        const popup = document.createElement('div');
+        popup.className = 'expense-info-popup';
+        
+        popup.innerHTML = `
+            <span class="popup-close" onclick="this.parentElement.remove()">×</span>
+            <h4>売上手数料の内訳</h4>
+            <ul>
+                <li>Amazon手数料: ${this.formatCurrency(breakdown.amazonFees)}</li>
+                <li>プロモーション割引: ${this.formatCurrency(breakdown.promotionDiscount)}</li>
+                <li>マルチチャネル配送手数料: ${this.formatCurrency(breakdown.multiChannelFees)}</li>
+                <li style="border-top: 1px solid #ccc; margin-top: 5px; padding-top: 5px; font-weight: bold;">
+                    売上手数料合計: ${this.formatCurrency(data.totalSalesFees || 0)}
+                </li>
+            </ul>
+            <p style="font-size: 0.8em; color: #666; margin-top: 10px;">
+                ※VINE商品割引額: ${this.formatCurrency(vineAmount)}<br>
+                (VINE費用はプロモーション割引に含まれています)
+            </p>
         `;
         
         document.body.appendChild(popup);

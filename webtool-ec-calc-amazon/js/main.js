@@ -3,6 +3,7 @@ class AmazonDashboard {
         this.dataManager = new DataManager();
         this.uiManager = new UIManager(this.dataManager, this);
         this.chartManager = new ChartManager(this.dataManager, this.uiManager);
+        this.childAsinManager = new ChildAsinManager(this.dataManager, this.uiManager);
 
         this.currentPeriod = null;
         this.currentSubPeriod = 'all';
@@ -24,6 +25,16 @@ class AmazonDashboard {
 
         this.dataManager.loadProductSettings();
         const hasData = await this.dataManager.loadDataFromDB();
+
+        // 子ASINデータの復元
+        this.dataManager.loadedFiles.forEach((fileData) => {
+            if (fileData.sourceType === 'child-asin') {
+                this.childAsinManager.loadData(fileData.data, fileData.fileName);
+            }
+        });
+        if (this.childAsinManager.weeks.size > 0) {
+            this.childAsinManager.updateUI();
+        }
 
         this.currentPeriod = localStorage.getItem('amazon_dashboard_current_period');
         this.currentSubPeriod = localStorage.getItem('amazon_dashboard_current_sub_period') || 'all';
@@ -167,6 +178,33 @@ class AmazonDashboard {
         document.getElementById('loading').classList.add('active');
 
         for (const file of csvFiles) {
+            // 子ASIN詳細データCSVの判定
+            if (file.name.match(/(\d{4})-week(\d+)-子商品別\.csv/)) {
+                try {
+                    const { success, rows } = await this.childAsinManager.processFile(file);
+                    if (!success) continue;
+
+                    // DBに保存
+                    await this.dataManager.saveDataToDB(file.name, rows, file.size, 'child-asin');
+
+                    this.switchTab('child-asin-detail');
+                    this.childAsinManager.updateUI();
+
+                    // 読み込み済みファイルリストに追加
+                    this.dataManager.loadedFiles.set(file.name, {
+                        data: [], // 生データは保持しない（メモリ節約のため）
+                        fileName: file.name,
+                        fileSize: file.size,
+                        timestamp: new Date().toISOString(),
+                        sourceType: 'child-asin'
+                    });
+                } catch (e) {
+                    console.error('子ASINデータの処理に失敗しました:', e);
+                    alert(`ファイル ${file.name} の処理に失敗しました。`);
+                }
+                continue;
+            }
+
             await this.processFileWithDuplicateCheck(file);
         }
 
@@ -251,6 +289,14 @@ class AmazonDashboard {
 
     switchTab(tab) {
         this.uiManager.switchTab(tab);
+
+        // 子ASIN詳細データタブが表示された場合、グラフを再描画
+        // (display: noneの状態ではChart.jsが正しく描画できないため)
+        if (tab === 'child-asin-detail' && this.childAsinManager) {
+            requestAnimationFrame(() => {
+                this.childAsinManager.renderChart();
+            });
+        }
     }
 
     async removeFile(fileName) {
@@ -471,6 +517,18 @@ class AmazonDashboard {
 
     showExpenseInfo(event) {
         this.uiManager.showExpenseInfo(event);
+    }
+
+    showGrossProfitInfo(event) {
+        this.uiManager.showGrossProfitInfo(event);
+    }
+
+    showNetProfitInfo(event) {
+        this.uiManager.showNetProfitInfo(event);
+    }
+
+    showSalesFeesInfo(event) {
+        this.uiManager.showSalesFeesInfo(event);
     }
 }
 

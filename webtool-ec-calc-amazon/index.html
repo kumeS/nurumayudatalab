@@ -208,12 +208,18 @@
                     <div class="card-change positive" id="salesChange"></div>
                 </div>
                 <div class="card">
-                    <div class="card-label">売上手数料</div>
+                    <div class="card-label">
+                        売上手数料
+                        <span class="info-icon" onclick="dashboard.showSalesFeesInfo(event)">i</span>
+                    </div>
                     <div class="card-value" id="totalSalesFees">¥0</div>
                     <div class="card-change negative" id="salesFeesChange"></div>
                 </div>
                 <div class="card">
-                    <div class="card-label">粗利</div>
+                    <div class="card-label">
+                        粗利
+                        <span class="info-icon" onclick="dashboard.showGrossProfitInfo(event)">i</span>
+                    </div>
                     <div class="card-value" id="grossProfit">¥0</div>
                     <div class="card-change" id="grossChange"></div>
                 </div>
@@ -231,7 +237,10 @@
                     <div class="card-change negative" id="expensesChange"></div>
                 </div>
                 <div class="card">
-                    <div class="card-label">純利益 (総売上-合計経費)</div>
+                    <div class="card-label">
+                        純利益 (総売上-合計経費)
+                        <span class="info-icon" onclick="dashboard.showNetProfitInfo(event)">i</span>
+                    </div>
                     <div class="card-value" id="totalProfit">¥0</div>
                     <div class="card-change" id="profitChange"></div>
                 </div>
@@ -371,6 +380,7 @@
                     <button class="tab-button" data-tab="fba">その他手数料</button>
                     <button class="tab-button" data-tab="multichannel">マルチチャネル</button>
                     <button class="tab-button" data-tab="inventory-forecast">仕入予測</button>
+                    <button class="tab-button" data-tab="child-asin-detail">子ASIN詳細データ</button>
                 </div>
                 
                 <div class="table-content active" id="daily-tab">
@@ -552,6 +562,49 @@
                         <tbody></tbody>
                     </table>
                 </div>
+
+                <div class="table-content" id="child-asin-detail-tab">
+                    <div class="child-asin-controls" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+                        <div class="control-group" style="display: inline-block; margin-right: 20px;">
+                            <label style="font-weight: bold; margin-right: 10px;">表示指標:</label>
+                            <select id="childAsinMetricSelector" style="padding: 5px; border-radius: 4px; border: 1px solid #ced4da;">
+                                <option value="sessions">セッション数</option>
+                                <option value="sessionRate">セッション率</option>
+                                <option value="pageViews">ページビュー数</option>
+                                <option value="pageViewRate">ページビュー率</option>
+                                <option value="unitSessionRate">ユニットセッション率</option>
+                                <option value="orderedItems">注文商品点数</option>
+                                <option value="orderedSales">注文売上</option>
+                            </select>
+                        </div>
+                        <div class="control-group" style="display: inline-block;">
+                            <label style="font-weight: bold; margin-right: 10px;">アラート基準 (減少率):</label>
+                            <select id="childAsinAlertThreshold" style="padding: 5px; border-radius: 4px; border: 1px solid #ced4da;">
+                                <option value="0.05">5%以上減少</option>
+                                <option value="0.10" selected>10%以上減少</option>
+                                <option value="0.20">20%以上減少</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="childAsinChartContainer" style="margin-bottom: 20px; height: 300px; display: none;">
+                        <canvas id="childAsinChart"></canvas>
+                    </div>
+                    <div class="table-container">
+                        <table id="childAsinTable">
+                            <thead>
+                                <tr>
+                                    <th>親ASIN</th>
+                                    <th>子ASIN</th>
+                                    <th>商品名</th>
+                                    <!-- 週ごとのカラムはJSで動的に生成 -->
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="3" style="text-align: center;">データファイルをアップロードしてください（例: 2025-week46-子商品別.csv）</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -600,6 +653,7 @@
     <script src="js/data_manager.js"></script>
     <script src="js/ui_manager.js"></script>
     <script src="js/chart_manager.js"></script>
+    <script src="js/child_asin_manager.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

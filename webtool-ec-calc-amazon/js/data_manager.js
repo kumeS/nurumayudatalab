@@ -117,6 +117,8 @@ class DataManager {
         this.orderTypeMap = new Map();
         
         this.loadedFiles.forEach((fileData) => {
+            // 子ASINデータは通常の集計には含めない
+            if (fileData.sourceType === 'child-asin') return;
             this.data.push(...fileData.data);
         });
         
@@ -335,14 +337,13 @@ class DataManager {
                            result.orderBreakdown.selmonOrders;
         
         result.totalFbaFees = Object.entries(result.fbaFeeBreakdown)
-            .filter(([key]) => key !== 'refundFees')
             .reduce((sum, [, fee]) => sum + fee, 0);
         
         result.totalSales += result.selmonSummary.totalSales;
         result.totalExpenses = result.totalSalesFees + result.totalFbaFees + result.selmonSummary.totalExpenses;
         
         const grossProfit = result.totalSales - (result.totalSalesFees + result.selmonSummary.totalExpenses);
-        result.totalProfit = grossProfit - result.totalFbaFees + result.totalRefundAmount + result.totalInventoryRefund;
+        result.totalProfit = grossProfit - result.totalFbaFees + result.totalInventoryRefund;
         
         Object.keys(result.dailyData).forEach(date => {
             const dayData = result.dailyData[date];

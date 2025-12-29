@@ -1917,3 +1917,61 @@ tr:hover {
     opacity: 1;
     visibility: visible;
 }
+
+/* テーブルリサイズ用 */
+.resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px; /* クリックしやすいように少し太く */
+    height: 100%;
+    cursor: col-resize;
+    user-select: none;
+    z-index: 10;
+    transition: background-color 0.2s;
+}
+
+.resize-handle:hover,
+.resize-handle.active {
+    background-color: var(--primary);
+    opacity: 0.5;
+}
+
+/* リサイズ中はカーソルを強制 */
+body.resizing {
+    cursor: col-resize !important;
+    user-select: none;
+}
+
+/* トレンド表示用スタイル */
+.trend-decrease-1 {
+    color: #d63031;
+    font-weight: bold;
+}
+.trend-decrease-2 {
+    color: #d63031;
+    background-color: #ffebee;
+    font-weight: bold;
+}
+.trend-decrease-3 {
+    color: #c0392b;
+    background-color: #ffcdd2;
+    font-weight: bold;
+    border: 1px solid #ef9a9a;
+}
+
+.trend-increase-1 {
+    color: #00b894;
+    font-weight: bold;
+}
+.trend-increase-2 {
+    color: #00b894;
+    background-color: #e8f5e9;
+    font-weight: bold;
+}
+.trend-increase-3 {
+    color: #008f7a;
+    background-color: #c8e6c9;
+    font-weight: bold;
+    border: 1px solid #a5d6a7;
+}
