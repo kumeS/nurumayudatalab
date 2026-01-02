@@ -517,6 +517,7 @@
     <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem; display: flex; justify-content: flex-start; align-items: center; gap: 1rem;">
       <span>検索キーワード入力欄（必須）</span>
       <button id="showNewlineSeparatedBtn" style="margin: 0; font-size: 0.8rem; padding: 0.3rem 0.8rem;">改行区切りで確認</button>
+      <button id="removeQuotesBtn" style="margin: 0; font-size: 0.8rem; padding: 0.3rem 0.8rem; background: linear-gradient(135deg, #6c757d, #868e96);">ダブルクォーテーション（""）を削除</button>
     </h3>
     <div class="textarea-wrapper">
       <div class="font-size-controls">
@@ -930,6 +931,36 @@
     if (e.target === this) {
       closeNewlineModal();
     }
+  });
+
+  // ▼ "を削除する機能
+  document.getElementById('removeQuotesBtn').addEventListener('click', function() {
+    const kwInput = document.getElementById('kwInput');
+    const currentText = kwInput.value;
+    
+    if (!currentText.trim()) {
+      alert('キーワードを入力してください');
+      return;
+    }
+    
+    // ダブルクォーテーション（"）を削除
+    const cleanedText = currentText.replace(/"/g, '');
+    
+    // 削除された数をカウント
+    const removedCount = (currentText.match(/"/g) || []).length;
+    
+    if (removedCount === 0) {
+      alert('"が見つかりませんでした');
+      return;
+    }
+    
+    // テキストエリアを更新
+    kwInput.value = cleanedText;
+    
+    // ローカルストレージに保存
+    saveInputData();
+    
+    alert(`${removedCount}個の"を削除しました`);
   });
 
   // フォントサイズとテキストエリア高さの管理機能
