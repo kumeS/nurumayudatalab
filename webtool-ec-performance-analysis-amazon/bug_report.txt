@@ -1,0 +1,528 @@
+================================================================================
+Amazon ASIN Performance Tracker - バグ修正レポート
+================================================================================
+最終更新: 2026年1月2日
+バージョン: 2.0
+
+================================================================================
+【重要】静的環境（file://）でのESモジュール問題と完全解決
+================================================================================
+
+■ 問題の概要
+------------
+index.htmlをダブルクリックして直接開いた場合（file://プロトコル）、
+フィルターボタンのクリックイベントが動作せず、画面の切り替えができない。
+一方、ローカルサーバー（http://localhost:8000）経由では正常に動作する。
+（複合的な問題）
+--------------------------
+1. ESモジュール（import/export）の使用
+   - <script type="module" src="js/main.js"></script> を使用
+   - file://プロトコルではブラウザのCORS制限により、外部モジュールの
+     読み込みがブロックされる
+   
+2. モジュール読み込みの非同期性
+   - type="module"を指定すると、スクリプトは自動的にdeferされる
+   - DOMContentLoadedイベント発火後にスクリプトが実行される可能性があり、
+     イベントリスナーの登録タイミングが不確定
+
+3. ブラウザの挙動の違い
+   - Chrome/Firefox/Safariでfile://時のモジュール読み込みが制限される
+   - 開発者ツールでは「CORS policy」エラーが表示される
+
+4. バンドルファイル生成時のexport文残存（追加で発見）
+   - 初回バンドル時、export文の削除が不完全
+   - 特に`export async function`のパターンが未処理
+   - 結果としてJavaScriptエラーが発生し、ボタンが動作しない
+
+5. main.jsファイルの破損（追加で発見）
+   - ファイルの最後が重複していた
+   - 文字列リテラルが途中で切れていた
+   - startInit()関数が重複定義されていた
+   - これによりバンドルファイル自体が壊れた状態になっていた
+3. ブラウザの挙動の違い
+   - Chrome/Firefox/Safariでfile://時のモジュール読み込みが制限される
+   - 開発者ツールでは「CORS policy」エラーが表示される
+
+■ ESモジュールとは？
+-------------------
+ES6（ECMAScript 2015）で導入されたJavaScriptのモジュールシステム。
+
+【従来の方法（グローバルスコープ）】
+<script src="file1.js"></script>
+<script src="file2.js"></script>
+→ すべての変数・関数がwindowオブジェクトに追加される
+→ 名前の衝突が発生しやすい
+
+【ESモジュールの方法】
+<script type="module" src="main.js"></script>
+
+// main.js
+import { function1 } from './file1.js';
+impor（段階的アプローチ）
+-----------------------------
+【フェーズ1】バンドルファイル方式の導入
+
+1. create-bundle.js スクリプトを作成（初回）
+   - すべてのjsファイル（config, utils, db, data, charts, ui, main）を読み込み
+   - import/export文を削除・コメントアウト
+   - 1つのbundle-static.jsファイルに結合
+
+2. index.htmlを更新
+   - 変更前: <script type="module" src="js/main.js"></script>
+   - 変更後: <script src="js/bundle-static.js"></script>
+
+【フェーズ2】バンドルスクリプトの改善（export文の完全削除）
+
+create-bundle.jsの正規表現を強化：
+バンドル生成コマンド】
+node create-bundle.js
+
+【メリット】
+✓ 静的環境（file://）で動作
+✓ Webサーバー不要でHTMLをダブルクリックするだけで使用可能
+✓ 1つのファイルのみ読み込むため、HTTPリクエスト数が削減される
+✓ エンドユーザーに優しい（技術的知識不要）
+
+【デメリット】
+✗ コード変更時に毎回バンドルの再生成が必要
+✗ ファイルサイズが大きくなる（88KB程度）
+✗ デバッグ時にソースコードの特定が困難（行番号が元のファイルと異なる）
+✗ バンドル生成スクリプトの保守が必要
+
+【代替案】ローカルWebサーバーを常に使用（開発時のみ推奨
+    // import文をコメントアウト
+    .replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, '// $&')
+    // export const/let/var/function/class/async function を通常の宣言に変換
+    .replace(/^export\s+(const|let|var|function|class|async\s+function)\s+/gm, '$1 ')
+    // export default を削除
+    .replace(/^export\s+default\s+/gm, '')
+    // export { ... } をコメントアウト
+    .replace(/^export\s+\{[^}]*\};?\s*$/gm, '// $&')
+    // 行頭以外のexport文も処理（複数行の場合）
+    .replace(/\nexport\s+(const|let|var|function|class|async\s+function)\s+/g, '\n$1 ')
+    .replace(/\nexport\s+default\s+/g, '\n')
+    .replace(/\nexport\s+\{[^}]*\};?\s*/g, '\n// $&');
+```
+
+重要な改善点：
+- `async function` のパターンを追加
+- 行頭以外（`\n`で始まる）のexport文も処理
+- より包括的な正規表現パターン
+と完全版コード
+-----------------------------
+
+【create-bundle.js の完全実装】
+```javascript
+const fs = require('fs');
+const path = require('path');
+
+console.log('📦 バンドルファイル作成開始...');
+
+const jsDir = path.join(__dirname, 'js');
+const files = [
+    'config.js',   // 設定値
+    'utils.js',    // ユーティリティ関数
+    'db.js',       // IndexedDB操作
+    'data.js',     // データ処理
+    'charts.js',   // グラフ描画
+    'ui.js',       // UI更新
+    'main.js'      // メイン処理・初期化
+];
+
+let bundleContent = `// ========================================
+// 静的環境対応バンドルファイル
+// Generated: ${new Date().toISOString()}
+// ========================================
+
+(function() {
+    'use strict';
+    
+`;
+
+files.forEach(file => {
+    const filePath = path.join(jsDir, file);
+    console.log(`  読み込み中: ${file}`);
+    
+    if (!fs.existsSync(filePath)) {
+        console.error(`  ❌ ファイルが見つかりません: ${file}`);
+        return;
+    }
+    
+    let content = fs.readFileSync(filePath, 'utf8');
+    
+    // export/importを削除（完全版）
+    content = content
+        // import文をコメントアウト
+        .replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, '// $&')
+        // export const/let/var/function/class/async function を通常の宣言に変換
+        .replace(/^export\s+(const|let|var|function|class|async\s+function)\s+/gm, '$1 ')
+        // export default を削除
+        .replace(/^export\s+default\s+/gm, '')
+        // export { ... } をコメントアウト
+        .replace(/^export\s+\{[^}]*\};?\s*$/gm, '// $&')
+        // 行頭以外のexport文も処理（複数行の場合）
+        .replace(/\nexport\s+(const|let|var|function|class|async\s+function)\s+/g, '\n$1 ')
+        .replace(/\nexport\s+default\s+/g, '\n')
+        .replace(/\nexport\s+\{[^}]*\};?\s*/g, '\n// $&');
+    
+    bundleContent += `\n// ========== ${file.toUpperCase()} ==========\n`;
+    bundleContent += content;
+    bundleContent += '\n';
+});
+
+bundleContent += `
+})();
+
+console.log('✅ Bundle loaded successfully');
+`;
+
+const outputPath = path.join(jsDir, 'bundle-static.js');
+fs.writeFileSync(outputPath, bundleContent, 'utf8');
+
+console.log(`✅ バンドルファイル作成完了: ${outputPath}`);
+console.log(`   ファイルサイズ: ${(bundleContent.length / 1024).toFixed(2)} KB`
+│   └── styles.css
+└── js/
+    ├── bundle-static.js    # 本番用バンドルファイル（88KB）
+    ├── config.js           # 開発用：個別ファイル
+    ├── utils.js            # 開発用：個別ファイル
+    ├── db.js               # 開発用：個別ファイル
+    ├── data.js             # 開発用：個別ファイル
+    ├── charts.js           # 開発用：個別ファイル
+    ├── ui.js               # 開発用：個別ファイル
+    └── main.js             # 開発用：個別ファイル
+```
+1. create-bundle.js スクリプトを作成
+   - すべてのjsファイル（config, utils, db, data, charts, ui, main）を読み込み
+   - import/export文を削除・コメントアウト
+   - 1つのbundle-static.jsファイルに結合
+
+2. index.htmlを更新
+   - 変更前: <script type="module" src="js/main.js"></script>
+   - 変更後: <script src="js/bundle-static.js"></script>
+
+3. バンドル生成コマンド
+   node create-bundle.js
+
+【メリット】
+✓ 静的環境（file://）で動作
+✓ Webサーバー不要でHTMLをダブルクリックするだけで使用可能
+✓ 1つのファイルのみ読み込むため、HTTPリクエスト数が削減される
+
+【デメリット】
+✗ コード変更時に毎回バンドルの再生成が必要
+✗ ファイルサイズが大きくなる（88KB程度）
+✗ デバッグ時にソースコードの特定が困難
+
+【方法2】ローカルWebサーバーを常に使用（開発時のみ）
+
+python3 -m http.server 8000
+→ http://localhost:8000/index.html でアクセス
+
+【メリット】
+✓ ESモジュールがそのまま使える
+✓ 開発時のワークフローがシンプル
+
+【デメリット】
+✗ 配布時にユーザーがサーバーを起動する必要がある
+✗ 技術的知識のないユーザーには不向き
+
+■ 実装の詳細
+------------
+
+【create-bundle.js の実装】
+```javascript
+const fs = require('fs');
+const path = require('path');
+
+const files =（ベストプラクティス）
+-----------------------------------------------
+
+【推奨される開発フロー】
+
+1. **開発時（コード編集）**
+   ```bash
+   # 個別ファイルを編集
+   vim js/main.js
+   vim js/ui.js
+   # など
+   ```
+
+2. **バンドル生成**
+   ```bash
+   # コード変更後、必ずバンドルを再生成
+   node js/create-bundle.js
+   ```
+   
+   出力例：
+   ```
+   📦 バンドルファイル作成開始...
+     読み込み中: config.js
+     読み込み中: utils.js
+     読み込み中: db.js
+     読み込み中: data.js
+     読み込み中: charts.js
+     読み込み中: ui.js
+     読み込み中: main.js
+   ✅ バンドルファイル作成完了
+      ファイルサイズ: 88.19 KB
+   ```
+
+3. **動作確認**
+   - **静的環境**: index.htmlをダブルクリック（file://）
+   - **開発環境**: `python3 -m http.server 8000` でサーバー起動
+   
+4. **デプロイ**
+   - index.html と js/bundle-static.js を含むフォルダ全体を配布
+   - エンドユーザーはHTMLをダブルクリックするだけ
+
+【ファイル管理のルール】
+
+✓ **bundle-static.jsをGitにコミット**
+  理由: エンドユーザーが即座に使用できるようにするため
+  
+✓ **個別JSファイル（config.js, main.jsなど）も保持**
+  理由: 開発・保守のため、元のソースコードを維持
+  
+✓ **不要なファイルは削除**
+  - テスト用ファイル（test-*.html）
+  - デバッグ用スクリプト（debug-*.js）
+  - 古いバンドルファイル（bundle.js, bundle-temp.js）
+  
+✗ **index.htmlを複数作らない**
+  理由: 混乱を避けるため、本番用のindex.html1つに統一
+
+【package.jsonの推奨設定】
+
+```json
+{
+  "name": "amazon-asin-performance-tracker",
+  "version": "2.0.0",
+  "description": "Amazon ASIN Performance Analysis Tool",
+  "scripts": {
+    "bundle": "node js/create-bundle.js",
+    "dev": "python3 -m http.server 8000",
+    "build": "npm run bundle"
+  },
+  "keywords": ["amazon", "asin", "analytics"],
+  "author": "",
+  "license": "MIT"
+}
+```
+
+使用方法：
+```bash
+npm run bundle    # バンドル生成
+npm run dev       # 開発サーバー起動
+npm run build     # 本番ビルド
+```rom './config.js';
+function updateView(viewName) { ... }
+```
+
+■ フィルターボタンのイベントリスナー設定の改善
+---------------------------------------------
+
+【問題】
+ボタンクリック時にイベントリスナーが正しく登録されていない
+
+【原因】
+- 初期化タイミングの問題
+- DOMContentLoadedイベント発火後のスクリプト実行
+
+【解決策】
+```javascript
+function setupEventListeners() {
+    const setupFilterButtons = () => {
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        
+        if (filterButtons.length === 0) {
+            // ボタンが見つからない場合は100ms後に再試行
+            setTimeout(setupFilterButtons, 100);
+            return;
+        }
+        
+        filterButtons.forEach((btn) => {
+            // 既存のリスナーを削除（重複防止）
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            newBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                document.querySelectorAll('.filter-btn').forEach(b => {
+                    b.classList.remove('active');
+                });
+                newBtn.classList.add('active');
+                updateView(newBtn.dataset.view);
+            });
+        });
+    };
+    
+    setupFilterButtons();
+}
+
+// 初期化の確実な実行
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startInit);
+} else {
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            init();
+        });
+    });
+}
+```
+
+■ デバッグ方法
+-------------
+
+【ブラウザの開発者ツールでの確認】
+1. F12（詳細版）
+================================================================================
+
+[2026-01-02 午前] 初期問題発見
+- 問題: 静的環境（file://）でフィルターボタンが動作しない
+- 原因: ESモジュールのCORS制限
+- 対応: バンドルファイル方式の導入を決定
+
+[2026-01-02 午前] フェーズ1：初回バンドル実装
+- 実装: create-bundle.js の作成
+- 実装: index.htmlの修正（moduleタグ削除）
+- 結果: ❌ まだボタンが動作しない
+
+[2026-01-02 午後] フェーズ2：export文残存問題の発見
+- 問題: バンドルファイル内に`export async function`が残存
+- 原因: 正規表現パターンが不完全
+- 対応: js/create-bundle.jsの正規表現を強化
+- 結果: ❌ まだボタンが動作しない
+
+[2026-01-02 午後] フェーズ3：main.js破損の発見
+- 問題: バンドル後もJavaScriptエラーが発生
+- 原因調査: main.jsの最後が破損していることを発見
+  - 文字列リテラルが途中で切れている
+  - startInit()関数が重複定義
+  - 不完全なコードブロック
+- 対応: main.jsの破損部分を完全に修正
+- 結果: ✅ バンドル再生成後、すべてのボタンが正常動作
+
+[2026-01-02 午後] フェーズ4：プロジェクト整理
+- 実施: 不要なファイルの削除
+  - index-static.html（重複）
+  - test-debug.html（デバッグ用）
+  - debug-playwright.js（テスト用）
+  - bundle.js, bundle-temp.js（古いバンドル）
+- 実施: PROJECT_STRUCTURE.mdの内容をREADME.mdに統合
+- 実施: create-bundle.jsをjsフォルダに移動
+- 実施: bug_report.txt の完全改訂
+
+【最終確認事項】
+✓ file://プロトコルで動作確認済み
+✓ http://localhostで動作確認済み
+✓ すべてのフィルターボタン（7個）が正常動作
+✓ データアップロード機能が正常動作
+✓ グラフ描画が正常動作
+✓ IndexedDBへのデータ保存が正常動作
+
+【影響範囲】js/create-bundle.js（正規表現の改善、jsフォルダへ移動）
+- ファイル: js/main.js（破損部分の修正）
+- ファイル: js/bundle-static.js（再生成）
+- ファイル: index.html（スクリプトタグの変更）
+- ファイル: README.md（プロジェクト構成を統合）
+- 削除: 不要なHTMLファイル3個
+- 削除: 不要なJSファイル2個
+- 削除: PROJECT_STRUCTURE.md（README.mdに統合）3個
+- 削除: 不要なJSファイル2個
+
+【学んだ教訓】
+1. ファイル破損のチェックを最初に行うべき
+2. バンドル生成時は生成されたファイルの検証が必須
+3. export文の削除には包括的な正規表現パターンが必要
+4. プロジェクト整理は定期的に行うべき（不要ファイルの累積を防ぐ）確認
+3. フィルターボタンをクリックして動作確認
+
+【http://での動作確認】
+1. ターミナルでpython3 -m http.server 8000を実行
+2. ブラウザでhttp://localhost:8000/index.htmlを開く
+3. URLバーに "http://localhost:8000/..." と表示されることを確認
+4. フィルターボタンをクリックして動作確認
+
+■ 今後の実装ガイドライン
+-----------------------
+
+【推奨される実装方法】
+
+1. 配布用アプリケーション（エンドユーザー向け）
+   → バンドルファイル方式（bundle-static.js）を使用
+   → HTMLをダブルクリックするだけで動作
+
+2. 開発中のプロジェクト
+   → ESモジュール + ローカルサーバーを使用
+   → コードの可読性・保守性を優先
+   → 本番環境へのデプロイ前にバンドルを生成
+
+3. コード変更時の手順
+   a) js/*.js ファイルを編集
+   b) node create-bundle.js を実行
+   c) bundle-static.js が更新される
+   d) index.html をリロードして確認
+
+【ベストプラクティス】
+
+✓ package.jsonにスクリプトを追加
+  {
+    "scripts": {
+      "bundle": "node create-bundle.js",
+      "dev": "python3 -m http.server 8000"
+    }
+  }
+  
+  実行: npm run bundle
+
+✓ .gitignoreにbundle-static.jsを追加しない
+  （配布時に必要なため、リポジトリに含める）
+
+✓ 開発時はESモジュール版、配布時はバンドル版を用意
+  - index-dev.html (ESモジュール版)
+  - index.html (バンドル版)
+
+■ 関連する技術情報
+-----------------
+
+【CORS（Cross-Origin Resource Sharing）とは】
+異なるオリジン間でのリソース共有を制御するブラウザのセキュリティ機能。
+file://プロトコルは各ファイルが異なるオリジンとして扱われるため、
+モジュールの読み込みがブロックされる。
+
+【Same-Origin Policy（同一オリジンポリシー）】
+セキュリティのため、異なるオリジンからのスクリプト実行を制限。
+- オリジン = プロトコル + ドメイン + ポート
+- file://は特殊扱いで、各ファイルが独立したオリジン
+
+【代替案: Webpack/Rollup/Viteなどのバンドラー使用】
+より高度なバンドル処理が必要な場合は、専用ツールの使用を検討：
+- Webpack: 最も人気のあるバンドラー
+- Rollup: ESモジュールに特化
+- Vite: 開発時は高速、本番時はバンドル
+
+【この実装で使用した技術】
+- Vanilla JavaScript（フレームワーク不使用）
+- Chart.js（グラフ描画）
+- PapaParse（CSV解析）
+- Lodash（ユーティリティ）
+- IndexedDB（ブラウザ内データベース）
+
+================================================================================
+バグ修正履歴
+================================================================================
+
+[2026-01-02] フィルターボタンのクリックイベント不具合
+- 問題: 静的環境でボタンが動作しない
+- 原因: ESモジュールのCORS制限
+- 解決: バンドルファイル方式に移行
+- ファイル: create-bundle.js, bundle-static.js, index.html
+- 影響範囲: すべてのフィルターボタン（7個）
+- テスト: ✓ file://で動作確認済み
+- テスト: ✓ http://localhostで動作確認済み
+
+================================================================================

@@ -382,7 +382,11 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
   'エスセンス',
 
   // 一般語
+ '足のしあわせ研究所',
+ 'HapiLabo',
+  '官庁',
   'mura',
+  '緩和',
   '効果',
   '効果絶大',
   '厚生労働省',
@@ -395,6 +399,7 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
   '♪',
   '◆',
   '■',
+  '最適',
   '安心',
   '軽減',
   '軽減効果',
