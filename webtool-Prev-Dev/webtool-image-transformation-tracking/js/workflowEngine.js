@@ -357,36 +357,61 @@ class WorkflowEngine {
         }, 1000);
     }
 
-    saveToStorage() {
+    async saveToStorage() {
+        const workflowData = {
+            ...this.workflow,
+            nodes: Array.from(this.nodes.values()),
+            edges: Array.from(this.edges.values())
+        };
+
+        // Debug: Log image counts before saving
+        console.log('💾 SAVING WORKFLOW');
+        let totalImages = 0;
+        workflowData.nodes.forEach(node => {
+            const imageCount = node.images ? node.images.length : 0;
+            totalImages += imageCount;
+            if (imageCount > 0) {
+                console.log(`   Node ${node.id.substr(-6)}: ${imageCount} images`);
+            }
+        });
+        console.log(`   Total images in workflow: ${totalImages}`);
+
+        // IndexedDBを優先的に使用
+        if (window.indexedDBStorage) {
+            try {
+                const success = await window.indexedDBStorage.saveWorkflow(workflowData);
+                if (success) {
+                    console.log('✅ Workflow saved to IndexedDB');
+
+                    // ストレージ情報を表示
+                    const info = await window.indexedDBStorage.getStorageInfo();
+                    console.log(`📊 Storage: ${info.imageCount} images, ${info.totalImageSizeMB} MB`);
+
+                    return true;
+                }
+            } catch (error) {
+                console.error('❌ IndexedDB save failed, falling back to LocalStorage:', error);
+            }
+        }
+
+        // フォールバック: LocalStorage（画像なしのメタデータのみ）
         try {
+            // 画像を除外したメタデータのみ保存
+            const lightWorkflowData = {
+                ...workflowData,
+                nodes: workflowData.nodes.map(node => ({
+                    ...node,
+                    images: [] // 画像を除外
+                }))
+            };
+
             const workflows = JSON.parse(localStorage.getItem('workflows') || '[]');
             const index = workflows.findIndex(w => w.id === this.workflow.id);
 
-            const workflowData = {
-                ...this.workflow,
-                nodes: Array.from(this.nodes.values()),
-                edges: Array.from(this.edges.values())
-            };
-
-            // Debug: Log image counts before saving
-            console.log('💾 SAVING WORKFLOW TO LOCALSTORAGE');
-            let totalImages = 0;
-            workflowData.nodes.forEach(node => {
-                const imageCount = node.images ? node.images.length : 0;
-                totalImages += imageCount;
-                if (imageCount > 0) {
-                    console.log(`   Node ${node.id.substr(-6)}: ${imageCount} images`);
-                    node.images.forEach((img, idx) => {
-                        console.log(`      Image ${idx + 1}: ${img.url.startsWith('data:') ? 'base64' : 'URL'} (${img.url.length} chars)`);
-                    });
-                }
-            });
-            console.log(`   Total images in workflow: ${totalImages}`);
-
             if (index >= 0) {
-                workflows[index] = workflowData;
+                workflows[index] = lightWorkflowData;
             } else {
-                workflows.push(workflowData);
+                workflows.push(lightWorkflowData);
             }
 
             // Keep only recent workflows
@@ -395,30 +420,83 @@ class WorkflowEngine {
                 workflows.shift();
             }
 
-            const jsonString = JSON.stringify(workflows);
-            const sizeInMB = (jsonString.length / (1024 * 1024)).toFixed(2);
-            console.log(`   LocalStorage size: ${sizeInMB} MB`);
-
-            localStorage.setItem('workflows', jsonString);
-            console.log('✅ Workflow saved successfully');
+            localStorage.setItem('workflows', JSON.stringify(workflows));
+            console.log('⚠️ Workflow saved to LocalStorage (without images)');
+            console.log('💡 Please use IndexedDB for full functionality');
             return true;
         } catch (error) {
             console.error('❌ Failed to save workflow:', error);
             if (error.name === 'QuotaExceededError') {
-                console.error('⚠️ LocalStorage quota exceeded! Data is too large.');
-                alert('保存容量を超えました。画像が多すぎる可能性があります。一部のノードを削除してください。');
+                alert('保存容量を超えました。IndexedDBを有効にするか、一部のノードを削除してください。');
             }
             return false;
         }
     }
 
-    loadWorkflow(workflowId) {
+    async loadWorkflow(workflowId) {
         console.log('====== WORKFLOW ENGINE LOAD ======');
         console.log('Loading workflow ID:', workflowId);
 
+        // IndexedDBから読み込みを試行
+        if (window.indexedDBStorage) {
+            try {
+                const workflowData = await window.indexedDBStorage.loadWorkflow(workflowId);
+
+                if (workflowData) {
+                    console.log('Found workflow in IndexedDB:', workflowData.name);
+                    console.log('Workflow data has', workflowData.nodes?.length || 0, 'nodes');
+                    console.log('Workflow data has', workflowData.edges?.length || 0, 'edges');
+
+                    this.clearWorkflow();
+
+                    this.workflow = {
+                        id: workflowData.id,
+                        name: workflowData.name,
+                        created: workflowData.created,
+                        modified: workflowData.modified,
+                        nodes: [],
+                        edges: []
+                    };
+
+                    // Load nodes
+                    let loadedNodes = 0;
+                    let totalImagesLoaded = 0;
+                    workflowData.nodes.forEach(nodeData => {
+                        const imageCount = nodeData.images ? nodeData.images.length : 0;
+                        totalImagesLoaded += imageCount;
+                        console.log(`Loading node: ${nodeData.id.substr(-6)} with ${imageCount} images`);
+                        this.nodes.set(nodeData.id, nodeData);
+                        this.workflow.nodes.push(nodeData.id);
+                        loadedNodes++;
+                    });
+                    console.log(`📸 Total images loaded from storage: ${totalImagesLoaded}`);
+
+                    // Load edges
+                    let loadedEdges = 0;
+                    workflowData.edges.forEach(edgeData => {
+                        console.log('Loading edge:', edgeData.id);
+                        this.edges.set(edgeData.id, edgeData);
+                        this.workflow.edges.push(edgeData.id);
+                        loadedEdges++;
+                    });
+
+                    console.log('✅ Loaded from IndexedDB:', loadedNodes, 'nodes and', loadedEdges, 'edges');
+                    console.log('Engine nodes Map size:', this.nodes.size);
+                    console.log('Engine edges Map size:', this.edges.size);
+
+                    this.emit('workflowLoaded', this.workflow);
+                    console.log('==================================');
+                    return true;
+                }
+            } catch (error) {
+                console.error('❌ IndexedDB load failed, trying LocalStorage:', error);
+            }
+        }
+
+        // フォールバック: LocalStorage
         try {
             const workflows = JSON.parse(localStorage.getItem('workflows') || '[]');
-            console.log('Total workflows in storage:', workflows.length);
+            console.log('Total workflows in LocalStorage:', workflows.length);
 
             const workflowData = workflows.find(w => w.id === workflowId);
 
@@ -428,9 +506,8 @@ class WorkflowEngine {
                 return false;
             }
 
+            console.log('⚠️ Loaded from LocalStorage (images may be missing)');
             console.log('Found workflow:', workflowData.name);
-            console.log('Workflow data has', workflowData.nodes?.length || 0, 'nodes');
-            console.log('Workflow data has', workflowData.edges?.length || 0, 'edges');
 
             this.clearWorkflow();
 
@@ -445,43 +522,26 @@ class WorkflowEngine {
 
             // Load nodes
             let loadedNodes = 0;
-            let totalImagesLoaded = 0;
             workflowData.nodes.forEach(nodeData => {
-                const imageCount = nodeData.images ? nodeData.images.length : 0;
-                totalImagesLoaded += imageCount;
-                console.log(`Loading node: ${nodeData.id.substr(-6)} at position:`, nodeData.position, `with ${imageCount} images`);
-                if (imageCount > 0) {
-                    nodeData.images.forEach((img, idx) => {
-                        console.log(`   Image ${idx + 1}: ${img.url.startsWith('data:') ? 'base64' : 'URL'} (${img.url.length} chars)`);
-                    });
-                }
                 this.nodes.set(nodeData.id, nodeData);
                 this.workflow.nodes.push(nodeData.id);
                 loadedNodes++;
             });
-            console.log(`📸 Total images loaded from storage: ${totalImagesLoaded}`);
 
             // Load edges
             let loadedEdges = 0;
             workflowData.edges.forEach(edgeData => {
-                console.log('Loading edge:', edgeData.id);
                 this.edges.set(edgeData.id, edgeData);
                 this.workflow.edges.push(edgeData.id);
                 loadedEdges++;
             });
 
-            console.log('✅ Loaded', loadedNodes, 'nodes and', loadedEdges, 'edges into engine');
-            console.log('Engine nodes Map size:', this.nodes.size);
-            console.log('Engine edges Map size:', this.edges.size);
-            console.log('Emitting workflowLoaded event...');
-
+            console.log('✅ Loaded from LocalStorage:', loadedNodes, 'nodes and', loadedEdges, 'edges');
             this.emit('workflowLoaded', this.workflow);
-
             console.log('==================================');
             return true;
         } catch (error) {
             console.error('❌ Failed to load workflow:', error);
-            console.error(error.stack);
             console.log('==================================');
             return false;
         }

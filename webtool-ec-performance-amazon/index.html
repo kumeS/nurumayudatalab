@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazon ASIN Performance Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Amazon ASIN Performance Tracker</h1>
+            <div class="subtitle">商品パフォーマンス変化検知システム</div>
+        </header>
+
+        <!-- ファイルアップロードセクション -->
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" multiple accept=".csv">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">CSVファイルをドラッグ＆ドロップ</div>
+                <div class="upload-subtext">週次レポートを時系列順にアップロードしてください</div>
+            </div>
+            
+            <div class="file-list" id="fileList"></div>
+            
+            <div class="data-controls">
+                <button class="control-btn" onclick="exportData()">
+                    💾 分析結果をエクスポート
+                </button>
+                <button class="control-btn" onclick="toggleHistoryView()">
+                    📋 アップロード履歴
+                </button>
+                <button class="control-btn danger" onclick="clearAllData()">
+                    🗑️ すべてのデータをクリア
+                </button>
+            </div>
+            
+            <!-- アップロード履歴セクション -->
+            <div class="history-section" id="historySection" style="display:none;">
+                <h3 style="margin: 20px 0 15px 0; color: rgba(255,255,255,0.9);">📋 アップロード履歴</h3>
+                <div class="history-list" id="historyList"></div>
+            </div>
+        </div>
+
+        <!-- アラートセクション -->
+        <div class="alerts-section" id="alertsSection" style="display:none;">
+            <h2 style="margin-bottom: 20px; color: rgba(255,255,255,0.9);">⚠️ 注目すべき変化</h2>
+            <div id="alertsList"></div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalRevenue">￥0</div>
+                <div class="stat-label">総売上高</div>
+                <div class="stat-trend" id="revenueTrend"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="activeAsins">0</div>
+                <div class="stat-label">アクティブASIN数</div>
+                <div class="stat-trend" id="asinsTrend"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="newAsins">0</div>
+                <div class="stat-label">新規ASIN (最新週)</div>
+                <div class="stat-trend" id="newAsinsTrend"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgGrowth">0%</div>
+                <div class="stat-label">平均成長率</div>
+                <div class="stat-trend" id="growthTrend"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="filter-btn active" data-view="monitoring">ASINモニタリング</button>
+            <button class="filter-btn" data-view="timeline">時系列分析</button>
+            <button class="filter-btn" data-view="anomaly">異常検知</button>
+            <button class="filter-btn" data-view="newproducts">新商品分析</button>
+            <button class="filter-btn" data-view="advanced">詳細解析</button>
+        </div>
+
+        <div id="monitoringView" class="view-section">
+            <div class="chart-container">
+                <div class="chart-title">
+                    <div class="chart-icon">📊</div>
+                    ASIN別パフォーマンス追跡
+                </div>
+                <div class="asin-tracking-grid" id="asinTrackingGrid"></div>
+            </div>
+        </div>
+
+        <div id="timelineView" class="view-section" style="display:none;">
+            <div class="chart-container">
+                <div class="chart-title">
+                    <div class="chart-icon">📈</div>
+                    セッション数時系列推移（売上上位20%商品）
+                </div>
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+
+        <div id="anomalyView" class="view-section" style="display:none;">
+            <div class="chart-container">
+                <div class="chart-title">
+                    <div class="chart-icon">⚡</div>
+                    変化率ランキング
+                </div>
+                <canvas id="anomalyChart"></canvas>
+            </div>
+            <div class="asin-tracking-grid" id="anomalyGrid"></div>
+        </div>
+
+        <div id="newproductsView" class="view-section" style="display:none;">
+            <div class="chart-container">
+                <div class="chart-title">
+                    <div class="chart-icon">🚀</div>
+                    新商品初動パフォーマンス
+                </div>
+                <canvas id="newProductsChart"></canvas>
+            </div>
+            <div class="asin-tracking-grid" id="newProductsGrid"></div>
+        </div>
+
+        <div id="advancedView" class="view-section" style="display:none;">
+            <div class="chart-container">
+                <div class="chart-title">
+                    <div class="chart-icon">🔍</div>
+                    コンバージョン率分析
+                </div>
+                <canvas id="conversionChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">
+                    <div class="chart-icon">💰</div>
+                    売上効率分析（売上/セッション）
+                </div>
+                <canvas id="efficiencyChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">
+                    <div class="chart-icon">📊</div>
+                    パフォーマンスマトリックス
+                </div>
+                <canvas id="matrixChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 詳細分析モーダル -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">商品詳細分析</h2>
+                <button class="modal-close" onclick="closeModal()">✕</button>
+            </div>
+            <div id="modalBody">
+                <canvas id="modalChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

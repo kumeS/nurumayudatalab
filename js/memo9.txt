@@ -1,0 +1,7 @@
+## Updated: 
+## multiLLMvioionet関数に関して
+
+これは、multiLLMvioionet関数の実装上の問題というよりも、io.netの内部情報では、最近のAPIの仕様変更で、openai/gpt-oss-120bやを含むAPI実行が遅くなっている可能性があります。
+
+エラーハンドリングの増強、実行モデル数を減らすように、関数を修正しました。
+

@@ -1,5 +1,6 @@
 # Image Transformation Tracker - 画像変換追跡システム
 
+<<<<<<< Updated upstream:webtool-Prev-Dev/webtool-image-transformation-tracking/README.md
 最終更新: 2025-10-30 (v5.4)
 
 **ビジュアルワークフローエディタ**: ノードベースの画像処理パイプライン構築ツール
@@ -7,6 +8,62 @@
 AI駆動のNano Bananaモデルを使用した、Vanilla JavaScriptによる軽量でフレームワーク不要の画像変換ワークフロー管理ツールです。
 
 ## 📚 最新アップデート (2025-10-27 v5.3)
+=======
+最終更新: 2025-10-27 (v5.4)
+
+**ビジュアルワークフローエディタ**: ノードベースの画像処理パイプライン構築ツール
+
+## 📚 最新アップデート (2025-10-27 v5.4)
+
+### ✨ Cloudflare Worker v5.0 - コード品質改善
+
+**主な改善点**:
+
+1. **コードの重複削除**
+   - `formatTimestamp()`関数: 日時フォーマット処理を共通化（3箇所 → 1箇所）
+   - `sanitizeFilename()`関数: ファイル名サニタイズを共通化（2箇所 → 1箇所）
+   - 66%のコード重複を削減
+
+2. **定数化によるマジックナンバー削除**
+   - `CONFIG`オブジェクトで設定値を一元管理
+   - ポーリングタイムアウト、リトライ回数、待機時間など10個以上の定数化
+   - 設定変更が容易に
+
+3. **ロギングの構造化**
+   - `logInfo()`, `logError()`, `logR2()`関数を新規追加
+   - 一貫したログフォーマット（INFO, ERROR, R2レベル）
+   - エラースタックの自動出力
+
+4. **関数の分割と単一責任の原則**
+   - `processSingleFile()`を新規作成（単一ファイル処理専用）
+   - `processAndSaveImages()`を90行に削減（v4は150行）
+   - テスト・デバッグが容易に
+
+5. **Content-Typeマッピングの定数化**
+   - `CONTENT_TYPE_MAP`: MIMEタイプから拡張子へのマッピング
+   - `EXTENSION_TO_CONTENT_TYPE`: 拡張子からMIMEタイプへのマッピング
+   - 複数ファイル形式のサポート強化
+
+6. **条件判定の簡潔化**
+   - Optional chaining (`?.`) の活用
+   - 意味のある変数名（例: `shouldPoll`）
+   - 可読性の向上
+
+**技術的な成果**:
+- ✅ 全エンドポイントが正常動作
+- ✅ R2バインディング設定完了
+- ✅ セキュリティ保護機能が正常
+- ✅ `exports.default`エラーを完全解消（v4で修正）
+- ✅ コード行数: 950行（v4: 826行、v3: 787行）
+  - 増加分は定数定義・JSDocコメント・ロギング関数の追加によるもの
+  - 実際のロジックコードは削減されている
+
+**ドキュメント**:
+- `CLOUDFLARE_WORKER_V5_CHANGES.md`: 詳細な変更ログ
+- `WORKER_V5_TEST_RESULTS.md`: 5つの動作確認テスト結果
+
+## 📚 Previous Updates (2025-10-27 v5.3)
+>>>>>>> Stashed changes:webtool-image-transformation-tracking/README.md
 
 ### ✨ 新機能とバグ修正
 1. **Faviconの追加**
@@ -29,11 +86,11 @@ AI駆動のNano Bananaモデルを使用した、Vanilla JavaScriptによる軽�
    - リトライ機能の追加（最大3回）
    - 変換成功/失敗の詳細なログ出力
 
-5. **Cloudflare Worker v3.0へのアップグレード**
+5. **Cloudflare Worker v3.0の基盤実装**
    - extractAllFileUrls()による複数ファイルサポート
    - TRELLIS v2、Nano Bananaなどのモデル対応
    - 並列ファイル処理でパフォーマンス向上
-   - R2ストレージへの画像保存機能の強化
+   - R2ストレージへの画像保存機能の実装
    - 新しいエンドポイント: `GET /image/:key`（R2からの画像配信）
 
 ## 📚 Previous Updates (2025-10-26 v5.2)
@@ -377,8 +434,9 @@ AI駆動のNano Bananaモデルを使用した、Vanilla JavaScriptによる軽�
 
 ## 🚀 今後実装予定の機能
 
-### 🎯 短期実装可能な機能（優先度: 高 🔴）
+### 🎯 即座に実装可能な機能（優先度: 高 🔴）
 
+<<<<<<< Updated upstream:webtool-Prev-Dev/webtool-image-transformation-tracking/README.md
 以下は、現在の実装を活かして30分〜3時間程度で追加できる実用的な機能です。大規模実装やProduction公開は想定せず、個人・小規模チーム向けの実用機能に限定します。
 
 #### 1. **プロンプトテンプレート管理** ⭐ 簡単
@@ -473,6 +531,611 @@ AI駆動のNano Bananaモデルを使用した、Vanilla JavaScriptによる軽�
   - 順次または並列で画像生成を実行（オプション選択可能）
   - プログレス表示とエラーハンドリング
 - **実装箇所**: `js/workflowApp.js`、`js/transformationService.js`
+=======
+以下は、現在の実装を活かして**30分〜2時間程度**で追加できる実用的な機能です。大規模実装やProduction公開は想定せず、**個人利用・小規模チーム向け**の実用機能に限定します。
+
+#### 1. 生成履歴パネル
+**実装難易度**: ⭐ 簡単
+**実装時間**: 1-1.5時間
+**目的**: 過去に生成した画像を一覧表示し、再利用を簡単にする
+
+**実装内容**:
+- 右サイドバーに「📜 履歴」タブを追加
+- 画像生成時にメタデータ（プロンプト、生成日時、ノードID）をLocalStorageに保存
+- 履歴パネルでサムネイル・プロンプト・日時を表示
+- クリックで拡大表示、ダウンロード、ノードへの再適用が可能
+- 最大50件まで保存（古いものから自動削除）
+- 実装箇所: `js/workflowApp.js`、新規`js/historyManager.js`
+
+**実装方法**:
+```javascript
+// historyManager.js
+class GenerationHistoryManager {
+  constructor(maxHistory = 50) {
+    this.maxHistory = maxHistory;
+    this.storageKey = 'generation_history';
+  }
+
+  addGeneration(nodeId, prompt, imageUrl, metadata = {}) {
+    const history = this.getHistory();
+    history.unshift({
+      id: Date.now(),
+      nodeId,
+      prompt,
+      imageUrl,
+      timestamp: new Date().toISOString(),
+      ...metadata
+    });
+
+    // 最大件数を超えたら古いものを削除
+    if (history.length > this.maxHistory) {
+      history.length = this.maxHistory;
+    }
+
+    localStorage.setItem(this.storageKey, JSON.stringify(history));
+  }
+
+  getHistory() {
+    return JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+  }
+
+  clearHistory() {
+    localStorage.removeItem(this.storageKey);
+  }
+}
+```
+
+**HTMLパネル**:
+```html
+<div id="historyPanel" class="side-panel">
+  <h3>📜 生成履歴</h3>
+  <div id="historyGrid" class="grid grid-cols-2 gap-2">
+    <!-- 各履歴アイテム -->
+    <div class="history-item cursor-pointer">
+      <img src="..." class="w-full h-24 object-cover rounded">
+      <div class="text-xs mt-1 truncate" title="プロンプト">...</div>
+      <div class="text-xs text-gray-500">2025-10-27 15:30</div>
+    </div>
+  </div>
+</div>
+```
+
+---
+
+#### 2. プロンプト履歴とお気に入り機能
+**実装難易度**: ⭐ 簡単
+**実装時間**: 1時間
+**目的**: よく使うプロンプトを保存・再利用
+
+**実装内容**:
+- プロンプト入力モーダルに「⭐ お気に入りに追加」ボタンを追加
+- 過去に使ったプロンプトを自動記録（最大30件）
+- プロンプト入力時にドロップダウンで履歴・お気に入りを表示
+- クリックで自動入力、編集可能
+- 設定モーダルで履歴・お気に入り管理（削除、編集）
+- 実装箇所: `index.html`、`js/workflowApp.js`
+
+**LocalStorage構造**:
+```javascript
+{
+  "prompt_history": [
+    { "text": "a cute cat", "timestamp": "2025-10-27T...", "count": 5 },
+    { "text": "sunset over mountains", "timestamp": "2025-10-27T...", "count": 2 }
+  ],
+  "prompt_favorites": [
+    { "id": 1, "name": "動物シリーズ", "text": "a cute [ANIMAL]", "color": "#a855f7" },
+    { "id": 2, "name": "風景", "text": "beautiful landscape...", "color": "#3b82f6" }
+  ]
+}
+```
+
+**実装方法**:
+```javascript
+// プロンプト履歴に追加
+function addToHistory(promptText) {
+  const history = JSON.parse(localStorage.getItem('prompt_history') || '[]');
+  const existing = history.find(h => h.text === promptText);
+
+  if (existing) {
+    existing.count++;
+    existing.timestamp = new Date().toISOString();
+  } else {
+    history.unshift({ text: promptText, timestamp: new Date().toISOString(), count: 1 });
+  }
+
+  // 最大30件に制限
+  if (history.length > 30) history.length = 30;
+
+  localStorage.setItem('prompt_history', JSON.stringify(history));
+}
+
+// お気に入りに追加
+function addToFavorites(name, promptText) {
+  const favorites = JSON.parse(localStorage.getItem('prompt_favorites') || '[]');
+  favorites.push({
+    id: Date.now(),
+    name: name || promptText.substring(0, 20),
+    text: promptText,
+    color: '#a855f7',
+    created: new Date().toISOString()
+  });
+  localStorage.setItem('prompt_favorites', JSON.stringify(favorites));
+}
+```
+
+---
+
+#### 3. ノードのコピー&ペースト機能
+**実装難易度**: ⭐ 簡単
+**実装時間**: 45分
+**目的**: ノードを複製して作業を効率化
+
+**実装内容**:
+- ノード右クリックメニューに「📋 コピー」を追加
+- キャンバス右クリックメニューに「📄 ペースト」を追加
+- キーボードショートカット: `Ctrl/Cmd + C`（コピー）、`Ctrl/Cmd + V`（ペースト）
+- ノードの画像・メタデータ・設定を全てコピー
+- ペースト時に少しずらした位置に配置
+- 実装箇所: `js/canvasController.js`
+
+**実装方法**:
+```javascript
+// コピー
+let copiedNode = null;
+
+function copyNode(nodeId) {
+  const node = workflowEngine.nodes.get(nodeId);
+  copiedNode = JSON.parse(JSON.stringify(node)); // ディープコピー
+  console.log('ノードをコピーしました:', nodeId);
+}
+
+// ペースト
+function pasteNode(position = null) {
+  if (!copiedNode) {
+    alert('コピーされたノードがありません');
+    return;
+  }
+
+  const newPosition = position || {
+    x: copiedNode.x + 50,
+    y: copiedNode.y + 50
+  };
+
+  const newNodeId = workflowEngine.createNode(copiedNode.type, newPosition);
+  const newNode = workflowEngine.nodes.get(newNodeId);
+
+  // 画像とメタデータをコピー
+  newNode.images = [...copiedNode.images];
+  newNode.metadata = { ...copiedNode.metadata };
+
+  workflowEngine.emit('nodeCreated', { nodeId: newNodeId });
+  workflowEngine.saveWorkflow();
+
+  console.log('ノードをペーストしました:', newNodeId);
+}
+
+// キーボードショートカット
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+    if (selectedNodeId) copyNode(selectedNodeId);
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+    pasteNode();
+  }
+});
+```
+
+---
+
+#### 4. エッジの一括削除機能
+**実装難易度**: ⭐ 簡単
+**実装時間**: 30分
+**目的**: 不要なエッジを一度に削除してワークフローを整理
+
+**実装内容**:
+- ヘッダーに「🗑️ エッジ一括削除」ボタンを追加
+- クリックで削除対象エッジを選択するモーダルを表示
+- チェックボックスでエッジを複数選択
+- 選択したエッジを一度に削除
+- 実装箇所: `js/workflowApp.js`
+
+**実装方法**:
+```javascript
+// エッジ一括削除モーダル
+function showBatchDeleteModal() {
+  const edges = Array.from(workflowEngine.edges.values());
+
+  if (edges.length === 0) {
+    alert('削除するエッジがありません');
+    return;
+  }
+
+  // モーダルHTMLを生成
+  const edgeList = edges.map(edge => {
+    const from = workflowEngine.nodes.get(edge.from);
+    const to = workflowEngine.nodes.get(edge.to);
+    return `
+      <div class="flex items-center gap-2 p-2 border-b">
+        <input type="checkbox" id="edge-${edge.id}" value="${edge.id}">
+        <label for="edge-${edge.id}" class="flex-1">
+          ${from?.label || edge.from} → ${to?.label || edge.to}
+          ${edge.prompt ? `(${edge.prompt.substring(0, 30)}...)` : ''}
+        </label>
+      </div>
+    `;
+  }).join('');
+
+  // モーダルを表示（実装省略）
+  // ...
+}
+
+// 選択したエッジを削除
+function deleteBatchEdges() {
+  const checked = document.querySelectorAll('#batchDeleteModal input:checked');
+  const edgeIds = Array.from(checked).map(el => el.value);
+
+  if (edgeIds.length === 0) {
+    alert('削除するエッジを選択してください');
+    return;
+  }
+
+  if (!confirm(`${edgeIds.length}本のエッジを削除しますか？`)) {
+    return;
+  }
+
+  edgeIds.forEach(edgeId => workflowEngine.deleteEdge(edgeId));
+
+  alert(`${edgeIds.length}本のエッジを削除しました`);
+  closeModal('batchDeleteModal');
+}
+```
+
+---
+
+#### 2. 画像の複数選択削除機能
+**実装難易度**: ⭐ 簡単
+**実装時間**: 1時間
+**目的**: ノード内の不要な画像を一括削除してストレージを節約
+
+**実装内容**:
+- ノード詳細パネルの画像グリッドにチェックボックスを追加
+- 「選択した画像を削除」ボタンを追加
+- 複数の画像を選択して一度に削除
+- 実装箇所: `js/canvasController.js`の`renderNodeDetails()`
+
+**実装方法**:
+```javascript
+// 画像グリッドにチェックボックスを追加
+<input type="checkbox" class="image-select" data-index="${index}">
+
+// 削除ボタンのハンドラー
+deleteSelectedImages(nodeId) {
+  const checked = document.querySelectorAll('.image-select:checked');
+  const indices = Array.from(checked).map(el => parseInt(el.dataset.index));
+
+  if (indices.length === 0) {
+    alert('削除する画像を選択してください');
+    return;
+  }
+
+  if (!confirm(`${indices.length}枚の画像を削除しますか？`)) {
+    return;
+  }
+
+  indices.sort((a, b) => b - a); // 後ろから削除
+  const node = workflowEngine.nodes.get(nodeId);
+  indices.forEach(i => node.images.splice(i, 1));
+
+  workflowEngine.emit('nodeUpdated', { nodeId });
+  workflowEngine.saveWorkflow();
+}
+```
+
+---
+
+#### 3. エッジのプロンプトテンプレート機能
+**実装難易度**: ⭐ 簡単
+**実装時間**: 1.5時間
+**目的**: よく使うプロンプトをテンプレートとして保存・再利用
+
+**実装内容**:
+- プロンプト編集モーダルに「💾 テンプレート保存」ボタンを追加
+- LocalStorageに`prompt_templates`配列として保存
+- プロンプト入力時にテンプレートをドロップダウンで表示
+- テンプレート選択で自動入力
+- 設定モーダルにテンプレート管理セクションを追加（削除機能）
+- 実装箇所: `index.html`、`js/workflowApp.js`
+
+**実装方法**:
+```javascript
+// テンプレート保存
+saveTemplate(prompt, name = null) {
+  const templates = JSON.parse(localStorage.getItem('prompt_templates') || '[]');
+  const templateName = name || prompt.substring(0, 30) + '...';
+
+  templates.push({
+    id: Date.now(),
+    name: templateName,
+    text: prompt,
+    created: new Date().toISOString()
+  });
+
+  localStorage.setItem('prompt_templates', JSON.stringify(templates));
+  alert('テンプレートを保存しました');
+}
+
+// テンプレート読み込み
+loadTemplates() {
+  return JSON.parse(localStorage.getItem('prompt_templates') || '[]');
+}
+
+// テンプレート削除
+deleteTemplate(templateId) {
+  const templates = JSON.parse(localStorage.getItem('prompt_templates') || '[]');
+  const filtered = templates.filter(t => t.id !== templateId);
+  localStorage.setItem('prompt_templates', JSON.stringify(filtered));
+}
+```
+
+---
+
+#### 4. ノードのメモ機能
+**実装難易度**: ⭐ 簡単
+**実装時間**: 1時間
+**目的**: ノードに説明やメモを追加して作業を整理
+
+**実装内容**:
+- ノード詳細パネルに「📝 メモ」テキストエリアを追加
+- メモはノードオブジェクトの`metadata.note`に保存
+- メモがあるノードにはキャンバス上に📝アイコンを表示
+- 自動保存機能（入力後1秒で保存）
+- 実装箇所: `js/canvasController.js`、`js/workflowEngine.js`
+
+**実装方法**:
+```javascript
+// ノード詳細パネルにメモエリアを追加
+<div class="mt-4">
+  <label class="block text-sm font-medium text-gray-300 mb-2">📝 メモ</label>
+  <textarea
+    id="nodeNoteInput"
+    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg"
+    rows="3"
+    placeholder="このノードについてのメモを入力..."
+  ></textarea>
+</div>
+
+// メモ保存（デバウンス付き）
+let noteTimeout;
+document.getElementById('nodeNoteInput').addEventListener('input', (e) => {
+  clearTimeout(noteTimeout);
+  noteTimeout = setTimeout(() => {
+    const node = workflowEngine.nodes.get(currentNodeId);
+    node.metadata = { ...node.metadata, note: e.target.value };
+    workflowEngine.emit('nodeUpdated', { nodeId: currentNodeId });
+    workflowEngine.saveWorkflow();
+  }, 1000);
+});
+
+// レンダリング時にアイコン表示
+if (node.metadata?.note) {
+  ctx.fillText('📝', x + radius - 15, y - radius + 20);
+}
+```
+
+---
+
+#### 5. ワークフロー履歴機能（Undo/Redo）
+**実装難易度**: ⭐⭐ 中程度
+**実装時間**: 2-3時間
+**目的**: 操作を取り消し・やり直しできるようにする
+
+**実装内容**:
+- ノード作成・削除、エッジ作成・削除、画像追加などの操作を記録
+- `Ctrl/Cmd + Z`でUndo、`Ctrl/Cmd + Shift + Z`でRedo
+- ヘッダーにUndo/Redoボタンを追加
+- 最大20操作まで履歴を保持
+- 実装箇所: 新規ファイル`js/historyManager.js`
+
+**実装方法**:
+```javascript
+class HistoryManager {
+  constructor(maxHistory = 20) {
+    this.history = [];
+    this.currentIndex = -1;
+    this.maxHistory = maxHistory;
+  }
+
+  push(state) {
+    this.history = this.history.slice(0, this.currentIndex + 1);
+    this.history.push(JSON.parse(JSON.stringify(state)));
+    if (this.history.length > this.maxHistory) {
+      this.history.shift();
+    } else {
+      this.currentIndex++;
+    }
+  }
+
+  undo() {
+    if (this.currentIndex > 0) {
+      this.currentIndex--;
+      return this.history[this.currentIndex];
+    }
+    return null;
+  }
+
+  redo() {
+    if (this.currentIndex < this.history.length - 1) {
+      this.currentIndex++;
+      return this.history[this.currentIndex];
+    }
+    return null;
+  }
+}
+```
+
+---
+
+#### 6. 画像のドラッグ&ドロップ並び替え
+**実装難易度**: ⭐⭐ 中程度
+**実装時間**: 2時間
+**目的**: ノード内の画像順序を自由に変更
+
+**実装内容**:
+- ノード詳細パネルの画像グリッドにドラッグ&ドロップ機能を追加
+- HTML5 Drag and Drop APIを使用
+- 並び替え中は視覚的なフィードバックを表示
+- 並び替え後に自動保存
+- 実装箇所: `js/canvasController.js`の`renderNodeDetails()`
+
+**実装方法**:
+```javascript
+// 画像要素にdraggable属性を追加
+<img
+  draggable="true"
+  ondragstart="handleDragStart(event, ${index})"
+  ondragover="handleDragOver(event)"
+  ondrop="handleDrop(event, ${index})"
+  class="cursor-move"
+  ...>
+
+function handleDragStart(e, index) {
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('imageIndex', index);
+  e.currentTarget.style.opacity = '0.5';
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function handleDrop(e, targetIndex) {
+  e.preventDefault();
+  const sourceIndex = parseInt(e.dataTransfer.getData('imageIndex'));
+
+  if (sourceIndex === targetIndex) return;
+
+  const node = workflowEngine.nodes.get(nodeId);
+  const [removed] = node.images.splice(sourceIndex, 1);
+  node.images.splice(targetIndex, 0, removed);
+
+  workflowEngine.emit('nodeUpdated', { nodeId });
+  workflowEngine.saveWorkflow();
+
+  // 画像グリッドを再描画
+  this.renderNodeDetails(nodeId);
+}
+```
+
+---
+
+#### 7. エッジの色カスタマイズ
+**実装難易度**: ⭐ 簡単
+**実装時間**: 1時間
+**目的**: エッジに色をつけて視覚的に整理
+
+**実装内容**:
+- エッジ詳細パネルに色選択パレットを追加
+- 6色のプリセットカラーを用意（紫、青、緑、黄、橙、赤）
+- エッジの`metadata.color`プロパティに保存
+- vis.jsのエッジ色設定に反映
+- 実装箇所: `index.html`、`js/canvasController.js`
+
+**実装方法**:
+```javascript
+// エッジ詳細パネルに色選択を追加
+<div class="mt-4">
+  <label class="block text-sm font-medium text-gray-300 mb-2">🎨 エッジの色</label>
+  <div class="flex gap-2">
+    ${['#a855f7', '#3b82f6', '#10b981', '#fbbf24', '#f97316', '#ef4444'].map(color => `
+      <button
+        onclick="setEdgeColor('${edge.id}', '${color}')"
+        class="w-8 h-8 rounded border-2 border-gray-600 hover:border-white"
+        style="background-color: ${color}">
+      </button>
+    `).join('')}
+  </div>
+</div>
+
+// 色設定関数
+function setEdgeColor(edgeId, color) {
+  const edge = workflowEngine.edges.get(edgeId);
+  edge.metadata = { ...edge.metadata, color };
+
+  // vis.jsのエッジを更新
+  this.network.body.data.edges.update({
+    id: edgeId,
+    color: { color: color }
+  });
+
+  workflowEngine.saveWorkflow();
+}
+```
+
+---
+
+#### 8. ノードのズーム機能
+**実装難易度**: ⭐ 簡単
+**実装時間**: 30分
+**目的**: 特定のノードにすばやくフォーカス
+
+**実装内容**:
+- ノード詳細パネルに「Zoom to Node」ボタンを追加
+- クリックでそのノードを中央に表示してズームイン
+- ミニマップからのノードクリックでもズーム
+- 実装箇所: `js/canvasController.js`
+
+**実装方法**:
+```javascript
+zoomToNode(nodeId) {
+  const position = this.network.getPositions([nodeId])[nodeId];
+  this.network.moveTo({
+    position: position,
+    scale: 1.5,
+    animation: {
+      duration: 500,
+      easingFunction: 'easeInOutQuad'
+    }
+  });
+}
+```
+
+---
+
+#### 9. ワークフローのエクスポート改善
+**実装難易度**: ⭐ 簡単
+**実装時間**: 1時間
+**目的**: ワークフローを見やすいPNG画像として保存
+
+**実装内容**:
+- ヘッダーに「📸 スクリーンショット」ボタンを追加
+- vis.jsキャンバス全体をPNG画像として保存
+- ファイル名に日時を含める（`workflow-YYYY-MM-DD.png`）
+- 透明背景または白背景を選択可能
+- 実装箇所: `js/workflowApp.js`
+
+**実装方法**:
+```javascript
+exportAsScreenshot() {
+  // vis.jsのキャンバスを取得
+  const canvas = this.container.querySelector('canvas');
+
+  if (!canvas) {
+    alert('キャンバスが見つかりません');
+    return;
+  }
+
+  // ダウンロードリンクを作成
+  const link = document.createElement('a');
+  const timestamp = new Date().toISOString().slice(0, 10);
+  link.download = `workflow-${timestamp}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+
+  console.log('スクリーンショットを保存しました');
+}
+```
+>>>>>>> Stashed changes:webtool-image-transformation-tracking/README.md
 
 ---
 
@@ -739,5 +1402,9 @@ MIT License
 
 ---
 
+<<<<<<< Updated upstream:webtool-Prev-Dev/webtool-image-transformation-tracking/README.md
 **Last Updated**: 2025-10-30
+=======
+**Last Updated**: 2025-10-27
+>>>>>>> Stashed changes:webtool-image-transformation-tracking/README.md
 **Version**: 5.4.0
