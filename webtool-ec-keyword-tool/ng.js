@@ -764,5 +764,13 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 'ニットソーイング用ミシン糸',
 'ニットソーイングの本',
 'barndoor',
-'138cm'
+'138cm',
+'nikalife',
+'tophana',
+'フランフラン',
+'Francfranc',
+'francfranc',
+'cocoriko',
+'lavento',
+'today'
 ];
