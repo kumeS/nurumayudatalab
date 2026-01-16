@@ -902,5 +902,7 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 'ワコール',
 'grato',
 'ゼクシィミックス',
-'ゼクシィ'
+'ゼクシィ',
+'ジャガー',
+'JAGUAR'
 ];
