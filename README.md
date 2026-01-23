@@ -132,6 +132,14 @@ Nurumayu Data Lab is a comprehensive web-based toolkit designed to enhance the e
 - **Comprehensive Editing**: Includes image adjustment, cropping, rotation, and partial blur features
 - **Batch Processing**: Multiple canvas support for efficient bulk image editing
 
+## Recent Additions & Experimental Tools (2026)
+
+- **Voice Interaction Toolkit** ([webtool-voice1](https://nurumayudatalab.com/webtool-voice1/index.html)): Voice-driven assistant and text-to-speech experiments for hands-free usage
+- **AI Assistant Utilities** ([webtool-ai-assist](https://nurumayudatalab.com/webtool-ai-assist/index.html), [analysis](https://nurumayudatalab.com/webtool-ai-assist-analysis/index.html), [email](https://nurumayudatalab.com/webtool-ai-assist-email/index.html)): Task automation helpers for document drafting, analytics prompts, and email support
+- **Prompt & Keyword Tooling** ([webtool-ec-prompt-meister](https://nurumayudatalab.com/webtool-ec-prompt-meister/index.html), [keywords picker](https://nurumayudatalab.com/webtool-ec-keywords-picker/index.html)): Prompt management and keyword curation workflows
+- **QR/Travel Utilities** ([webtool-qr-code](https://nurumayudatalab.com/webtool-qr-code/index.html), [webtool-travel1](https://nurumayudatalab.com/webtool-travel1/index.html)): Quick QR generation and trip-planning experiments
+- **Image Gallery Prototype** ([webtool-nurumayu-image-gallery](https://nurumayudatalab.com/webtool-nurumayu-image-gallery/index.html)): Lightweight gallery for showcasing generated assets
+
 ## Data Analysis Tools
 
 In addition to our web tools, we provide specialized data analysis solutions:
