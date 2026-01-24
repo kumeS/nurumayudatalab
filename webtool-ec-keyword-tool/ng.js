@@ -920,5 +920,7 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 '旅行服',
 'hdonyui',
 'laisse',
-'passe'
+'passe',
+'ショッピング',
+'送料無料'
 ];
