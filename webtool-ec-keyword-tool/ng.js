@@ -917,5 +917,6 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 '黒系トップス',
 'レディース服',
 '洋服通販',
-'旅行服'
+'旅行服',
+'hdonyui'
 ];
