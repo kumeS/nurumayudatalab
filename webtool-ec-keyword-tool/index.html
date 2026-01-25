@@ -501,6 +501,7 @@
           <span class="step-number">5</span>
           <strong>結果の加工:</strong> 以下の方法で整形できます
           <ul>
+            <li>150バイト単位に分割: 広告入稿用</li>
             <li>200バイト単位に分割: 広告入稿用</li>
             <li>250バイト単位に分割: 広告入稿用</li>
             <li>500バイト単位に分割: 広告入稿用</li>
@@ -586,6 +587,7 @@
 
       <h3 class="modal-heading">キーワードの整形</h3>
       <div>
+        <button onclick="splitAndShow(150)"><i class="fas fa-cut"></i> 150 バイト単位に分割</button>
         <button onclick="splitAndShow(200)"><i class="fas fa-cut"></i> 200 バイト単位に分割</button>
         <button onclick="splitAndShow(250)"><i class="fas fa-cut"></i> 250 バイト単位に分割</button>
         <button onclick="splitAndShow(500)"><i class="fas fa-cut"></i> 500 バイト単位に分割</button>
@@ -850,7 +852,7 @@
     closeModal();
   }
 
-  // ▼ 250 / 500 バイト単位で分割
+  // ▼ 150 / 200 / 250 / 500 バイト単位で分割
   function byteLen(s) { return new TextEncoder().encode(s).length; }
   
   function splitAndShow(maxBytes) {
