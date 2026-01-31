@@ -944,5 +944,6 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 'ts-9181',
 '/r-3210',
 'ダイアナ',
-'u15204'
+'u15204',
+'あみあみ'
 ];

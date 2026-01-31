@@ -14,6 +14,7 @@
   <title>ぬるっとキーワードマネージャーv2｜広告・SEO向け重複排除/バイト分割ツール</title>
   <link rel="icon" type="image/svg+xml" href="../favicon/nu-circle.svg">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="ng.js"></script>
   <style>
     :root {
@@ -205,7 +206,7 @@
     }
     
     /* モーダル用スタイル */
-    #modal, #newlineModal {
+    #modal, #newlineModal, #distributionModal {
       display: none;
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -213,7 +214,7 @@
       z-index: 1000;
     }
     
-    #modalContent, #newlineModalContent {
+    #modalContent, #newlineModalContent, #distributionModalContent {
       position: absolute;
       top: 5%; left: 50%;
       transform: translateX(-50%);
@@ -227,7 +228,7 @@
       overflow-y: auto;
     }
     
-    #modal textarea, #newlineModal textarea {
+    #modal textarea, #newlineModal textarea, #distributionModal textarea {
       width: 100%; 
       height: 8rem;
       font-size: 1rem;
@@ -235,7 +236,7 @@
       line-height: 1.6;
     }
     
-    #modal button, #newlineModal button {
+    #modal button, #newlineModal button, #distributionModal button {
       margin-top: 0.5rem;
       margin-right: 0.5rem;
     }
@@ -516,10 +517,15 @@
       </div>
     </div>
 
-    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem; display: flex; justify-content: flex-start; align-items: center; gap: 1rem;">
+    <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem; display: flex; justify-content: flex-start; align-items: center; gap: 1rem; flex-wrap: wrap;">
       <span>検索キーワード入力欄（必須）</span>
       <button id="showNewlineSeparatedBtn" style="margin: 0; font-size: 0.8rem; padding: 0.3rem 0.8rem;">改行区切りで確認</button>
+      <button id="showDistributionBtn" style="margin: 0; font-size: 0.8rem; padding: 0.3rem 0.8rem; background: linear-gradient(135deg, #17a2b8, #138496);">文字数分布を表示</button>
       <button id="removeQuotesBtn" style="margin: 0; font-size: 0.8rem; padding: 0.3rem 0.8rem; background: linear-gradient(135deg, #6c757d, #868e96);">ダブルクォーテーション（""）を削除</button>
+      <div style="display: flex; gap: 0.5rem;">
+        <button id="removeLongKeywords10Btn" style="margin: 0; font-size: 0.8rem; padding: 0.3rem 0.8rem; background: linear-gradient(135deg, #dc3545, #e4606d);">10文字以上削除</button>
+        <button id="removeLongKeywords15Btn" style="margin: 0; font-size: 0.8rem; padding: 0.3rem 0.8rem; background: linear-gradient(135deg, #dc3545, #e4606d);">15文字以上削除</button>
+      </div>
     </h3>
     <div class="textarea-wrapper">
       <div class="font-size-controls">
@@ -618,6 +624,29 @@
           <button class="copy-btn" id="newlineCopyBtn" onclick="copyText('newlineResultText', 'newlineCopyBtn')"><i class="fas fa-copy"></i> コピー</button>
           <button class="close-btn" onclick="closeNewlineModal()" style="background: #6c757d; margin-left: 0.5rem; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">閉じる</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分布表示用モーダル -->
+  <div id="distributionModal">
+    <div id="distributionModalContent">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 class="modal-heading" style="margin: 0;">キーワード文字数分布</h2>
+        <button onclick="closeDistributionModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">×</button>
+      </div>
+      <div>
+        <canvas id="keywordLengthChart"></canvas>
+      </div>
+      
+      <!-- クリックしたバーのキーワードを表示するエリア -->
+      <div id="distributionKeywordsArea" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px; display: none; border: 1px solid #dee2e6;">
+        <h4 id="distributionKeywordsTitle" style="margin-top: 0; margin-bottom: 0.5rem; color: #495057; font-size: 1rem;"></h4>
+        <div id="distributionKeywordsContent" style="max-height: 150px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+      </div>
+
+      <div style="text-align: right; margin-top: 1rem;">
+        <button onclick="closeDistributionModal()" style="background: #6c757d; margin-left: 0.5rem; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">閉じる</button>
       </div>
     </div>
   </div>
@@ -965,6 +994,183 @@
     saveInputData();
     
     alert(`${removedCount}個の"を削除しました`);
+  });
+
+  // ▼ 文字数制限で削除する機能 (10文字以上 / 15文字以上)
+  function removeLongKeywords(minLength, label) {
+    const kwInput = document.getElementById('kwInput');
+    const currentText = kwInput.value;
+    
+    if (!currentText.trim()) {
+      alert('キーワードを入力してください');
+      return;
+    }
+
+    // 空白文字（スペース、タブ、全角スペース、改行）で分割
+    // 元の区切り文字を単純に保存するのは難しいので、スペース区切りで再構築します
+    const words = currentText.split(/[\s　]+/);
+    const filteredWords = [];
+    let removedCount = 0;
+
+    words.forEach(word => {
+      // 空文字はスキップ
+      if (!word) return;
+
+      if (word.length >= minLength) {
+        removedCount++;
+      } else {
+        filteredWords.push(word);
+      }
+    });
+
+    if (removedCount === 0) {
+      alert(`${minLength}文字以上のキーワードは見つかりませんでした`);
+      return;
+    }
+
+    // テキストエリアを更新
+    kwInput.value = filteredWords.join(' ');
+    
+    // ローカルストレージに保存
+    saveInputData();
+    
+    alert(`${removedCount}個のキーワード（${minLength}文字以上）を削除しました`);
+  }
+
+  document.getElementById('removeLongKeywords10Btn').addEventListener('click', function() {
+    removeLongKeywords(10);
+  });
+
+  document.getElementById('removeLongKeywords15Btn').addEventListener('click', function() {
+    removeLongKeywords(15);
+  });
+
+  // ▼ 文字数分布表示機能
+  let myChart = null;
+
+  document.getElementById('showDistributionBtn').addEventListener('click', function() {
+    const raw = document.getElementById('kwInput').value;
+    if (!raw.trim()) { alert('キーワードを入力してください'); return; }
+    
+    // スペース区切りで分割
+    const words = raw.split(/[\s　]+/);
+    const lengthData = {};
+    const wordsByLength = {}; // 文字数ごとのキーワードリスト
+    
+    // 集計
+    words.forEach(word => {
+      if (!word) return;
+      const len = word.length;
+      lengthData[len] = (lengthData[len] || 0) + 1;
+      
+      // キーワードを記録
+      if (!wordsByLength[len]) {
+        wordsByLength[len] = [];
+      }
+      wordsByLength[len].push(word);
+    });
+    
+    const labels = Object.keys(lengthData).map(Number).sort((a, b) => a - b);
+    const data = labels.map(len => lengthData[len]);
+
+    // 詳細表示エリアを非表示にリセット
+    document.getElementById('distributionKeywordsArea').style.display = 'none';
+    
+    // チャート描画
+    const ctx = document.getElementById('keywordLengthChart').getContext('2d');
+    
+    if (myChart) {
+      myChart.destroy();
+    }
+    
+    myChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels.map(l => l + '文字'),
+        datasets: [{
+          label: 'キーワード数',
+          data: data,
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: '個数'
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: '文字数'
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          title: {
+            display: true,
+            text: `キーワード総数: ${words.filter(w => w).length}個`
+          },
+          tooltip: {
+            callbacks: {
+              footer: function(tooltipItems) {
+                return 'クリックして詳細を表示';
+              }
+            }
+          }
+        },
+        onClick: (e) => {
+          const activePoints = myChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+          
+          if (activePoints.length > 0) {
+            const index = activePoints[0].index;
+            const length = labels[index];
+            const keywords = wordsByLength[length];
+            
+            // UI表示更新
+            const area = document.getElementById('distributionKeywordsArea');
+            const title = document.getElementById('distributionKeywordsTitle');
+            const content = document.getElementById('distributionKeywordsContent');
+            
+            title.innerHTML = `<strong>${length}文字</strong> のキーワード一覧 (${keywords.length}個)`;
+            
+            // キーワードをタグとして表示
+            content.innerHTML = keywords.map(k => `
+              <span style="font-size: 0.85rem; padding: 0.25rem 0.5rem; background: #fff; border: 1px solid #ced4da; border-radius: 3px; color: #495057;">
+                ${k}
+              </span>
+            `).join('');
+            
+            area.style.display = 'block';
+            
+            // スクロールできるようにモーダルの位置調整が必要な場合があるかも知れないが、
+            // areaがモーダル内にあるので自動でスクロールバーが出るはず
+          }
+        }
+      }
+    });
+    
+    document.getElementById('distributionModal').style.display = 'block';
+  });
+
+  function closeDistributionModal() {
+    document.getElementById('distributionModal').style.display = 'none';
+  }
+
+  // モーダル外クリックで閉じる（distributionModal用）
+  document.getElementById('distributionModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeDistributionModal();
+    }
   });
 
   // フォントサイズとテキストエリア高さの管理機能
