@@ -1092,7 +1092,8 @@
           data: data,
           backgroundColor: 'rgba(54, 162, 235, 0.6)',
           borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 1
+          borderWidth: 1,
+          minBarLength: 5 // 値が小さくてもクリックしやすいように最小高さを設定
         }]
       },
       options: {
@@ -1129,10 +1130,37 @@
           }
         },
         onClick: (e) => {
-          const activePoints = myChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+          // チャートインスタンス取得
+          const c = myChart;
+          if (!c) return;
+
+          let index = -1;
+          
+          // 1. バーを直接クリックしたか判定
+          const activePoints = c.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
           
           if (activePoints.length > 0) {
-            const index = activePoints[0].index;
+            index = activePoints[0].index;
+          } else {
+            // 2. X軸（ラベル部分）クリックの判定
+            // Chart.jsのイベントオブジェクト e には x, y プロパティが含まれている
+            const clickY = e.y;
+            const clickX = e.x;
+            const chartArea = c.chartArea;
+            
+            // チャートのプロットエリア（chartArea.bottom）より下をクリックした場合に反応させる
+            // つまり、軸の線より下のラベルエリア全体を対象にする
+            if (clickY >= chartArea.bottom) {
+              const xScale = c.scales.x;
+              const rawIndex = xScale.getValueForPixel(clickX);
+              
+              if (rawIndex !== undefined && rawIndex !== null && rawIndex >= 0) {
+                index = rawIndex;
+              }
+            }
+          }
+
+          if (index >= 0 && index < labels.length) {
             const length = labels[index];
             const keywords = wordsByLength[length];
             
@@ -1143,7 +1171,6 @@
             
             title.innerHTML = `<strong>${length}文字</strong> のキーワード一覧 (${keywords.length}個)`;
             
-            // キーワードをタグとして表示
             content.innerHTML = keywords.map(k => `
               <span style="font-size: 0.85rem; padding: 0.25rem 0.5rem; background: #fff; border: 1px solid #ced4da; border-radius: 3px; color: #495057;">
                 ${k}
@@ -1151,9 +1178,6 @@
             `).join('');
             
             area.style.display = 'block';
-            
-            // スクロールできるようにモーダルの位置調整が必要な場合があるかも知れないが、
-            // areaがモーダル内にあるので自動でスクロールバーが出るはず
           }
         }
       }
