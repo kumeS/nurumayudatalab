@@ -267,6 +267,13 @@
       transition: color 0.3s ease;
     }
     
+    /* 編集可能なキーワードのホバースタイル */
+    .editable-keyword:hover {
+      background: #e9ecef !important;
+      border-color: #ff7e5f !important;
+      transform: scale(1.02);
+    }
+    
     .output-container {
       position: relative;
     }
@@ -1169,10 +1176,10 @@
             const title = document.getElementById('distributionKeywordsTitle');
             const content = document.getElementById('distributionKeywordsContent');
             
-            title.innerHTML = `<strong>${length}文字</strong> のキーワード一覧 (${keywords.length}個)`;
+            title.innerHTML = `<strong>${length}文字</strong> のキーワード一覧 (${keywords.length}個) <span style="font-size: 0.75rem; color: #6c757d; font-weight: normal;">※クリックで編集可能</span>`;
             
-            content.innerHTML = keywords.map(k => `
-              <span style="font-size: 0.85rem; padding: 0.25rem 0.5rem; background: #fff; border: 1px solid #ced4da; border-radius: 3px; color: #495057;">
+            content.innerHTML = keywords.map((k, idx) => `
+              <span class="editable-keyword" data-original="${k}" data-index="${idx}" style="font-size: 0.85rem; padding: 0.25rem 0.5rem; background: #fff; border: 1px solid #ced4da; border-radius: 3px; color: #495057; cursor: pointer; transition: all 0.2s;" onclick="startEditKeyword(this)" title="クリックして編集">
                 ${k}
               </span>
             `).join('');
@@ -1186,6 +1193,96 @@
     document.getElementById('distributionModal').style.display = 'block';
   });
 
+  // キーワード編集機能
+  function startEditKeyword(spanElement) {
+    // 既に編集中の場合は何もしない
+    if (spanElement.querySelector('input')) return;
+    
+    const originalKeyword = spanElement.dataset.original;
+    const currentText = spanElement.textContent.trim();
+    
+    // 入力フィールドを作成
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentText;
+    input.style.cssText = 'font-size: 0.85rem; padding: 0.15rem 0.3rem; border: 2px solid #ff7e5f; border-radius: 3px; outline: none; width: ' + Math.max(currentText.length * 12, 60) + 'px; min-width: 60px;';
+    
+    // spanの内容を入力フィールドに置き換え
+    spanElement.innerHTML = '';
+    spanElement.appendChild(input);
+    spanElement.style.background = '#fff3cd';
+    spanElement.style.border = '2px solid #ff7e5f';
+    spanElement.onclick = null; // 編集中はクリックイベントを無効化
+    
+    input.focus();
+    input.select();
+    
+    // Enterキーで確定
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        finishEditKeyword(spanElement, input.value.trim(), originalKeyword);
+      } else if (e.key === 'Escape') {
+        cancelEditKeyword(spanElement, currentText);
+      }
+    });
+    
+    // フォーカスが外れたら確定
+    input.addEventListener('blur', function() {
+      finishEditKeyword(spanElement, input.value.trim(), originalKeyword);
+    });
+  }
+  
+  function finishEditKeyword(spanElement, newKeyword, originalKeyword) {
+    // 空白の場合はキャンセル扱い
+    if (!newKeyword) {
+      cancelEditKeyword(spanElement, originalKeyword);
+      return;
+    }
+    
+    // スタイルを戻す
+    spanElement.style.background = newKeyword !== originalKeyword ? '#d4edda' : '#fff';
+    spanElement.style.border = newKeyword !== originalKeyword ? '2px solid #28a745' : '1px solid #ced4da';
+    spanElement.innerHTML = newKeyword;
+    spanElement.onclick = function() { startEditKeyword(this); };
+    
+    // data属性を更新
+    const prevKeyword = spanElement.dataset.original;
+    spanElement.dataset.current = newKeyword;
+    
+    // 検索キーワード入力欄を更新
+    updateKeywordInput(prevKeyword, newKeyword);
+    
+    // 変更があった場合はdata-originalも更新（次回編集時用）
+    spanElement.dataset.original = newKeyword;
+  }
+  
+  function cancelEditKeyword(spanElement, originalText) {
+    spanElement.style.background = '#fff';
+    spanElement.style.border = '1px solid #ced4da';
+    spanElement.innerHTML = originalText;
+    spanElement.onclick = function() { startEditKeyword(this); };
+  }
+  
+  function updateKeywordInput(oldKeyword, newKeyword) {
+    const kwInput = document.getElementById('kwInput');
+    const keywords = kwInput.value.split(/[\s　]+/);
+    
+    // 最初に見つかった該当キーワードのみを置き換え
+    let replaced = false;
+    const updatedKeywords = keywords.map(k => {
+      if (!replaced && k === oldKeyword) {
+        replaced = true;
+        return newKeyword;
+      }
+      return k;
+    });
+    
+    kwInput.value = updatedKeywords.join(' ');
+    
+    // ローカルストレージにも保存
+    saveInputData();
+  }
+  
   function closeDistributionModal() {
     document.getElementById('distributionModal').style.display = 'none';
   }
