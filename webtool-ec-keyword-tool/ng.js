@@ -939,5 +939,13 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 'ハニーズ',
 '江波りゅう',
 'limspace',
-'hug.u'
+'hug.u',
+'inkpoo',
+'エアリー',
+'onabebi',
+'foveitaa',
+'azul',
+'by',
+'4-l204',
+'エッセンシャルズ'
 ];
