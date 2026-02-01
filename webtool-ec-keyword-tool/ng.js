@@ -947,5 +947,6 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 'azul',
 'by',
 '4-l204',
-'エッセンシャルズ'
+'エッセンシャルズ',
+'タンスのゲン'
 ];

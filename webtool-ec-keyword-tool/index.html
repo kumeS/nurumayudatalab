@@ -1054,10 +1054,14 @@
 
   // ▼ 文字数分布表示機能
   let myChart = null;
+  let editedKeywordsMap = {}; // 編集されたキーワードを記録 { originalKeyword: newKeyword }
 
   document.getElementById('showDistributionBtn').addEventListener('click', function() {
     const raw = document.getElementById('kwInput').value;
     if (!raw.trim()) { alert('キーワードを入力してください'); return; }
+    
+    // 編集履歴をリセット（新しく分布を表示する時）
+    editedKeywordsMap = {};
     
     // スペース区切りで分割
     const words = raw.split(/[\s　]+/);
@@ -1178,11 +1182,20 @@
             
             title.innerHTML = `<strong>${length}文字</strong> のキーワード一覧 (${keywords.length}個) <span style="font-size: 0.75rem; color: #6c757d; font-weight: normal;">※クリックで編集可能</span>`;
             
-            content.innerHTML = keywords.map((k, idx) => `
-              <span class="editable-keyword" data-original="${k}" data-index="${idx}" style="font-size: 0.85rem; padding: 0.25rem 0.5rem; background: #fff; border: 1px solid #ced4da; border-radius: 3px; color: #495057; cursor: pointer; transition: all 0.2s;" onclick="startEditKeyword(this)" title="クリックして編集">
-                ${k}
-              </span>
-            `).join('');
+            content.innerHTML = keywords.map((k, idx) => {
+              // 編集履歴があるかチェック
+              const editedValue = editedKeywordsMap[k];
+              const isEdited = editedValue !== undefined && editedValue !== k;
+              const displayValue = editedValue !== undefined ? editedValue : k;
+              const bgColor = isEdited ? '#d4edda' : '#fff';
+              const borderStyle = isEdited ? '2px solid #28a745' : '1px solid #ced4da';
+              
+              return `
+                <span class="editable-keyword" data-original="${k}" data-current="${displayValue}" data-index="${idx}" style="font-size: 0.85rem; padding: 0.25rem 0.5rem; background: ${bgColor}; border: ${borderStyle}; border-radius: 3px; color: #495057; cursor: pointer; transition: all 0.2s;" onclick="startEditKeyword(this)" title="クリックして編集">
+                  ${displayValue}
+                </span>
+              `;
+            }).join('');
             
             area.style.display = 'block';
           }
@@ -1198,7 +1211,7 @@
     // 既に編集中の場合は何もしない
     if (spanElement.querySelector('input')) return;
     
-    const originalKeyword = spanElement.dataset.original;
+    const originalKeyword = spanElement.dataset.current || spanElement.dataset.original;
     const currentText = spanElement.textContent.trim();
     
     // 入力フィールドを作成
@@ -1239,21 +1252,24 @@
       return;
     }
     
+    // 元のキーワード（最初の状態）を取得
+    const trueOriginal = spanElement.dataset.original;
+    const isChanged = newKeyword !== trueOriginal;
+    
     // スタイルを戻す
-    spanElement.style.background = newKeyword !== originalKeyword ? '#d4edda' : '#fff';
-    spanElement.style.border = newKeyword !== originalKeyword ? '2px solid #28a745' : '1px solid #ced4da';
+    spanElement.style.background = isChanged ? '#d4edda' : '#fff';
+    spanElement.style.border = isChanged ? '2px solid #28a745' : '1px solid #ced4da';
     spanElement.innerHTML = newKeyword;
     spanElement.onclick = function() { startEditKeyword(this); };
     
     // data属性を更新
-    const prevKeyword = spanElement.dataset.original;
     spanElement.dataset.current = newKeyword;
     
-    // 検索キーワード入力欄を更新
-    updateKeywordInput(prevKeyword, newKeyword);
+    // 編集履歴を保存（元のキーワードをキーとして保存）
+    editedKeywordsMap[trueOriginal] = newKeyword;
     
-    // 変更があった場合はdata-originalも更新（次回編集時用）
-    spanElement.dataset.original = newKeyword;
+    // 検索キーワード入力欄を更新
+    updateKeywordInput(originalKeyword, newKeyword);
   }
   
   function cancelEditKeyword(spanElement, originalText) {
