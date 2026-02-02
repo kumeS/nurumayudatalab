@@ -948,5 +948,6 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 'by',
 '4-l204',
 'エッセンシャルズ',
-'タンスのゲン'
+'タンスのゲン',
+'vasarhely'
 ];

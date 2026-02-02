@@ -608,6 +608,9 @@
       </div>
 
       <div class="output-container">
+        <div class="output-actions" id="copyOutContainerTop" style="display: none; margin-top: 0; margin-bottom: 0.5rem;">
+          <button class="copy-btn" id="copyBtn2Top" onclick="copyText('outArea', 'copyBtn2Top')"><i class="fas fa-copy"></i> コピー</button>
+        </div>
         <pre id="outArea" class="output-text"></pre>
         <div class="output-actions" id="copyOutContainer" style="display: none;">
           <button class="copy-btn" id="copyBtn2" onclick="copyText('outArea', 'copyBtn2')"><i class="fas fa-copy"></i> コピー</button>
@@ -743,6 +746,7 @@
     document.getElementById('resultText').value = result;
     document.getElementById('outArea').textContent = '';
     document.getElementById('copyOutContainer').style.display = 'none';
+    document.getElementById('copyOutContainerTop').style.display = 'none';
 
     // 文字数とバイト数を更新
     updateCount(result);
@@ -908,9 +912,11 @@
     if (current) lines.push(current);
     document.getElementById('outArea').textContent = lines.join('\n');
     document.getElementById('copyOutContainer').style.display = 'flex';
+    document.getElementById('copyOutContainerTop').style.display = 'flex';
     
     // コピーボタンのクラスをリセット
     document.getElementById('copyBtn2').classList.remove('copy-success');
+    document.getElementById('copyBtn2Top').classList.remove('copy-success');
   }
 
   // ▼ 半角スペースで改行
@@ -918,9 +924,11 @@
     const converted = document.getElementById('resultText').value.split(' ').join('\n');
     document.getElementById('outArea').textContent = converted;
     document.getElementById('copyOutContainer').style.display = 'flex';
+    document.getElementById('copyOutContainerTop').style.display = 'flex';
     
     // コピーボタンのクラスをリセット
     document.getElementById('copyBtn2').classList.remove('copy-success');
+    document.getElementById('copyBtn2Top').classList.remove('copy-success');
   }
 
   // モーダル外クリックで閉じる処理を削除
