@@ -976,5 +976,8 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 '13925',
 '限定',
 'は',
-'に'
+'に',
+'ミレー',
+'Millet',
+'選択'
 ];
