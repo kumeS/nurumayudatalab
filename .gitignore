@@ -7,7 +7,7 @@ webtool-ec-calc-amazon-ex
 webtool-ec-calc-ebay-ex
 webtool-ec-performance-analysis-amazon/25*
 webtool-ec-calc-amazon/2025-week*
-
+webtool-ec-order-cilel/*.xlsx
 
 # OS generated files
 .DS_Store
