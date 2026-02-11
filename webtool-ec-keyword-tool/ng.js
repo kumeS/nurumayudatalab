@@ -960,5 +960,16 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 'm1720',
 'denizen',
 'from',
-'levi'
+'levi',
+'WearMoi',
+'ウェアモア',
+'sapolus',
+'s.lemon',
+'ラプンツェル',
+'清野咲',
+'定期購入',
+'定期',
+'購入',
+'再購入',
+'まとめ買い'
 ];
