@@ -1194,12 +1194,24 @@
               // 編集履歴があるかチェック
               const editedValue = editedKeywordsMap[k];
               const isEdited = editedValue !== undefined && editedValue !== k;
-              const displayValue = editedValue !== undefined ? editedValue : k;
-              const bgColor = isEdited ? '#d4edda' : '#fff';
-              const borderStyle = isEdited ? '2px solid #28a745' : '1px solid #ced4da';
+              const isDeleted = editedValue === '';
+              
+              let displayValue = editedValue !== undefined ? editedValue : k;
+              let bgColor = isEdited ? '#d4edda' : '#fff';
+              let borderStyle = isEdited ? '2px solid #28a745' : '1px solid #ced4da';
+              let textColor = '#495057';
+              let fontStyle = 'normal';
+              
+              if (isDeleted) {
+                displayValue = '(削除)';
+                bgColor = '#f8d7da';
+                borderStyle = '1px solid #f5c6cb';
+                textColor = '#dc3545';
+                fontStyle = 'italic';
+              }
               
               return `
-                <span class="editable-keyword" data-original="${k}" data-current="${displayValue}" data-index="${idx}" style="font-size: 0.85rem; padding: 0.25rem 0.5rem; background: ${bgColor}; border: ${borderStyle}; border-radius: 3px; color: #495057; cursor: pointer; transition: all 0.2s;" onclick="startEditKeyword(this)" title="クリックして編集">
+                <span class="editable-keyword" data-original="${k}" data-current="${editedValue !== undefined ? editedValue : k}" data-index="${idx}" style="font-size: 0.85rem; padding: 0.25rem 0.5rem; background: ${bgColor}; border: ${borderStyle}; border-radius: 3px; color: ${textColor}; font-style: ${fontStyle}; cursor: pointer; transition: all 0.2s;" onclick="startEditKeyword(this)" title="クリックして編集">
                   ${displayValue}
                 </span>
               `;
@@ -1219,14 +1231,16 @@
     // 既に編集中の場合は何もしない
     if (spanElement.querySelector('input')) return;
     
-    const originalKeyword = spanElement.dataset.current || spanElement.dataset.original;
+    const originalKeyword = spanElement.dataset.current !== undefined ? spanElement.dataset.current : spanElement.dataset.original;
     const currentText = spanElement.textContent.trim();
     
     // 入力フィールドを作成
     const input = document.createElement('input');
     input.type = 'text';
-    input.value = currentText;
-    input.style.cssText = 'font-size: 0.85rem; padding: 0.15rem 0.3rem; border: 2px solid #ff7e5f; border-radius: 3px; outline: none; width: ' + Math.max(currentText.length * 12, 60) + 'px; min-width: 60px;';
+    input.value = originalKeyword;
+    
+    const displayLen = Math.max(originalKeyword.length, currentText.length);
+    input.style.cssText = 'font-size: 0.85rem; padding: 0.15rem 0.3rem; border: 2px solid #ff7e5f; border-radius: 3px; outline: none; width: ' + Math.max(displayLen * 12, 60) + 'px; min-width: 60px;';
     
     // spanの内容を入力フィールドに置き換え
     spanElement.innerHTML = '';
@@ -1254,20 +1268,26 @@
   }
   
   function finishEditKeyword(spanElement, newKeyword, originalKeyword) {
-    // 空白の場合はキャンセル扱い
-    if (!newKeyword) {
-      cancelEditKeyword(spanElement, originalKeyword);
-      return;
-    }
-    
     // 元のキーワード（最初の状態）を取得
     const trueOriginal = spanElement.dataset.original;
     const isChanged = newKeyword !== trueOriginal;
+    const isDeleted = newKeyword === '';
     
-    // スタイルを戻す
-    spanElement.style.background = isChanged ? '#d4edda' : '#fff';
-    spanElement.style.border = isChanged ? '2px solid #28a745' : '1px solid #ced4da';
-    spanElement.innerHTML = newKeyword;
+    // スタイルを適用
+    if (isDeleted) {
+      spanElement.style.background = '#f8d7da';
+      spanElement.style.border = '1px solid #f5c6cb';
+      spanElement.style.color = '#dc3545';
+      spanElement.style.fontStyle = 'italic';
+      spanElement.innerHTML = '(削除)';
+    } else {
+      spanElement.style.background = isChanged ? '#d4edda' : '#fff';
+      spanElement.style.border = isChanged ? '2px solid #28a745' : '1px solid #ced4da';
+      spanElement.style.color = '#495057';
+      spanElement.style.fontStyle = 'normal';
+      spanElement.innerHTML = newKeyword;
+    }
+
     spanElement.onclick = function() { startEditKeyword(this); };
     
     // data属性を更新
@@ -1281,9 +1301,22 @@
   }
   
   function cancelEditKeyword(spanElement, originalText) {
-    spanElement.style.background = '#fff';
-    spanElement.style.border = '1px solid #ced4da';
-    spanElement.innerHTML = originalText;
+    const value = spanElement.dataset.current !== undefined ? spanElement.dataset.current : spanElement.dataset.original;
+    const isDeleted = value === '';
+    
+    if (isDeleted) {
+      spanElement.style.background = '#f8d7da';
+      spanElement.style.border = '1px solid #f5c6cb';
+      spanElement.style.color = '#dc3545';
+      spanElement.style.fontStyle = 'italic';
+      spanElement.innerHTML = '(削除)';
+    } else {
+      spanElement.style.background = '#fff';
+      spanElement.style.border = '1px solid #ced4da';
+      spanElement.style.color = '#495057';
+      spanElement.style.fontStyle = 'normal';
+      spanElement.innerHTML = originalText;
+    }
     spanElement.onclick = function() { startEditKeyword(this); };
   }
   
