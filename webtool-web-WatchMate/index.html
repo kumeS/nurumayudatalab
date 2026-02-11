@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WatchMate v2.0 - 管理画面</title>
+    <style>
+        :root {
+            --primary: #ff7e5f;
+            --secondary: #feb47b;
+            --accent: #7ee8fa;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --bg-light: #f8f9fa;
+            --border: #ddd;
+            --success: #28a745;
+            --danger: #dc3545;
+            --info: #0c5460;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .version-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .tabs {
+            display: flex;
+            background: var(--bg-light);
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .tab {
+            flex: 1;
+            padding: 16px 10px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        .tab.active {
+            background: white;
+            border-bottom: 3px solid var(--primary);
+            color: var(--primary);
+        }
+        .tab:hover { background: #e9ecef; }
+        .tab-content { display: none; padding: 30px; }
+        .tab-content.active { display: block; }
+        .config-section {
+            background: #fff8e1;
+            border-left: 4px solid var(--secondary);
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+        .config-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--border);
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .add-keyword-form {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--border);
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .form-input:focus { outline: none; border-color: var(--primary); }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .site-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            padding: 8px;
+            background: white;
+            border-radius: 5px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255,126,95,0.3);
+        }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-small { padding: 5px 10px; font-size: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .keywords-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .keywords-table th, .keywords-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .keywords-table th { background: var(--bg-light); font-weight: bold; }
+        .keywords-table tr:hover { background: var(--bg-light); }
+        .products-table { width: 100%; border-collapse: collapse; }
+        .products-table th {
+            background: var(--bg-light);
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: bold;
+            border-bottom: 2px solid var(--border);
+            position: sticky;
+            top: 0;
+        }
+        .products-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            vertical-align: top;
+        }
+        .products-table tr:hover { background: #fafafa; }
+        .products-table-wrapper {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .product-title-link {
+            color: #1a73e8;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .product-title-link:hover { text-decoration: underline; }
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-inactive { background: #f8d7da; color: #721c24; }
+        .email-badge {
+            background: #d1ecf1;
+            color: var(--info);
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+        .site-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+        }
+        .site-badge.site-7net { background: #4285f4; }
+        .site-badge.site-hmv { background: #9c27b0; }
+        .site-badge.site-animate { background: #ff9800; }
+        .site-badge.site-rakuten { background: #e91e63; }
+        .filter-bar {
+            background: var(--bg-light);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .filter-bar h3 { margin-bottom: 15px; }
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .filter-group label { font-size: 12px; font-weight: bold; color: var(--text-secondary); }
+        .filter-group select, .filter-group input[type="text"], .filter-group input[type="number"] {
+            padding: 8px 12px;
+            border: 2px solid var(--border);
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .filter-group select:focus, .filter-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .filter-sites {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-sites label {
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+        }
+        .result-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .result-count { font-weight: bold; color: #1565c0; }
+        .site-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .site-stat-card {
+            text-align: center;
+            padding: 12px 8px;
+            background: var(--bg-light);
+            border-radius: 8px;
+        }
+        .site-stat-card .count { font-size: 24px; font-weight: bold; color: #667eea; }
+        .site-stat-card .label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+        .search-form {
+            background: #f0f4ff;
+            padding: 25px;
+            border-radius: 10px;
+            border: 1px solid #c5cae9;
+            margin-bottom: 25px;
+        }
+        .search-form h3 { margin-bottom: 15px; color: #1a237e; }
+        .search-input-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .search-input-row .filter-group { flex: 1; min-width: 200px; }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal h3 { margin-bottom: 20px; }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 40px; height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #c62828;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .tabs { flex-wrap: wrap; }
+            .tab { font-size: 12px; padding: 12px 5px; }
+            .filter-row { flex-direction: column; }
+            .form-row { grid-template-columns: 1fr; }
+            .search-input-row { flex-direction: column; }
+            .products-table-wrapper { max-height: 400px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>WatchMate</h1>
+            <p>Never Miss a Product Update</p>
+            <div class="version-badge">v2.0</div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('keywords')">キーワード管理</button>
+            <button class="tab" onclick="switchTab('data')">データ可視化</button>
+            <button class="tab" onclick="switchTab('search')">手動検索</button>
+            <button class="tab" onclick="switchTab('settings')">設定</button>
+        </div>
+
+        <!-- キーワード管理タブ -->
+        <div id="keywords-tab" class="tab-content active">
+            <div class="config-section">
+                <h3>Cloudflare Worker URL</h3>
+                <input type="text" id="workerUrl" class="config-input"
+                       placeholder="https://watchmate.YOUR_SUBDOMAIN.workers.dev"
+                       value="https://watchmate.YOUR_SUBDOMAIN.workers.dev">
+            </div>
+
+            <div class="add-keyword-form">
+                <h3>新しいキーワードを追加</h3>
+                <div class="form-group">
+                    <label for="newKeyword">キーワード</label>
+                    <input type="text" id="newKeyword" class="form-input" placeholder="例: Python プログラミング">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>検索対象サイト（複数選択可）</label>
+                        <div class="site-checkboxes">
+                            <label class="checkbox-label"><input type="checkbox" id="site7net" checked> セブンネット</label>
+                            <label class="checkbox-label"><input type="checkbox" id="siteHmv" checked> HMV</label>
+                            <label class="checkbox-label"><input type="checkbox" id="siteAnimate" checked> アニメイト</label>
+                            <label class="checkbox-label"><input type="checkbox" id="siteRakuten" checked> 楽天ブックス</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="maxResults">取得件数上限（各サイト）</label>
+                        <input type="number" id="maxResults" class="form-input" min="5" max="100" value="20" style="max-width:150px;">
+                        <small style="color:var(--text-secondary);">5〜100件</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="emailNotification"> メール通知を有効にする（新商品発見時）</label>
+                </div>
+                <div class="form-group" id="emailGroup" style="display:none;">
+                    <label for="notifyEmail">通知先メールアドレス</label>
+                    <input type="email" id="notifyEmail" class="form-input" placeholder="your@example.com">
+                </div>
+                <button class="btn btn-primary" onclick="addKeyword()">追加</button>
+            </div>
+
+            <div id="keywordsListContainer">
+                <h3>登録済みキーワード</h3>
+                <div class="loading" id="keywordsLoading"><div class="spinner"></div><p>読み込み中...</p></div>
+                <table class="keywords-table" id="keywordsTable" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>キーワード</th>
+                            <th>対象サイト</th>
+                            <th>上限</th>
+                            <th>状態</th>
+                            <th>メール通知</th>
+                            <th>最終実行</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="keywordsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- データ可視化タブ -->
+        <div id="data-tab" class="tab-content">
+            <h2>最新データ</h2>
+            <div class="filter-bar" id="dataFilterBar" style="display:none;">
+                <h3>フィルター</h3>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>キーワード選択</label>
+                        <select id="dataKeywordSelect"><option value="__all__">すべてのキーワード</option></select>
+                    </div>
+                    <div class="filter-group" style="flex:2;">
+                        <label>商品名で絞り込み</label>
+                        <input type="text" id="dataProductFilter" placeholder="商品名の一部を入力..." style="min-width:250px;">
+                    </div>
+                    <div class="filter-group">
+                        <label>サイト</label>
+                        <div class="filter-sites">
+                            <label><input type="checkbox" class="dataFilterSite" value="7net" checked> 7net</label>
+                            <label><input type="checkbox" class="dataFilterSite" value="hmv" checked> HMV</label>
+                            <label><input type="checkbox" class="dataFilterSite" value="animate" checked> ｱﾆﾒｲﾄ</label>
+                            <label><input type="checkbox" class="dataFilterSite" value="rakuten" checked> 楽天</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="dataResultSummary" style="display:none;"></div>
+            <div id="dataSiteStats"></div>
+            <div id="dataProductsContainer"></div>
+            <div class="loading" id="dataLoading" style="display:none;"><div class="spinner"></div><p>データを読み込み中...</p></div>
+        </div>
+
+        <!-- 手動検索タブ -->
+        <div id="search-tab" class="tab-content">
+            <h2>手動検索</h2>
+            <p style="color:var(--text-secondary);margin-bottom:20px;">任意のキーワードでリアルタイム検索します。結果はKVに保存されません。</p>
+            <div class="search-form">
+                <h3>検索条件</h3>
+                <div class="search-input-row">
+                    <div class="filter-group" style="flex:2;">
+                        <label>検索キーワード</label>
+                        <input type="text" id="manualKeyword" placeholder="検索キーワードを入力..." style="width:100%;">
+                    </div>
+                    <div class="filter-group">
+                        <label>取得件数</label>
+                        <input type="number" id="manualMaxResults" value="20" min="5" max="100" style="width:80px;">
+                    </div>
+                    <div class="filter-group">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-primary" id="manualSearchBtn" onclick="manualSearch()">検索実行</button>
+                    </div>
+                </div>
+                <div style="margin-top:12px;">
+                    <label style="font-size:12px;font-weight:bold;color:var(--text-secondary);">検索サイト</label>
+                    <div class="filter-sites" style="margin-top:5px;">
+                        <label><input type="checkbox" class="manualSite" value="7net" checked> セブンネット</label>
+                        <label><input type="checkbox" class="manualSite" value="hmv" checked> HMV</label>
+                        <label><input type="checkbox" class="manualSite" value="animate" checked> アニメイト</label>
+                        <label><input type="checkbox" class="manualSite" value="rakuten" checked> 楽天ブックス</label>
+                    </div>
+                </div>
+            </div>
+            <div id="searchFilterBar" class="filter-bar" style="display:none;">
+                <div class="filter-row">
+                    <div class="filter-group" style="flex:2;">
+                        <label>商品名で絞り込み</label>
+                        <input type="text" id="searchProductFilter" placeholder="商品名の一部を入力...">
+                    </div>
+                    <div class="filter-group">
+                        <label>サイト</label>
+                        <div class="filter-sites">
+                            <label><input type="checkbox" class="searchFilterSite" value="7net" checked> 7net</label>
+                            <label><input type="checkbox" class="searchFilterSite" value="hmv" checked> HMV</label>
+                            <label><input type="checkbox" class="searchFilterSite" value="animate" checked> ｱﾆﾒｲﾄ</label>
+                            <label><input type="checkbox" class="searchFilterSite" value="rakuten" checked> 楽天</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="searchResultSummary" style="display:none;"></div>
+            <div id="searchSiteStats"></div>
+            <div id="searchProductsContainer"></div>
+        </div>
+
+        <!-- 設定タブ -->
+        <div id="settings-tab" class="tab-content">
+            <h2>メール通知設定</h2>
+            <div class="config-section">
+                <h3>テストメール送信</h3>
+                <p>メール通知機能が正常に動作するかテストします。</p>
+                <div class="form-group" style="margin-top:20px;">
+                    <label for="testEmail">テスト送信先メールアドレス</label>
+                    <input type="email" id="testEmail" class="form-input" placeholder="your@example.com">
+                </div>
+                <button class="btn btn-primary" onclick="sendTestEmail()">テストメール送信</button>
+            </div>
+            <div style="margin-top:30px;padding:20px;background:#f5f5f5;border-radius:10px;">
+                <h3>メール通知の設定方法</h3>
+                <ol style="margin-left:20px;margin-top:15px;line-height:1.8;">
+                    <li>Resend または SendGrid のアカウントを作成</li>
+                    <li>API キーを取得</li>
+                    <li>Cloudflare Workers にシークレットを設定:<br><code style="background:white;padding:5px;margin-top:5px;display:inline-block;">wrangler secret put RESEND_API_KEY</code></li>
+                    <li>キーワード追加時に「メール通知を有効にする」にチェック</li>
+                </ol>
+                <p style="margin-top:20px;"><strong>推奨サービス:</strong><br>• <a href="https://resend.com" target="_blank" style="color:var(--primary);">Resend</a> - 月3,000通まで無料<br>• <a href="https://sendgrid.com" target="_blank" style="color:var(--primary);">SendGrid</a> - 1日100通まで無料</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 編集モーダル -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <h3>キーワードを編集</h3>
+            <input type="hidden" id="editId">
+            <div class="form-group">
+                <label for="editKeyword">キーワード</label>
+                <input type="text" id="editKeyword" class="form-input">
+            </div>
+            <div class="form-group">
+                <label>検索対象サイト</label>
+                <div class="site-checkboxes">
+                    <label class="checkbox-label"><input type="checkbox" id="editSite7net"> セブンネット</label>
+                    <label class="checkbox-label"><input type="checkbox" id="editSiteHmv"> HMV</label>
+                    <label class="checkbox-label"><input type="checkbox" id="editSiteAnimate"> アニメイト</label>
+                    <label class="checkbox-label"><input type="checkbox" id="editSiteRakuten"> 楽天ブックス</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="editMaxResults">取得件数上限（各サイト）</label>
+                <input type="number" id="editMaxResults" class="form-input" min="5" max="100" style="max-width:150px;">
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" id="editEmailNotification"> メール通知を有効にする</label>
+            </div>
+            <div class="form-group" id="editEmailGroup" style="display:none;">
+                <label for="editNotifyEmail">通知先メールアドレス</label>
+                <input type="email" id="editNotifyEmail" class="form-input">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeEditModal()">キャンセル</button>
+                <button class="btn btn-primary" onclick="saveEditKeyword()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('emailNotification').addEventListener('change', function() {
+            document.getElementById('emailGroup').style.display = this.checked ? 'block' : 'none';
+        });
+        document.getElementById('editEmailNotification').addEventListener('change', function() {
+            document.getElementById('editEmailGroup').style.display = this.checked ? 'block' : 'none';
+        });
+    </script>
+    <script src="admin-v2.js"></script>
+</body>
+</html>

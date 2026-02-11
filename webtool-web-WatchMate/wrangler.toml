@@ -1,0 +1,47 @@
+name = "watchmate"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Workers のルート設定
+workers_dev = true
+
+# Cron Triggers - 30分ごとに実行（1日48回）
+# 各キーワードを自動スクレイピング
+[triggers]
+crons = ["*/30 * * * *"]
+
+# KV Namespace バインディング
+# セットアップ手順:
+#   1. wrangler kv:namespace create "WATCHMATE_KV"
+#   2. 出力されたIDを以下のid欄に設定
+[[kv_namespaces]]
+binding = "KEYWORDS_KV"
+id = "YOUR_KV_NAMESPACE_ID"  # ← ここにKV Namespace IDを設定
+
+# 環境変数
+[vars]
+ENVIRONMENT = "production"
+APP_NAME = "WatchMate"
+APP_VERSION = "2.0"
+APP_TAGLINE = "Never Miss a Product Update"
+
+# メール送信設定（オプション）
+# 送信元メールアドレスをカスタマイズする場合は以下のコメントを解除
+# FROM_EMAIL = "WatchMate <noreply@yourdomain.com>"
+
+# シークレット（メール通知を使用する場合のみ）
+# 以下のコマンドで設定:
+#   Resend を使用: wrangler secret put RESEND_API_KEY
+#   SendGrid を使用: wrangler secret put SENDGRID_API_KEY
+# 
+# Resend: https://resend.com/api-keys
+# SendGrid: https://app.sendgrid.com/settings/api_keys
+
+# 開発環境
+[env.dev]
+name = "watchmate-dev"
+vars = { ENVIRONMENT = "development", APP_NAME = "WatchMate Dev", APP_VERSION = "2.0-dev", APP_TAGLINE = "Never Miss a Product Update" }
+
+[[env.dev.kv_namespaces]]
+binding = "KEYWORDS_KV"
+id = "YOUR_DEV_KV_NAMESPACE_ID"
