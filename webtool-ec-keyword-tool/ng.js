@@ -611,7 +611,6 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 'freeasy',
 'ベイカー',
 'no.5',
-'ワン',
 'カラーズ',
 'アーケード',
 'カンゴール',
@@ -1015,5 +1014,7 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 'ポイント',
 'レビュー',
 'ランキング',
-'メーカー'
+'メーカー',
+'発送',
+'受取'
 ];
