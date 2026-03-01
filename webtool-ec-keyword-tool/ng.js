@@ -1023,5 +1023,7 @@ const SYSTEM_EXCLUDE_KEYWORDS = [
 '採寸',
 '寸法',
 '表記',
-'企画'
+'企画',
+'branshes',
+'8236-2501'
 ];

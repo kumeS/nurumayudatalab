@@ -1,0 +1,79 @@
+# test.sh 定期実行 + CSV蓄積 + UI表示 の実装方針（2026-02-26）
+
+## 結論（推奨）
+このリポジトリ構成では、**Cloudflare Workers + KV（既存）を中核**にして実装するのが最も良いです。
+
+- 既に `worker.js` / `wrangler.toml` / `index.html` / `admin-v2.js` があるため、追加コストが小さい
+- Cron（定期実行）とAPI（UI表示）を同じ基盤で持てる
+- サーバー常駐が不要（サーバーレス運用）
+
+> 重要: `test.sh` をそのまま Cloudflare Workers 上で動かすことはできません（bash/curl/grep前提のため）。
+> 本番運用は `worker.js` 側へ同等ロジックを集約し、`test.sh` はローカル検証ツールとして残すのが適切です。
+
+---
+
+## なぜこの方式が良いか
+
+### 1) 定期実行
+- Cloudflare Cron Triggers で 30分/1時間ごとに自動実行可能
+- GitHub Actions のような外部ジョブ基盤を増やさずに済む
+
+### 2) データ蓄積（CSV相当）
+- UI表示目的なら、**CSVファイル直接管理より JSON構造でKV保存**が扱いやすい
+- 必要に応じて APIでCSVに変換してダウンロード提供できる
+- 「蓄積」は履歴キー（例: `history_<keyword>`）を伸ばす方式が自然
+
+### 3) UI表示
+- 既存の `index.html` + `admin-v2.js` から既存APIを呼ぶだけで表示できる
+- 追加するのは「履歴テーブル」「CSVダウンロードボタン」程度で済む
+
+---
+
+## 実装案（最小）
+
+### A. 収集・保存（Worker側）
+1. `scheduled` で定期スクレイピング実行（既存）
+2. 1件ごとに以下を保存
+   - timestamp
+   - keyword
+   - site
+   - title
+   - price
+   - url
+   - status（販売状況）
+3. `history_<keyword>` に配列で追記（必要なら上限件数を設定）
+
+### B. API（Worker側）
+1. 履歴取得API（既存 `/api/data/history` を拡張）
+2. CSVエクスポートAPIを追加（例: `/api/data/history/csv?keyword=...`）
+   - レスポンス `Content-Type: text/csv`
+   - UTF-8/BOMの有無はUI要件で選択
+
+### C. UI（admin-v2.js / index.html）
+1. 履歴表示テーブルを追加
+2. 条件（keyword/site/status/期間）で絞り込み
+3. CSVダウンロードボタンでCSV APIを呼び出し
+
+---
+
+## 代替案（非推奨寄り）
+
+### GitHub Actionsで test.sh をcron実行し、CSVを蓄積
+- 可能だが、ジョブ管理・認証・保存先（Git/R2/S3）設計が追加で必要
+- 既存Cloudflare中心構成と責務が分散しやすい
+
+### ローカルPCのcron/launchdで test.sh 実行
+- 個人用途では簡単
+- ただし常時稼働PC前提で、運用の信頼性が低い
+
+---
+
+## 推奨アーキテクチャまとめ
+
+- **収集実行**: Cloudflare Worker Cron
+- **保存**: Cloudflare KV（JSON蓄積）
+- **表示**: 既存Admin UI（API経由）
+- **CSV**: APIでオンデマンド生成（必要時ダウンロード）
+- **test.shの役割**: ローカルの抽出ロジック検証専用
+
+この方針なら、既存資産を最大活用しつつ、運用コストと保守負荷を最小化できます。

@@ -1,0 +1,15 @@
+{
+  "name": "watchmate-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "cli": "node src/runtime/cli.js",
+    "watchmate:cli": "./watchMate-cli/watchMate-cli",
+    "watchmate:mcp:stdio": "node watchMate-cli/mcp/server.mjs --transport stdio",
+    "watchmate:mcp:http": "node watchMate-cli/mcp/server.mjs --transport http --host 127.0.0.1 --port 3011"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

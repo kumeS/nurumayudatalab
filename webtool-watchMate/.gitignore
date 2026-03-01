@@ -21,6 +21,9 @@ npm-debug.log*
 
 # Test results
 results.txt
+results.csv
+results-node.csv
+*.tmp.csv
 
 # Backup files
 *.bak

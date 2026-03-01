@@ -1,0 +1,209 @@
+# test_nodejs仕様書
+作成日: 2026-02-26
+
+## 1. 目的
+`test.sh`で行っている検索・抽出・販売状況判定をNode.jsで共通ロジック化し、
+以下の2つの実行形態で同一ロジックを再利用する。
+
+- CLI実行（ローカル検証用）
+- Worker実行（Cloudflare Workers: Cron/API/KV保存）
+
+本仕様の基本方針は以下。
+
+- Node.jsで共通ロジック化しつつ、Cloudflare Workers制約準拠で設計する
+- 共通化する部分: 検索URL生成・HTML抽出・販売状況判定・CSV変換
+- 分ける部分: CLI実行 / Worker実行
+- 設計ルール: fetchベース、fs/child_process依存をコアに入れない、保存はKV前提（CSVはAPIで生成）
+
+---
+
+## 2. スコープ
+
+### 2.1 対象
+- 4サイト（7net / hmv / animate / rakuten）の検索処理
+- 商品一覧抽出（title, price, url）
+- 商品詳細ページ取得と販売状況判定
+- 共通データモデル定義
+- CSV文字列生成
+- CLIラッパーおよびWorkerラッパー
+
+### 2.2 非対象
+- 既存UIの全面刷新
+- 外部DB導入（RDBなど）
+- Playwright等ブラウザ自動化の導入
+
+---
+
+## 3. 全体アーキテクチャ
+
+### 3.1 構成方針（分離）
+1) Core層（共通）
+- 純粋関数中心
+- 入出力は文字列/オブジェクト
+- fetch関数はDI（依存性注入）で受け取る
+
+2) Runtime層（実行基盤別）
+- CLI Runtime: 引数解析、標準出力、ローカルファイル出力（必要時）
+- Worker Runtime: Cron起動、HTTP API、KV入出力
+
+### 3.2 推奨ディレクトリ（例）
+- src/core/
+  - models.js
+  - sites.js
+  - parsers.js
+  - status.js
+  - csv.js
+  - scrape.js
+- src/runtime/
+  - cli.js
+  - worker.js
+- src/infra/
+  - fetch-client.js
+  - kv-repository.js
+
+---
+
+## 4. 共通データモデル
+
+### 4.1 ProductRecord
+- timestamp: string (ISO8601)
+- keyword: string
+- site: '7net' | 'hmv' | 'animate' | 'rakuten'
+- title: string
+- price: string (数値文字列、未取得時は空文字)
+- url: string
+- status: '販売終了' | '売り切れ' | '予約する' | '販売中' | '判定不可'
+
+### 4.2 SearchOptions
+- keyword: string (必須)
+- site: 'all' | '7net' | 'hmv' | 'animate' | 'rakuten'
+- maxResults: number
+- productFilter?: string（タイトル部分一致）
+
+---
+
+## 5. 共通ロジック仕様
+
+### 5.1 検索URL生成
+- 入力: site, keyword
+- 出力: 検索URL
+- 文字列エンコードは `encodeURIComponent` を使用
+
+### 5.2 HTML抽出
+- 入力: site, html
+- 出力: ProductRecordの部分集合（title, price, url）配列
+- サイトごとに抽出ルールを分岐
+- 返却時は正規化済みURLに統一
+
+### 5.3 販売状況判定
+- 入力: 商品詳細HTML（文字列）
+- 出力: status
+- 判定順（優先度）
+  1. 販売終了
+  2. 売り切れ
+  3. 予約する
+  4. 販売中
+  5. 判定不可
+- 判定はキーワード一致ベース（将来、サイト別判定辞書に拡張）
+
+### 5.4 CSV変換
+- 入力: ProductRecord[]
+- 出力: CSV文字列
+- ヘッダー固定:
+  - timestamp,keyword,site,title,price,url,status
+- RFC4180互換のダブルクォートエスケープ実装
+
+---
+
+## 6. Runtime仕様
+
+### 6.1 CLI Runtime（ローカル検証）
+- コマンド例
+  - node cli.js -q "Vジャンプ" -s hmv -m 10 -p "特装" --csvoutput results.csv
+- 役割
+  - 引数解釈
+  - Core呼び出し
+  - コンソール出力
+  - 任意でCSVファイル保存
+- 注意
+  - `fs`利用はCLI Runtimeのみに限定
+
+### 6.2 Worker Runtime（本番運用）
+- Cron実行
+  - 定期でキーワード一覧を取得
+  - Coreを呼び出して結果生成
+  - KVに保存
+- API実行
+  - 履歴JSON取得API
+  - CSV生成API（オンデマンド）
+- 注意
+  - Worker Runtimeではローカルファイル書き込みを行わない
+
+---
+
+## 7. KV保存仕様（Worker）
+
+### 7.1 キー設計
+- registered_keywords
+- data_latest_<keyword>
+- history_<keyword>
+
+### 7.2 保存形式
+- JSON配列（ProductRecord）または集計付きJSON
+- 保存TTLは要件に合わせて設定（例: 7日）
+
+### 7.3 CSV提供
+- KV保存データから都度CSVを生成して返却
+- ファイル実体の永続保存は行わない
+
+---
+
+## 8. API仕様（Worker）
+
+### 8.1 履歴取得
+- GET /api/data/history?keyword=...&limit=...
+- Response: JSON
+
+### 8.2 CSV取得
+- GET /api/data/history/csv?keyword=...&limit=...
+- Response Header:
+  - Content-Type: text/csv; charset=utf-8
+- Response Body:
+  - CSV文字列
+
+---
+
+## 9. エラーハンドリング
+- サイト取得失敗時は該当サイトのみ空配列扱い（全体処理は継続）
+- 詳細ページ取得失敗時は status='判定不可'
+- 解析失敗時は例外を握りつぶさず、Runtimeでログ出力し継続
+
+---
+
+## 10. パフォーマンス・運用
+- 並列取得数に上限を設ける（過剰アクセス回避）
+- キーワード数 × サイト数 × 詳細取得件数を制御可能にする
+- Worker無料枠監視指標
+  - CPU time
+  - subrequests
+  - エラー率
+
+---
+
+## 11. 受け入れ条件
+1) 同一キーワードでCLI/Workerの抽出結果フォーマットが一致する
+2) status判定が `販売終了/売り切れ/予約する/販売中/判定不可` のいずれかを返す
+3) CSVヘッダーと列順が固定である
+4) Worker側でCSV APIが正常に返る
+5) Core層に `fs` / `child_process` 依存が存在しない
+
+---
+
+## 12. 移行ステップ（推奨）
+1) Core層を先に実装（URL生成・抽出・status・CSV）
+2) CLI Runtimeを差し替え（現行`test.sh`相当をNode化）
+3) Worker RuntimeでCoreを利用するよう統合
+4) 履歴CSV API追加
+5) UIにCSVダウンロード導線を追加
+
+以上。
