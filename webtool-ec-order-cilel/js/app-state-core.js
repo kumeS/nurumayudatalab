@@ -7,6 +7,11 @@ let summarySortMode = localStorage.getItem('CiLELViewerSummarySortMode') || 'def
 let mergeAllDuplicates = localStorage.getItem('CiLELViewerMergeAllDuplicates') === 'true';
 // Remove global exchangeRate as we now calculate per-file
 
+// CSV export mode state (商品選択CSVエクスポート)
+let csvExportSelectMode = false;      // 選択モードON/OFF
+let csvExportFormat = null;           // 'apa' | 'zak'
+let csvExportSelectedImageKeys = new Set();  // 選択された画像のキー集合
+
 // LOCAL_CACHE_KEY is now in app-utils.js
 
 const dropZone = document.getElementById('dropZone');
@@ -28,9 +33,11 @@ const statusPopup = document.getElementById('statusPopup');
 
 // IndexedDB setup
 const DB_NAME = 'CiLELViewer';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'orderData';
+const DRAFT_STORE_NAME = 'csvDraft';
 let db = null;
+let csvDraftData = null;
 
 // Initialize - moved to app-file-input.js to ensure all functions are loaded
 
@@ -58,8 +65,12 @@ function initDB() {
   request.onupgradeneeded = (event) => {
     db = event.target.result;
     if (!db.objectStoreNames.contains(STORE_NAME)) {
-      const objectStore = db.createObjectStore(STORE_NAME, { keyPath: 'fileName' });
+      db.createObjectStore(STORE_NAME, { keyPath: 'fileName' });
       console.log('Object store created');
+    }
+    if (!db.objectStoreNames.contains(DRAFT_STORE_NAME)) {
+      db.createObjectStore(DRAFT_STORE_NAME, { keyPath: 'key' });
+      console.log('CSV draft store created');
     }
   };
 }
@@ -91,7 +102,7 @@ async function loadDataFromDB() {
     const objectStore = transaction.objectStore(STORE_NAME);
     const request = objectStore.getAll();
     
-    request.onsuccess = () => {
+    request.onsuccess = async () => {
       const records = request.result;
       console.log(`Loaded ${records.length} files from IndexedDB`);
       
@@ -99,7 +110,9 @@ async function loadDataFromDB() {
         allData[record.fileName] = record.data;
       });
       syncFileOrder();
-      
+
+      await loadCsvDraftFromDB();
+
       if (records.length > 0) {
         renderTabs();
         renderContent();
@@ -130,6 +143,64 @@ async function deleteDataFromDB(fileName) {
     };
     request.onerror = () => {
       console.error('Delete error:', request.error);
+      reject(request.error);
+    };
+  });
+}
+
+async function saveCsvDraftToDB(draftData) {
+  if (!db) return;
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([DRAFT_STORE_NAME], 'readwrite');
+    const objectStore = transaction.objectStore(DRAFT_STORE_NAME);
+    const request = objectStore.put(draftData);
+    request.onsuccess = () => {
+      console.log('CSV draft saved to IndexedDB');
+      resolve();
+    };
+    request.onerror = () => {
+      console.error('Draft save error:', request.error);
+      reject(request.error);
+    };
+  });
+}
+
+async function loadCsvDraftFromDB() {
+  if (!db) return null;
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([DRAFT_STORE_NAME], 'readonly');
+    const objectStore = transaction.objectStore(DRAFT_STORE_NAME);
+    const request = objectStore.get('draft');
+    request.onsuccess = () => {
+      const result = request.result;
+      if (result) {
+        csvDraftData = result;
+        console.log('CSV draft loaded from IndexedDB');
+      } else {
+        csvDraftData = null;
+      }
+      resolve(result || null);
+    };
+    request.onerror = () => {
+      console.error('Draft load error:', request.error);
+      reject(request.error);
+    };
+  });
+}
+
+async function deleteCsvDraftFromDB() {
+  csvDraftData = null;
+  if (!db) return;
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([DRAFT_STORE_NAME], 'readwrite');
+    const objectStore = transaction.objectStore(DRAFT_STORE_NAME);
+    const request = objectStore.delete('draft');
+    request.onsuccess = () => {
+      console.log('CSV draft deleted from IndexedDB');
+      resolve();
+    };
+    request.onerror = () => {
+      console.error('Draft delete error:', request.error);
       reject(request.error);
     };
   });

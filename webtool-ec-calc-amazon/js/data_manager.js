@@ -117,8 +117,8 @@ class DataManager {
         this.orderTypeMap = new Map();
         
         this.loadedFiles.forEach((fileData) => {
-            // 子ASINデータは通常の集計には含めない
-            if (fileData.sourceType === 'child-asin') return;
+            // 子ASINデータ・FBA在庫レポートは通常の集計には含めない
+            if (fileData.sourceType === 'child-asin' || fileData.sourceType === 'fba-inventory') return;
             this.data.push(...fileData.data);
         });
         

@@ -713,19 +713,42 @@ function renderSummaryContent() {
   html += '</select>';
   html += '</label>';
   html += '</div>';
+  if (!csvExportSelectMode) {
+    html += '<div class="csv-export-actions-bar">';
+    html += '<button type="button" class="btn-csv-export" id="btnCsvExport" title="商品発注CSVファイルを作成する">商品発注CSVファイルを作成する</button>';
+    if (csvDraftData) {
+      const draftDate = csvDraftData.timestamp
+        ? new Date(csvDraftData.timestamp).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : '';
+      const hasEdits = csvDraftData.editedRows && csvDraftData.editedRows.length > 0;
+      html += `<button type="button" class="btn-load-draft" id="btnLoadDraft">⏱ 一時保存から表を作成する${draftDate ? ' (' + draftDate + ')' : ''}${hasEdits ? ' ✎' : ''}</button>`;
+      html += '<button type="button" class="btn-delete-draft" id="btnDeleteDraft">一時保存の表を削除する</button>';
+    }
+    html += '</div>';
+  } else {
+    html += '<div class="csv-select-actions" id="csvExportSelectBar">';
+    html += '<button type="button" class="btn-create-table" id="btnCreateTable">表を作成する</button>';
+    html += '<button type="button" class="btn-save-draft" id="btnSaveDraft">一時保存</button>';
+    html += '<button type="button" class="btn-cancel-select" id="btnCancelSelect">キャンセル</button>';
+    html += '</div>';
+  }
   html += '</div>';
   html += '<table class="summary-table">';
   html += '<thead><tr><th>ファイル名</th><th>商品画像</th><th>注文日</th><th>商品種類</th><th>発注数量</th><th>出荷数量</th><th>商品代(小計)</th><th>国際送料</th></tr></thead><tbody>';
 
   fileData.forEach(file => {
-    // Render image thumbnails
+    // Render image thumbnails (WJFT rows: skip selection - FT only)
     let imageThumbnails = '<div class="image-thumbnails">';
     if (file.images.length > 0) {
       file.images.forEach(imageInfo => {
         const imageUrl = imageInfo.imageUrl;
         const imageKey = (imageInfo.imageKey || buildImageKey(imageUrl) || '').trim();
         const highlightKey = (imageInfo.imageUrl || imageKey || '').trim();
-        imageThumbnails += `<img src="${escapeHtml(imageUrl)}" alt="商品" class="thumbnail-img" data-image-url="${escapeHtml(imageUrl)}" data-image-key="${escapeHtml(imageKey)}" data-highlight-key="${escapeHtml(highlightKey)}" onerror="this.style.display='none'">`;
+        const selectable = csvExportSelectMode && !file.isWjft;
+        const selected = selectable && csvExportSelectedImageKeys.has(highlightKey);
+        const selectableClass = selectable ? ' csv-selectable' : '';
+        const selectedClass = selected ? ' csv-selected' : '';
+        imageThumbnails += `<img src="${escapeHtml(imageUrl)}" alt="商品" class="thumbnail-img${selectableClass}${selectedClass}" data-image-url="${escapeHtml(imageUrl)}" data-image-key="${escapeHtml(imageKey)}" data-highlight-key="${escapeHtml(highlightKey)}" data-file="${escapeHtml(file.fileName)}" onerror="this.style.display='none'">`;
       });
     }
     imageThumbnails += '</div>';
@@ -755,7 +778,12 @@ function renderSummaryContent() {
     });
   }
 
-  attachSummaryThumbnailHover();
+  // 選択モード中は連動ハイライトをOFF
+  if (!csvExportSelectMode) {
+    attachSummaryThumbnailHover();
+  }
+
+  attachCsvExportListeners();
 }
 
 // ============================================================
@@ -1089,4 +1117,480 @@ function attachSummaryThumbnailHover() {
     thumbnail.addEventListener('focus', () => syncHighlight(key, true));
     thumbnail.addEventListener('blur', () => syncHighlight(key, false));
   });
+}
+
+// ============================================================
+// 商品選択CSVエクスポート イベントリスナー
+// ============================================================
+function attachCsvExportListeners() {
+  const btnCsvExport = document.getElementById('btnCsvExport');
+  const btnCreateTable = document.getElementById('btnCreateTable');
+  const btnCancelSelect = document.getElementById('btnCancelSelect');
+  const btnSaveDraft = document.getElementById('btnSaveDraft');
+  const btnLoadDraft = document.getElementById('btnLoadDraft');
+
+  if (btnCsvExport) {
+    btnCsvExport.addEventListener('click', () => {
+      csvExportFormat = 'apa';
+      csvExportSelectMode = true;
+      csvExportSelectedImageKeys.clear();
+      renderSummaryContent();
+    });
+  }
+
+  if (btnCancelSelect) {
+    btnCancelSelect.addEventListener('click', () => {
+      csvExportSelectMode = false;
+      csvExportFormat = null;
+      csvExportSelectedImageKeys.clear();
+      renderSummaryContent();
+    });
+  }
+
+  if (btnCreateTable) {
+    btnCreateTable.addEventListener('click', () => {
+      const selectedItems = resolveSelectedItemsFromImageKeys(csvExportSelectedImageKeys);
+      if (selectedItems.length === 0) {
+        alert('商品が選択されていません。画像をクリックして選択してください。');
+        return;
+      }
+      showCsvExportTablePopup(selectedItems);
+    });
+  }
+
+  if (btnSaveDraft) {
+    btnSaveDraft.addEventListener('click', async () => {
+      if (csvExportSelectedImageKeys.size === 0) {
+        alert('商品が選択されていません。画像をクリックして選択してください。');
+        return;
+      }
+      const draftPayload = {
+        key: 'draft',
+        selectedImageKeys: Array.from(csvExportSelectedImageKeys),
+        format: csvExportFormat || 'apa',
+        timestamp: Date.now()
+      };
+      await saveCsvDraftToDB(draftPayload);
+      csvDraftData = draftPayload;
+      alert(`一時保存しました（${draftPayload.selectedImageKeys.length}件）`);
+    });
+  }
+
+  if (btnLoadDraft) {
+    btnLoadDraft.addEventListener('click', () => {
+      if (!csvDraftData) return;
+      csvExportFormat = csvDraftData.format || 'apa';
+      csvExportSelectedImageKeys = new Set(csvDraftData.selectedImageKeys || []);
+
+      // 編集済み行データがある場合はそのままポップアップを復元
+      if (csvDraftData.editedRows && csvDraftData.editedRows.length > 0) {
+        showCsvExportTablePopup(null, csvDraftData);
+        return;
+      }
+
+      // 編集済みデータなし → 元の商品データから再解決
+      const selectedItems = resolveSelectedItemsFromImageKeys(csvExportSelectedImageKeys);
+      if (selectedItems.length === 0) {
+        alert('一時保存の商品データが見つかりません。対応するファイルを読み込んでください。');
+        return;
+      }
+      showCsvExportTablePopup(selectedItems);
+    });
+  }
+
+  const btnDeleteDraft = document.getElementById('btnDeleteDraft');
+  if (btnDeleteDraft) {
+    btnDeleteDraft.addEventListener('click', async () => {
+      if (confirm('一時保存した表を削除しますか？この操作は取り消せません。')) {
+        await deleteCsvDraftFromDB();
+        renderSummaryContent();
+      }
+    });
+  }
+
+  // サムネイルクリックで選択トグル（選択モード時のみ）
+  document.querySelectorAll('.thumbnail-img.csv-selectable').forEach(img => {
+    img.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const key = img.dataset.highlightKey;
+      if (!key) return;
+      if (csvExportSelectedImageKeys.has(key)) {
+        csvExportSelectedImageKeys.delete(key);
+      } else {
+        csvExportSelectedImageKeys.add(key);
+      }
+      img.classList.toggle('csv-selected', csvExportSelectedImageKeys.has(key));
+    });
+  });
+}
+
+/**
+ * テーブルの現在の編集済み内容を読み取る
+ * 削除ボタン列（csv-cell-row-action）は除外する
+ * contenteditable セルは innerText で取得（表示通りの改行・テキストを保持）
+ * 非編集セル（No列など）は textContent で取得
+ */
+function readTableEditedRows(tableEl) {
+  return Array.from(tableEl.querySelectorAll('tbody tr.csv-data-row')).map(tr =>
+    Array.from(tr.querySelectorAll('td:not(.csv-cell-row-action)')).map(td => {
+      if (td.isContentEditable) {
+        // innerText はブラウザが挿入した <div>/<br> を改行として正規化してくれる
+        return td.innerText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      }
+      return td.textContent;
+    })
+  );
+}
+
+/**
+ * 選択商品の表をポップアップ表示（編集可能、一時保存対応）
+ * @param {Array|null} selectedItems - 新規作成時の商品リスト（ドラフト復元時はnull可）
+ * @param {Object|null} draftData    - IndexedDBから復元したドラフトデータ
+ */
+function showCsvExportTablePopup(selectedItems, draftData = null) {
+  const format = (draftData && draftData.format) || csvExportFormat || 'apa';
+  const headers = (draftData && draftData.headers)
+    || (format === 'zak' ? CSV_HEADERS_ZAK : CSV_HEADERS_APA);
+
+  // 改行を含む可能性があるカラムのインデックスを特定
+  const lineBreakColumns = new Set(
+    headers.reduce((acc, h, i) => {
+      if (h === 'サイズ・カラー・各個数など' || h === '納品指示') acc.push(i);
+      return acc;
+    }, [])
+  );
+
+  // 行データ: ドラフトの編集済み内容を優先、なければ商品データから生成
+  let rowDataArray;
+  if (draftData && draftData.editedRows && draftData.editedRows.length > 0) {
+    rowDataArray = draftData.editedRows;
+  } else if (selectedItems && selectedItems.length > 0) {
+    rowDataArray = selectedItems.map(({ item }, index) =>
+      itemToCsvRow(item, format, index).map(v => String(v ?? ''))
+    );
+  } else {
+    rowDataArray = [];
+  }
+
+  /**
+   * 1行分のHTML文字列を生成（No列の自動採番付き）
+   * @param {string[]} row - セル値配列
+   * @param {number} rowIndex - 0始まりのインデックス（No採番用）
+   * @param {boolean} isNew - 追加時のハイライトアニメーションを付けるか
+   */
+  function buildRowHtml(row, rowIndex, isNew = false) {
+    const newClass = isNew ? ' row-new' : '';
+    let html = `<tr class="csv-data-row${newClass}">`;
+    // 削除ボタン列
+    html += `<td class="csv-cell-row-action"><button type="button" class="btn-row-delete" title="この行を削除">✕</button></td>`;
+    row.forEach((v, colIdx) => {
+      const isLineBreak = lineBreakColumns.has(colIdx);
+      const isNo = headers[colIdx] === 'No';
+      if (isNo) {
+        // No 列: 表示は採番、セルは編集不可
+        html += `<td class="csv-cell-no">${rowIndex + 1}</td>`;
+      } else {
+        const style = isLineBreak ? ' style="white-space: pre-wrap; min-width: 160px;"' : '';
+        html += `<td contenteditable="true" class="csv-cell-editable"${style}>${escapeHtml(String(v))}</td>`;
+      }
+    });
+    html += `</tr>`;
+    return html;
+  }
+
+  let tableHtml = '<table class="csv-preview-table" id="csvPreviewTable"><thead><tr>';
+  // 削除ボタン列ヘッダー（空）
+  tableHtml += '<th class="csv-th-row-action"></th>';
+  headers.forEach(h => { tableHtml += `<th>${escapeHtml(h)}</th>`; });
+  tableHtml += '</tr></thead><tbody>';
+  rowDataArray.forEach((row, idx) => { tableHtml += buildRowHtml(row, idx); });
+  tableHtml += '</tbody></table>';
+
+  const fromDraft = !!(draftData && draftData.editedRows && draftData.editedRows.length > 0);
+  const draftDateLabel = (draftData && draftData.timestamp)
+    ? ` (${new Date(draftData.timestamp).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}保存)`
+    : '';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'csv-export-popup-overlay';
+  overlay.innerHTML = `
+    <div class="csv-export-popup">
+      <div class="csv-export-popup-header">
+        <h3>選択商品一覧${fromDraft ? `<span class="popup-draft-badge">一時保存から復元${draftDateLabel}</span>` : ''}</h3>
+        <span class="popup-edit-hint">※ セルをクリックして編集できます（元データは変更されません）</span>
+        <button type="button" class="btn-popup-close" aria-label="閉じる">×</button>
+      </div>
+      <div class="csv-export-popup-body">
+        <div class="csv-preview-scroll">${tableHtml}</div>
+        <div class="csv-export-popup-actions">
+          <button type="button" class="btn-csv-download" id="btnCsvDownload">CSVエクスポート</button>
+          <button type="button" class="btn-save-draft-popup" id="btnSaveDraftPopup">一時保存</button>
+          <button type="button" class="btn-add-row-popup" id="btnAddRowPopup">＋ 商品を追加</button>
+          <button type="button" class="btn-add-empty-row-popup" id="btnAddEmptyRowPopup">＋ 空行を追加</button>
+          <button type="button" class="btn-popup-close">閉じる</button>
+        </div>
+      </div>
+    </div>`;
+
+  const closePopup = () => {
+    overlay.remove();
+    document.body.style.overflow = '';
+  };
+
+  /** No列を現在の行順に採番し直す */
+  function renumberRows() {
+    const table = overlay.querySelector('#csvPreviewTable');
+    if (!table) return;
+    const noColIdx = headers.indexOf('No');
+    if (noColIdx === -1) return;
+    Array.from(table.querySelectorAll('tbody tr.csv-data-row')).forEach((tr, idx) => {
+      // +1: 削除ボタン列の offset
+      const noCell = tr.querySelectorAll('td')[noColIdx + 1];
+      if (noCell) noCell.textContent = String(idx + 1);
+    });
+  }
+
+  /** 行削除ボタンのイベントを tbody に委譲 */
+  const tbody = overlay.querySelector('#csvPreviewTable tbody');
+  tbody.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-row-delete');
+    if (!btn) return;
+    const tr = btn.closest('tr.csv-data-row');
+    if (!tr) return;
+    tr.remove();
+    renumberRows();
+  });
+
+  // contenteditable セルにペースト時、プレーンテキストのみ受け付ける
+  overlay.addEventListener('paste', (e) => {
+    if (!e.target.classList.contains('csv-cell-editable')) return;
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  });
+
+  overlay.querySelectorAll('.btn-popup-close').forEach(btn => {
+    btn.addEventListener('click', closePopup);
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closePopup();
+  });
+
+  // ── 商品を追加ボタン（商品ピッカー） ─────────────────────
+  const btnAddRowPopup = overlay.querySelector('#btnAddRowPopup');
+  if (btnAddRowPopup) {
+    btnAddRowPopup.addEventListener('click', () => {
+      showProductPickerForTable(overlay, headers, buildRowHtml, renumberRows, format);
+    });
+  }
+
+  // ── 空行を追加ボタン ──────────────────────────────────
+  const btnAddEmptyRowPopup = overlay.querySelector('#btnAddEmptyRowPopup');
+  if (btnAddEmptyRowPopup) {
+    btnAddEmptyRowPopup.addEventListener('click', () => {
+      const table = overlay.querySelector('#csvPreviewTable');
+      const currentRowCount = table.querySelectorAll('tbody tr.csv-data-row').length;
+      const emptyRow = headers.map(() => '');
+      const newTr = document.createElement('tbody');
+      newTr.innerHTML = buildRowHtml(emptyRow, currentRowCount, true);
+      const realTr = newTr.querySelector('tr');
+      table.querySelector('tbody').appendChild(realTr);
+      renumberRows();
+      const scroll = overlay.querySelector('.csv-preview-scroll');
+      if (scroll) scroll.scrollTop = scroll.scrollHeight;
+      const firstEditable = realTr.querySelector('.csv-cell-editable');
+      if (firstEditable) firstEditable.focus();
+    });
+  }
+
+  // ── 一時保存ボタン ───────────────────────────────────
+  const btnSaveDraftPopup = overlay.querySelector('#btnSaveDraftPopup');
+  if (btnSaveDraftPopup) {
+    btnSaveDraftPopup.addEventListener('click', async () => {
+      const table = overlay.querySelector('#csvPreviewTable');
+      const currentHeaders = Array.from(table.querySelectorAll('thead th'))
+        .filter(th => !th.classList.contains('csv-th-row-action'))
+        .map(th => th.textContent);
+      const editedRows = readTableEditedRows(table);
+
+      const draftPayload = {
+        key: 'draft',
+        selectedImageKeys: Array.from(csvExportSelectedImageKeys),
+        format,
+        headers: currentHeaders,
+        editedRows,
+        timestamp: Date.now()
+      };
+      await saveCsvDraftToDB(draftPayload);
+      csvDraftData = draftPayload;
+
+      // 選択モードを終了してサマリーUIを更新（「一時保存から表を作成する」ボタンを反映）
+      csvExportSelectMode = false;
+      csvExportFormat = null;
+
+      const orig = btnSaveDraftPopup.textContent;
+      btnSaveDraftPopup.textContent = '保存しました ✓';
+      btnSaveDraftPopup.disabled = true;
+      setTimeout(() => {
+        btnSaveDraftPopup.textContent = orig;
+        btnSaveDraftPopup.disabled = false;
+        // ポップアップを閉じてサマリーを再描画
+        closePopup();
+        renderSummaryContent();
+      }, 1200);
+    });
+  }
+
+  // ── CSVダウンロード ─────────────────────────────────
+  const btnDownload = overlay.querySelector('#btnCsvDownload');
+  if (btnDownload) {
+    btnDownload.addEventListener('click', () => {
+      const table = overlay.querySelector('#csvPreviewTable');
+      const csvHeaders = Array.from(table.querySelectorAll('thead th'))
+        .filter(th => !th.classList.contains('csv-th-row-action'))
+        .map(th => th.textContent);
+      const headerLine = csvHeaders.map(escapeCsvField).join(',');
+      const dataLines = Array.from(table.querySelectorAll('tbody tr.csv-data-row')).map(tr =>
+        // 最初の削除ボタン列(csv-cell-row-action)を除いてエクスポート
+        Array.from(tr.querySelectorAll('td:not(.csv-cell-row-action)')).map(td => td.innerText).map(escapeCsvField).join(',')
+      );
+      const csv = '\uFEFF' + [headerLine, ...dataLines].join('\r\n');
+
+      const now = new Date();
+      const dateStr = now.getFullYear() + '-'
+        + String(now.getMonth() + 1).padStart(2, '0') + '-'
+        + String(now.getDate()).padStart(2, '0');
+      const timeStr = String(now.getHours()).padStart(2, '0')
+        + String(now.getMinutes()).padStart(2, '0');
+      downloadCsv(csv, `export_cilel_csv_${dateStr}-${timeStr}.csv`);
+    });
+  }
+
+  document.body.style.overflow = 'hidden';
+  document.body.appendChild(overlay);
+}
+
+// ============================================================
+// 商品ピッカー（ポップアップ内で追加する商品を選択）
+// ============================================================
+
+/**
+ * 読み込み済み商品データから選択してテーブルに行を追加するモーダル
+ * @param {HTMLElement} parentOverlay - 親ポップアップのオーバーレイ要素
+ * @param {string[]} headers - CSVヘッダー配列
+ * @param {Function} buildRowHtml - 行HTML生成関数
+ * @param {Function} renumberRows - No列採番関数
+ * @param {string} format - 'apa' | 'zak'
+ */
+function showProductPickerForTable(parentOverlay, headers, buildRowHtml, renumberRows, format) {
+  // FTファイルの商品のみ収集
+  const allProducts = [];
+  for (const [fileName, data] of Object.entries(allData)) {
+    if (data.fileType === 'wjft') continue;
+    const items = data.items || [];
+    items.forEach(item => {
+      allProducts.push({ item, fileName });
+    });
+  }
+
+  if (allProducts.length === 0) {
+    alert('追加できる商品データがありません。先にファイルを読み込んでください。');
+    return;
+  }
+
+  const selectedSet = new Set();
+
+  // ピッカーHTML構築
+  let gridHtml = '';
+  allProducts.forEach(({ item, fileName }, idx) => {
+    const imageUrl = item._embeddedImage || extractImageUrl(item.photo) || extractImageUrl(item.siteUrl);
+    const variantText = item.variant || '（バリアントなし）';
+    const shortVariant = variantText.length > 50 ? variantText.slice(0, 50) + '…' : variantText;
+    gridHtml += `
+      <div class="picker-item" data-idx="${idx}" tabindex="0" role="checkbox" aria-checked="false">
+        <div class="picker-item-check-icon">✓</div>
+        ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" class="picker-item-img" alt="商品" loading="lazy" onerror="this.style.display='none'">` : '<div class="picker-item-no-img">画像なし</div>'}
+        <div class="picker-item-label" title="${escapeHtml(variantText)}">${escapeHtml(shortVariant)}</div>
+        <div class="picker-item-file">${escapeHtml(fileName)}</div>
+      </div>`;
+  });
+
+  const pickerEl = document.createElement('div');
+  pickerEl.className = 'product-picker-overlay';
+  pickerEl.innerHTML = `
+    <div class="product-picker-modal">
+      <div class="product-picker-header">
+        <h3>追加する商品を選択</h3>
+        <span class="picker-hint">クリックで選択 / もう一度クリックで解除</span>
+        <button type="button" class="btn-picker-close" aria-label="閉じる">×</button>
+      </div>
+      <div class="product-picker-body">
+        <div class="product-picker-grid">${gridHtml}</div>
+      </div>
+      <div class="product-picker-footer">
+        <span class="picker-selected-count" id="pickerSelectedCount">0件選択中</span>
+        <button type="button" class="btn-picker-add" id="btnPickerAdd">選択した商品を追加</button>
+        <button type="button" class="btn-picker-cancel" id="btnPickerCancel">キャンセル</button>
+      </div>
+    </div>`;
+
+  const closePicker = () => pickerEl.remove();
+
+  pickerEl.querySelector('.btn-picker-close').addEventListener('click', closePicker);
+  pickerEl.querySelector('#btnPickerCancel').addEventListener('click', closePicker);
+  pickerEl.addEventListener('click', e => { if (e.target === pickerEl) closePicker(); });
+
+  // 商品選択トグル
+  pickerEl.querySelectorAll('.picker-item').forEach(itemEl => {
+    const toggle = () => {
+      const idx = parseInt(itemEl.dataset.idx);
+      if (selectedSet.has(idx)) {
+        selectedSet.delete(idx);
+        itemEl.classList.remove('picker-item-selected');
+        itemEl.setAttribute('aria-checked', 'false');
+      } else {
+        selectedSet.add(idx);
+        itemEl.classList.add('picker-item-selected');
+        itemEl.setAttribute('aria-checked', 'true');
+      }
+      pickerEl.querySelector('#pickerSelectedCount').textContent = `${selectedSet.size}件選択中`;
+    };
+    itemEl.addEventListener('click', toggle);
+    itemEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+
+  // 追加実行
+  pickerEl.querySelector('#btnPickerAdd').addEventListener('click', () => {
+    if (selectedSet.size === 0) {
+      alert('商品を選択してください。');
+      return;
+    }
+
+    const table = parentOverlay.querySelector('#csvPreviewTable');
+    const tbody = table.querySelector('tbody');
+    let currentRowCount = table.querySelectorAll('tbody tr.csv-data-row').length;
+
+    // 選択インデックスを昇順でソートして追加
+    const sortedIndices = Array.from(selectedSet).sort((a, b) => a - b);
+    sortedIndices.forEach(idx => {
+      const { item } = allProducts[idx];
+      const rowData = itemToCsvRow(item, format, currentRowCount).map(v => String(v ?? ''));
+      const tempEl = document.createElement('tbody');
+      tempEl.innerHTML = buildRowHtml(rowData, currentRowCount, true);
+      const realTr = tempEl.querySelector('tr');
+      tbody.appendChild(realTr);
+      currentRowCount++;
+    });
+
+    renumberRows();
+
+    const scroll = parentOverlay.querySelector('.csv-preview-scroll');
+    if (scroll) scroll.scrollTop = scroll.scrollHeight;
+
+    closePicker();
+  });
+
+  parentOverlay.appendChild(pickerEl);
 }

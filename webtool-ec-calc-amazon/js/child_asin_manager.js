@@ -2,13 +2,13 @@ class ChildAsinManager {
     constructor(dataManager, uiManager) {
         this.dataManager = dataManager;
         this.uiManager = uiManager;
-        this.data = {}; // { parentAsin: { childAsin: { title: '', weeks: { '2025-46': { ... } } } } }
-        this.weeks = new Set(); // '2025-46', '2025-47' ...
+        this.data = {}; // { parentAsin: { childAsin: { title: '', months: { '2026-01': { ... } } } } }
+        this.months = new Set(); // '2026-01', '2026-02' ...
         this.loadedFiles = new Set(); // 読み込み済みファイル名の管理
         this.chart = null;
         
         this.sortState = {
-            key: null, // 'parentAsin', 'childAsin', 'title', or weekKey
+            key: null, // 'parentAsin', 'childAsin', 'title', or monthKey
             direction: 'asc'
         };
 
@@ -50,27 +50,27 @@ class ChildAsinManager {
             return { success: false };
         }
 
-        // ファイル名から年と週を抽出
-        // 例: 2025-week46-子商品別.csv
-        const match = file.name.match(/(\d{4})-week(\d+)/);
+        // ファイル名から年と月を抽出
+        // 例: 202601-子商品別.csv
+        const match = file.name.match(/(\d{4})(\d{2})-子商品別\.csv/);
         if (!match) {
             console.warn(`ファイル名形式が一致しません: ${file.name}`);
             return { success: false };
         }
 
         const year = match[1];
-        const week = match[2];
-        const weekKey = `${year}-${week}`;
+        const month = match[2];
+        const monthKey = `${year}-${month}`;
 
         return new Promise((resolve, reject) => {
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
                 complete: (results) => {
-                    this.mergeData(results.data, weekKey);
-                    this.weeks.add(weekKey);
+                    this.mergeData(results.data, monthKey);
+                    this.months.add(monthKey);
                     this.loadedFiles.add(file.name);
-                    resolve({ success: true, rows: results.data, weekKey });
+                    resolve({ success: true, rows: results.data, monthKey });
                 },
                 error: (error) => {
                     console.error('CSV Parse Error:', error);
@@ -83,19 +83,19 @@ class ChildAsinManager {
     loadData(rows, fileName) {
         if (this.loadedFiles.has(fileName)) return;
 
-        const match = fileName.match(/(\d{4})-week(\d+)/);
+        const match = fileName.match(/(\d{4})(\d{2})-子商品別\.csv/);
         if (!match) return;
 
         const year = match[1];
-        const week = match[2];
-        const weekKey = `${year}-${week}`;
+        const month = match[2];
+        const monthKey = `${year}-${month}`;
 
-        this.mergeData(rows, weekKey);
-        this.weeks.add(weekKey);
+        this.mergeData(rows, monthKey);
+        this.months.add(monthKey);
         this.loadedFiles.add(fileName);
     }
 
-    mergeData(rows, weekKey) {
+    mergeData(rows, monthKey) {
         rows.forEach(row => {
             const parentAsin = row['（親）ASIN'];
             const childAsin = row['（子）ASIN'];
@@ -110,7 +110,7 @@ class ChildAsinManager {
             if (!this.data[parentAsin][childAsin]) {
                 this.data[parentAsin][childAsin] = {
                     title: title,
-                    weeks: {}
+                    months: {}
                 };
             }
 
@@ -131,7 +131,7 @@ class ChildAsinManager {
                 cleanRow[key] = value;
             });
 
-            this.data[parentAsin][childAsin].weeks[weekKey] = cleanRow;
+            this.data[parentAsin][childAsin].months[monthKey] = cleanRow;
         });
     }
 
@@ -146,21 +146,14 @@ class ChildAsinManager {
         }
     }
 
-    getSortedWeeks() {
-        return Array.from(this.weeks).sort((a, b) => {
-            const [y1, w1] = a.split('-').map(Number);
-            const [y2, w2] = b.split('-').map(Number);
-            if (y1 !== y2) return y1 - y2;
-            return w1 - w2;
+    getSortedMonths() {
+        return Array.from(this.months).sort((a, b) => {
+            // 'YYYY-MM' 形式で辞書順ソートが年月順と一致する
+            return a.localeCompare(b);
         });
     }
 
-    getWeekInfo(year, week) {
-        // ISO週番号から日付を計算
-        // 1月4日を含む週が第1週
-        const simpleDate = new Date(year, 0, 1 + (week - 1) * 7);
-        const month = simpleDate.getMonth() + 1;
-        
+    getMonthInfo(month) {
         let season = '';
         let color = '';
         let icon = '';
@@ -189,7 +182,7 @@ class ChildAsinManager {
     getSortedFlatData() {
         const metricKey = document.getElementById('childAsinMetricSelector').value;
         const metricInfo = this.metricMap[metricKey];
-        const sortedWeeks = this.getSortedWeeks();
+        const sortedMonths = this.getSortedMonths();
 
         // データのフラット化
         let flatData = [];
@@ -212,13 +205,11 @@ class ChildAsinManager {
                     valA = a[this.sortState.key];
                     valB = b[this.sortState.key];
                 } else {
-                    // 週ごとのデータでのソート
-                    const weekDataA = a.weeks[this.sortState.key];
-                    const weekDataB = b.weeks[this.sortState.key];
-                    // データがない場合は -Infinity として扱う（昇順なら先頭、降順なら末尾...いや、データなしは常に下にしたいか？）
-                    // ここでは単純に比較
-                    valA = weekDataA ? weekDataA[metricInfo.key] : -Infinity;
-                    valB = weekDataB ? weekDataB[metricInfo.key] : -Infinity;
+                    // 月ごとのデータでのソート
+                    const monthDataA = a.months[this.sortState.key];
+                    const monthDataB = b.months[this.sortState.key];
+                    valA = monthDataA ? monthDataA[metricInfo.key] : -Infinity;
+                    valB = monthDataB ? monthDataB[metricInfo.key] : -Infinity;
                 }
 
                 if (valA < valB) return this.sortState.direction === 'asc' ? -1 : 1;
@@ -226,12 +217,12 @@ class ChildAsinManager {
                 return 0;
             });
         } else {
-            // デフォルトソート: 最新週の降順
-            const latestWeek = sortedWeeks[sortedWeeks.length - 1];
-            if (latestWeek) {
+            // デフォルトソート: 最新月の降順
+            const latestMonth = sortedMonths[sortedMonths.length - 1];
+            if (latestMonth) {
                 flatData.sort((a, b) => {
-                    const valA = (a.weeks[latestWeek] && a.weeks[latestWeek][metricInfo.key]) || 0;
-                    const valB = (b.weeks[latestWeek] && b.weeks[latestWeek][metricInfo.key]) || 0;
+                    const valA = (a.months[latestMonth] && a.months[latestMonth][metricInfo.key]) || 0;
+                    const valB = (b.months[latestMonth] && b.months[latestMonth][metricInfo.key]) || 0;
                     return valB - valA;
                 });
             }
@@ -278,20 +269,22 @@ class ChildAsinManager {
             thead.appendChild(th);
         });
 
-        const sortedWeeks = this.getSortedWeeks();
-        sortedWeeks.forEach(week => {
-            const [year, weekNum] = week.split('-').map(Number);
-            const info = this.getWeekInfo(year, weekNum);
+        const sortedMonths = this.getSortedMonths();
+        sortedMonths.forEach(monthKey => {
+            const [yearStr, monthStr] = monthKey.split('-');
+            const year = parseInt(yearStr, 10);
+            const month = parseInt(monthStr, 10);
+            const info = this.getMonthInfo(month);
 
             const th = document.createElement('th');
             th.style.cursor = 'pointer';
             th.style.backgroundColor = info.color;
             th.style.position = 'relative';
-            th.style.minWidth = '80px'; // 週カラムの最小幅
+            th.style.minWidth = '90px';
 
             th.onclick = (e) => {
                 if (e.target.classList.contains('resize-handle')) return;
-                this.handleSort(week);
+                this.handleSort(monthKey);
             };
             
             // ヘッダー内容の構築
@@ -302,19 +295,14 @@ class ChildAsinManager {
             div.style.fontSize = '0.9em';
             div.style.pointerEvents = 'none'; // クリックイベントをthに透過させる
             
-            const weekSpan = document.createElement('span');
-            weekSpan.textContent = week;
-            if (this.sortState.key === week) {
-                weekSpan.textContent += this.sortState.direction === 'asc' ? ' ▲' : ' ▼';
+            const monthSpan = document.createElement('span');
+            let label = `${info.icon} ${year}年${month}月`;
+            if (this.sortState.key === monthKey) {
+                label += this.sortState.direction === 'asc' ? ' ▲' : ' ▼';
             }
-            
-            const infoSpan = document.createElement('span');
-            infoSpan.textContent = `${info.icon} ${info.month}月`;
-            infoSpan.style.fontSize = '0.85em';
-            infoSpan.style.marginTop = '2px';
+            monthSpan.textContent = label;
 
-            div.appendChild(weekSpan);
-            div.appendChild(infoSpan);
+            div.appendChild(monthSpan);
             th.appendChild(div);
             
             this.addResizeHandle(th);
@@ -337,13 +325,13 @@ class ChildAsinManager {
                 <td title="${item.title}">${item.title}</td>
             `;
 
-            // 週ごとのデータ
-            sortedWeeks.forEach((week, index) => {
+            // 月ごとのデータ
+            sortedMonths.forEach((monthKey, index) => {
                 const cell = document.createElement('td');
-                const weekData = item.weeks[week];
+                const monthData = item.months[monthKey];
                 
-                if (weekData) {
-                    const value = weekData[metricInfo.key];
+                if (monthData) {
+                    const value = monthData[metricInfo.key];
                     const formattedValue = this.formatValue(value, metricInfo.type);
                     cell.textContent = formattedValue;
                     cell.style.textAlign = 'center';
@@ -351,8 +339,8 @@ class ChildAsinManager {
                     // 履歴データの取得
                     const getVal = (idx) => {
                         if (idx < 0) return null;
-                        const w = sortedWeeks[idx];
-                        const d = item.weeks[w];
+                        const m = sortedMonths[idx];
+                        const d = item.months[m];
                         return d ? d[metricInfo.key] : null;
                     };
 
@@ -375,42 +363,36 @@ class ChildAsinManager {
                     };
 
                     // 連続判定
-                    // 3週連続減少: 今回減、前回減、前々回減
                     if (isDec(value, prev1) && isDec(prev1, prev2) && isDec(prev2, prev3)) {
                         cell.className = 'trend-decrease-3';
-                        cell.title = '3週連続で減少しています';
+                        cell.title = '3ヶ月連続で減少しています';
                         cell.innerHTML += ' <span style="font-size: 0.8em;">▼▼▼</span>';
                     }
-                    // 2週連続減少
                     else if (isDec(value, prev1) && isDec(prev1, prev2)) {
                         cell.className = 'trend-decrease-2';
-                        cell.title = '2週連続で減少しています';
+                        cell.title = '2ヶ月連続で減少しています';
                         cell.innerHTML += ' <span style="font-size: 0.8em;">▼▼</span>';
                     }
-                    // 1週減少
                     else if (isDec(value, prev1)) {
                         cell.className = 'trend-decrease-1';
                         const rate = (prev1 - value) / prev1;
-                        cell.title = `前週比 ${(rate * 100).toFixed(1)}% 減少`;
+                        cell.title = `前月比 ${(rate * 100).toFixed(1)}% 減少`;
                         cell.innerHTML += ' <span style="font-size: 0.8em;">▼</span>';
                     }
                     
-                    // 3週連続増加
                     else if (isInc(value, prev1) && isInc(prev1, prev2) && isInc(prev2, prev3)) {
                         cell.className = 'trend-increase-3';
-                        cell.title = '3週連続で増加しています';
+                        cell.title = '3ヶ月連続で増加しています';
                         cell.innerHTML += ' <span style="font-size: 0.8em;">▲▲▲</span>';
                     }
-                    // 2週連続増加
                     else if (isInc(value, prev1) && isInc(prev1, prev2)) {
                         cell.className = 'trend-increase-2';
-                        cell.title = '2週連続で増加しています';
+                        cell.title = '2ヶ月連続で増加しています';
                         cell.innerHTML += ' <span style="font-size: 0.8em;">▲▲</span>';
                     }
-                    // 1週増加
                     else if (isInc(value, prev1)) {
                         cell.className = 'trend-increase-1';
-                        cell.title = '前週より増加';
+                        cell.title = '前月より増加';
                         cell.innerHTML += ' <span style="font-size: 0.8em;">▲</span>';
                     }
 
@@ -488,31 +470,37 @@ class ChildAsinManager {
 
         const metricKey = document.getElementById('childAsinMetricSelector').value;
         const metricInfo = this.metricMap[metricKey];
-        const sortedWeeks = this.getSortedWeeks();
+        const sortedMonths = this.getSortedMonths();
 
         // ソート済みのデータを取得し、上位10件を抽出
         const flatData = this.getSortedFlatData();
         const top10Data = flatData.slice(0, 10);
 
         const datasets = top10Data.map(item => {
-            const data = sortedWeeks.map(week => {
-                const weekData = item.weeks[week];
-                return weekData ? weekData[metricInfo.key] : null;
+            const data = sortedMonths.map(monthKey => {
+                const monthData = item.months[monthKey];
+                return monthData ? monthData[metricInfo.key] : null;
             });
 
             return {
-                label: item.childAsin, // レジェンドはASINのみですっきりさせる
-                fullTitle: item.title, // ツールチップ用に完全なタイトルを保持
+                label: item.childAsin,
+                fullTitle: item.title,
                 data: data,
                 fill: false,
                 tension: 0.1
             };
         });
 
+        // ラベルを YYYY年M月 形式に変換
+        const chartLabels = sortedMonths.map(monthKey => {
+            const [yearStr, monthStr] = monthKey.split('-');
+            return `${yearStr}年${parseInt(monthStr, 10)}月`;
+        });
+
         this.chart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: sortedWeeks,
+                labels: chartLabels,
                 datasets: datasets
             },
             options: {
@@ -535,14 +523,12 @@ class ChildAsinManager {
                         intersect: true,
                         callbacks: {
                             title: (context) => {
-                                // ツールチップのタイトルには週を表示
                                 return context[0].label;
                             },
                             label: (context) => {
                                 const dataset = context.dataset;
                                 const val = context.parsed.y;
                                 const formattedVal = this.formatValue(val, metricInfo.type);
-                                // 商品名と値を表示
                                 return `${dataset.fullTitle || dataset.label}: ${formattedVal}`;
                             }
                         }

@@ -379,7 +379,8 @@
                     <button class="tab-button" data-tab="productfee">商品ごとの手数料</button>
                     <button class="tab-button" data-tab="fba">その他手数料</button>
                     <button class="tab-button" data-tab="multichannel">マルチチャネル</button>
-                    <button class="tab-button" data-tab="inventory-forecast">仕入予測</button>
+                    <button class="tab-button" data-tab="inventory-forecast">過去実績による仕入予測</button>
+                    <button class="tab-button" data-tab="fba-inventory-forecast">FBA在庫による仕入予測</button>
                     <button class="tab-button" data-tab="child-asin-detail">子ASIN詳細データ</button>
                 </div>
                 
@@ -563,6 +564,47 @@
                     </table>
                 </div>
 
+                <div class="table-content" id="fba-inventory-forecast-tab">
+                    <div class="alert-box" style="background: #e3f2fd; color: #0d47a1; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #bbdefb; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 20px;">ℹ️</span>
+                        <div>
+                            <strong>FBA在庫による仕入予測:</strong> 月別子ASINデータとFBA在庫レポートの両方が必要です。売れ行きに基づき在庫不足を検知し、仕入推奨数を表示します。
+                        </div>
+                    </div>
+                    <div class="fba-forecast-controls" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+                        <div class="control-group" style="margin-bottom: 15px;">
+                            <label style="font-weight: bold; margin-right: 10px;">FBA在庫レポート:</label>
+                            <input type="file" id="fbaReportFileInput" accept=".csv" style="display: none;">
+                            <button type="button" class="btn-primary" id="fbaReportUploadBtn" style="margin-right: 10px;">FBAレポートをアップロード</button>
+                            <span id="fbaReportFileName" style="color: #6c757d;">未登録</span>
+                        </div>
+                        <div class="control-group">
+                            <label style="font-weight: bold; margin-right: 10px;">売上基準（1〜3ヶ月を選択）:</label>
+                            <div id="fbaMonthSelector" style="margin-top: 8px;"></div>
+                        </div>
+                    </div>
+                    <div class="table-header" style="gap: 10px;">
+                        <button class="export-btn" id="fbaForecastPriorityBtn" style="display: none;">📊 優先上位表示</button>
+                        <button class="export-btn" id="fbaForecastExportBtn" style="display: none;" onclick="dashboard.exportTableToCSV('fba-inventory-forecast')">📥 CSVエクスポート</button>
+                    </div>
+                    <table id="fbaForecastTable">
+                        <thead>
+                            <tr>
+                                <th data-sort="childAsin">子ASIN</th>
+                                <th data-sort="title">商品名</th>
+                                <th data-sort="periodSales">選択期間中の販売数</th>
+                                <th data-sort="avgMonthly">月平均販売数</th>
+                                <th data-sort="currentStock">現在FBA在庫数</th>
+                                <th data-sort="minStock">最低必要在庫数</th>
+                                <th data-sort="maxStock">理想最大在庫数</th>
+                                <th data-sort="restockQty">仕入推奨数</th>
+                                <th data-sort="statusLabel">在庫状況</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
                 <div class="table-content" id="child-asin-detail-tab">
                     <div class="child-asin-controls" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
                         <div class="control-group" style="display: inline-block; margin-right: 20px;">
@@ -654,6 +696,7 @@
     <script src="js/ui_manager.js"></script>
     <script src="js/chart_manager.js"></script>
     <script src="js/child_asin_manager.js"></script>
+    <script src="js/fba_inventory_manager.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

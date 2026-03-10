@@ -1,0 +1,1948 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>銀行取引履歴分析 ウェブアプリ ｜ ぬるま湯データラボ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="銀行取引のCSVデータの月次取引分析ツール。入出金の集計、カテゴリ別分析、残高推移グラフなど。">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'none';">
+  <link rel="icon" type="image/svg+xml" href="../favicon/nu-circle.svg">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/manrope@5.0.16/index.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/zen-kaku-gothic-new@5.0.17/700.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.16/latin-600.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #ff7e5f;
+      --secondary: #feb47b;
+      --accent: #7ee8fa;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Hiragino Kaku Gothic Pro', 'メイリオ', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+    }
+    .nuruma-gradient {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .navbar {
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      background-color: rgba(255, 255, 255, 0.95);
+      transition: all var(--transition-speed) ease;
+    }
+    .navbar.scrolled { box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      transition: all var(--transition-speed) ease;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      display: inline-block;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 4px rgba(255, 126, 95, 0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(255, 126, 95, 0.4);
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(0,0,0,0.05);
+      overflow: hidden;
+    }
+    .card-header-gradient {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      padding: 1rem 1.5rem;
+      color: white;
+      font-weight: 700;
+      font-size: 1.1em;
+    }
+
+    /* Upload area */
+    .upload-zone {
+      border: 3px dashed #ccc;
+      border-radius: 16px;
+      padding: 3rem 2rem;
+      text-align: center;
+      transition: all 0.3s;
+      cursor: pointer;
+      background: rgba(255,255,255,0.8);
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--primary);
+      background: rgba(255, 126, 95, 0.05);
+    }
+    .upload-zone.dragover {
+      transform: scale(1.02);
+    }
+
+    /* Tables */
+    .analysis-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .analysis-table th {
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 700;
+      border-bottom: 2px solid #dee2e6;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .analysis-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+    }
+    .analysis-table tr:hover td {
+      background: #f8f9fa;
+    }
+    .amount-in { color: #16a34a; font-weight: 600; }
+    .amount-out { color: #dc2626; font-weight: 600; }
+    .amount-zero { color: #6b7280; }
+
+    /* Tabs */
+    .tab-container { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 1rem; }
+    .tab-btn {
+      padding: 8px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border-color: transparent;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Stats cards */
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border-left: 4px solid var(--primary);
+    }
+    .stat-value { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); }
+    .stat-label { font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px; }
+
+    /* Chart containers */
+    .chart-wrapper {
+      position: relative;
+      width: 100%;
+      max-height: 400px;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-furikae { background: #dbeafe; color: #1d4ed8; }
+    .badge-furikomi { background: #dcfce7; color: #15803d; }
+    .badge-card { background: #fef3c7; color: #92400e; }
+    .badge-tesuuryou { background: #fce7f3; color: #9d174d; }
+    .badge-soukin { background: #ede9fe; color: #6d28d9; }
+    .badge-risoku { background: #f0fdf4; color: #166534; }
+    .badge-other { background: #f3f4f6; color: #374151; }
+
+    /* scroll wrapper */
+    .table-scroll { max-height: 480px; overflow-y: auto; }
+    .table-scroll::-webkit-scrollbar { width: 6px; }
+    .table-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+    .table-scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .upload-zone { padding: 2rem 1rem; }
+      .stat-value { font-size: 1.2rem; }
+      .analysis-table { font-size: 0.8rem; }
+      .analysis-table th, .analysis-table td { padding: 6px 8px; }
+    }
+
+    /* Section anchor offset */
+    .section-anchor { scroll-margin-top: 80px; }
+
+    /* Sortable table headers */
+    .analysis-table th.sortable {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      padding-right: 22px;
+    }
+    .analysis-table th.sortable:hover {
+      background: #e2e8f0;
+    }
+    .analysis-table th.sortable::after {
+      content: '\2195';
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.75rem;
+      opacity: 0.4;
+    }
+    .analysis-table th.sortable.sort-asc::after {
+      content: '\25B2';
+      opacity: 0.8;
+    }
+    .analysis-table th.sortable.sort-desc::after {
+      content: '\25BC';
+      opacity: 0.8;
+    }
+
+    /* Progress bar for category breakdown */
+    .progress-bar-bg {
+      background: #e5e7eb;
+      border-radius: 999px;
+      height: 20px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: white;
+      min-width: 30px;
+    }
+
+    /* Insight cards */
+    .insight-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border-top: 3px solid;
+    }
+    .insight-card.positive { border-color: #16a34a; }
+    .insight-card.negative { border-color: #dc2626; }
+    .insight-card.neutral { border-color: #2563eb; }
+    .insight-card.warning { border-color: #f59e0b; }
+    .panel-filter-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 0.7rem;
+    }
+    .panel-filter {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #617084;
+      padding: 0.25rem 0.45rem;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(98, 112, 132, 0.18);
+    }
+    .panel-period-select {
+      border: 1px solid rgba(98, 112, 132, 0.28);
+      border-radius: 9999px;
+      padding: 0.28rem 1.9rem 0.28rem 0.7rem;
+      background: #fff;
+      color: #425063;
+      font-size: 0.78rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .panel-period-select.on-dark {
+      background: rgba(255, 255, 255, 0.9);
+    }
+    .month-name-filter-select {
+      border: 1px solid rgba(98, 112, 132, 0.28);
+      border-radius: 10px;
+      padding: 0.45rem 0.72rem;
+      min-width: 220px;
+      font-size: 0.84rem;
+      color: #425063;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    /* Art direction refresh */
+    body {
+      font-family: 'Manrope', 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif;
+      background:
+        radial-gradient(1000px 480px at -10% -15%, rgba(255, 126, 95, 0.16), transparent 62%),
+        radial-gradient(900px 420px at 112% -12%, rgba(254, 180, 123, 0.2), transparent 64%),
+        linear-gradient(145deg, #eef3f7 0%, #f7f8fa 50%, #f3f6fb 100%);
+      color: var(--text-primary);
+    }
+    .navbar {
+      background: rgba(255, 255, 255, 0.72);
+      border-bottom: 1px solid rgba(255, 126, 95, 0.15);
+      box-shadow: 0 8px 24px rgba(19, 20, 24, 0.06);
+    }
+    .navbar.scrolled {
+      box-shadow: 0 12px 28px rgba(19, 20, 24, 0.12);
+      background: rgba(255, 255, 255, 0.88);
+    }
+    .btn-primary {
+      border-radius: 9999px;
+      letter-spacing: 0.01em;
+      box-shadow: 0 10px 18px rgba(255, 126, 95, 0.28);
+    }
+    .card {
+      border-radius: 22px;
+      box-shadow: 0 16px 34px rgba(24, 24, 28, 0.08);
+    }
+    .card-header-gradient {
+      letter-spacing: 0.02em;
+      font-family: 'Zen Kaku Gothic New', 'Hiragino Kaku Gothic Pro', sans-serif;
+    }
+    .hero-shell {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(115deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.72));
+      border: 1px solid rgba(255, 126, 95, 0.2);
+      border-radius: 28px;
+      padding: 2rem 1.4rem;
+      box-shadow: 0 22px 44px rgba(36, 36, 44, 0.08);
+      animation: fadeInUp 0.7s ease both;
+    }
+    .hero-shell::after {
+      content: '';
+      position: absolute;
+      inset: auto -5% -45% auto;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(126, 232, 250, 0.26), rgba(126, 232, 250, 0));
+      pointer-events: none;
+    }
+    .hero-kicker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: #607086;
+    }
+    .hero-sub {
+      color: #5f6f82;
+      max-width: 56rem;
+      margin: 0.8rem auto 0;
+    }
+    .hero-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      justify-content: center;
+      margin-top: 1.2rem;
+    }
+    .hero-chip {
+      border-radius: 9999px;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      background: rgba(255, 126, 95, 0.1);
+      color: #8a3d28;
+      border: 1px solid rgba(255, 126, 95, 0.25);
+    }
+    .stat-card {
+      --stat-color: var(--primary);
+      --stat-soft: rgba(255, 126, 95, 0.14);
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid rgba(20, 24, 40, 0.05);
+      box-shadow: 0 10px 24px rgba(18, 24, 40, 0.06);
+      animation: fadeInUp 0.5s ease both;
+      padding: 1rem 1rem 1.1rem;
+      background: linear-gradient(160deg, #ffffff 0%, #fbfcfe 100%);
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--stat-color), rgba(255, 255, 255, 0));
+    }
+    .stat-card.income {
+      --stat-color: #16a34a;
+      --stat-soft: rgba(22, 163, 74, 0.14);
+    }
+    .stat-card.expense {
+      --stat-color: #dc2626;
+      --stat-soft: rgba(220, 38, 38, 0.14);
+    }
+    .stat-card.net {
+      --stat-color: #2563eb;
+      --stat-soft: rgba(37, 99, 235, 0.14);
+    }
+    .stat-card.balance {
+      --stat-color: #7c3aed;
+      --stat-soft: rgba(124, 58, 237, 0.14);
+    }
+    .stat-label {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #627084;
+      margin-top: 0;
+    }
+    .stat-icon {
+      width: 1.8rem;
+      height: 1.8rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9999px;
+      background: var(--stat-soft);
+      color: var(--stat-color);
+      font-size: 0.82rem;
+    }
+    .stat-value {
+      margin-top: 0.52rem;
+      font-size: 1.48rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.01em;
+      color: var(--text-primary);
+    }
+    .upload-zone {
+      background: linear-gradient(140deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.78));
+    }
+    .analysis-table th {
+      background: linear-gradient(135deg, #f5f8fb, #edf1f5);
+    }
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <!-- Navigation Bar -->
+  <nav id="navbar" class="navbar fixed top-0 left-0 right-0 z-50 py-3 px-4 md:px-6">
+    <div class="container mx-auto flex items-center justify-between">
+      <a href="index.html" class="flex items-center">
+        <span class="text-xl font-bold nuruma-gradient">NURUMAYU Data Lab</span>
+      </a>
+      <div class="flex items-center gap-4">
+        <a href="index.html" class="text-gray-600 hover:text-gray-800 font-medium text-sm hidden md:inline">
+          <i class="fas fa-home mr-1"></i>ホーム
+        </a>
+        <a href="#upload" class="text-gray-600 hover:text-gray-800 font-medium text-sm hidden md:inline">
+          <i class="fas fa-upload mr-1"></i>データ読込
+        </a>
+        <a href="#dashboard" class="text-gray-600 hover:text-gray-800 font-medium text-sm hidden md:inline">
+          <i class="fas fa-chart-bar mr-1"></i>ダッシュボード
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="pt-24 pb-14 px-4">
+    <div class="container mx-auto max-w-6xl">
+
+      <!-- Title -->
+      <div class="text-center mb-8 hero-shell">
+        <p class="hero-kicker">Accounting Toolkit / Nurumayu Data Lab</p>
+        <h1 class="text-3xl md:text-5xl font-extrabold mb-2 leading-tight">
+          <span class="nuruma-gradient">銀行取引履歴分析ウェブアプリ</span>
+        </h1>
+        <p class="hero-sub">CSVを読み込むだけで、月次収支・カテゴリ傾向・残高推移を一気に可視化。実務向けの会計チェックを最短で進められます。</p>
+        <div class="hero-chip-row">
+          <span class="hero-chip"><i class="fas fa-file-csv mr-1"></i>Shift-JIS CSV対応</span>
+          <span class="hero-chip"><i class="fas fa-shield-alt mr-1"></i>ブラウザ内処理</span>
+          <span class="hero-chip"><i class="fas fa-chart-line mr-1"></i>月次分析ダッシュボード</span>
+        </div>
+      </div>
+
+      <!-- Upload Section -->
+      <section id="upload" class="section-anchor mb-8">
+        <div class="card">
+          <div class="card-header-gradient">
+            <i class="fas fa-file-csv mr-2"></i>CSVファイル読み込み
+          </div>
+          <div class="p-6">
+            <div id="uploadZone" class="upload-zone mb-4">
+              <i class="fas fa-cloud-upload-alt text-5xl text-gray-400 mb-4"></i>
+              <p class="text-lg font-bold text-gray-600 mb-2">銀行取引のCSVファイルをドラッグ＆ドロップ</p>
+              <p class="text-sm text-gray-400 mb-4">または下のボタンからファイルを選択（複数選択可）</p>
+              <label class="btn-primary" style="cursor:pointer;">
+                <i class="fas fa-folder-open mr-2"></i>ファイルを選択
+                <input type="file" id="csvInput" accept=".csv" multiple style="display:none;">
+              </label>
+            </div>
+            <div id="fileList" class="hidden">
+              <p class="text-sm font-bold text-gray-600 mb-2"><i class="fas fa-check-circle text-green-500 mr-1"></i>読み込み済みファイル:</p>
+              <ul id="fileNames" class="text-sm text-gray-500 space-y-1"></ul>
+              <div class="mt-3 flex items-center gap-3">
+                <span id="transactionCount" class="text-sm text-gray-500"></span>
+                <button id="clearDataBtn" class="text-xs text-red-400 hover:text-red-600 underline">データクリア</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dashboard (hidden until data loaded) -->
+      <div id="dashboard" class="section-anchor hidden">
+
+        <!-- Summary Stats -->
+        <section id="summaryStats" class="mb-8">
+          <div class="panel-filter-row">
+            <label class="panel-filter">
+              <i class="fas fa-calendar-alt"></i>表示期間
+              <select class="panel-period-select" data-panel="summary"></select>
+            </label>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="stat-card income">
+              <div class="stat-label"><span class="stat-icon"><i class="fas fa-arrow-down"></i></span>総入金額</div>
+              <div class="stat-value text-green-600" id="totalIncome">-</div>
+            </div>
+            <div class="stat-card expense">
+              <div class="stat-label"><span class="stat-icon"><i class="fas fa-arrow-up"></i></span>総出金額</div>
+              <div class="stat-value text-red-600" id="totalExpense">-</div>
+            </div>
+            <div class="stat-card net">
+              <div class="stat-label"><span class="stat-icon"><i class="fas fa-exchange-alt"></i></span>収支差額</div>
+              <div class="stat-value" id="totalNet">-</div>
+            </div>
+            <div class="stat-card balance">
+              <div class="stat-label"><span class="stat-icon"><i class="fas fa-wallet"></i></span>最終残高</div>
+              <div class="stat-value text-purple-600" id="finalBalance">-</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Monthly Detail Tables with Tabs -->
+        <section class="mb-8">
+          <div class="card">
+            <div class="card-header-gradient" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+              <i class="fas fa-table mr-2"></i>月別 取引先別集計
+            </div>
+            <div class="p-4">
+              <div id="monthTabs" class="tab-container"></div>
+              <div class="mb-3 flex flex-wrap items-center gap-2">
+                <label class="text-xs text-gray-600 font-semibold" for="monthNameFilterSelect">名称で絞り込み</label>
+                <select id="monthNameFilterSelect" class="month-name-filter-select"></select>
+              </div>
+              <div id="monthTabContents"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Transaction Type by Name Table -->
+        <section class="mb-8">
+          <div class="card">
+            <div class="card-header-gradient flex flex-wrap items-center justify-between gap-2" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+              <div><i class="fas fa-list-alt mr-2"></i>摘要種別×名称 集計</div>
+              <label class="panel-filter" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.35); color: #fff;">
+                期間
+                <select class="panel-period-select on-dark" data-panel="summaryType"></select>
+              </label>
+            </div>
+            <div class="p-4">
+              <div id="summaryTypeTabs" class="tab-container"></div>
+              <div id="summaryTypeContents"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Monthly Balance Chart -->
+        <section class="mb-8">
+          <div class="card">
+            <div class="card-header-gradient flex flex-wrap items-center justify-between gap-2">
+              <div><i class="fas fa-chart-line mr-2"></i>月末残高推移</div>
+              <label class="panel-filter" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.35); color: #fff;">
+                期間
+                <select class="panel-period-select on-dark" data-panel="balance"></select>
+              </label>
+            </div>
+            <div class="p-4">
+              <div class="chart-wrapper">
+                <canvas id="balanceChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Monthly Cash Flow Chart -->
+        <section class="mb-8">
+          <div class="card">
+            <div class="card-header-gradient flex flex-wrap items-center justify-between gap-2" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+              <div><i class="fas fa-chart-bar mr-2"></i>月別 入出金フロー</div>
+              <label class="panel-filter" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.35); color: #fff;">
+                期間
+                <select class="panel-period-select on-dark" data-panel="cashFlow"></select>
+              </label>
+            </div>
+            <div class="p-4">
+              <div class="chart-wrapper">
+                <canvas id="cashFlowChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Category Breakdown Chart -->
+        <section class="mb-8">
+          <div class="card">
+            <div class="card-header-gradient flex flex-wrap items-center justify-between gap-2" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+              <div><i class="fas fa-chart-pie mr-2"></i>出金カテゴリ別内訳</div>
+              <label class="panel-filter" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.35); color: #fff;">
+                期間
+                <select class="panel-period-select on-dark" data-panel="category"></select>
+              </label>
+            </div>
+            <div class="p-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="chart-wrapper" style="max-height: 350px;">
+                  <canvas id="categoryPieChart"></canvas>
+                </div>
+                <div id="categoryBreakdown"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- All Transactions Table -->
+        <section class="mb-8">
+          <div class="card">
+            <div class="card-header-gradient flex flex-wrap items-center justify-between gap-2" style="background: linear-gradient(135deg, #a8edea, #fed6e3);">
+              <div><i class="fas fa-receipt mr-2"></i>全取引明細</div>
+              <label class="panel-filter" style="background: rgba(255,255,255,0.45); border-color: rgba(255,255,255,0.6); color: #4d4d4d;">
+                期間
+                <select class="panel-period-select" data-panel="transactions"></select>
+              </label>
+            </div>
+            <div class="p-4">
+              <div class="flex flex-wrap gap-2 mb-3">
+                <input type="text" id="txSearch" placeholder="取引を検索..." class="border rounded-lg px-3 py-2 text-sm flex-1 min-w-0" style="max-width: 300px;">
+                <select id="txFilter" class="border rounded-lg px-3 py-2 text-sm">
+                  <option value="all">すべて</option>
+                  <option value="入金">入金のみ</option>
+                  <option value="支払">出金のみ</option>
+                </select>
+              </div>
+              <div class="table-scroll">
+                <table class="analysis-table" id="allTransactionsTable">
+                  <thead>
+                    <tr>
+                      <th class="sortable" data-col="0">日付</th>
+                      <th class="sortable" data-col="1">取引</th>
+                      <th class="sortable" data-col="2">摘要</th>
+                      <th class="sortable text-right" data-col="3">金額</th>
+                      <th class="sortable text-right" data-col="4">残高</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Insights Section -->
+        <section class="mb-8">
+          <div class="card">
+            <div class="card-header-gradient flex flex-wrap items-center justify-between gap-2" style="background: linear-gradient(135deg, #fa709a, #fee140);">
+              <div><i class="fas fa-lightbulb mr-2"></i>分析インサイト</div>
+              <label class="panel-filter" style="background: rgba(255,255,255,0.35); border-color: rgba(255,255,255,0.6); color: #5c4b18;">
+                期間
+                <select class="panel-period-select" data-panel="insights"></select>
+              </label>
+            </div>
+            <div class="p-6">
+              <div id="insightsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Day-of-Month Pattern -->
+        <section class="mb-8">
+          <div class="card">
+            <div class="card-header-gradient flex flex-wrap items-center justify-between gap-2" style="background: linear-gradient(135deg, #a18cd1, #fbc2eb);">
+              <div><i class="fas fa-calendar-alt mr-2"></i>日別パターン分析（月内の入出金傾向）</div>
+              <label class="panel-filter" style="background: rgba(255,255,255,0.35); border-color: rgba(255,255,255,0.6); color: #4d3f67;">
+                期間
+                <select class="panel-period-select" data-panel="dayPattern"></select>
+              </label>
+            </div>
+            <div class="p-4">
+              <div class="chart-wrapper">
+                <canvas id="dayPatternChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /dashboard -->
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-100 py-6">
+    <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+      <p>© 2025 ぬるま湯データラボ ｜ データはブラウザ内で処理され、外部送信されません</p>
+      <a href="index.html" class="text-orange-400 hover:underline mt-1 inline-block">
+        <i class="fas fa-arrow-left mr-1"></i>トップページへ戻る
+      </a>
+    </div>
+  </footer>
+
+  <script>
+    // ==========================================
+    // Global State
+    // ==========================================
+    let allTransactions = [];
+    let chartInstances = {};
+    let dashboardState = { monthlyData: {}, sortedMonths: [] };
+    const panelFilterState = {
+      summary: 'all',
+      summaryType: 'all',
+      balance: 'all',
+      cashFlow: 'all',
+      category: 'all',
+      transactions: 'all',
+      insights: 'all',
+      dayPattern: 'all',
+    };
+
+    // ==========================================
+    // CSV Parsing (Shift-JIS support)
+    // ==========================================
+
+    function readFileAsShiftJIS(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file, 'Shift_JIS');
+      });
+    }
+
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      const transactions = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Parse CSV with quoted fields
+        const fields = parseCSVLine(line);
+        if (fields.length < 20) continue;
+
+        const recordType = fields[0];
+        if (recordType !== '明細') continue;
+
+        const txName = fields[13]; // 取引名: 支払 or 入金
+        const year = fields[14];
+        const month = fields[15];
+        const day = fields[16];
+        const amount = parseInt(fields[17], 10) || 0;
+        const balance = parseInt(fields[18], 10) || 0;
+        const description = fields[19]; // 摘要
+
+        if (!year || !month || !day) continue;
+
+        // Parse 摘要 into type and name
+        const { type: tekiyouType, name: tekiyouName } = parseTekiyou(description);
+
+        transactions.push({
+          date: `${year}/${month.padStart(2, '0')}/${day.padStart(2, '0')}`,
+          yearMonth: `${year}/${month.padStart(2, '0')}`,
+          year: parseInt(year, 10),
+          month: parseInt(month, 10),
+          day: parseInt(day, 10),
+          txName,
+          amount,
+          balance,
+          description,
+          tekiyouType,
+          tekiyouName,
+          isIncome: txName === '入金',
+        });
+      }
+
+      return transactions;
+    }
+
+    function parseCSVLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+          if (ch === '"') {
+            if (i + 1 < line.length && line[i + 1] === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = false;
+            }
+          } else {
+            current += ch;
+          }
+        } else {
+          if (ch === '"') {
+            inQuotes = true;
+          } else if (ch === ',') {
+            result.push(current);
+            current = '';
+          } else {
+            current += ch;
+          }
+        }
+      }
+      result.push(current);
+      return result;
+    }
+
+    function parseTekiyou(desc) {
+      if (!desc) return { type: 'その他', name: '' };
+      const trimmed = desc.trim();
+
+      // Patterns: "振替　NAME", "振込　NAME", "カード　NAME", "手数料", "送金　NAME", "利息　..."
+      const patterns = [
+        { regex: /^振替[　\s]+(.+)$/, type: '振替' },
+        { regex: /^振込[　\s]+(.+)$/, type: '振込' },
+        { regex: /^カード[　\s]+(.+)$/, type: 'カード' },
+        { regex: /^送金[　\s]+(.+)$/, type: '送金' },
+        { regex: /^手数料/, type: '手数料' },
+        { regex: /^利息[　\s]*(.*)$/, type: '利息' },
+      ];
+
+      for (const p of patterns) {
+        const m = trimmed.match(p.regex);
+        if (m) {
+          return { type: p.type, name: (m[1] || '').trim() };
+        }
+      }
+      return { type: 'その他', name: trimmed };
+    }
+
+    // ==========================================
+    // Deduplication (CSVs may overlap)
+    // ==========================================
+    function deduplicateTransactions(transactions) {
+      const seen = new Set();
+      const unique = [];
+      for (const tx of transactions) {
+        const key = `${tx.date}_${tx.txName}_${tx.amount}_${tx.balance}_${tx.description}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(tx);
+        }
+      }
+      // Sort by date, then by original order for same date
+      unique.sort((a, b) => a.date.localeCompare(b.date));
+      return unique;
+    }
+
+    // ==========================================
+    // Formatting helpers
+    // ==========================================
+    function formatYen(n) {
+      return '¥' + n.toLocaleString('ja-JP');
+    }
+
+    function formatYenSigned(n) {
+      if (n > 0) return '+¥' + n.toLocaleString('ja-JP');
+      if (n < 0) return '-¥' + Math.abs(n).toLocaleString('ja-JP');
+      return '¥0';
+    }
+
+    function getBadgeClass(type) {
+      const map = {
+        '振替': 'badge-furikae',
+        '振込': 'badge-furikomi',
+        'カード': 'badge-card',
+        '手数料': 'badge-tesuuryou',
+        '送金': 'badge-soukin',
+        '利息': 'badge-risoku',
+      };
+      return map[type] || 'badge-other';
+    }
+
+    function getCategoryColor(type) {
+      const map = {
+        '振替': '#3b82f6',
+        '振込': '#22c55e',
+        'カード': '#f59e0b',
+        '手数料': '#ec4899',
+        '送金': '#8b5cf6',
+        '利息': '#10b981',
+        'その他': '#6b7280',
+      };
+      return map[type] || '#6b7280';
+    }
+
+    // ==========================================
+    // Analysis Functions
+    // ==========================================
+
+    function getMonthlyData(transactions) {
+      const months = {};
+      for (const tx of transactions) {
+        if (!months[tx.yearMonth]) {
+          months[tx.yearMonth] = { transactions: [], income: 0, expense: 0, lastBalance: 0 };
+        }
+        months[tx.yearMonth].transactions.push(tx);
+        if (tx.isIncome) {
+          months[tx.yearMonth].income += tx.amount;
+        } else {
+          months[tx.yearMonth].expense += tx.amount;
+        }
+        months[tx.yearMonth].lastBalance = tx.balance;
+      }
+      return months;
+    }
+
+    function getCategoryBreakdown(transactions, isIncomeFilter) {
+      const cats = {};
+      for (const tx of transactions) {
+        if (tx.isIncome !== isIncomeFilter) continue;
+        const key = tx.tekiyouType;
+        if (!cats[key]) cats[key] = 0;
+        cats[key] += tx.amount;
+      }
+      return cats;
+    }
+
+    function getNameBreakdown(transactions, isIncomeFilter) {
+      // Group by tekiyouType, then by tekiyouName
+      const groups = {};
+      for (const tx of transactions) {
+        if (isIncomeFilter !== undefined && tx.isIncome !== isIncomeFilter) continue;
+        const key = `${tx.tekiyouType}|${tx.tekiyouName || '(名称なし)'}`;
+        if (!groups[key]) {
+          groups[key] = { type: tx.tekiyouType, name: tx.tekiyouName || '(名称なし)', totalIn: 0, totalOut: 0, count: 0 };
+        }
+        groups[key].count++;
+        if (tx.isIncome) groups[key].totalIn += tx.amount;
+        else groups[key].totalOut += tx.amount;
+      }
+      return Object.values(groups).sort((a, b) => (b.totalIn + b.totalOut) - (a.totalIn + a.totalOut));
+    }
+
+    // ==========================================
+    // Rendering
+    // ==========================================
+
+    function renderDashboard() {
+      if (allTransactions.length === 0) return;
+
+      document.getElementById('dashboard').classList.remove('hidden');
+
+      const monthlyData = getMonthlyData(allTransactions);
+      const sortedMonths = Object.keys(monthlyData).sort();
+      dashboardState = { monthlyData, sortedMonths };
+
+      setupPanelPeriodSelectors(sortedMonths);
+
+      // This panel is always full-scope by design (its own tabs already provide month filtering).
+      renderMonthlyTabs(monthlyData, sortedMonths);
+      setupEntityTableSorting(document.getElementById('monthTabContents'));
+      setupMonthlyEntityNameFilter();
+      refreshMonthlyEntityNameOptions();
+      applyMonthlyEntityNameFilter();
+
+      renderAllFilterablePanels();
+    }
+
+    function renderAllFilterablePanels() {
+      const panels = ['summary', 'summaryType', 'balance', 'cashFlow', 'category', 'transactions', 'insights', 'dayPattern'];
+      for (const panel of panels) renderPanelByKey(panel);
+    }
+
+    function renderPanelByKey(panel) {
+      const { monthlyData, sortedMonths } = dashboardState;
+      if (!sortedMonths.length) return;
+
+      if (panel === 'summary') {
+        const summaryTx = getTransactionsByMonth(panelFilterState.summary);
+        let totalIn = 0, totalOut = 0;
+        for (const tx of summaryTx) {
+          if (tx.isIncome) totalIn += tx.amount;
+          else totalOut += tx.amount;
+        }
+        const summaryMonthData = getFilteredMonthData(panelFilterState.summary, monthlyData, sortedMonths);
+
+        document.getElementById('totalIncome').textContent = formatYen(totalIn);
+        document.getElementById('totalExpense').textContent = formatYen(totalOut);
+        const net = totalIn - totalOut;
+        const netEl = document.getElementById('totalNet');
+        netEl.textContent = formatYenSigned(net);
+        netEl.className = `stat-value ${net >= 0 ? 'text-green-600' : 'text-red-600'}`;
+        document.getElementById('finalBalance').textContent = formatYen(summaryMonthData.lastBalance);
+        return;
+      }
+
+      if (panel === 'balance') {
+        const balanceMonthScope = getMonthScope(panelFilterState.balance, monthlyData, sortedMonths);
+        renderBalanceChart(balanceMonthScope.monthlyData, balanceMonthScope.months);
+        return;
+      }
+
+      if (panel === 'cashFlow') {
+        const cashFlowMonthScope = getMonthScope(panelFilterState.cashFlow, monthlyData, sortedMonths);
+        renderCashFlowChart(cashFlowMonthScope.monthlyData, cashFlowMonthScope.months);
+        return;
+      }
+
+      if (panel === 'category') {
+        renderCategoryPieChart(getTransactionsByMonth(panelFilterState.category));
+        return;
+      }
+
+      if (panel === 'summaryType') {
+        const summaryTypeTx = getTransactionsByMonth(panelFilterState.summaryType);
+        const summaryTypeMonths = [...new Set(summaryTypeTx.map(tx => tx.yearMonth))].sort();
+        renderSummaryTypeTabs(summaryTypeTx, summaryTypeMonths, monthlyData);
+        return;
+      }
+
+      if (panel === 'transactions') {
+        renderAllTransactions(getTransactionsByMonth(panelFilterState.transactions));
+        return;
+      }
+
+      if (panel === 'insights') {
+        const insightsTx = getTransactionsByMonth(panelFilterState.insights);
+        const insightsMonthly = getMonthlyData(insightsTx);
+        const insightsMonths = Object.keys(insightsMonthly).sort();
+        renderInsights(insightsTx, insightsMonthly, insightsMonths);
+        return;
+      }
+
+      if (panel === 'dayPattern') {
+        renderDayPatternChart(getTransactionsByMonth(panelFilterState.dayPattern));
+      }
+    }
+
+    function getTransactionsByMonth(monthKey) {
+      if (monthKey === 'all') return allTransactions;
+      return allTransactions.filter(tx => tx.yearMonth === monthKey);
+    }
+
+    function getFilteredMonthData(monthKey, monthlyData, months) {
+      if (monthKey !== 'all' && monthlyData[monthKey]) return monthlyData[monthKey];
+      return monthlyData[months[months.length - 1]];
+    }
+
+    function getMonthScope(monthKey, monthlyData, months) {
+      if (monthKey !== 'all' && monthlyData[monthKey]) {
+        return {
+          monthlyData: { [monthKey]: monthlyData[monthKey] },
+          months: [monthKey],
+        };
+      }
+      return { monthlyData, months };
+    }
+
+    function setupPanelPeriodSelectors(months) {
+      const selects = document.querySelectorAll('.panel-period-select');
+      const options = ['<option value="all">全期間</option>']
+        .concat(months.map(m => `<option value="${m}">${m.replace('/', '年')}月</option>`))
+        .join('');
+
+      selects.forEach((select) => {
+        const panel = select.dataset.panel;
+        select.innerHTML = options;
+
+        if (!panelFilterState[panel] || (panelFilterState[panel] !== 'all' && !months.includes(panelFilterState[panel]))) {
+          panelFilterState[panel] = 'all';
+        }
+        select.value = panelFilterState[panel];
+
+        if (!select.dataset.bound) {
+          select.addEventListener('change', (e) => {
+            panelFilterState[panel] = e.target.value;
+            renderPanelByKey(panel);
+          });
+          select.dataset.bound = '1';
+        }
+      });
+    }
+
+    // --- Balance Chart ---
+    function renderBalanceChart(monthlyData, months) {
+      const ctx = document.getElementById('balanceChart').getContext('2d');
+      if (chartInstances.balance) chartInstances.balance.destroy();
+
+      const labels = months.map(m => m.replace('/', '年') + '月');
+      const data = months.map(m => monthlyData[m].lastBalance);
+
+      chartInstances.balance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: '月末残高',
+            data,
+            borderColor: '#8b5cf6',
+            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 6,
+            pointBackgroundColor: '#8b5cf6',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2.5,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => formatYen(ctx.parsed.y)
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: false,
+              ticks: { callback: v => '¥' + (v / 10000).toFixed(0) + '万' }
+            }
+          }
+        }
+      });
+    }
+
+    // --- Cash Flow Chart ---
+    function renderCashFlowChart(monthlyData, months) {
+      const ctx = document.getElementById('cashFlowChart').getContext('2d');
+      if (chartInstances.cashFlow) chartInstances.cashFlow.destroy();
+
+      const labels = months.map(m => m.replace('/', '年') + '月');
+      const incomes = months.map(m => monthlyData[m].income);
+      const expenses = months.map(m => -monthlyData[m].expense);
+      const nets = months.map(m => monthlyData[m].income - monthlyData[m].expense);
+
+      // Per-point colors for net line: green if positive, red if negative
+      const netPointColors = nets.map(v => v >= 0 ? '#16a34a' : '#dc2626');
+      const netSegmentColors = nets.map(v => v >= 0 ? 'rgba(22, 163, 74, 0.8)' : 'rgba(220, 38, 38, 0.8)');
+
+      chartInstances.cashFlow = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: '入金',
+              data: incomes,
+              backgroundColor: 'rgba(34, 197, 94, 0.7)',
+              borderRadius: 4,
+            },
+            {
+              label: '出金',
+              data: expenses,
+              backgroundColor: 'rgba(239, 68, 68, 0.7)',
+              borderRadius: 4,
+            },
+            {
+              label: '収支',
+              data: nets,
+              type: 'line',
+              borderColor: netSegmentColors,
+              backgroundColor: 'transparent',
+              borderWidth: 3,
+              pointRadius: 7,
+              pointBackgroundColor: netPointColors,
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2,
+              tension: 0.3,
+              segment: {
+                borderColor: (ctx) => {
+                  const i = ctx.p0DataIndex;
+                  const v = nets[i];
+                  return v >= 0 ? 'rgba(22, 163, 74, 0.8)' : 'rgba(220, 38, 38, 0.8)';
+                }
+              },
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2.5,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const val = ctx.parsed.y;
+                  const prefix = ctx.dataset.label === '収支' ? (val >= 0 ? '+' : '') : '';
+                  return ctx.dataset.label + ': ' + prefix + formatYen(Math.abs(val)) + (val < 0 && ctx.dataset.label === '収支' ? ' (赤字)' : '');
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              ticks: { callback: v => (v >= 0 ? '' : '-') + '¥' + (Math.abs(v) / 10000).toFixed(0) + '万' },
+              grid: {
+                color: (context) => context.tick.value === 0 ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.06)',
+                lineWidth: (context) => context.tick.value === 0 ? 2 : 1,
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // --- Category Pie Chart ---
+    function renderCategoryPieChart(transactions) {
+      const ctx = document.getElementById('categoryPieChart').getContext('2d');
+      if (chartInstances.categoryPie) chartInstances.categoryPie.destroy();
+
+      const cats = getCategoryBreakdown(transactions, false); // expenses
+      const labels = Object.keys(cats);
+      const data = Object.values(cats);
+      const colors = labels.map(l => getCategoryColor(l));
+      const total = data.reduce((a, b) => a + b, 0);
+      const container = document.getElementById('categoryBreakdown');
+
+      if (labels.length === 0 || total === 0) {
+        container.innerHTML = '<div class="text-sm text-gray-500">選択期間に出金データがありません。</div>';
+        return;
+      }
+
+      chartInstances.categoryPie = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: colors,
+            borderWidth: 2,
+            borderColor: '#fff',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { position: 'bottom', labels: { padding: 16 } },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const v = ctx.parsed;
+                  const pct = ((v / total) * 100).toFixed(1);
+                  return `${ctx.label}: ${formatYen(v)} (${pct}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Render breakdown bars
+      let html = '<div class="space-y-3">';
+      const sorted = labels.map((l, i) => ({ label: l, value: data[i] })).sort((a, b) => b.value - a.value);
+      for (const item of sorted) {
+        const pct = ((item.value / total) * 100).toFixed(1);
+        html += `
+          <div>
+            <div class="flex justify-between text-sm mb-1">
+              <span class="font-bold"><span class="badge ${getBadgeClass(item.label)}">${item.label}</span></span>
+              <span class="text-gray-600">${formatYen(item.value)} (${pct}%)</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width: ${pct}%; background: ${getCategoryColor(item.label)};">${pct}%</div>
+            </div>
+          </div>
+        `;
+      }
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    // --- Monthly Tabs (per-entity summary) ---
+    function renderMonthlyTabs(monthlyData, months) {
+      const tabContainer = document.getElementById('monthTabs');
+      const contentContainer = document.getElementById('monthTabContents');
+      tabContainer.innerHTML = '';
+      contentContainer.innerHTML = '';
+
+      // Add "All" tab
+      const allMonths = ['all', ...months];
+
+      allMonths.forEach((m, i) => {
+        const label = m === 'all' ? '全期間' : m.replace('/', '年') + '月';
+        const btn = document.createElement('button');
+        btn.className = `tab-btn ${i === 0 ? 'active' : ''}`;
+        btn.textContent = label;
+        btn.dataset.tab = `month-${m}`;
+        btn.onclick = () => switchTab('month', m, allMonths);
+        tabContainer.appendChild(btn);
+
+        const content = document.createElement('div');
+        content.id = `month-${m}`;
+        content.className = `tab-content ${i === 0 ? 'active' : ''}`;
+
+        const txs = m === 'all' ? allTransactions : monthlyData[m].transactions;
+        content.innerHTML = renderEntityTable(txs, m, m === 'all' ? null : monthlyData[m]);
+        contentContainer.appendChild(content);
+      });
+    }
+
+    function renderEntityTable(transactions, monthKey, monthData) {
+      const breakdown = getNameBreakdown(transactions);
+
+      let statsHtml = '';
+      if (monthData) {
+        const net = monthData.income - monthData.expense;
+        statsHtml = `
+          <div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="text-center p-2 bg-green-50 rounded-lg">
+              <div class="text-xs text-green-600 font-bold">入金合計</div>
+              <div class="font-bold text-green-700">${formatYen(monthData.income)}</div>
+            </div>
+            <div class="text-center p-2 bg-red-50 rounded-lg">
+              <div class="text-xs text-red-600 font-bold">出金合計</div>
+              <div class="font-bold text-red-700">${formatYen(monthData.expense)}</div>
+            </div>
+            <div class="text-center p-2 ${net >= 0 ? 'bg-blue-50' : 'bg-orange-50'} rounded-lg">
+              <div class="text-xs ${net >= 0 ? 'text-blue-600' : 'text-orange-600'} font-bold">収支</div>
+              <div class="font-bold ${net >= 0 ? 'text-blue-700' : 'text-orange-700'}">${formatYenSigned(net)}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      let tableHtml = `
+        ${statsHtml}
+        <div class="table-scroll">
+          <table class="analysis-table sortable-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="type">種別</th>
+                <th class="sortable" data-sort="name">名称</th>
+                <th class="sortable" data-sort="count">件数</th>
+                <th class="sortable text-right" data-sort="totalIn">入金計</th>
+                <th class="sortable text-right" data-sort="totalOut">出金計</th>
+                <th class="sortable text-right" data-sort="diff">差額</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      for (const item of breakdown) {
+        const diff = item.totalIn - item.totalOut;
+        tableHtml += `
+          <tr data-type="${escapeHtml(item.type)}" data-name="${escapeHtml(item.name)}" data-count="${item.count}" data-totalin="${item.totalIn}" data-totalout="${item.totalOut}" data-diff="${diff}">
+            <td><span class="badge ${getBadgeClass(item.type)}">${item.type}</span></td>
+            <td class="font-medium">${escapeHtml(item.name)}</td>
+            <td>${item.count}</td>
+            <td class="text-right ${item.totalIn > 0 ? 'amount-in' : 'amount-zero'}">${item.totalIn > 0 ? formatYen(item.totalIn) : '-'}</td>
+            <td class="text-right ${item.totalOut > 0 ? 'amount-out' : 'amount-zero'}">${item.totalOut > 0 ? formatYen(item.totalOut) : '-'}</td>
+            <td class="text-right font-bold ${diff > 0 ? 'text-green-600' : diff < 0 ? 'text-red-600' : 'text-gray-400'}">${diff !== 0 ? formatYenSigned(diff) : '-'}</td>
+          </tr>
+        `;
+      }
+
+      tableHtml += '</tbody></table></div>';
+      return tableHtml;
+    }
+
+    // --- Summary Type Tabs (振替/振込/カード etc.) ---
+    function renderSummaryTypeTabs(transactions, months, monthlyData) {
+      const tabContainer = document.getElementById('summaryTypeTabs');
+      const contentContainer = document.getElementById('summaryTypeContents');
+      tabContainer.innerHTML = '';
+      contentContainer.innerHTML = '';
+
+      const types = [...new Set(transactions.map(tx => tx.tekiyouType))];
+      types.sort();
+
+      if (types.length === 0) {
+        contentContainer.innerHTML = '<div class="text-sm text-gray-500">選択期間にデータがありません。</div>';
+        return;
+      }
+
+      types.forEach((type, i) => {
+        const btn = document.createElement('button');
+        btn.className = `tab-btn ${i === 0 ? 'active' : ''}`;
+        btn.innerHTML = `<span class="badge ${getBadgeClass(type)}">${type}</span>`;
+        btn.dataset.tab = `stype-${type}`;
+        btn.onclick = () => switchTab('stype', type, types);
+        tabContainer.appendChild(btn);
+
+        const content = document.createElement('div');
+        content.id = `stype-${type}`;
+        content.className = `tab-content ${i === 0 ? 'active' : ''}`;
+
+        const filteredTx = transactions.filter(tx => tx.tekiyouType === type);
+        content.innerHTML = renderTypeNameMonthlyTable(filteredTx, type, months);
+        contentContainer.appendChild(content);
+      });
+    }
+
+    function renderTypeNameMonthlyTable(transactions, type, months) {
+      // Group by name, then show monthly breakdown
+      const names = {};
+      for (const tx of transactions) {
+        const name = tx.tekiyouName || '(名称なし)';
+        if (!names[name]) names[name] = {};
+        if (!names[name][tx.yearMonth]) names[name][tx.yearMonth] = { in: 0, out: 0 };
+        if (tx.isIncome) names[name][tx.yearMonth].in += tx.amount;
+        else names[name][tx.yearMonth].out += tx.amount;
+      }
+
+      const sortedMonths = [...new Set(transactions.map(tx => tx.yearMonth))].sort();
+      const nameList = Object.keys(names).sort();
+
+      let html = `<div class="table-scroll"><table class="analysis-table"><thead><tr>
+        <th>名称</th>`;
+      for (const m of sortedMonths) {
+        html += `<th class="text-right">${m.split('/')[1]}月 入金</th><th class="text-right">${m.split('/')[1]}月 出金</th>`;
+      }
+      html += `<th class="text-right">合計入金</th><th class="text-right">合計出金</th></tr></thead><tbody>`;
+
+      for (const name of nameList) {
+        let totalIn = 0, totalOut = 0;
+        html += `<tr><td class="font-medium">${escapeHtml(name)}</td>`;
+        for (const m of sortedMonths) {
+          const d = names[name][m] || { in: 0, out: 0 };
+          totalIn += d.in;
+          totalOut += d.out;
+          html += `<td class="text-right ${d.in > 0 ? 'amount-in' : 'amount-zero'}">${d.in > 0 ? formatYen(d.in) : '-'}</td>`;
+          html += `<td class="text-right ${d.out > 0 ? 'amount-out' : 'amount-zero'}">${d.out > 0 ? formatYen(d.out) : '-'}</td>`;
+        }
+        html += `<td class="text-right font-bold amount-in">${totalIn > 0 ? formatYen(totalIn) : '-'}</td>`;
+        html += `<td class="text-right font-bold amount-out">${totalOut > 0 ? formatYen(totalOut) : '-'}</td>`;
+        html += `</tr>`;
+      }
+
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    // --- All Transactions Table ---
+    function renderAllTransactions(transactions) {
+      const tbody = document.querySelector('#allTransactionsTable tbody');
+      tbody.innerHTML = '';
+      for (const tx of transactions) {
+        const tr = document.createElement('tr');
+        tr.dataset.searchable = `${tx.date} ${tx.txName} ${tx.description}`.toLowerCase();
+        tr.dataset.txtype = tx.txName;
+        tr.dataset.date = tx.date;
+        tr.dataset.txname = tx.txName;
+        tr.dataset.desc = tx.description;
+        tr.dataset.amount = tx.isIncome ? tx.amount : -tx.amount;
+        tr.dataset.balance = tx.balance;
+        tr.innerHTML = `
+          <td class="whitespace-nowrap">${tx.date}</td>
+          <td><span class="${tx.isIncome ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}">${tx.txName}</span></td>
+          <td><span class="badge ${getBadgeClass(tx.tekiyouType)}">${tx.tekiyouType}</span> ${escapeHtml(tx.tekiyouName)}</td>
+          <td class="text-right ${tx.isIncome ? 'amount-in' : 'amount-out'}">${tx.isIncome ? '+' : '-'}${formatYen(tx.amount)}</td>
+          <td class="text-right font-medium">${formatYen(tx.balance)}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      // Search/filter functionality
+      document.getElementById('txSearch').oninput = filterTransactions;
+      document.getElementById('txFilter').onchange = filterTransactions;
+
+      // Sortable headers for all-transactions table
+      setupAllTransactionsSorting();
+    }
+
+    function filterTransactions() {
+      const search = document.getElementById('txSearch').value.toLowerCase();
+      const filter = document.getElementById('txFilter').value;
+      const rows = document.querySelectorAll('#allTransactionsTable tbody tr');
+      rows.forEach(row => {
+        const matchSearch = !search || row.dataset.searchable.includes(search);
+        const matchFilter = filter === 'all' || row.dataset.txtype === filter;
+        row.style.display = (matchSearch && matchFilter) ? '' : 'none';
+      });
+    }
+
+    // --- Insights ---
+    function renderInsights(transactions, monthlyData, months) {
+      const grid = document.getElementById('insightsGrid');
+
+      if (!transactions.length || !months.length) {
+        grid.innerHTML = '<div class="insight-card neutral"><div class="text-sm text-gray-600">選択期間に分析可能なデータがありません。</div></div>';
+        return;
+      }
+
+      const insights = [];
+
+      // 1. Top income source
+      const incomeByName = {};
+      const expenseByName = {};
+      for (const tx of transactions) {
+        const label = `${tx.tekiyouType} ${tx.tekiyouName}`;
+        if (tx.isIncome) {
+          incomeByName[label] = (incomeByName[label] || 0) + tx.amount;
+        } else {
+          expenseByName[label] = (expenseByName[label] || 0) + tx.amount;
+        }
+      }
+
+      const topIncome = Object.entries(incomeByName).sort((a, b) => b[1] - a[1]);
+      if (topIncome.length > 0) {
+        insights.push({
+          type: 'positive',
+          icon: 'fa-crown',
+          title: '最大入金元',
+          body: `<strong>${escapeHtml(topIncome[0][0])}</strong> から合計 <strong>${formatYen(topIncome[0][1])}</strong> の入金があります。${topIncome.length > 1 ? `2位は ${escapeHtml(topIncome[1][0])} の ${formatYen(topIncome[1][1])} です。` : ''}`,
+        });
+      }
+
+      const topExpense = Object.entries(expenseByName).sort((a, b) => b[1] - a[1]);
+      if (topExpense.length > 0) {
+        insights.push({
+          type: 'negative',
+          icon: 'fa-exclamation-triangle',
+          title: '最大出金先',
+          body: `<strong>${escapeHtml(topExpense[0][0])}</strong> への合計出金は <strong>${formatYen(topExpense[0][1])}</strong> です。${topExpense.length > 1 ? `2位は ${escapeHtml(topExpense[1][0])} の ${formatYen(topExpense[1][1])} です。` : ''}`,
+        });
+      }
+
+      // 2. Monthly average
+      const totalIn = transactions.filter(tx => tx.isIncome).reduce((s, tx) => s + tx.amount, 0);
+      const totalOut = transactions.filter(tx => !tx.isIncome).reduce((s, tx) => s + tx.amount, 0);
+      const numMonths = months.length;
+      insights.push({
+        type: 'neutral',
+        icon: 'fa-calculator',
+        title: '月平均入出金',
+        body: `月平均入金: <strong>${formatYen(Math.round(totalIn / numMonths))}</strong>、月平均出金: <strong>${formatYen(Math.round(totalOut / numMonths))}</strong>。月平均収支は <strong>${formatYenSigned(Math.round((totalIn - totalOut) / numMonths))}</strong> です。`,
+      });
+
+      // 3. Balance trend
+      const firstBalance = monthlyData[months[0]].lastBalance;
+      const lastBalance = monthlyData[months[months.length - 1]].lastBalance;
+      const balanceChange = lastBalance - firstBalance;
+      insights.push({
+        type: balanceChange >= 0 ? 'positive' : 'warning',
+        icon: balanceChange >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down',
+        title: '残高推移',
+        body: `${months[0]}の月末残高 <strong>${formatYen(firstBalance)}</strong> から ${months[months.length - 1]}は <strong>${formatYen(lastBalance)}</strong> へ。変動: <strong>${formatYenSigned(balanceChange)}</strong> (${balanceChange >= 0 ? '増加' : '減少'}傾向)`,
+      });
+
+      // 4. Fee analysis
+      const fees = transactions.filter(tx => tx.tekiyouType === '手数料');
+      const totalFees = fees.reduce((s, tx) => s + tx.amount, 0);
+      if (totalFees > 0) {
+        insights.push({
+          type: 'warning',
+          icon: 'fa-coins',
+          title: '手数料合計',
+          body: `期間中の手数料合計は <strong>${formatYen(totalFees)}</strong>（${fees.length}件）。月平均 <strong>${formatYen(Math.round(totalFees / numMonths))}</strong> の手数料が発生しています。`,
+        });
+      }
+
+      // 5. Income diversification
+      const incomeSourceCount = topIncome.length;
+      const topIncomeRatio = (topIncome.length > 0 && totalIn > 0) ? ((topIncome[0][1] / totalIn) * 100).toFixed(1) : 0;
+      insights.push({
+        type: 'neutral',
+        icon: 'fa-chart-pie',
+        title: '収入源の多様性',
+        body: `<strong>${incomeSourceCount}件</strong>の入金元があります。最大入金元が全体の <strong>${topIncomeRatio}%</strong> を占めています。${parseFloat(topIncomeRatio) > 50 ? '収入が特定の取引先に集中しています。' : '収入源は比較的分散されています。'}`,
+      });
+
+      // 6. Busiest day of month
+      const dayAmounts = {};
+      for (const tx of transactions) {
+        if (!dayAmounts[tx.day]) dayAmounts[tx.day] = { in: 0, out: 0, count: 0 };
+        dayAmounts[tx.day].count++;
+        if (tx.isIncome) dayAmounts[tx.day].in += tx.amount;
+        else dayAmounts[tx.day].out += tx.amount;
+      }
+      const busiestDay = Object.entries(dayAmounts).sort((a, b) => b[1].count - a[1].count)[0];
+      insights.push({
+        type: 'neutral',
+        icon: 'fa-calendar-day',
+        title: '取引が多い日',
+        body: `毎月 <strong>${busiestDay[0]}日</strong> が最も取引が多く、延べ <strong>${busiestDay[1].count}件</strong> の取引があります。この日の合計入金 ${formatYen(busiestDay[1].in)}、合計出金 ${formatYen(busiestDay[1].out)} です。`,
+      });
+
+      // 7. Card usage pattern
+      const cardTx = transactions.filter(tx => tx.tekiyouType === 'カード');
+      if (cardTx.length > 0) {
+        const cardIn = cardTx.filter(tx => tx.isIncome).reduce((s, tx) => s + tx.amount, 0);
+        const cardOut = cardTx.filter(tx => !tx.isIncome).reduce((s, tx) => s + tx.amount, 0);
+        insights.push({
+          type: cardOut > cardIn ? 'warning' : 'neutral',
+          icon: 'fa-credit-card',
+          title: 'カード取引',
+          body: `カード関連の取引は <strong>${cardTx.length}件</strong>。入金(チャージ) <strong>${formatYen(cardIn)}</strong>、出金(引落) <strong>${formatYen(cardOut)}</strong>。差額 <strong>${formatYenSigned(cardIn - cardOut)}</strong>`,
+        });
+      }
+
+      // 8. Transfer (送金) analysis
+      const soukinTx = transactions.filter(tx => tx.tekiyouType === '送金');
+      if (soukinTx.length > 0) {
+        const soukinTotal = soukinTx.reduce((s, tx) => s + tx.amount, 0);
+        const soukinNames = [...new Set(soukinTx.map(tx => tx.tekiyouName))];
+        insights.push({
+          type: 'neutral',
+          icon: 'fa-paper-plane',
+          title: '送金先まとめ',
+          body: `送金先は <strong>${soukinNames.length}件</strong>: ${soukinNames.map(n => `<em>${escapeHtml(n)}</em>`).join('、')}。合計送金額 <strong>${formatYen(soukinTotal)}</strong>`,
+        });
+      }
+
+      grid.innerHTML = insights.map(ins => `
+        <div class="insight-card ${ins.type}">
+          <div class="flex items-start gap-3">
+            <i class="fas ${ins.icon} text-xl mt-1" style="opacity: 0.7;"></i>
+            <div>
+              <div class="font-bold text-gray-800 mb-1">${ins.title}</div>
+              <div class="text-sm text-gray-600">${ins.body}</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // --- Day Pattern Chart ---
+    function renderDayPatternChart(transactions) {
+      const ctx = document.getElementById('dayPatternChart').getContext('2d');
+      if (chartInstances.dayPattern) chartInstances.dayPattern.destroy();
+
+      if (!transactions.length) return;
+
+      const dayBuckets = {};
+      for (let d = 1; d <= 31; d++) dayBuckets[d] = { in: 0, out: 0 };
+      for (const tx of transactions) {
+        if (tx.isIncome) dayBuckets[tx.day].in += tx.amount;
+        else dayBuckets[tx.day].out += tx.amount;
+      }
+
+      const labels = Object.keys(dayBuckets).map(d => d + '日');
+      const inData = Object.values(dayBuckets).map(b => b.in);
+      const outData = Object.values(dayBuckets).map(b => -b.out);
+
+      chartInstances.dayPattern = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: '入金', data: inData, backgroundColor: 'rgba(34, 197, 94, 0.6)', borderRadius: 2 },
+            { label: '出金', data: outData, backgroundColor: 'rgba(239, 68, 68, 0.6)', borderRadius: 2 },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 3,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: ctx => ctx.dataset.label + ': ' + formatYen(Math.abs(ctx.parsed.y))
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { font: { size: 10 } } },
+            y: {
+              ticks: { callback: v => (v >= 0 ? '' : '-') + '¥' + (Math.abs(v) / 10000).toFixed(0) + '万' }
+            }
+          }
+        }
+      });
+    }
+
+    // ==========================================
+    // Sortable Tables
+    // ==========================================
+
+    // Sort entity tables (月別取引先別集計)
+    function setupEntityTableSorting(container) {
+      const tables = container.querySelectorAll('.sortable-table');
+      tables.forEach(table => {
+        const headers = table.querySelectorAll('th.sortable');
+        headers.forEach(th => {
+          th.addEventListener('click', () => {
+            const sortKey = th.dataset.sort;
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const isAsc = th.classList.contains('sort-asc');
+
+            // Clear sort indicators
+            headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+            th.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
+
+            const dir = isAsc ? -1 : 1;
+            rows.sort((a, b) => {
+              let va = a.dataset[sortKey.toLowerCase()] || '';
+              let vb = b.dataset[sortKey.toLowerCase()] || '';
+              // Numeric sort for count/amount columns
+              if (['count', 'totalin', 'totalout', 'diff'].includes(sortKey.toLowerCase())) {
+                return (parseFloat(va) - parseFloat(vb)) * dir;
+              }
+              return va.localeCompare(vb, 'ja') * dir;
+            });
+            rows.forEach(r => tbody.appendChild(r));
+          });
+        });
+      });
+    }
+
+    // Sort all-transactions table
+    function setupAllTransactionsSorting() {
+      const table = document.getElementById('allTransactionsTable');
+      const headers = table.querySelectorAll('th.sortable');
+      headers.forEach(th => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.col;
+          const tbody = table.querySelector('tbody');
+          const rows = Array.from(tbody.querySelectorAll('tr'));
+          const isAsc = th.classList.contains('sort-asc');
+
+          headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+          th.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
+
+          const dir = isAsc ? -1 : 1;
+          const colKeys = ['date', 'txname', 'desc', 'amount', 'balance'];
+          const key = colKeys[col];
+
+          rows.sort((a, b) => {
+            let va = a.dataset[key] || '';
+            let vb = b.dataset[key] || '';
+            if (['amount', 'balance'].includes(key)) {
+              return (parseFloat(va) - parseFloat(vb)) * dir;
+            }
+            return va.localeCompare(vb, 'ja') * dir;
+          });
+          rows.forEach(r => tbody.appendChild(r));
+        });
+      });
+    }
+
+    function setupMonthlyEntityNameFilter() {
+      const select = document.getElementById('monthNameFilterSelect');
+      if (!select || select.dataset.bound) return;
+
+      select.addEventListener('change', applyMonthlyEntityNameFilter);
+      select.dataset.bound = '1';
+    }
+
+    function refreshMonthlyEntityNameOptions() {
+      const select = document.getElementById('monthNameFilterSelect');
+      const activeContent = document.querySelector('#monthTabContents .tab-content.active');
+      if (!select || !activeContent) return;
+
+      const previousValue = select.value;
+      const rows = Array.from(activeContent.querySelectorAll('tbody tr'));
+      const nameSet = new Set(rows.map((row) => row.dataset.name || '').filter(Boolean));
+      const names = Array.from(nameSet).sort((a, b) => a.localeCompare(b, 'ja'));
+
+      select.innerHTML = '';
+
+      const allOption = document.createElement('option');
+      allOption.value = 'all';
+      allOption.textContent = '全名称';
+      select.appendChild(allOption);
+
+      names.forEach((name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = decodeHtmlEntities(name);
+        select.appendChild(option);
+      });
+
+      if (previousValue && previousValue !== 'all' && !names.includes(previousValue)) {
+        const missingOption = document.createElement('option');
+        missingOption.value = previousValue;
+        missingOption.textContent = decodeHtmlEntities(previousValue);
+        select.appendChild(missingOption);
+      }
+
+      if (previousValue) {
+        select.value = previousValue;
+      } else {
+        select.value = 'all';
+      }
+    }
+
+    function applyMonthlyEntityNameFilter() {
+      const select = document.getElementById('monthNameFilterSelect');
+      if (!select) return;
+
+      const selectedName = select.value;
+      const activeContent = document.querySelector('#monthTabContents .tab-content.active');
+      if (!activeContent) return;
+
+      const rows = activeContent.querySelectorAll('tbody tr');
+      rows.forEach((row) => {
+        const name = row.dataset.name || '';
+        row.style.display = (selectedName === 'all' || name === selectedName) ? '' : 'none';
+      });
+    }
+
+    // ==========================================
+    // Tab switching
+    // ==========================================
+    function switchTab(prefix, activeKey, allKeys) {
+      allKeys.forEach(k => {
+        const tabId = `${prefix}-${k}`;
+        const btn = document.querySelector(`[data-tab="${tabId}"]`);
+        const content = document.getElementById(tabId);
+        if (btn) btn.classList.toggle('active', k === activeKey);
+        if (content) content.classList.toggle('active', k === activeKey);
+      });
+
+      if (prefix === 'month') {
+        refreshMonthlyEntityNameOptions();
+        applyMonthlyEntityNameFilter();
+      }
+    }
+
+    // ==========================================
+    // Utility
+    // ==========================================
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function decodeHtmlEntities(str) {
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = str;
+      return textarea.value;
+    }
+
+    // ==========================================
+    // Event Handlers
+    // ==========================================
+
+    // File upload
+    document.getElementById('csvInput').addEventListener('change', async (e) => {
+      await handleFiles(e.target.files);
+    });
+
+    // Drag & drop
+    const uploadZone = document.getElementById('uploadZone');
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('dragover');
+    });
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.classList.remove('dragover');
+    });
+    uploadZone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      await handleFiles(e.dataTransfer.files);
+    });
+
+    async function handleFiles(files) {
+      const newTransactions = [];
+      const fileNames = [];
+
+      for (const file of files) {
+        if (!file.name.endsWith('.csv')) continue;
+        const text = await readFileAsShiftJIS(file);
+        const txs = parseCSV(text);
+        newTransactions.push(...txs);
+        fileNames.push(file.name);
+      }
+
+      if (newTransactions.length === 0) {
+        alert('有効なCSVデータが見つかりませんでした。');
+        return;
+      }
+
+      // Merge and deduplicate with existing
+      allTransactions = deduplicateTransactions([...allTransactions, ...newTransactions]);
+
+      // Show file info
+      updateFileInfo(fileNames);
+      renderDashboard();
+
+      // Scroll to dashboard
+      document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function updateFileInfo(newNames) {
+      const fileList = document.getElementById('fileList');
+      const fileNamesEl = document.getElementById('fileNames');
+      const countEl = document.getElementById('transactionCount');
+
+      fileList.classList.remove('hidden');
+
+      // Append new names
+      for (const name of newNames) {
+        const li = document.createElement('li');
+        li.innerHTML = `<i class="fas fa-file-csv text-green-500 mr-1"></i>${escapeHtml(name)}`;
+        fileNamesEl.appendChild(li);
+      }
+
+      countEl.textContent = `合計 ${allTransactions.length} 件の取引を解析中`;
+    }
+
+    // Clear data
+    document.getElementById('clearDataBtn').addEventListener('click', () => {
+      allTransactions = [];
+      dashboardState = { monthlyData: {}, sortedMonths: [] };
+      document.getElementById('fileList').classList.add('hidden');
+      document.getElementById('fileNames').innerHTML = '';
+      document.getElementById('dashboard').classList.add('hidden');
+      for (const key of Object.keys(chartInstances)) {
+        if (chartInstances[key]) chartInstances[key].destroy();
+      }
+      chartInstances = {};
+    });
+
+    // Navbar scroll
+    window.addEventListener('scroll', () => {
+      const navbar = document.getElementById('navbar');
+      navbar.classList.toggle('scrolled', window.scrollY > 10);
+    });
+  </script>
+</body>
+</html>

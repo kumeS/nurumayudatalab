@@ -1975,3 +1975,101 @@ body.resizing {
     font-weight: bold;
     border: 1px solid #a5d6a7;
 }
+
+/* FBA在庫による仕入予測タブ: 商品名先頭20文字で同一親ASIN推定・行グループ色
+   --fba-row-bg を <tr> に CSS変数として設定し、<td> に直接適用する。
+   グローバルの tr:hover / tr:hover td を上書きして常時表示を保証する。 */
+#fbaForecastTable tbody tr.fba-row-group td {
+    background-color: var(--fba-row-bg, transparent);
+}
+#fbaForecastTable tr:hover {
+    background: transparent;
+}
+#fbaForecastTable tbody tr.fba-row-group:hover td {
+    background-color: var(--fba-row-bg, transparent);
+    filter: brightness(0.94);
+}
+#fbaForecastTable tr:hover td {
+    background: var(--fba-row-bg, transparent);
+}
+
+/* FBA在庫による仕入予測タブ: カスタムツールチップ（商品名・仕入推奨ヶ月分） */
+.fba-custom-tooltip {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    max-width: 400px;
+    max-height: 240px;
+    overflow: auto;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #1a1a1a;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* FBA在庫による仕入予測タブ: ソート可能ヘッダー */
+#fbaForecastTable thead th[data-sort] {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+#fbaForecastTable thead th[data-sort]:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+#fbaForecastTable thead th.fba-sort-active.fba-sort-asc::after {
+    content: ' ▲';
+    font-size: 0.75em;
+    opacity: 0.8;
+}
+#fbaForecastTable thead th.fba-sort-active.fba-sort-desc::after {
+    content: ' ▼';
+    font-size: 0.75em;
+    opacity: 0.8;
+}
+
+/* FBA在庫による仕入予測タブ: 商品名セル（縦長防止） */
+/* <td> は通常のテーブルセルのまま。display:-webkit-box を直接設定しない */
+#fbaForecastTable .fba-product-name {
+    max-width: 280px;
+}
+/* line-clamp は内側の <div> に適用してセルのレンダリング崩れを防ぐ */
+#fbaForecastTable .fba-product-name-inner {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    line-height: 1.4;
+    max-height: 2.8em;
+}
+
+/* FBA在庫による仕入予測タブ: 在庫状況バッジ */
+.fba-status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+.fba-status-short {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+}
+.fba-status-ok {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #a5d6a7;
+}
+.fba-status-excess {
+    background-color: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffcc80;
+}

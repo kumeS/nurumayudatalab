@@ -5,9 +5,11 @@ webtool-furniture-showroom
 
 webtool-ec-calc-amazon-ex
 webtool-ec-calc-ebay-ex
-webtool-ec-performance-analysis-amazon/25*
-webtool-ec-calc-amazon/2025-week*
+webtool-ec-performance-analysis-amazon/*BusinessReport.csv
+webtool-ec-calc-amazon/*.csv
+webtool-ec-calc-amazon/*.txt
 webtool-ec-order-cilel/*.xlsx
+webtool-bank-rsn/*.csv
 
 # OS generated files
 .DS_Store

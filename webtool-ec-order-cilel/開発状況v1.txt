@@ -1,0 +1,340 @@
+================================================================
+CiLEL 購入履歴ビューア (v3) — 開発状況レポート v1
+作成日: 2026-03-08
+================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. プロジェクト概要
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CiLEL（仕入れ代行サービス）の注文シート（FT形式 XLSX）および
+作業明細シート（WJFT形式 XLSX）を読み込み、商品情報と作業内容を
+一覧表示するブラウザ完結型の単一ページWebアプリ。
+
+サーバー不要。データはすべてクライアントサイド（IndexedDB / localStorage）に保存。
+
+主な目的:
+  - 複数回のCiLEL注文履歴をまとめて可視化
+  - FT と WJFT の紐付けによる作業内容の把握
+  - 再注文用CSVの作成・ダウンロード
+
+依存ライブラリ (CDN):
+  - SheetJS (xlsx.js) 0.18.5  — XLSXパース
+  - JSZip 3.10.1              — XLSXから埋め込み画像を抽出
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. ファイル構成
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+index.html            — HTMLシェル。CDN読み込み、全JSモジュール読み込み
+style.css             — 全スタイリング（約2000行）
+js/
+  app-utils.js        — 共通ユーティリティ（escapeHtml, parseNumeric, formatNumber等）
+  app-state-core.js   — グローバル状態変数、IndexedDB CRUD、
+                        ファイルアップロード処理、XLSXパース、画像抽出、
+                        FTデータ処理 (processData)、注文情報抽出 (extractOrderInfo)
+  app-state-extra.js  — WJFTデータ処理 (processWjftData)、タブ管理、
+                        WJFT↔FTリンク処理、タブD&D
+  app-helpers.js      — 表示補助（ソート、リンクHTML、ステータスポップアップ）
+  app-render.js       — 全レンダリング処理（renderContent, renderSummaryContent,
+                        renderWjftContent, CSVエクスポートポップアップ, 商品ピッカー）
+  app-csv-export.js   — CSVヘッダー定義、行生成、エスケープ、
+                        一時保存の読み込み・ダウンロード処理
+  app-file-input.js   — アプリ初期化エントリポイント（ensurePersistentStorage,
+                        initDB, restoreFromLocalCache 呼び出し）
+  script.js.backup    — 旧モノリシックスクリプト（非ロード、参照用のみ）
+
+py/
+  analyze_wjft.py     — WJFTのExcel構造解析用Pythonスクリプト（スタンドアロン）
+
+bug_report.txt        — 修正済みバグの記録（4件）
+修正.txt              — ユーザーからの機能要望・バグ報告リスト（未対応あり）
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. 動作挙動 ― データフローとループの仕組み
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【起動時フロー】
+  app-file-input.js
+    → ensurePersistentStorage()  IndexedDB利用可否を確認、不可ならlocalStorageへフォールバック
+    → initDB()                   IndexedDB('CiLELViewerDB')を開く
+                                 objectStore: 'orderData' (ファイルデータ)
+                                 objectStore: 'csvDraft'  (CSV一時保存)
+    → restoreFromLocalCache()    保存済みデータをallDataに復元 → renderContent()
+
+【ファイルアップロードフロー】
+  #dropZone (DragEvent or click → input[type=file])
+    → handleFiles(files)          [app-state-core.js]
+        ループ: for each file in files
+          → FileReader.readAsArrayBuffer(file)
+              → XLSX.read(buffer)   SheetJSでXLSXをパース
+              → sheet_to_json()     rows配列取得
+              → JSZip.loadAsync()   XLSXのzipを開き埋め込み画像を抽出
+                  extractImagesFromXlsx():
+                    xl/drawings/drawing1.xml → アンカー行番号マッピング
+                    xl/drawings/_rels/drawing1.xml.rels → 画像ファイルパス取得
+                    xl/media/* → Blobとして読み込み → data:URL変換
+              → detectFileType()    'ft' または 'wjft' を判定
+                  判定ロジック: ファイル名が'WJFT'で始まる、
+                  または先頭20行に '作業内容' + '番号' が存在すれば WJFT
+              → processData() / processWjftData()  データモデル構築
+              → saveDataToDB()       IndexedDBに保存
+              → renderContent()      UIを再描画
+
+【FTデータ処理 (processData)】
+  - ヘッダー行を走査し normalizeHeaderText() でホワイトスペースを除去して列を特定
+  - 各データ行をItemオブジェクトに変換
+  - 為替レート: CNY→JPY を全行の (JPY単価 / CNY単価) の平均で算出
+  - extractOrderInfo(): 注文番号、注文日、合計金額、送料情報等をメタデータとして抽出
+  - 結果: allData[fileName] = { items[], orderMeta, exchangeRate, fileType:'ft' }
+
+【WJFTデータ処理 (processWjftData)】
+  - ヘッダー行探索: 0〜19行を走査し '作業内容' '番号' を含む行をヘッダー行と判定
+  - 複数行にわたる商品の結合ループ:
+      現在行が「番号あり」→ 新商品開始
+      現在行が「番号なし」→ 前商品のworkItemsに追加行をpush
+  - workMeta: FT番号、顧客名、注文日、作業日、検品費等を先頭ブロックから抽出
+  - 結果: allData[fileName] = { items[], workMeta, fileType:'wjft' }
+
+【レンダリングフロー】
+  renderContent() → currentTab に応じて分岐
+    'all'     → 全ファイルのitemsを結合（mergeAllDuplicates が true なら重複統合）
+                → productSortMode に従いソート
+                → renderProductCard() × n 個 → #productGrid に注入
+    'summary' → renderSummaryContent()
+                → ファイル一覧テーブル生成
+                → サムネイル列: _embeddedImage (data:URL) または photo (URL)
+                → 統計カード更新
+    fileName  → そのファイルが FT なら renderProductCard() × n
+                WJFTなら renderWjftContent()
+
+【重複統合ロジック (全体まとめタブ)】
+  キー: siteUrl + unitPriceCny  (なければ variant + subtotal)
+  同一キーを持つ複数アイテムをマージ:
+    orderQty, stockQty, shipQty, subtotal → 合算
+    unitPriceCny → 加重平均
+    variant, arrivalDate, _fileName → 配列としてタグ表示
+
+【WJFT↔FTリンク処理】
+  findLinkedWjftData(ftFileName):
+    allData の全WJFT fileを走査
+    workMeta.ftNumber が ftFileName の FT番号（例: FT6705-00017）に一致するかチェック
+  findLinkedWorkItem(ftItem, wjftItems):
+    URLベース比較（クエリパラメータを除去して一致判定）
+  一致した場合: FT商品カードに作業内容サマリーを追加表示
+
+【CSVエクスポートフロー】
+  Step1: 「商品発注CSVファイルを作成する」クリック
+    → csvExportSelectMode = true → サムネイル選択モード開始
+  Step2: サムネイル（全体集計タブ）をクリックで選択/解除
+    → csvExportSelectedImageKeys (Set) に画像キーを追加/削除
+  Step3: 「表を作成する」クリック
+    → resolveSelectedItemsFromImageKeys()
+        選択キーから該当itemsを特定するロジック:
+          _embeddedImage (data:URL) と imageKey の照合
+          photo URL と imageKey の照合
+    → showCsvExportTablePopup()
+        ヘッダー行 + データ行の編集可能テーブル（contenteditable）を生成
+        「サイズ・カラー・各個数など」「納品指示」は改行保持 (white-space: pre-wrap)
+  Step4: テーブル編集（contenteditable セル直接編集）
+  Step5: 「一時保存」クリック
+    → readTableEditedRows() でDOM から現在の編集内容を読み取り
+    → saveCsvDraftToDB() でIndexedDBの 'csvDraft' ストアに保存
+        保存内容: { selectedImageKeys[], format, headers[], editedRows[][], timestamp }
+  Step6: 「CSVエクスポート」クリック
+    → generateCsvFromSelectedItems() → BOM付きUTF-8 CSVを生成
+    → downloadCsv() → Blobダウンロード
+        ファイル名: export_cilel_csv_YYYY-MM-DD-HHMM.csv
+
+【一時保存の復元フロー】
+  起動時: initDB() → loadCsvDraftFromDB()
+  csvDraftData が存在する場合:
+    全体集計タブに「一時保存から表を作成する (日時) ✎」ボタンを表示
+  クリック: showCsvExportTablePopup(csvDraftData) で保存済み状態を復元
+
+【ステータスポップアップ】
+  発送ステータス（'発送1', '次回発送', '別途発送'）クリック
+    → showStatusPopup(statusText, element) → #statusPopup を配置・表示
+  スクロール/リサイズ/他クリックで自動非表示
+
+【WJFTタブ インタラクション】
+  作業行クリック: ハイライトON/OFF → localStorage('wjft-highlight-{fileName}-{rowId}')
+  コメントボタン: prompt() ダイアログ → localStorage('wjft-comment-{fileName}-{rowId}')
+  次回起動時: renderWjftContent() 内でlocalStorageから復元・再表示
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. 実装済みだが完成度が低い箇所
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【4-1】CSVポップアップ「一時保存」初回保存バグ ★★★（最重要）
+  場所: app-render.js (btnSaveDraftPopup のクリックハンドラ)
+  症状: テーブル編集後に「一時保存」を押しても編集内容が保存されない。
+        2回目以降は正常に保存される。
+  原因: readTableEditedRows() がDOM変更のコミット前に呼ばれている可能性。
+        または contenteditable の blur イベント前に読み取りが走るタイミング問題。
+  対策案: innerHTML/innerText の読み取り前に setTimeout(0) または
+          activeElement.blur() を挟んでDOMをフラッシュする。
+
+【4-2】「一時保存の表を削除する」後もボタンが残るバグ ★★★（最重要）
+  場所: app-render.js / app-csv-export.js (deleteCsvDraftFromDB の後処理)
+  症状: 削除ボタン押下後も「一時保存から表を作成する」ボタンが消えない。
+  原因: deleteCsvDraftFromDB() が非同期で csvDraftData = null をセットする前に
+        renderSummaryContent() が走っている、またはそもそも再レンダリングが
+        呼ばれていない。
+  対策案: 削除完了のコールバック内で明示的に csvDraftData = null → renderSummaryContent()。
+
+【4-3】window.confirm() / window.prompt() の使用 ★★
+  場所: app-state-extra.js (ファイル削除確認)、app-helpers.js (コメント入力)
+  問題: 一部の埋め込みブラウザ環境（例: ChatGPT 内ブラウザ）では
+        これらのネイティブダイアログが動作しない。
+  対策案: カスタムモーダルダイアログに置き換える（UI実装コストは小）。
+  bug_report.txt にも記録済みだが未対応。
+
+【4-4】「商品を追加する」ポップアップのNo列自動連番なし ★
+  場所: app-render.js (showProductPickerForTable / 行削除処理)
+  問題: 行削除後に「No」列の番号が再採番されない。
+        例: 1,2,3 → 2を削除すると 1,3 のままになる。
+  対策案: 行追加・削除のたびに No 列を再計算するユーティリティを呼ぶ。
+
+【4-5】WJFT コメント機能の prompt() 依存 ★
+  場所: app-helpers.js (WJFTコメントボタンハンドラ)
+  問題: コメント入力に prompt() を使用。
+        既存コメントの初期値がセットされているかが不明確。
+        インライン編集UIの方がUX向上につながる。
+
+【4-6】WJFTメタデータ抽出の部分未実装 ★
+  場所: app-state-extra.js (processWjftData 内 行0〜の走査ブロック)
+  問題: コードに「注文日/作業日ラベルをスキャンする」ループの外枠だけ存在し、
+        内部処理が空のまま。実際の抽出は別のロジックで行われているが、
+        コードの意図が不明瞭で保守が難しい。
+
+【4-7】FT↔WJFT リンクの精度 ★
+  場所: app-state-extra.js (findLinkedWorkItem)
+  問題: URLのクエリパラメータ除去だけで照合しているため、
+        同一ショップの別商品が誤マッチするケースがある。
+        商品番号（no）も組み合わせた照合には対応していない。
+
+【4-8】localStorageフォールバックの不完全性 ★
+  場所: app-state-core.js
+  問題: 埋め込み画像（data:URL）はサイズが大きく（数MB）、
+        localStorageの容量上限（約5MB）をすぐに超える。
+        IndexedDB利用不可の環境では画像なしで動作する旨の
+        ユーザーへの通知が存在しない。
+
+【4-9】Python スクリプトの未統合 ★
+  場所: py/analyze_wjft.py
+  現状: WJFTのExcel構造解析用スクリプトが存在するが、
+        Webアプリとは完全に独立しており、開発時のデバッグ専用。
+        ドキュメントもなく利用方法が不明。
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. 未実装機能の提案（短期実装可能なもの）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+以下はすべて、現在のフロントエンド完結・サーバー不要の構成のまま実装できる機能です。
+
+【提案A】商品メモ機能（FT商品カードへの自由テキスト付与）
+  概要: FT商品カードに「メモ」ボタンを追加し、インライン入力で
+        自由テキストを付与できるようにする。
+  保存先: localStorage（キー: ft-memo-{siteUrl-hash}）
+  活用場面: 「次回リピートする」「品質要確認」等の個人メモ
+  実装規模: 小（WJFT コメント機能と同様の仕組み）
+
+【提案B】フィルター機能（商品カード・全体まとめタブ）
+  概要: ステータス・発送状況・金額範囲・キーワードでフィルタリング
+  UIイメージ: タブコントロール行にフィルターセレクト/入力を追加
+  実装規模: 中（renderContent()の手前にフィルタリングロジックを挿入）
+  優先フィルター案:
+    - ステータス (発送1 / 次回発送 / 別途発送 / 未発送)
+    - ファイル（注文）別絞り込み
+    - キーワード検索（バリアント・サイトURL）
+
+【提案C】注文サマリーのクリップボードコピー機能
+  概要: 全体集計タブの統計情報（ファイル数・商品種類・発注総数・金額合計等）を
+        テキストまたはMarkdown表形式でクリップボードにコピーするボタンを追加。
+  実装規模: 小（Clipboard API を使用。HTMLの内容をテキスト変換するだけ）
+  活用場面: SlackやNotionへの貼り付けによる社内報告
+
+【提案D】CSVエクスポートのカラム選択・並び替え機能
+  概要: CSVポップアップで出力するカラムのON/OFFと並び順を
+        ユーザーが設定できるようにする。
+  保存先: localStorage（設定を永続化）
+  実装規模: 中（ポップアップUIに設定セクションを追加）
+  効果: APA形式/ZAK形式の差異を吸収し、将来の形式追加も容易に
+
+【提案E】ファイルのエクスポート・インポート機能（バックアップ用）
+  概要: IndexedDBに保存された全データをJSONファイルとしてエクスポート、
+        逆にインポートして別PCやブラウザで復元できるようにする。
+  実装規模: 中（JSON.stringify + blob download / FileReader + JSON.parse）
+  効果: ブラウザキャッシュクリアによるデータ消失リスクの軽減
+
+【提案F】カスタムモーダルダイアログへの統一（バグ修正兼）
+  概要: window.confirm() / window.prompt() を
+        スタイル統一されたカスタムモーダルに置き換える。
+  実装規模: 小〜中（共通モーダルコンポーネントを1つ作り、呼び出し箇所を置換）
+  効果: 埋め込みブラウザでの動作保証（4-3 の根本解決）
+
+【提案G】FT商品カードの「再注文数」入力と合計表示
+  概要: 各FT商品カードに「今回注文数」スピンナーを追加し、
+        入力した数量の合計金額（単価×数量）をリアルタイム計算・表示する。
+  保存先: sessionStorageまたはlocalStorage
+  実装規模: 中
+  活用場面: 次回CSVを作る前に、必要数量を素早く確認・計算できる
+
+【提案H】全体集計タブのグラフ表示
+  概要: Chart.js（CDN追加）を使い、注文ごとの発注金額の棒グラフや
+        ステータス別の円グラフを全体集計タブに表示する。
+  実装規模: 中（Chart.jsのCDN追加 + キャンバス要素の追加）
+  効果: 複数回の発注トレンドを一目で把握できる
+
+【提案I】ブラウザ通知・処理完了トースト
+  概要: ファイルのパース完了・CSV出力完了・一時保存完了時に、
+        画面右下に短時間表示されるトースト通知を実装する。
+  実装規模: 小（純CSS + JSで実装可能、ライブラリ不要）
+  効果: 操作フィードバックの改善（現在は成功/失敗が視覚的に不明確な箇所がある）
+
+【提案J】WJFT作業費の円換算表示と合計
+  概要: WJFTの作業費が現在CNY表示のみのため、
+        FTファイルの為替レートを使用してJPY換算額を並列表示する。
+        また、WJFT全体の作業費JPY合計をstat cardに追加する。
+  実装規模: 小（既存の exchangeRate 計算ロジックを流用）
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. 保存データ構造 まとめ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+IndexedDB: 'CiLELViewerDB'
+  objectStore: 'orderData'
+    key: fileName (string)
+    value: { items[], orderMeta or workMeta, exchangeRate, fileType }
+  objectStore: 'csvDraft'
+    key: 'draft'
+    value: { selectedImageKeys[], format, headers[], editedRows[][], timestamp }
+
+localStorage:
+  'CiLELViewerCache'             — allData 全体のスナップショット（フォールバック用）
+  'CiLELViewerSummarySortMode'   — 全体集計タブのソートモード
+  'CiLELViewerMergeAllDuplicates'— 重複統合トグル状態
+  'wjft-highlight-{file}-{id}'   — WJFT作業行ハイライト状態
+  'wjft-comment-{file}-{id}'     — WJFT作業行コメント
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. 直近の優先対応推奨順
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1位: 【4-1】CSVポップアップ「一時保存」初回保存バグ修正
+  2位: 【4-2】「一時保存の表を削除する」後もボタンが残るバグ修正
+  3位: 【提案F】カスタムモーダルダイアログへの統一（confirm/prompt廃止）
+  4位: 【4-4】行削除後の No 列自動連番
+  5位: 【提案I】処理完了トースト通知
+  6位: 【提案C】統計情報クリップボードコピー
+  7位: 【提案B】フィルター機能
+  8位: 【提案E】JSONバックアップ出力・復元
+
+================================================================

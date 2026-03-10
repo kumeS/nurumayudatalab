@@ -4,6 +4,7 @@ class AmazonDashboard {
         this.uiManager = new UIManager(this.dataManager, this);
         this.chartManager = new ChartManager(this.dataManager, this.uiManager);
         this.childAsinManager = new ChildAsinManager(this.dataManager, this.uiManager);
+        this.fbaInventoryManager = new FbaInventoryManager(this.dataManager, this.childAsinManager, () => this.uiManager.displayLoadedFiles());
 
         this.currentPeriod = null;
         this.currentSubPeriod = 'all';
@@ -31,8 +32,11 @@ class AmazonDashboard {
             if (fileData.sourceType === 'child-asin') {
                 this.childAsinManager.loadData(fileData.data, fileData.fileName);
             }
+            if (fileData.sourceType === 'fba-inventory') {
+                this.fbaInventoryManager.loadData(fileData.data, fileData.fileName);
+            }
         });
-        if (this.childAsinManager.weeks.size > 0) {
+        if (this.childAsinManager.months.size > 0) {
             this.childAsinManager.updateUI();
         }
 
@@ -179,7 +183,7 @@ class AmazonDashboard {
 
         for (const file of csvFiles) {
             // 子ASIN詳細データCSVの判定
-            if (file.name.match(/(\d{4})-week(\d+)-子商品別\.csv/)) {
+            if (file.name.match(/(\d{4})(\d{2})-子商品別\.csv/)) {
                 try {
                     const { success, rows } = await this.childAsinManager.processFile(file);
                     if (!success) continue;
@@ -297,10 +301,18 @@ class AmazonDashboard {
                 this.childAsinManager.renderChart();
             });
         }
+        if (tab === 'fba-inventory-forecast' && this.fbaInventoryManager) {
+            requestAnimationFrame(() => {
+                this.fbaInventoryManager.renderUI();
+            });
+        }
     }
 
     async removeFile(fileName) {
         if (confirm(`ファイル「${fileName}」を削除しますか？`)) {
+            if (this.fbaInventoryManager && this.fbaInventoryManager.getCurrentFbaFileName() === fileName) {
+                this.fbaInventoryManager.clearFbaData();
+            }
             this.dataManager.loadedFiles.delete(fileName);
             await this.dataManager.removeFileFromDB(fileName);
 
@@ -372,8 +384,20 @@ class AmazonDashboard {
                 csvContent = this.dataManager.generateInventoryForecastCSV(forecastData);
                 filename = `仕入予測_${period}.csv`;
                 break;
+            case 'fba-inventory-forecast':
+                const fbaRows = this.fbaInventoryManager.getTableData();
+                if (fbaRows.length === 0) {
+                    alert('FBA在庫による仕入予測のデータがありません。FBAレポートのアップロードと月選択を確認してください。');
+                    return;
+                }
+                csvContent = '子ASIN,商品名,選択期間中の販売数,月平均販売数,現在FBA在庫数,最低必要在庫数,理想最大在庫数,仕入推奨数,在庫状況\n';
+                fbaRows.forEach(r => {
+                    csvContent += `"${(r.childAsin || '').replace(/"/g, '""')}","${(r.title || '').replace(/"/g, '""')}",${r.periodSales},${r.avgMonthly},${r.currentStock},${r.minStock},${r.maxStock},${r.restockQty},"${(r.statusLabel || '').replace(/"/g, '""')}"\n`;
+                });
+                filename = `FBA在庫による仕入予測_${new Date().toISOString().slice(0, 10)}.csv`;
+                break;
         }
-        
+
         this.downloadCSV(csvContent, filename);
     }
 

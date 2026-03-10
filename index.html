@@ -646,6 +646,14 @@
         <div id="ecommerceToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       </div>
 
+      <!-- Accounting Tools Category -->
+      <div class="category-section mb-12">
+        <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-orange-300 pb-2">
+          <i class="fas fa-file-invoice-dollar mr-3 text-orange-500"></i>会計系ツール
+        </h3>
+        <div id="accountingToolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      </div>
+
       <!-- Lifestyle Tools Category -->
       <div class="category-section mb-12">
         <h3 class="text-xl md:text-2xl font-bold mb-4 text-gray-800 border-b-2 border-green-300 pb-2">
@@ -845,6 +853,14 @@
           "icon": "fa-table"
         }
       ],
+      accounting: [
+        {
+          "title": "銀行取引履歴分析ウェブアプリ",
+          "desc": "銀行取引CSVをアップロードして、入出金集計・カテゴリ別内訳・残高推移を可視化する会計分析ツール",
+          "url": "./webtool-bank-rsn/index.html",
+          "icon": "fa-file-invoice-dollar"
+        }
+      ],
       specialized: [
         {
           "title": "AI植物辞典",
@@ -913,6 +929,7 @@
       const lifestyleGrid = document.getElementById('lifestyleToolsGrid');
       const educationalGrid = document.getElementById('educationalToolsGrid');
       const ecommerceGrid = document.getElementById('ecommerceToolsGrid');
+      const accountingGrid = document.getElementById('accountingToolsGrid');
       const specializedGrid = document.getElementById('specializedToolsGrid');
       const modelSystemsGrid = document.getElementById('modelSystemsGrid');
       const imageEditingGrid = document.getElementById('imageEditingToolsGrid');
@@ -920,6 +937,7 @@
       // 各カテゴリーをレンダリング
       renderCategoryTools(generalGrid, toolCategories.general);
       renderCategoryTools(ecommerceGrid, toolCategories.ecommerce);
+      renderCategoryTools(accountingGrid, toolCategories.accounting);
       renderCategoryTools(lifestyleGrid, toolCategories.lifestyle);
       renderCategoryTools(educationalGrid, toolCategories.educational);
       renderCategoryTools(specializedGrid, toolCategories.specialized);
