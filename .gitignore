@@ -6,6 +6,7 @@ webtool-furniture-showroom
 webtool-ec-calc-amazon-ex
 webtool-ec-calc-ebay-ex
 webtool-ec-performance-analysis-amazon/*.csv
+webtool-ec-performance-analysis-amazon/*.txt
 
 webtool-ec-calc-amazon/*.csv
 webtool-ec-calc-amazon/*.txt
