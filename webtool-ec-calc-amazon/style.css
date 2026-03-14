@@ -104,6 +104,28 @@
     transform: translateY(0);
 }
 
+.fba-drop-btn {
+    min-width: 280px;
+    padding: 10px 16px;
+    border: 2px dashed rgba(255, 255, 255, 0.6);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    line-height: 1.2;
+}
+
+.fba-drop-btn-main {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.fba-drop-btn-sub {
+    font-size: 11px;
+    opacity: 0.95;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
 .container {
     max-width: 1400px;
     margin: 0 auto;
@@ -1358,7 +1380,7 @@ body {
     padding: 24px;
     box-shadow: var(--card-shadow);
     margin-bottom: 30px;
-    overflow-x: auto;
+    overflow-x: hidden;
 }
 
 .table-tabs {
@@ -1366,9 +1388,17 @@ body {
     gap: 10px;
     margin-bottom: 20px;
     border-bottom: 2px solid #eee;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
 }
 
 .tab-button {
+    flex: 0 0 auto;
     padding: 12px 24px;
     background: none;
     border: none;
@@ -2014,11 +2044,51 @@ body.resizing {
     word-break: break-word;
 }
 
+/* FBA在庫による仕入予測タブ: スクロールラッパー */
+.fba-table-scroll-wrapper {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 75vh;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
 /* FBA在庫による仕入予測タブ: ソート可能ヘッダー */
+#fbaForecastTable {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 100%;
+}
+
+#fbaForecastTable thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8f9fa;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#fba-inventory-forecast-tab .table-header {
+    box-sizing: border-box;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+}
+
+#fbaForecastTable th,
+#fbaForecastTable td {
+    text-align: center;
+}
+
+#fbaForecastTable .fba-product-name {
+    text-align: left;
+}
+
 #fbaForecastTable thead th[data-sort] {
     cursor: pointer;
     user-select: none;
     white-space: nowrap;
+    position: sticky;
+    padding-right: 20px;
 }
 #fbaForecastTable thead th[data-sort]:hover {
     background-color: rgba(0, 0, 0, 0.05);
@@ -2034,20 +2104,48 @@ body.resizing {
     opacity: 0.8;
 }
 
+#fbaForecastTable .fba-resizable-col {
+    overflow: visible;
+}
+
+#fbaForecastTable .fba-col-resizer {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 10px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 2;
+}
+
+#fbaForecastTable .fba-col-resizer::before {
+    content: '';
+    position: absolute;
+    top: 20%;
+    bottom: 20%;
+    left: 50%;
+    width: 2px;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 999px;
+    transition: background-color 0.2s ease;
+}
+
+#fbaForecastTable thead th:hover .fba-col-resizer::before,
+#fbaForecastTable .fba-col-resizer:hover::before {
+    background: rgba(0, 201, 255, 0.8);
+}
+
 /* FBA在庫による仕入予測タブ: 商品名セル（縦長防止） */
 /* <td> は通常のテーブルセルのまま。display:-webkit-box を直接設定しない */
 #fbaForecastTable .fba-product-name {
-    max-width: 280px;
+    max-width: none;
 }
-/* line-clamp は内側の <div> に適用してセルのレンダリング崩れを防ぐ */
+/* 中間省略済みテキストを1〜2行で表示（CSS切り詰め不要） */
 #fbaForecastTable .fba-product-name-inner {
     overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    line-clamp: 2;
     line-height: 1.4;
-    max-height: 2.8em;
+    word-break: break-all;
 }
 
 /* FBA在庫による仕入予測タブ: 在庫状況バッジ */

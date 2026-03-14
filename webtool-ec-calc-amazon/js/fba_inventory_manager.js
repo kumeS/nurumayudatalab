@@ -13,14 +13,22 @@ class FbaInventoryManager {
         this.fbaFileName = null;
         /** 選択された月（1〜3ヶ月） */
         this.selectedMonths = [];
+        /** フィルタ前の全行データ */
+        this.fbaAllRows = [];
         /** テーブルソート用: 現在の行データ・ソートキー・昇降順 */
         this.fbaTableRows = [];
         this.fbaSortKey = 'avgMonthly';
         this.fbaSortDir = 'desc';
         this.fbaPriorityView = false;  // 優先上位表示モード（販売数合計で親ASINグループを上位表示）
+        this.fbaStatusFilter = 'all';
+        this.fbaNameFilter = '';
         this._fbaSortBound = false;
         this._fbaTooltipBound = false;
         this._fbaPriorityBound = false;
+        this._fbaFilterBound = false;
+        this._fbaResizeBound = false;
+        this._fbaColumnWidths = [];
+        this._fbaResizeSuppressSort = false;
 
         this.ORDERED_ITEMS_KEY = '注文された商品点数';
 
@@ -31,6 +39,8 @@ class FbaInventoryManager {
         const uploadBtn = document.getElementById('fbaReportUploadBtn');
         const fileInput = document.getElementById('fbaReportFileInput');
         if (uploadBtn && fileInput) {
+            uploadBtn.title = 'クリック、またはCSVをドラッグ&ドロップ';
+            uploadBtn.dataset.allowDrop = 'true';
             uploadBtn.addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', (e) => {
                 const files = e.target.files;
@@ -39,7 +49,69 @@ class FbaInventoryManager {
                 }
                 fileInput.value = '';
             });
+
+            // ボタン本体とその親領域でCSVドロップを受け付ける。
+            this.bindDropTarget(uploadBtn);
+            if (uploadBtn.parentElement) {
+                uploadBtn.parentElement.dataset.allowDrop = 'true';
+                this.bindDropTarget(uploadBtn.parentElement, uploadBtn);
+            }
         }
+    }
+
+    bindDropTarget(dropTarget, highlightTarget = dropTarget) {
+        if (!dropTarget) return;
+
+        const setActive = (isActive) => {
+            if (!highlightTarget) return;
+            if (isActive) {
+                highlightTarget.style.outline = '2px dashed #00C9FF';
+                highlightTarget.style.outlineOffset = '2px';
+                highlightTarget.style.filter = 'brightness(1.08)';
+            } else {
+                highlightTarget.style.outline = '';
+                highlightTarget.style.outlineOffset = '';
+                highlightTarget.style.filter = '';
+            }
+        };
+
+        dropTarget.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setActive(true);
+        });
+
+        dropTarget.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+            setActive(true);
+        });
+
+        dropTarget.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const nextEl = e.relatedTarget;
+            if (!nextEl || !dropTarget.contains(nextEl)) {
+                setActive(false);
+            }
+        });
+
+        dropTarget.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setActive(false);
+
+            const files = e.dataTransfer && e.dataTransfer.files;
+            if (!files || files.length === 0) return;
+
+            const file = Array.from(files).find(f => f.name && f.name.toLowerCase().endsWith('.csv'));
+            if (!file) {
+                alert('CSVファイルをドロップしてください。');
+                return;
+            }
+            this.handleFileSelect(file);
+        });
     }
 
     /**
@@ -160,7 +232,15 @@ class FbaInventoryManager {
     renderUI() {
         this.renderFileStatus();
         this.renderMonthSelector();
+        this.renderStatusFilter();
         this.calculateAndRenderTable();
+    }
+
+    renderStatusFilter() {
+        const filterEl = document.getElementById('fbaStatusFilter');
+        if (!filterEl) return;
+        filterEl.value = this.fbaStatusFilter;
+        this.bindFbaFilterOnce();
     }
 
     renderFileStatus() {
@@ -219,6 +299,7 @@ class FbaInventoryManager {
     calculateAndRenderTable() {
         const tbody = document.querySelector('#fbaForecastTable tbody');
         const exportBtn = document.getElementById('fbaForecastExportBtn');
+        const filterEl = document.getElementById('fbaStatusFilter');
         if (!tbody) return;
 
         const hasFba = Object.keys(this.fbaByAsin).length > 0;
@@ -228,6 +309,7 @@ class FbaInventoryManager {
             if (exportBtn) exportBtn.style.display = 'none';
             const priorityBtn = document.getElementById('fbaForecastPriorityBtn');
             if (priorityBtn) priorityBtn.style.display = 'none';
+            if (filterEl) filterEl.style.display = 'none';
             return;
         }
 
@@ -236,9 +318,13 @@ class FbaInventoryManager {
 
         this.childAsinManager.getSortedMonths();
         const data = this.childAsinManager.data;
+        const seenChildAsins = new Set();
 
         Object.keys(data).forEach(parentAsin => {
             Object.keys(data[parentAsin]).forEach(childAsin => {
+                if (childAsin === parentAsin) return;
+                if (seenChildAsins.has(childAsin)) return;
+                seenChildAsins.add(childAsin);
                 const node = data[parentAsin][childAsin];
                 const months = node.months || {};
                 let totalUnits = 0;
@@ -251,18 +337,13 @@ class FbaInventoryManager {
                 const currentStock = fba ? fba.availableQty : 0;
                 const title = (node.title || '').toString().trim();
 
-                let minStock, maxStock, monthsLabel;
-                if (avgMonthly >= 10) {
-                    minStock = Math.ceil(avgMonthly * 1.5);
-                    maxStock = Math.ceil(avgMonthly * 2.0);
-                    monthsLabel = '1.5〜2';
-                } else {
-                    minStock = Math.ceil(avgMonthly * 1.0);
-                    maxStock = Math.max(minStock, Math.ceil(avgMonthly * 1.5));
-                    monthsLabel = '1';
-                }
-                const restockQty = Math.max(0, minStock - currentStock);
-                const restockMonths = avgMonthly > 0 ? restockQty / avgMonthly : null;
+                const minMult = 1;
+                const maxMult = 2;
+                const restockMult = 1.5;
+                const minStock = Math.ceil(avgMonthly * minMult);
+                const maxStock = Math.ceil(avgMonthly * maxMult);
+                const restockTarget = Math.ceil(avgMonthly * restockMult);
+                const restockQty = Math.max(0, restockTarget - currentStock);
                 let statusKey, statusLabel;
                 if (currentStock < minStock) {
                     statusKey = 'short';
@@ -283,23 +364,45 @@ class FbaInventoryManager {
                     currentStock,
                     minStock,
                     maxStock,
-                    monthsLabel,
+                    minMult,
+                    maxMult,
                     restockQty,
-                    restockMonths,
                     statusKey,
                     statusLabel
                 });
             });
         });
 
-        this.fbaTableRows = rows;
-        this.applyFbaSort();
+        this.fbaAllRows = rows;
+        this.refreshFbaTable();
         this.renderFbaTableBody();
         this.bindFbaTableSortOnce();
         this.bindFbaPriorityBtnOnce();
+        this.bindFbaColumnResizeOnce();
         if (exportBtn) exportBtn.style.display = 'inline-block';
         const priorityBtn = document.getElementById('fbaForecastPriorityBtn');
         if (priorityBtn) priorityBtn.style.display = 'inline-block';
+        if (filterEl) filterEl.style.display = 'inline-block';
+        const nameFilterEl = document.getElementById('fbaNameFilter');
+        if (nameFilterEl) nameFilterEl.style.display = 'inline-block';
+    }
+
+    refreshFbaTable() {
+        const filteredRows = this.getFilteredFbaRows();
+        this.fbaTableRows = filteredRows.slice();
+        this.applyFbaSort();
+    }
+
+    getFilteredFbaRows() {
+        let rows = this.fbaAllRows;
+        if (this.fbaStatusFilter !== 'all') {
+            rows = rows.filter(row => row.statusKey === this.fbaStatusFilter);
+        }
+        if (this.fbaNameFilter) {
+            const keyword = this.fbaNameFilter.toLowerCase();
+            rows = rows.filter(row => (row.title || '').toLowerCase().includes(keyword) || (row.childAsin || '').toLowerCase().includes(keyword));
+        }
+        return rows;
     }
 
     applyFbaSort() {
@@ -307,34 +410,14 @@ class FbaInventoryManager {
             this.applyFbaPrioritySort();
             return;
         }
-        const key = this.fbaSortKey;
-        const dir = this.fbaSortDir === 'asc' ? 1 : -1;
-        this.fbaTableRows.sort((a, b) => {
-            const va = a[key];
-            const vb = b[key];
-            if (typeof va === 'number' && typeof vb === 'number') return dir * (va - vb);
-            const sa = String(va ?? '');
-            const sb = String(vb ?? '');
-            return dir * sa.localeCompare(sb, undefined, { numeric: true });
-        });
+        this.fbaTableRows = getSortedRows(this.fbaTableRows, this.fbaSortKey, this.fbaSortDir);
     }
 
     /**
      * 親ASIN（商品名先頭20文字）ごとにグループ化し、販売数合計の多いグループを上から表示。
      */
     applyFbaPrioritySort() {
-        const groups = new Map(); // prefix -> { totalSales, rows }
-        for (const r of this.fbaTableRows) {
-            const prefix = getTitlePrefixForGroup(r.title);
-            if (!groups.has(prefix)) groups.set(prefix, { totalSales: 0, rows: [] });
-            const g = groups.get(prefix);
-            g.totalSales += (r.periodSales || 0);
-            g.rows.push(r);
-        }
-        const sortedGroups = Array.from(groups.entries())
-            .map(([prefix, g]) => g)
-            .sort((a, b) => (b.totalSales || 0) - (a.totalSales || 0));
-        this.fbaTableRows = sortedGroups.flatMap(g => g.rows);
+        this.fbaTableRows = getPrioritySortedRows(this.fbaTableRows);
     }
 
     bindFbaPriorityBtnOnce() {
@@ -345,14 +428,48 @@ class FbaInventoryManager {
         btn.addEventListener('click', () => {
             this.fbaPriorityView = !this.fbaPriorityView;
             btn.textContent = this.fbaPriorityView ? '📊 通常表示' : '📊 優先上位表示';
-            this.applyFbaSort();
+            this.refreshFbaTable();
             this.renderFbaTableBody();
         });
     }
 
+    bindFbaFilterOnce() {
+        if (this._fbaFilterBound) return;
+        this._fbaFilterBound = true;
+        const filterEl = document.getElementById('fbaStatusFilter');
+        if (filterEl) {
+            filterEl.addEventListener('change', () => {
+                this.fbaStatusFilter = filterEl.value || 'all';
+                this.refreshFbaTable();
+                this.renderFbaTableBody();
+            });
+        }
+        const nameFilterEl = document.getElementById('fbaNameFilter');
+        if (nameFilterEl) {
+            let debounceTimer = null;
+            nameFilterEl.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    this.fbaNameFilter = nameFilterEl.value.trim();
+                    this.refreshFbaTable();
+                    this.renderFbaTableBody();
+                }, 300);
+            });
+        }
+    }
+
     renderFbaTableBody() {
         const tbody = document.querySelector('#fbaForecastTable tbody');
-        if (!tbody || this.fbaTableRows.length === 0) return;
+        if (!tbody) return;
+        if (this.fbaTableRows.length === 0) {
+            const hasFilter = this.fbaStatusFilter !== 'all' || this.fbaNameFilter;
+            const filterLabel = hasFilter
+                ? '条件に一致するデータがありません。'
+                : '表示できるデータがありません。';
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#6c757d;">${filterLabel}</td></tr>`;
+            this.updateFbaSortHeaders();
+            return;
+        }
         const prefixOrder = [];
         const seen = new Set();
         for (const r of this.fbaTableRows) {
@@ -364,19 +481,18 @@ class FbaInventoryManager {
         const numColors = FBA_ROW_GROUP_COLORS.length;
         tbody.innerHTML = this.fbaTableRows.map(r => {
             const statusClass = r.statusKey === 'short' ? 'fba-status-short' : r.statusKey === 'ok' ? 'fba-status-ok' : 'fba-status-excess';
-            const restockMonthsTip = r.restockMonths != null ? (Number(r.restockMonths) === Math.round(r.restockMonths * 10) / 10 ? r.restockMonths.toFixed(1) : r.restockMonths.toFixed(2)) : '−';
-            const restockTooltipText = `仕入推奨（ヶ月分）: ${restockMonthsTip}`;
+                const restockTooltipText = `月平均${formatNum(r.avgMonthly)} × 1.5ヶ月 − 在庫${formatNum(r.currentStock)} = ${formatNum(r.restockQty)}`;
             const productNameTooltipText = (r.title || '').replace(/\r?\n/g, ' ');
             const groupIndex = prefixToIndex[getTitlePrefixForGroup(r.title)] ?? 0;
             const bgColor = FBA_ROW_GROUP_COLORS[groupIndex % numColors];
             return `<tr class="fba-row-group" style="--fba-row-bg:${escapeAttr(bgColor)}">
                 <td>${escapeHtml(r.childAsin)}</td>
-                <td class="fba-product-name" data-tooltip="${escapeAttr(productNameTooltipText)}"><div class="fba-product-name-inner">${escapeHtml(r.title)}</div></td>
+                <td class="fba-product-name" data-tooltip="${escapeAttr(productNameTooltipText)}"><div class="fba-product-name-inner">${escapeHtml(truncateMiddle(r.title, 50))}</div></td>
                 <td>${formatNum(r.periodSales)}</td>
                 <td>${formatNum(r.avgMonthly)}</td>
                 <td>${formatNum(r.currentStock)}</td>
-                <td>${formatNum(r.minStock)}</td>
-                <td>${formatNum(r.maxStock)}</td>
+                <td data-tooltip="${escapeAttr(`月平均${formatNum(r.avgMonthly)} × ${r.minMult}ヶ月 = ${formatNum(r.avgMonthly * r.minMult)} → ${r.minStock}`)}">${formatNum(r.minStock)}</td>
+                <td data-tooltip="${escapeAttr(`月平均${formatNum(r.avgMonthly)} × ${r.maxMult}ヶ月 = ${formatNum(r.avgMonthly * r.maxMult)} → ${r.maxStock}`)}">${formatNum(r.maxStock)}</td>
                 <td class="fba-restock-cell" data-tooltip="${escapeAttr(restockTooltipText)}"><strong>${formatNum(r.restockQty)}</strong></td>
                 <td><span class="fba-status-badge ${statusClass}">${escapeHtml(r.statusLabel)}</span></td>
             </tr>`;
@@ -456,15 +572,111 @@ class FbaInventoryManager {
         this._fbaSortBound = true;
         const table = document.getElementById('fbaForecastTable');
         if (!table) return;
-        table.querySelectorAll('thead th[data-sort]').forEach(th => {
-            th.addEventListener('click', () => {
-                const key = th.dataset.sort;
-                if (key === this.fbaSortKey) this.fbaSortDir = this.fbaSortDir === 'asc' ? 'desc' : 'asc';
-                else { this.fbaSortKey = key; this.fbaSortDir = 'asc'; }
-                this.applyFbaSort();
-                this.renderFbaTableBody();
-            });
+        table.addEventListener('click', (e) => {
+            const th = e.target.closest('#fbaForecastTable thead th[data-sort]');
+            if (!th) return;
+            if (e.target.closest('.fba-col-resizer')) return;
+            this._fbaResizeSuppressSort = false;
+            const key = th.dataset.sort;
+            if (key === this.fbaSortKey) this.fbaSortDir = this.fbaSortDir === 'asc' ? 'desc' : 'asc';
+            else { this.fbaSortKey = key; this.fbaSortDir = 'asc'; }
+            this.refreshFbaTable();
+            this.renderFbaTableBody();
         });
+    }
+
+    bindFbaColumnResizeOnce() {
+        if (this._fbaResizeBound) return;
+        const table = document.getElementById('fbaForecastTable');
+        if (!table) return;
+
+        const headers = Array.from(table.querySelectorAll('thead th'));
+        if (headers.length === 0) return;
+
+        const measuredWidths = headers.map(th => Math.ceil(th.getBoundingClientRect().width));
+        const baseColumnWidth = Math.max(110, ...measuredWidths.filter((_, index) => index !== 1));
+
+        let colgroup = table.querySelector('colgroup');
+        if (!colgroup) {
+            colgroup = document.createElement('colgroup');
+            headers.forEach(() => {
+                colgroup.appendChild(document.createElement('col'));
+            });
+            table.insertBefore(colgroup, table.firstChild);
+        }
+
+        const cols = Array.from(colgroup.children);
+        headers.forEach((th, index) => {
+            if (!this._fbaColumnWidths[index]) {
+                this._fbaColumnWidths[index] = index === 1
+                    ? baseColumnWidth * 2
+                    : Math.max(baseColumnWidth, measuredWidths[index]);
+            }
+            cols[index].style.width = `${this._fbaColumnWidths[index]}px`;
+            th.classList.add('fba-resizable-col');
+
+            let handle = th.querySelector('.fba-col-resizer');
+            if (!handle) {
+                handle = document.createElement('span');
+                handle.className = 'fba-col-resizer';
+                handle.setAttribute('aria-hidden', 'true');
+                th.appendChild(handle);
+            }
+            if (!handle.dataset.bound) {
+                handle.dataset.bound = 'true';
+                handle.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+                handle.addEventListener('mousedown', (e) => this.startFbaColumnResize(e, index));
+            }
+        });
+
+        this.syncFbaTableWidth(table);
+        this._fbaResizeBound = true;
+    }
+
+    startFbaColumnResize(event, columnIndex) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const table = document.getElementById('fbaForecastTable');
+        const colgroup = table && table.querySelector('colgroup');
+        if (!table || !colgroup || !colgroup.children[columnIndex]) return;
+
+        const startX = event.clientX;
+        const startWidth = this._fbaColumnWidths[columnIndex] || Math.ceil(colgroup.children[columnIndex].getBoundingClientRect().width);
+        const minWidth = columnIndex === 1 ? 220 : 90;
+
+        this._fbaResizeSuppressSort = true;
+        document.body.classList.add('resizing');
+
+        const onMouseMove = (moveEvent) => {
+            const nextWidth = Math.max(minWidth, startWidth + (moveEvent.clientX - startX));
+            this._fbaColumnWidths[columnIndex] = nextWidth;
+            colgroup.children[columnIndex].style.width = `${nextWidth}px`;
+            this.syncFbaTableWidth(table);
+        };
+
+        const onMouseUp = () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.body.classList.remove('resizing');
+            window.setTimeout(() => {
+                this._fbaResizeSuppressSort = false;
+            }, 0);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    }
+
+    syncFbaTableWidth(table) {
+        const totalWidth = this._fbaColumnWidths.reduce((sum, width) => sum + (width || 0), 0);
+        const wrapper = document.getElementById('fbaTableScrollWrapper');
+        const containerWidth = wrapper ? wrapper.clientWidth : (table.parentElement ? table.parentElement.clientWidth : 0);
+        const syncedWidth = Math.max(totalWidth, containerWidth);
+        table.style.width = `${syncedWidth}px`;
     }
 
     /**
@@ -479,9 +691,13 @@ class FbaInventoryManager {
         const orderedItemsKey = this.ORDERED_ITEMS_KEY;
         const data = this.childAsinManager.data;
         const rows = [];
+        const seenChildAsins = new Set();
 
         Object.keys(data).forEach(parentAsin => {
             Object.keys(data[parentAsin]).forEach(childAsin => {
+                if (childAsin === parentAsin) return;
+                if (seenChildAsins.has(childAsin)) return;
+                seenChildAsins.add(childAsin);
                 const node = data[parentAsin][childAsin];
                 const months = node.months || {};
                 let totalUnits = 0;
@@ -494,22 +710,21 @@ class FbaInventoryManager {
                 const currentStock = fba ? fba.availableQty : 0;
                 const title = (node.title || '').toString().trim();
 
-                let minStock, maxStock, monthsLabel;
-                if (avgMonthly >= 10) {
-                    minStock = Math.ceil(avgMonthly * 1.5);
-                    maxStock = Math.ceil(avgMonthly * 2.0);
-                    monthsLabel = '1.5〜2';
+                const minStock = Math.ceil(avgMonthly * 1);
+                const maxStock = Math.ceil(avgMonthly * 2);
+                const restockTarget = Math.ceil(avgMonthly * 1.5);
+                const restockQty = Math.max(0, restockTarget - currentStock);
+                let statusKey, statusLabel;
+                if (currentStock < minStock) {
+                    statusKey = 'short';
+                    statusLabel = '在庫不足';
+                } else if (currentStock <= maxStock) {
+                    statusKey = 'ok';
+                    statusLabel = '適正';
                 } else {
-                    minStock = Math.ceil(avgMonthly * 1.0);
-                    maxStock = Math.max(minStock, Math.ceil(avgMonthly * 1.5));
-                    monthsLabel = '1';
+                    statusKey = 'excess';
+                    statusLabel = '過剰在庫';
                 }
-                const restockQty = Math.max(0, minStock - currentStock);
-                const restockMonths = avgMonthly > 0 ? restockQty / avgMonthly : null;
-                let statusLabel;
-                if (currentStock < minStock) statusLabel = '在庫不足';
-                else if (currentStock <= maxStock) statusLabel = '適正';
-                else statusLabel = '過剰在庫';
 
                 rows.push({
                     childAsin,
@@ -519,16 +734,19 @@ class FbaInventoryManager {
                     currentStock,
                     minStock,
                     maxStock,
-                    monthsLabel,
                     restockQty,
-                    restockMonths,
+                    statusKey,
                     statusLabel
                 });
             });
         });
 
-        rows.sort((a, b) => b.avgMonthly - a.avgMonthly);
-        return rows;
+        this.fbaAllRows = rows;
+        const filteredRows = this.getFilteredFbaRows().slice();
+        if (this.fbaPriorityView) {
+            return getPrioritySortedRows(filteredRows);
+        }
+        return getSortedRows(filteredRows, this.fbaSortKey, this.fbaSortDir);
     }
 
     getCurrentFbaFileName() {
@@ -571,6 +789,42 @@ function escapeAttr(str) {
 function formatNum(n) {
     if (typeof n !== 'number' || isNaN(n)) return '0';
     return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
+function getSortedRows(rows, sortKey, sortDir) {
+    const key = sortKey;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return rows.slice().sort((a, b) => {
+        const va = a[key];
+        const vb = b[key];
+        if (typeof va === 'number' && typeof vb === 'number') return dir * (va - vb);
+        const sa = String(va ?? '');
+        const sb = String(vb ?? '');
+        return dir * sa.localeCompare(sb, undefined, { numeric: true });
+    });
+}
+
+function getPrioritySortedRows(rows) {
+    const groups = new Map();
+    for (const row of rows) {
+        const prefix = getTitlePrefixForGroup(row.title);
+        if (!groups.has(prefix)) groups.set(prefix, { totalSales: 0, rows: [] });
+        const group = groups.get(prefix);
+        group.totalSales += (row.periodSales || 0);
+        group.rows.push(row);
+    }
+    return Array.from(groups.values())
+        .sort((a, b) => (b.totalSales || 0) - (a.totalSales || 0))
+        .flatMap(group => group.rows);
+}
+
+/** 商品名を先頭+末尾で中間省略表示にする（例: "[CALM.st] タンクトップ...インナー 伸縮"） */
+function truncateMiddle(str, maxLen) {
+    if (maxLen == null) maxLen = 50;
+    if (!str || str.length <= maxLen) return str || '';
+    const headLen = Math.ceil(maxLen * 0.55);
+    const tailLen = maxLen - headLen - 1; // 1 = '…'
+    return str.slice(0, headLen) + '…' + str.slice(-tailLen);
 }
 
 /** 商品名の先頭20文字程度で同一親ASIN推定用のグループキーを返す */

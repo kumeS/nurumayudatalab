@@ -575,7 +575,10 @@
                         <div class="control-group" style="margin-bottom: 15px;">
                             <label style="font-weight: bold; margin-right: 10px;">FBA在庫レポート:</label>
                             <input type="file" id="fbaReportFileInput" accept=".csv" style="display: none;">
-                            <button type="button" class="btn-primary" id="fbaReportUploadBtn" style="margin-right: 10px;">FBAレポートをアップロード</button>
+                            <button type="button" class="btn-primary fba-drop-btn" id="fbaReportUploadBtn" style="margin-right: 10px;">
+                                <span class="fba-drop-btn-main">FBAレポートをアップロード</span>
+                                <span class="fba-drop-btn-sub">CSVをドラッグ&ドロップ可能</span>
+                            </button>
                             <span id="fbaReportFileName" style="color: #6c757d;">未登録</span>
                         </div>
                         <div class="control-group">
@@ -584,25 +587,34 @@
                         </div>
                     </div>
                     <div class="table-header" style="gap: 10px;">
+                        <input type="text" id="fbaNameFilter" placeholder="🔍 商品名で絞り込み" style="display: none; padding: 10px 14px; border-radius: 8px; border: 1px solid #ced4da; background: #fff; color: #495057; font-size: 14px; min-width: 200px;">
+                        <select id="fbaStatusFilter" style="display: none; padding: 10px 14px; border-radius: 8px; border: 1px solid #ced4da; background: #fff; color: #495057; font-weight: 600;">
+                            <option value="all">在庫状態: すべて</option>
+                            <option value="short">在庫不足</option>
+                            <option value="ok">適正</option>
+                            <option value="excess">過剰在庫</option>
+                        </select>
                         <button class="export-btn" id="fbaForecastPriorityBtn" style="display: none;">📊 優先上位表示</button>
                         <button class="export-btn" id="fbaForecastExportBtn" style="display: none;" onclick="dashboard.exportTableToCSV('fba-inventory-forecast')">📥 CSVエクスポート</button>
                     </div>
-                    <table id="fbaForecastTable">
-                        <thead>
-                            <tr>
-                                <th data-sort="childAsin">子ASIN</th>
-                                <th data-sort="title">商品名</th>
-                                <th data-sort="periodSales">選択期間中の販売数</th>
-                                <th data-sort="avgMonthly">月平均販売数</th>
-                                <th data-sort="currentStock">現在FBA在庫数</th>
-                                <th data-sort="minStock">最低必要在庫数</th>
-                                <th data-sort="maxStock">理想最大在庫数</th>
-                                <th data-sort="restockQty">仕入推奨数</th>
-                                <th data-sort="statusLabel">在庫状況</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                    <div id="fbaTableScrollWrapper" class="fba-table-scroll-wrapper">
+                        <table id="fbaForecastTable">
+                            <thead>
+                                <tr>
+                                    <th data-sort="childAsin">子ASIN</th>
+                                    <th data-sort="title">商品名</th>
+                                    <th data-sort="periodSales">選択期間中の販売数</th>
+                                    <th data-sort="avgMonthly">月平均販売数</th>
+                                    <th data-sort="currentStock">現在FBA在庫数</th>
+                                    <th data-sort="minStock">最低必要在庫数</th>
+                                    <th data-sort="maxStock">理想最大在庫数</th>
+                                    <th data-sort="restockQty">仕入推奨数</th>
+                                    <th data-sort="statusLabel">在庫状況</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <div class="table-content" id="child-asin-detail-tab">

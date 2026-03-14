@@ -64,9 +64,11 @@ class AmazonDashboard {
         // behavior (see bug_report.txt) even if preventDefault is called.
         const preventGlobal = (e) => {
             e.preventDefault();
-            const isInsideUploadZone = uploadZone && (e.target === uploadZone || uploadZone.contains(e.target));
+            const targetEl = e.target instanceof Element ? e.target : null;
+            const isInsideUploadZone = uploadZone && targetEl && (targetEl === uploadZone || uploadZone.contains(targetEl));
+            const isInsideOtherDropZone = !!(targetEl && targetEl.closest('[data-allow-drop="true"]'));
 
-            if (!isInsideUploadZone) {
+            if (!isInsideUploadZone && !isInsideOtherDropZone) {
                 e.stopPropagation();
                 if (e.dataTransfer) {
                     e.dataTransfer.dropEffect = 'none';
