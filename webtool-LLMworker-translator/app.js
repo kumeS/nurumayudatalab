@@ -14,6 +14,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const speakBtn = document.getElementById('speakBtn');
   const toInputBtn = document.getElementById('toInputBtn');
   const loadingIndicator = document.getElementById('loadingIndicator');
+
+  // ---- BEGIN MODIFICATION: History panel element references ----
+  const historyBtn = document.getElementById('historyBtn');
+  const historyCloseBtn = document.getElementById('historyCloseBtn');
+  const historyPanel = document.getElementById('historyPanel');
+  const historyOverlay = document.getElementById('historyOverlay');
+  const historyList = document.getElementById('historyList');
+  // ---- END MODIFICATION ----
+  // ---- BEGIN MODIFICATION: AbortController and rate limiting module-scope variables ----
+  let currentAbortController = null;
+  let lastRunTime = 0;
+  const RUN_COOLDOWN_MS = 3000;
+  // ---- END MODIFICATION ----
   
   // ---- BEGIN MODIFICATION: Load saved input text ----
   // Load saved input text from localStorage, clearing a specific erroneous string if present
@@ -238,6 +251,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000);
   });
   
+
+  
   // 結果のみクリア（タブ切り替え時に使用）
   function clearResults() {
     finalOutput.value = '';
@@ -247,6 +262,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // UI初期化（全てクリア）
   function resetUI() {
     inputArea.value = '';
+    localStorage.removeItem('inputText');
+    // ---- BEGIN MODIFICATION: Abort pending requests on reset ----
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+    }
+    loadingIndicator.classList.remove('active');
+    // ---- END MODIFICATION ----
     clearResults();
   }
   
@@ -287,8 +310,24 @@ document.addEventListener('DOMContentLoaded', () => {
     console.error('使い方表示/非表示の要素が見つかりません');
   }
   
+  // ---- BEGIN MODIFICATION: XSS sanitization utility ----
+  function sanitizeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+  // ---- END MODIFICATION ----
+
   // LLM実行
   function runLLM() {
+    // ---- BEGIN MODIFICATION: Rate limiting ----
+    const now = Date.now();
+    if (now - lastRunTime < RUN_COOLDOWN_MS) {
+      alert(`連続実行を防ぐため、${Math.ceil((RUN_COOLDOWN_MS - (now - lastRunTime)) / 1000)}秒お待ちください。`);
+      return;
+    }
+    lastRunTime = now;
+    // ---- END MODIFICATION ----
     const input = inputArea.value.trim();
     if (!input) {
       alert('テキストを入力してください');
@@ -405,10 +444,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return text; // For non-translation modes, return as is
   }
   
-  // エラー発生時のフォールバックモード
-  function fallbackNonStreamingAPI(messages) {
+  // ---- BEGIN MODIFICATION: Error handling with AbortController, retry, exponential backoff ----
+  // エラー発生時のフォールバックモード（リトライ・タイムアウト対応）
+  async function fallbackNonStreamingAPI(messages, retryCount = 0, maxRetries = 2) {
     // 非ストリーミングモードでのAPIリクエスト
-    console.log("非ストリーミングモードでAPIリクエスト送信", messages);
+    console.log("非ストリーミングモードでAPIリクエスト送信", messages, `リトライ: ${retryCount}/${maxRetries}`);
     
     const apiUrl = 'https://nurumayu-worker.skume-bioinfo.workers.dev/';
     const requestData = {
@@ -419,73 +459,99 @@ document.addEventListener('DOMContentLoaded', () => {
       messages: messages
     };
     
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestData)
-    })
-    .then(response => response.json())
-    .then(data => {
+    // AbortControllerの設定（30秒タイムアウト）
+    const abortController = new AbortController();
+    currentAbortController = abortController;
+    const timeoutId = setTimeout(() => abortController.abort(), 30000);
+    
+    // ローディングテキストを更新
+    const loadingTextEl = loadingIndicator.querySelector('.loading-text');
+    
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData),
+        signal: abortController.signal
+      });
+      
+      const data = await response.json();
       loadingIndicator.classList.remove('active');
       
       console.log("非ストリーミングAPIレスポンス:", data);
       
+      let text = null;
       if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-        const text = data.choices[0].message.content;
+        text = data.choices[0].message.content;
         console.log("LLMレスポンス:", text);
-        
-        // 余計な説明文が含まれていないか確認して処理
-        const cleanedResponse = cleanResponse(text, currentMode);
-        console.log("クリーニング後:", cleanedResponse);
-        
-        if (currentMode === 'jajarev' || currentMode === 'enrev') {
-          processReviewOutput(cleanedResponse);
-        } else {
-          // 翻訳結果の欠落チェック
-          if (currentMode === 'enja' && isPossiblyTruncatedResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 翻訳の先頭部分が欠落している可能性があります。翻訳全体を確認してください。</div>`;
-          } else if (currentMode === 'jaen' && isPossiblyTruncatedEnglishResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 英語翻訳が不完全である可能性があります。翻訳全体を確認してください。</div>`;
-          } else {
-            finalOutput.value = cleanedResponse;
-          }
-        }
       } else if (data.answer) {
-        const text = data.answer;
+        text = data.answer;
         console.log("LLMレスポンス(answer):", text);
-        
-        // 余計な説明文が含まれていないか確認して処理
-        const cleanedResponse = cleanResponse(text, currentMode);
-        console.log("クリーニング後:", cleanedResponse);
-        
-        if (currentMode === 'jajarev' || currentMode === 'enrev') {
-          processReviewOutput(cleanedResponse);
-        } else {
-          // 翻訳結果の欠落チェック
-          if (currentMode === 'enja' && isPossiblyTruncatedResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 翻訳の先頭部分が欠落している可能性があります。翻訳全体を確認してください。</div>`;
-          } else if (currentMode === 'jaen' && isPossiblyTruncatedEnglishResponse(cleanedResponse)) {
-            finalOutput.value = cleanedResponse;
-            reviewOutput.innerHTML = `<div class="warning">⚠️ 英語翻訳が不完全である可能性があります。翻訳全体を確認してください。</div>`;
-          } else {
-            finalOutput.value = cleanedResponse;
-          }
-        }
       } else {
         throw new Error('レスポンスに期待されるフィールドがありません');
       }
-    })
-    .catch(error => {
+      
+      // 余計な説明文が含まれていないか確認して処理
+      const cleanedResponse = cleanResponse(text, currentMode);
+      console.log("クリーニング後:", cleanedResponse);
+      
+      if (currentMode === 'jajarev' || currentMode === 'enrev') {
+        processReviewOutput(cleanedResponse);
+      } else {
+        // 翻訳結果の欠落チェック
+        if (currentMode === 'enja' && isPossiblyTruncatedResponse(cleanedResponse)) {
+          finalOutput.value = cleanedResponse;
+          reviewOutput.innerHTML = `<div class="warning">⚠️ 翻訳の先頭部分が欠落している可能性があります。翻訳全体を確認してください。</div>`;
+        } else if (currentMode === 'jaen' && isPossiblyTruncatedEnglishResponse(cleanedResponse)) {
+          finalOutput.value = cleanedResponse;
+          reviewOutput.innerHTML = `<div class="warning">⚠️ 英語翻訳が不完全である可能性があります。翻訳全体を確認してください。</div>`;
+        } else {
+          finalOutput.value = cleanedResponse;
+        }
+      }
+      
+      // 履歴に保存（成功時）
+      saveToHistory(currentMode, inputArea.value.trim(), finalOutput.value, reviewOutput.innerHTML);
+      
+    } catch (error) {
       console.error('非ストリーミングAPI呼び出しエラー:', error);
-      loadingIndicator.classList.remove('active');
-      reviewOutput.innerHTML = `<div class="error">エラーが発生しました: ${error.message}</div>`;
-    });
+      
+      if (error.name === 'AbortError') {
+        // タイムアウトまたはユーザーによるキャンセル
+        const isUserCancelled = !timeoutId; // タイムアウトが既にクリアされていれば手動キャンセル
+        if (retryCount < maxRetries) {
+          // リトライ
+          if (loadingTextEl) loadingTextEl.textContent = `再試行中 (${retryCount + 1}/${maxRetries})`;
+          const backoffMs = 1000 * Math.pow(2, retryCount);
+          console.log(`タイムアウト、${backoffMs}ms後に再試行...`);
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+          if (loadingTextEl) loadingTextEl.textContent = '処理中';
+          return fallbackNonStreamingAPI(messages, retryCount + 1, maxRetries);
+        } else {
+          loadingIndicator.classList.remove('active');
+          reviewOutput.innerHTML = `<div class="error">リクエストがタイムアウトしました。${maxRetries}回再試行しましたが失敗しました。ネットワーク接続を確認し、再度お試しください。</div>`;
+        }
+      } else if (retryCount < maxRetries) {
+        // その他のエラーでもリトライ
+        if (loadingTextEl) loadingTextEl.textContent = `再試行中 (${retryCount + 1}/${maxRetries})`;
+        const backoffMs = 1000 * Math.pow(2, retryCount);
+        console.log(`エラー発生、${backoffMs}ms後に再試行...`);
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+        if (loadingTextEl) loadingTextEl.textContent = '処理中';
+        return fallbackNonStreamingAPI(messages, retryCount + 1, maxRetries);
+      } else {
+        loadingIndicator.classList.remove('active');
+        reviewOutput.innerHTML = `<div class="error">エラーが発生しました: ${sanitizeHTML(error.message)}<br>${maxRetries}回再試行しましたが失敗しました。</div>`;
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      if (loadingTextEl) loadingTextEl.textContent = '処理中';
+      currentAbortController = null;
+    }
   }
+  // ---- END MODIFICATION ----
   
   // 翻訳が先頭欠落している可能性を判定する関数
   function isPossiblyTruncatedResponse(text) {
@@ -530,6 +596,10 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 校閲結果の処理
   function processReviewOutput(text) {
+    // ---- BEGIN MODIFICATION: XSS sanitization of raw LLM text ----
+    // sanitize the full text before processing to prevent XSS
+    text = sanitizeHTML(text);
+    // ---- END MODIFICATION ----
     // 新しいパターン：校閲結果、変更箇所、最終案の3つのセクションを抽出
     const reviewPattern = /校閲結果[:：]([\s\S]+?)(変更箇所[:：]([\s\S]+?))?最終案[:：]([\s\S]+)/i;
     const match = text.match(reviewPattern);
@@ -572,11 +642,13 @@ document.addEventListener('DOMContentLoaded', () => {
           // diffブロック内の行を処理
           if (inDiffBlock) {
             if (line.startsWith('-')) {
-              // 削除された行
-              diffHtml += `<div class="diff-removed">${line.substring(1).trim()}</div>`;
+              // 削除された行（テキストは既にsanitizeHTML済みだが念のため）
+              const lineContent = line.substring(1).trim();
+              diffHtml += `<div class="diff-removed">${lineContent}</div>`;
             } else if (line.startsWith('+')) {
               // 追加された行
-              diffHtml += `<div class="diff-added">${line.substring(1).trim()}</div>`;
+              const lineContent = line.substring(1).trim();
+              diffHtml += `<div class="diff-added">${lineContent}</div>`;
             } else if (line.trim()) {
               // コンテキスト行（内容があれば表示）
               diffHtml += `<div>${line.trim()}</div>`;
@@ -640,4 +712,231 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }
+
+  // ---- BEGIN MODIFICATION: Translation History with IndexedDB ----
+  // モードラベルのマッピング
+  const MODE_LABELS = {
+    'jaen': '日本語→英語',
+    'enja': '英語→日本語',
+    'jajarev': '日本語校閲',
+    'enrev': '英語校閲'
+  };
+
+  // IndexedDBを開く
+  function openHistoryDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('translationHistory', 1);
+      
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains('entries')) {
+          const store = db.createObjectStore('entries', { keyPath: 'id', autoIncrement: true });
+          store.createIndex('timestamp', 'timestamp', { unique: false });
+          store.createIndex('mode', 'mode', { unique: false });
+        }
+      };
+      
+      request.onsuccess = (event) => {
+        resolve(event.target.result);
+      };
+      
+      request.onerror = (event) => {
+        console.error('IndexedDB オープンエラー:', event.target.error);
+        reject(event.target.error);
+      };
+    });
+  }
+
+  // 履歴に保存（最大50件）
+  async function saveToHistory(mode, input, output, review) {
+    if (!input || !output) return; // 空の場合は保存しない
+    
+    try {
+      const db = await openHistoryDB();
+      const tx = db.transaction('entries', 'readwrite');
+      const store = tx.objectStore('entries');
+      
+      // 新しいエントリを追加
+      const entry = {
+        mode: mode,
+        input: input,
+        output: output,
+        review: review || '',
+        timestamp: Date.now()
+      };
+      
+      await new Promise((resolve, reject) => {
+        const req = store.add(entry);
+        req.onsuccess = resolve;
+        req.onerror = reject;
+      });
+      
+      // 50件を超えたら古いものを削除
+      const countReq = store.count();
+      await new Promise((resolve, reject) => {
+        countReq.onsuccess = async () => {
+          const count = countReq.result;
+          if (count > 50) {
+            // タイムスタンプ昇順で全件取得し、古いものから削除
+            const index = store.index('timestamp');
+            const cursorReq = index.openCursor(null, 'next');
+            let deleted = 0;
+            const toDelete = count - 50;
+            
+            cursorReq.onsuccess = (event) => {
+              const cursor = event.target.result;
+              if (cursor && deleted < toDelete) {
+                cursor.delete();
+                deleted++;
+                cursor.continue();
+              } else {
+                resolve();
+              }
+            };
+            cursorReq.onerror = reject;
+          } else {
+            resolve();
+          }
+        };
+        countReq.onerror = reject;
+      });
+      
+      console.log('履歴に保存しました:', mode);
+    } catch (err) {
+      console.error('履歴保存エラー:', err);
+    }
+  }
+
+  // 履歴を読み込んで表示
+  async function loadHistory() {
+    try {
+      const db = await openHistoryDB();
+      const tx = db.transaction('entries', 'readonly');
+      const store = tx.objectStore('entries');
+      const index = store.index('timestamp');
+      
+      const entries = await new Promise((resolve, reject) => {
+        const req = index.getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = reject;
+      });
+      
+      // タイムスタンプ降順にソート（新しい順）
+      entries.sort((a, b) => b.timestamp - a.timestamp);
+      
+      if (entries.length === 0) {
+        historyList.innerHTML = '<div class="history-empty">履歴はありません</div>';
+        return;
+      }
+      
+      // 履歴リストを構築
+      historyList.innerHTML = '';
+      entries.forEach(entry => {
+        const date = new Date(entry.timestamp);
+        const timeStr = date.toLocaleString('ja-JP', {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit'
+        });
+        const modeLabel = MODE_LABELS[entry.mode] || entry.mode;
+        const inputPreview = entry.input ? entry.input.substring(0, 60) + (entry.input.length > 60 ? '...' : '') : '';
+        const outputPreview = entry.output ? entry.output.substring(0, 60) + (entry.output.length > 60 ? '...' : '') : '';
+        
+        const item = document.createElement('div');
+        item.className = 'history-item';
+        item.dataset.id = entry.id;
+        item.innerHTML = `
+          <div class="history-item-mode">${sanitizeHTML(modeLabel)}</div>
+          <div class="history-item-time">${sanitizeHTML(timeStr)}</div>
+          <div class="history-item-preview">${sanitizeHTML(inputPreview)}</div>
+          <div class="history-item-output">${sanitizeHTML(outputPreview)}</div>
+          <div class="history-item-actions">
+            <button class="history-use-btn" data-id="${entry.id}" data-mode="${sanitizeHTML(entry.mode)}" data-input="${encodeURIComponent(entry.input)}" data-output="${encodeURIComponent(entry.output)}" data-review="${encodeURIComponent(entry.review || '')}">使用する</button>
+            <button class="history-delete-btn" data-id="${entry.id}">削除</button>
+          </div>
+        `;
+        historyList.appendChild(item);
+      });
+    } catch (err) {
+      console.error('履歴読み込みエラー:', err);
+      historyList.innerHTML = '<div class="history-empty">履歴の読み込みに失敗しました</div>';
+    }
+  }
+
+  // 履歴エントリを削除
+  async function deleteHistoryItem(id) {
+    try {
+      const db = await openHistoryDB();
+      const tx = db.transaction('entries', 'readwrite');
+      const store = tx.objectStore('entries');
+      
+      await new Promise((resolve, reject) => {
+        const req = store.delete(id);
+        req.onsuccess = resolve;
+        req.onerror = reject;
+      });
+      
+      console.log('履歴エントリを削除しました:', id);
+    } catch (err) {
+      console.error('履歴削除エラー:', err);
+    }
+  }
+
+  // 履歴パネルの表示/非表示
+  function showHistoryPanel() {
+    historyPanel.style.display = 'flex';
+    historyOverlay.style.display = 'block';
+  }
+
+  function hideHistoryPanel() {
+    historyPanel.style.display = 'none';
+    historyOverlay.style.display = 'none';
+  }
+
+  // 履歴ボタンのイベントリスナー
+  historyBtn.addEventListener('click', () => {
+    showHistoryPanel();
+    loadHistory();
+  });
+
+  // 閉じるボタン
+  historyCloseBtn.addEventListener('click', hideHistoryPanel);
+
+  // オーバーレイクリックで閉じる
+  historyOverlay.addEventListener('click', hideHistoryPanel);
+
+  // 履歴リストのイベント委譲
+  historyList.addEventListener('click', async (event) => {
+    const target = event.target;
+    
+    if (target.classList.contains('history-use-btn')) {
+      // 「使用する」ボタン
+      const mode = target.dataset.mode;
+      const input = decodeURIComponent(target.dataset.input || '');
+      const output = decodeURIComponent(target.dataset.output || '');
+      const review = decodeURIComponent(target.dataset.review || '');
+      
+      // 入力を復元
+      inputArea.value = input;
+      localStorage.setItem('inputText', input);
+      finalOutput.value = output;
+      reviewOutput.innerHTML = review;
+      
+      // モードを切り替え
+      const targetTab = document.getElementById(`tab-${mode}`);
+      if (targetTab) {
+        switchTab(targetTab);
+      }
+      
+      hideHistoryPanel();
+      inputArea.focus();
+      inputArea.scrollTop = 0;
+    } else if (target.classList.contains('history-delete-btn')) {
+      // 「削除」ボタン
+      const id = parseInt(target.dataset.id, 10);
+      await deleteHistoryItem(id);
+      // 再読み込み
+      await loadHistory();
+    }
+  });
+  // ---- END MODIFICATION ----
 }); 

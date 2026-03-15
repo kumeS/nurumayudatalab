@@ -14,6 +14,9 @@
   </script>
   <title>ぬるっと翻訳・校閲ツール｜LLM活用テキスト処理ツール</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <!-- ---- BEGIN MODIFICATION: Favicon ---- -->
+  <link rel="icon" type="image/svg+xml" href="../favicon/nu-circle.svg">
+  <!-- ---- END MODIFICATION ---- -->
   <style>
     :root {
       --primary: #ff7e5f;
@@ -196,6 +199,10 @@
       font-family: inherit;
       box-shadow: var(--card-shadow);
     }
+    
+    /* ---- BEGIN MODIFICATION: Final output area 2x taller ---- */
+    #final { min-height: 200px; }
+    /* ---- END MODIFICATION ---- */
     
     h3 {
       color: var(--primary);
@@ -458,6 +465,88 @@
       font-weight: bold;
     }
     
+    /* ---- BEGIN MODIFICATION: Translation History Panel CSS ---- */
+    .history-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 400px;
+      max-width: 90vw;
+      height: 100vh;
+      background-color: #fff;
+      box-shadow: -4px 0 15px rgba(0,0,0,0.15);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s ease;
+    }
+    .history-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #e0e0e0;
+      background-color: #f8f9fa;
+    }
+    .history-panel-header h3 { margin: 0; color: var(--primary); }
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    .history-item {
+      padding: 0.75rem;
+      margin-bottom: 0.75rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .history-item:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(255,126,95,0.15); }
+    .history-item-mode {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      margin-bottom: 0.5rem;
+    }
+    .history-item-time { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
+    .history-item-preview { font-size: 0.85rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-item-output { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.25rem; }
+    .history-item-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .history-use-btn {
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .history-delete-btn {
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      background: #dc3545;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .history-empty { text-align: center; color: var(--text-secondary); padding: 2rem; }
+    .history-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.3);
+      z-index: 999;
+    }
+    /* ---- END MODIFICATION ---- */
+    
     @media (max-width: 600px) {
       .container {
         padding: 1rem;
@@ -547,8 +636,7 @@
     
     <!-- ボタン部分 -->
     <div class="button-container">
-      <button id="runBtn" class="button"><i class="fas fa-play"></i> 実行</button>
-      <button id="resetBtn" class="button"><i class="fas fa-trash"></i> クリア</button>
+          <button id="runBtn" class="button"><i class="fas fa-play"></i> 実行</button>      <button id="resetBtn" class="button"><i class="fas fa-trash"></i> クリア</button>
       <div id="loadingIndicator" class="loading">
         <div class="dot-pulse"></div>
         <span class="loading-text">処理中</span>
@@ -568,11 +656,24 @@
           <button id="copyBtn" class="button"><i class="fas fa-copy"></i> コピー</button>
           <button id="speakBtn" class="button"><i class="fas fa-volume-up"></i> 読み上げ</button>
           <button id="toInputBtn" class="button"><i class="fas fa-arrow-up"></i> 入力欄に戻す</button>
+          <!-- ---- BEGIN MODIFICATION: History button ---- -->
+          <button id="historyBtn" class="button"><i class="fas fa-history"></i> 履歴</button>
+          <!-- ---- END MODIFICATION ---- -->
         </div>
       </div>
     </div>
     
     <a href="../index.html" class="back-link"><i class="fas fa-arrow-left"></i> ぬるま湯データラボに戻る</a>
+    <!-- ---- BEGIN MODIFICATION: Translation History Panel HTML ---- -->
+    <div id="historyOverlay" class="history-overlay" style="display:none;"></div>
+    <div id="historyPanel" class="history-panel" style="display:none;">
+      <div class="history-panel-header">
+        <h3><i class="fas fa-history"></i> 翻訳履歴</h3>
+        <button id="historyCloseBtn" class="button"><i class="fas fa-times"></i> 閉じる</button>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </div>
+    <!-- ---- END MODIFICATION ---- -->
   </div>
 
   <script src="app.js"></script>

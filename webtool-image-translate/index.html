@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>画像変換ツール | HEIC to PNG/JPG</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="../favicon/nu-circle.svg" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  </head>
+  <body>
+    <div class="bg-shape shape-a" aria-hidden="true"></div>
+    <div class="bg-shape shape-b" aria-hidden="true"></div>
+
+    <main class="app-shell">
+      <header class="hero">
+        <p class="badge">クライアントサイド変換</p>
+        <h1>画像変換ツール</h1>
+        <p class="subtitle">
+          HEIC/HEIF を含む画像を、ブラウザだけで PNG / JPG に変換できます。
+        </p>
+      </header>
+
+      <section class="card uploader-card">
+        <label id="dropZone" class="drop-zone" for="fileInput">
+          <input
+            id="fileInput"
+            type="file"
+            accept=".heic,.heif,image/heic,image/heif,image/*"
+            multiple
+          />
+          <div class="drop-zone-content">
+            <p class="drop-title">画像をドラッグ＆ドロップ</p>
+            <p class="drop-sub">またはクリックしてファイルを選択</p>
+            <p class="drop-meta">複数枚対応: HEIC / HEIF / PNG / JPG / WEBP など</p>
+          </div>
+        </label>
+
+        <div class="controls">
+          <div class="control-group">
+            <label for="formatSelect">出力形式</label>
+            <select id="formatSelect">
+              <option value="image/png" selected>PNG</option>
+              <option value="image/jpeg">JPG</option>
+            </select>
+          </div>
+
+          <div class="control-group" id="qualityWrap" hidden>
+            <label for="qualityRange">JPG品質 <span id="qualityValue">0.92</span></label>
+            <input
+              id="qualityRange"
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.01"
+              value="0.92"
+            />
+          </div>
+
+          <div class="control-group">
+            <label for="resizeToggle">サイズ調整</label>
+            <label class="toggle-row">
+              <input id="resizeToggle" type="checkbox" checked />
+              <span>長辺1920pxを上限に自動リサイズ（縦横比維持）</span>
+            </label>
+          </div>
+
+          <button id="convertButton" class="btn primary" type="button" disabled>
+            変換する
+          </button>
+          <button id="convertZipButton" class="btn primary" type="button" disabled>
+            変換+全てをダウンロード（ZIP）
+          </button>
+          <button id="downloadAllButton" class="btn ghost" type="button" disabled hidden>
+            全てをダウンロード（ZIP）
+          </button>
+          <button id="clearButton" class="btn ghost" type="button">
+            クリア
+          </button>
+        </div>
+
+        <div id="downloadList" class="download-list" hidden></div>
+      </section>
+
+      <section class="card preview-card">
+        <div class="preview-head">
+          <h2>プレビュー</h2>
+          <p id="statusText" class="status">ファイルを選択してください</p>
+        </div>
+
+        <div class="preview-grid">
+          <figure class="preview-pane">
+            <figcaption>入力画像</figcaption>
+            <div id="inputGallery" class="input-gallery" hidden></div>
+            <p id="inputPlaceholder" class="placeholder">未選択</p>
+          </figure>
+
+          <figure class="preview-pane">
+            <figcaption>変換後画像</figcaption>
+            <div id="outputGallery" class="output-gallery" hidden></div>
+            <p id="outputPlaceholder" class="placeholder">未変換</p>
+          </figure>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
