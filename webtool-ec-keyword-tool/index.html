@@ -771,6 +771,10 @@
   document.getElementById('clearBtn').addEventListener('click', () => {
     document.getElementById('kwInput').value = '';
     document.getElementById('excludeInput').value = '';
+
+    // 入力内容の保存データも初期化して、再読み込み後に復元されないようにする
+    localStorage.removeItem('keywordTool_keywords');
+    localStorage.removeItem('keywordTool_exclude');
   });
 
   // ▼ モーダルを閉じる
