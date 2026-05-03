@@ -425,7 +425,18 @@ function ensurePersistentStorage() {
 function findHeaderRow(rows) {
   for (let i = 0; i < Math.min(20, rows.length); i++) {
     const row = rows[i];
-    if (row && row.some(cell => String(cell).includes('サイトURL') || String(cell).includes('写真'))) {
+    if (!row) continue;
+    // Require BOTH 'サイトURL' and '写真' to be present as short header cells
+    // to avoid false matches from long text cells containing these words
+    const hasSiteUrl = row.some(cell => {
+      const s = String(cell).trim();
+      return s.length <= 20 && s.includes('サイトURL');
+    });
+    const hasPhoto = row.some(cell => {
+      const s = String(cell).trim();
+      return s.length <= 20 && s.includes('写真');
+    });
+    if (hasSiteUrl && hasPhoto) {
       return i;
     }
   }

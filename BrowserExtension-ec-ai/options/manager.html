@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC AI ジョブ管理</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon/nu-circle.svg" />
+    <link rel="stylesheet" href="manager.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="topbar">
+        <div>
+          <h1>EC AI ジョブ管理</h1>
+          <p>1688商品情報の抽出とLLMジョブ管理</p>
+        </div>
+        <div class="topbar-actions">
+          <button id="run-btn" class="primary">1688タブを解析</button>
+          <a class="quick-link" href="https://detail.1688.com/" target="_blank" rel="noreferrer noopener">1688ページを開く</a>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="管理タブ">
+        <button type="button" class="tab-button active" data-tab="product-data">商品ページの情報保管</button>
+        <button type="button" class="tab-button" data-tab="page-create">商品ページ作成</button>
+        <button type="button" class="tab-button" data-tab="settings">プロンプト設定・接続設定</button>
+        <button type="button" class="tab-button" data-tab="debug">デバッグログ</button>
+      </nav>
+
+      <section class="tab-panel active" data-panel="product-data">
+        <section class="card">
+          <div class="extraction-history-layout">
+            <div class="extraction-history-list-wrap">
+              <div class="section-header">
+                <h2>抽出履歴</h2>
+                <button id="refresh-extraction-btn">更新</button>
+              </div>
+              <p id="extraction-history-meta" class="help">履歴件数: -</p>
+              <div id="extraction-history-list" class="extraction-history-list"></div>
+            </div>
+
+            <div class="extraction-history-detail">
+              <div class="section-header extraction-detail-header">
+                <h2>選択中の抽出結果</h2>
+                <div class="actions-inline extraction-actions">
+                  <button id="create-draft-btn" type="button" class="primary" disabled>ドラフト作成</button>
+                  <button id="create-improve-btn" type="button" disabled>改善</button>
+                </div>
+              </div>
+              <p id="page-create-status" class="help"></p>
+              <div id="extraction-metrics" class="extraction-metrics">取得率: -</div>
+              <div id="extraction-missing" class="extraction-missing">未取得項目: -</div>
+              <pre id="last-extraction">抽出結果はありません。</pre>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-panel="page-create">
+        <section class="card">
+          <div class="section-header">
+            <h2>ジョブ一覧</h2>
+            <button id="refresh-btn">再読み込み</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ジョブID</th>
+                  <th>状態</th>
+                  <th>商品名</th>
+                  <th>更新日時</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="jobs-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>詳細</h2>
+          <pre id="job-detail">ジョブを選択してください。</pre>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-panel="settings">
+        <section class="card">
+          <h2>接続設定</h2>
+          <form id="settings-form" class="settings-grid">
+            <label>
+              APIベースURL
+              <input id="api-base-url" type="url" placeholder="https://<あなたのAPIホスト>" required />
+            </label>
+            <label>
+              ツールパスワード
+              <input id="tool-password" type="password" placeholder="ツールパスワードを入力" required />
+            </label>
+            <label>
+              Replicate API key
+              <input id="replicate-api-key" type="password" placeholder="Replicate API key を入力" autocomplete="off" />
+            </label>
+            <label>
+              OpenRouter API key
+              <input id="openrouter-api-key" type="password" placeholder="OpenRouter API key を入力" autocomplete="off" />
+            </label>
+            <label class="full">
+              暗号化パスフレーズ（APIキー保存時に必須）
+              <input id="secret-passphrase" type="password" placeholder="APIキー暗号化用の任意パスフレーズ" autocomplete="new-password" />
+            </label>
+            <div class="full check-row">
+              <label class="inline-check"><input id="clear-replicate-api-key" type="checkbox" /> 保存済みReplicate keyを削除</label>
+              <label class="inline-check"><input id="clear-openrouter-api-key" type="checkbox" /> 保存済みOpenRouter keyを削除</label>
+            </div>
+            <p id="key-status" class="full help"></p>
+            <label>
+              タイムアウト（秒）
+              <input id="timeout-sec" type="number" min="5" step="1" />
+            </label>
+            <label>
+              ポーリング間隔（秒）
+              <input id="poll-interval-sec" type="number" min="2" step="1" />
+            </label>
+            <label class="full">
+              商品ページのドラフト作成プロンプト①
+              <textarea id="prompt-draft-template" rows="12"></textarea>
+            </label>
+            <label class="full">
+              商品ページの改善プロンプト②
+              <textarea id="prompt-improve-template" rows="10"></textarea>
+            </label>
+            <div class="full actions">
+              <button type="submit" class="primary">設定を保存</button>
+              <span id="save-status" aria-live="polite"></span>
+            </div>
+          </form>
+        </section>
+      </section>
+
+      <section class="tab-panel" data-panel="debug">
+        <section class="card">
+          <div class="section-header">
+            <h2>エラーログ / ブラウザ側ログ</h2>
+            <div class="actions-inline">
+              <button id="refresh-debug-btn" type="button">更新</button>
+              <button id="clear-debug-btn" type="button">クリア</button>
+            </div>
+          </div>
+          <p id="debug-meta" class="help">ログ件数: -</p>
+          <pre id="debug-log">ログはありません。</pre>
+        </section>
+      </section>
+    </main>
+
+    <script src="../lib/storage.js"></script>
+    <script src="manager.js"></script>
+  </body>
+</html>

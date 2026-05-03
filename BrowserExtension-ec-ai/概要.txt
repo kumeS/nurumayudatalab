@@ -1,0 +1,84 @@
+Chrome ブラウザ拡張機能（MV3）
+
+更新履歴 (2026-04-01):
+- 1688解析機能を大幅強化（window.context優先抽出、価格クリーニング、getContextData強化）
+- skuList/attributesの品質向上
+- version 0.2.0
+
+1688の商品ページ情報を抽出し、LLMで商品概要文とキーワードを生成するためのジョブを作成・管理する。
+出力言語は日本語。
+
+実装方針
+- Chrome拡張として実装する。
+- AIブロック回避は「人手とのハイブリッド」で運用する。
+- ページ生成やページロック解除、パスワード入力、CAPTCHA対応は人手で行う（自動化対象外）。
+
+対象範囲（現行実装）
+- 対象サイト: 1688ドメイン（https://*.1688.com/*）
+- API宛先: Cloudflare Workers（https://*.workers.dev/*）
+- 実行方式: 非同期ジョブ（POSTで投入、GETで状態取得）
+
+利用フロー
+1. 1688の商品ページを開く。
+2. 拡張機能アイコンをクリックし、Optionsページ（manager.html）を開く。
+3. 接続設定を保存する（apiBaseUrl, toolPassword, timeoutSec, pollIntervalSec, defaultTemplate）。
+4. 「現在タブを解析」を押して、商品情報抽出を実行する。
+5. 抽出データをテンプレートに埋め込み、LLM向けプロンプトを生成する。
+6. Cloudflare Workerの /v1/jobs にジョブ投入する。
+7. background.js が alarms を用いて /v1/jobs/{jobId} をポーリングする。
+8. done/failed になった結果を options/manager.html のジョブ一覧で確認する。
+
+抽出データ項目（現行）
+- productId
+- title
+- images（最大10件）
+- price
+- moq
+- attributes（key/value配列）
+- variants（colors, sizes）
+- seller
+- url
+- crawledAt
+
+プロンプト生成仕様（現行）
+- defaultTemplate をヘッダーとして先頭に配置。
+- Product Data / Attributes / Variants / Image URLs を構造化して追記。
+- 出力ルールを固定で追記:
+	- Output language: Japanese
+	- Return JSON only
+	- JSON schema: {"summary": string, "keywords": string[]}
+	- keywords should contain 5 to 15 items
+
+データ管理仕様（chrome.storage.local）
+- settings: 接続設定
+- jobs: ジョブ配列
+- lastExtraction: 直近の抽出データ
+
+ジョブ状態
+- queued
+- processing
+- done
+- failed
+
+Optionsページで提供する操作（現行）
+- 設定保存
+- 現在タブ解析（ジョブ作成）
+- ジョブ一覧表示
+- 手動更新（ポーリング）
+- 再実行
+- 削除
+- JSON詳細表示
+
+API仕様（拡張側の期待）
+- POST /v1/jobs
+	- request body: sourceData, template, lang, prompt, password
+	- response: jobId（またはid）, status
+- GET /v1/jobs/{jobId}
+	- response: status, result（またはoutput）, error
+
+実装制約
+- Manifest V3 準拠。
+- background.js は Service Worker として動作。
+- 非同期処理は Promise/async-await ベース。
+
+

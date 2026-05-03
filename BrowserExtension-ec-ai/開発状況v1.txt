@@ -1,0 +1,79 @@
+開発状況 v1（2026-04-01 更新）
+
+1. 開発進捗
+- MV3 拡張の主要構成（manifest / background service worker / content-script / options UI）は実装済み。
+- detail.1688.com でのページ内実行導線（右上「EC AI 情報取得」）を実装済み。
+- 抽出結果の表示機能（JSON表示、コピー、ダウンロード、閉じるX、Esc閉じる）を実装済み。
+- 抽出結果に missingFields（未取得項目一覧）を末尾付与する仕様を実装済み。
+- APIキー管理（Replicate / OpenRouter）は管理画面で登録可能、暗号化保存を実装済み。
+- lastExtraction の保存と管理画面表示を実装済み。
+
+2. 完成度合い（簡易評価）
+- 全体完成度: 約82%
+- 1688抽出機能: 約80%
+- UI/UX（操作導線）: 約82%
+- セキュリティ（キー保管）: 約84%
+- ジョブ運用信頼性: 約55%（重要な制御不具合あり）
+
+3. 現在の機能性（実装済み）
+- 抽出可能項目:
+  productId, title, images, price, priceTiers, moq, attributes, variants, skuList,
+  seller, shop, packagingInfo, description, detailImages, reviews, url, crawledAt,
+  source, missingFields
+- 画像フィルタ:
+  images / detailImages は webp のみを採用（jpg/png/svg は除外）。
+- 抽出結果出力:
+  中国語原文を保持したJSONを表示、コピー、ダウンロード可能。
+- 管理画面:
+  設定保存、解析実行、ジョブ一覧、更新、再実行、削除、詳細表示、直近抽出確認が可能。
+
+4. 動作挙動（主要ステップ）
+Step 1: 実行導線
+- 導線A: 拡張アイコンから管理画面を開く。
+- 導線B: detail.1688.com の「EC AI 情報取得」ボタンを押す。
+
+Step 2: 抽出処理
+- 最大6回の短間隔リトライで抽出。
+- データソースは window.context 優先、次に埋め込みscript/JSON-LD/DOM/本文解析を併用。
+- 抽出成功判定は title+images または productId+(title or price)。
+
+Step 3: 出力処理
+- 抽出JSONをパネル表示。
+- JSONコピー、JSONダウンロード（ec-ai-extraction-{productId}.json）。
+- JSON末尾に missingFields を付与して返却。
+
+Step 4: 保存処理
+- content-script から background へ SAVE_LAST_EXTRACTION を送信し、chrome.storage.local に保存。
+- 管理画面 GET_LAST_EXTRACTION で表示。
+
+Step 5: ジョブ連携（現状）
+- POST /v1/jobs, GET /v1/jobs/{jobId} のAPI仕様は維持。
+- ただし現行 background.js に制御フロー不具合があり、運用上の要修正点がある（下記5章）。
+
+5. 重要な要修正事項（現時点の課題）
+- 背景処理の重大不具合:
+  runExtractionOnActiveTab で抽出結果 return 後にジョブ作成処理が残っており、以降コードが到達不能になっている。
+  影響: 「現在タブを解析」実行時に、期待するジョブ作成/送信フローが成立しない可能性が高い。
+- shop情報抽出の一部で行インデックス参照ロジックが不安定（for-of内で隣接行参照）。
+- detailImages/packagingInfo はページ差分依存が強く、商品カテゴリにより未取得が残る。
+- prompt-template が拡張抽出項目（shop, priceTiers, skuList, reviews, detailImages）を十分活用していない。
+
+6. セキュリティ実装（APIキー）
+- 設定画面で Replicate/OpenRouter API key を登録・削除可能。
+- 保存は Web Crypto API で暗号化:
+  KDF: PBKDF2-SHA256（250,000 iterations）
+  暗号: AES-GCM
+  保存形式: salt/iv/ciphertext
+- パスフレーズは保存しない。
+- UI向け設定取得は平文キー非返却（保存有無フラグのみ）。
+
+7. 直近で有効な短期改善案
+- 優先1: background.js の到達不能コードを分離し、抽出とジョブ投入を確実に接続。
+- 優先2: shop/packaging/detailImages の抽出をインデックス安全化して誤判定を削減。
+- 優先3: prompt-template に拡張項目を反映し、生成品質を底上げ。
+- 優先4: 管理画面で missingFields をタグ表示し、欠損項目を即確認可能にする。
+
+8. 総括
+- 抽出機能とローカル運用UIはMVPとして高い完成度に到達。
+- 一方で、ジョブ実行経路に重大な制御不具合があるため、実運用前に背景処理の修正が必須。
+- 次の1スプリントは「backgroundの修正」「抽出安定化」「prompt反映」の3点集中が最適。

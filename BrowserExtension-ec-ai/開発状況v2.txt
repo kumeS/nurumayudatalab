@@ -1,0 +1,352 @@
+開発状況 v2（2026-04-04 更新）
+
+================================================================================
+1. 開発進捗の総括
+================================================================================
+
+本プロジェクト「EC AI Assistant」は、1688.com（中国最大のB2B ECサイト）の商品情報を
+自動抽出し、Amazon.co.jp向け商品ページのドラフト生成をLLMで支援するChrome拡張機能である。
+v1時点で報告されていた「background.jsの制御フロー不具合（到達不能コード）」は解消済みであり、
+抽出→ジョブ作成→API送信→ポーリングの一連のパイプラインが論理的に接続されている。
+
+現在のバージョン: 0.2.0
+Manifest: V3準拠
+主要モジュール数: 9ファイル（約2,100行 + 620行 + 660行 + 575行 + 190行 + 75行 + 618行）
+
+前回（v1）からの進捗:
+- [解決] background.js の到達不能コード問題 → runExtractionOnActiveTab() が新規ウィンドウ
+  作成方式に全面リファクタリングされ、抽出→ジョブ投入が一本のフローで完結。
+- [追加] 抽出履歴管理（extractionHistory）: 最大20件の履歴保存、個別削除、選択表示
+- [追加] 商品ページ作成機能（draft/improve）: ドラフト作成・改善の2モード対応
+- [追加] プロンプトテンプレート2種（ドラフト作成/改善）を設定画面で管理可能
+- [追加] window.context優先抽出の強化（gallery, offer, productAttributes 対応）
+- [追加] Cloudflare Worker（Replicate APIプロキシ）: 画像生成・3Dモデル生成のプロキシサーバー
+- [改善] 管理画面のタブUI化（商品情報保管 / 商品ページ作成 / 設定 / デバッグログ）
+- [改善] chrome.storage.local の容量制限対策（aggressive compaction, 段階的縮小）
+
+================================================================================
+2. 完成度合い（簡易評価）
+================================================================================
+
+全体完成度:             約70%
+1688抽出機能:           約85%（window.context対応で大幅改善）
+UI/UX（操作導線）:      約78%
+プロンプト/LLM連携:     約55%（テンプレートは定義済みだがAPI実運用未検証）
+ジョブ運用信頼性:       約65%（v1の到達不能コードは解消、ただし未検証課題あり）
+Cloudflare Worker:      約60%（Replicate専用、/v1/jobs エンドポイント不一致）
+セキュリティ（キー保管）: 約84%
+
+注記: v1（82%）から全体完成度が下がった理由は以下の通り。
+- 新機能追加（Worker, 履歴管理, draft/improve）に対し、統合テスト未実施
+- Cloudflare WorkerのAPI仕様が拡張側の期待（/v1/jobs）と不一致
+- 2つの異なるAPIアーキテクチャ（拡張側のジョブAPI vs WorkerのReplicateプロキシ）が混在
+
+================================================================================
+3. 現在の機能性（実装済み）
+================================================================================
+
+3.1 1688商品情報抽出
+  抽出可能項目（27項目チェック）:
+    productId, title, images, price, priceTiers, moq, attributes,
+    variants(colors, sizes), skuList, seller, shop(name, yearsOnPlatform,
+    region, repeatPurchaseRate, certificateInfo, badges, serviceScores),
+    packagingInfo, description, detailImages, reviews(reviewCount, summary,
+    metrics), url, crawledAt, source, missingFields, extractionStats
+
+  画像フィルタ: webp形式のみ採用（jpg/png/svg除外）
+  出力: JSON形式（中国語原文保持）、コピー、ダウンロード可能
+
+3.2 管理画面（options/manager.html）
+  4タブ構成:
+    ① 商品ページの情報保管: 抽出履歴一覧、選択表示、ドラフト作成/改善ボタン
+    ② 商品ページ作成: ジョブ一覧、詳細表示、更新/再実行/削除
+    ③ プロンプト設定・接続設定: APIキー管理、プロンプトテンプレート2種
+    ④ デバッグログ: ログ表示、クリア
+
+3.3 プロンプトテンプレート
+  ドラフト作成①: Amazon SEO/CVR最適化向け（タイトル/検索キーワード/Bullet Points/説明文）
+  改善②: 既存説明文の改善 + 大量キーワード生成（700個）
+
+3.4 セキュリティ
+  Replicate/OpenRouter APIキーの暗号化保存:
+    KDF: PBKDF2-SHA256（250,000 iterations）
+    暗号: AES-GCM-256
+    保存形式: salt/iv/ciphertext（Base64エンコード）
+
+3.5 Cloudflare Worker
+  Replicate API汎用プロキシとして実装:
+    - CORS対応
+    - ドメイン制限（api.replicate.comのみ許可）
+    - 非同期ポーリング（最大20回、2-8秒可変待機）
+    - R2ストレージへの画像/3Dモデル/動画保存
+    - TRELLIS v2（3Dモデル生成）対応の出力形式パーサー
+
+================================================================================
+4. 動作挙動（詳細フロー）
+================================================================================
+
+────────────────────────────────────────────────────────────────────
+Step 1: 実行導線
+────────────────────────────────────────────────────────────────────
+導線A: 拡張アイコンクリック → chrome.runtime.openOptionsPage() → manager.html
+
+導線B: detail.1688.comページ上の「EC AI 情報取得」ボタン
+  - content-script.js の mountInlineExtractionWidget() が
+    document_idle時に自動マウント。
+  - isDetail1688Page() で detail.1688.com に限定。
+  - 隣接する「⚙」アイコン → manager.html へ遷移（OPEN_MANAGER_PAGE メッセージ）。
+
+────────────────────────────────────────────────────────────────────
+Step 2: 抽出処理（extractProductDataWithRetry）
+────────────────────────────────────────────────────────────────────
+6パターンの抽出を順次実行し、最善結果をマージ:
+
+  Pattern 1: "normal"         → そのまま抽出
+  Pattern 2: "open-attributes" → 商品属性/規格参数タブをクリックして展開
+  Pattern 3: "open-reviews"    → 商品評価タブをクリックして展開
+  Pattern 4: "scroll-middle"   → ページ中央にスクロール（遅延描画対策）
+  Pattern 5: "scroll-bottom"   → ページ最下部にスクロール
+  Pattern 6: "scroll-top"      → ページ最上部に戻す
+
+  各パターン間: 260ms待機
+  パターン内待機: 120-620ms（クリック成否で変動）
+
+  データソース優先順位:
+    1. window.context（1688のSSR埋め込みデータ）
+       - window.context.result.data を直接取得
+       - 複数のパターンでscriptタグからも正規表現で抽出試行
+    2. インラインscriptの構造化データ（skuProps, skuMap, featureAttributes等）
+    3. JSON-LD（@type: Product）
+    4. DOMセレクタ（CSSクラス名ベース）
+    5. body.innerText の正規表現マッチ
+
+  抽出成功判定: title + images[] or productId + (title or price)
+  取得率計算: filledFields / 27（全チェック項目数）
+
+マージロジック（mergeDataCandidate）:
+  - 6回の抽出結果を最善スコア順にマージ
+  - 配列フィールド: 重複排除のうえ結合（Set利用）
+  - スカラーフィールド: base優先、空なら incomingで補完
+  - sourceフィールド: "window.context+fallback" のように連結
+
+────────────────────────────────────────────────────────────────────
+Step 3: 出力処理（インライン抽出 = 導線B）
+────────────────────────────────────────────────────────────────────
+  - 抽出JSONをオーバーレイパネルに表示（pre #ec-ai-extract-json）
+  - 取得率（%）と未取得項目を表示
+  - JSONコピー（navigator.clipboard.writeText）
+  - JSONダウンロード（Blobを生成、ec-ai-extraction-{productId}.json）
+  - パネルはEscキーまたはXボタンで閉じる
+
+────────────────────────────────────────────────────────────────────
+Step 4: 保存処理
+────────────────────────────────────────────────────────────────────
+  導線B: content-script → SAVE_LAST_EXTRACTION → background → StorageRepo.appendExtractionHistory()
+  導線A（解析ボタン）: background.js内で直接 StorageRepo.appendExtractionHistory()
+
+  保存仕様:
+    - extractionHistory: 最大20件、FIFO
+    - 各エントリはcompactExtractionEntry()でサイズ制限
+      テキスト: 最大4,000文字（description: 10,000）
+      配列: 最大80要素
+    - chrome.storage.local容量超過時: aggressive compaction適用 → 履歴件数削減
+
+────────────────────────────────────────────────────────────────────
+Step 5: ジョブ連携（管理画面 → API）
+────────────────────────────────────────────────────────────────────
+
+5a. 「1688タブを解析」ボタン（#run-btn → RUN_EXTRACTION_ON_ACTIVE_TAB）
+  フロー:
+    1. getActiveTab() でアクティブな1688タブを探索
+       優先順: currentWindow.activeTab → 全windowのactiveTab → 全1688タブ(lastAccessed順)
+    2. chrome.windows.create() で新規ウィンドウを作成（幅1200×高800, unfocused）
+    3. タブ読み込み完了を待機（15秒タイムアウト）
+    4. chrome.tabs.sendMessage(EXTRACT_PRODUCT) で抽出実行
+    5. 新規ウィンドウを閉じる（finallyブロック）
+    6. 抽出データを extractionHistory に保存
+    7. PromptTemplate.buildPrompt() でプロンプト生成
+    8. StorageRepo.upsertJob() でローカルジョブ作成
+    9. ApiClient.submitJob() で POST /v1/jobs に送信
+    10. schedulePoll() でchrome.alarms経由のポーリング開始
+
+  プロンプト構成（buildPrompt）:
+    [テンプレートヘッダー（ドラフト作成②のテキスト）]
+    
+    [ページ情報]
+    - title: ...
+    - productId: ...
+    - url: ...
+    - price: ...
+    - moq: ...
+    ...（preferredOrderに従い構造化出力）
+
+5b. 「ドラフト作成」/「改善」ボタン（RUN_PAGE_CREATE_FROM_EXTRACTION）
+  フロー:
+    1. 選択中の抽出結果をsourceDataとして取得
+    2. mode（draft/improve）に応じたテンプレートを選択
+    3. buildPrompt() でプロンプト生成
+    4. ジョブ作成 → API送信 → ポーリング開始
+
+5c. ポーリング（chrome.alarms）
+  - alarmName: "poll:{localJobId}"
+  - pollJob() で GET /v1/jobs/{remoteJobId} を叩く
+  - status が done/failed なら cancelPoll()
+  - それ以外なら再度 schedulePoll()
+
+────────────────────────────────────────────────────────────────────
+Step 6: Cloudflare Worker（cf-worker/workers.js）
+────────────────────────────────────────────────────────────────────
+  ※注意: このWorkerは拡張側が期待する /v1/jobs APIとは別系統。
+  Replicate API汎用プロキシとして画像/3D生成に使用。
+
+  フロー:
+    1. POST リクエストを受信（apiUrl, payload）
+    2. apiUrl のドメインを検証（api.replicate.com のみ許可）
+    3. env.REPLICATE_API_TOKEN を認証ヘッダーに付与
+    4. Replicate APIに転送（120秒タイムアウト）
+    5. 非同期レスポンスの場合: pollForResult() で最大20回ポーリング
+    6. processAndSaveImages() で出力ファイルをR2に保存
+       対応形式: GLB, MP4, JPG, PNG, GIF, WebP, BMP
+       命名規則: {モデル名}-{年月日}-{時分秒}-{index}.{拡張子}
+
+================================================================================
+5. 完成度が低い箇所（実装済みだが品質課題あり）
+================================================================================
+
+5.1 Cloudflare WorkerとChrome拡張のAPI仕様不一致（重要度: 高）
+  - 拡張側は POST /v1/jobs, GET /v1/jobs/{jobId} を期待
+  - Workerは Replicate APIプロキシ（POSTのみ、独自リクエスト形式）
+  - /v1/jobs エンドポイントがWorker側に存在しない
+  - 結果: 拡張のジョブ投入フローがWorkerと接続不能の可能性が高い
+  - 修正案: Worker側に /v1/jobs ルーティングを追加するか、拡張側を
+    Workerのプロキシ形式に合わせる
+
+5.2 prompt-template.js の構造化出力の限界（重要度: 中）
+  - buildPrompt() は renderStructuredPageInfo() でフラットなKey-Value一覧を生成
+  - しかし、ドラフト作成テンプレートの末尾は「商品名:」「仕様・説明文など:」
+    「販売時の商品バリエーション:」が空欄で終わっており、実際の抽出データが
+    これらのプレースホルダーに挿入されない
+  - テンプレートのプレースホルダーと buildPrompt の出力が乖離している
+  - 図: テンプレート末尾「商品名:（空）」 + "[ページ情報] - title: xxx" が
+    並列出力されるため、LLMにとって冗長・混乱の原因
+
+5.3 shop情報抽出の行インデックス不安定（重要度: 中）
+  - findShopInfo() の for-of ループ内で lines[i+1] を参照（L871-872, L880-882）
+  - getBodyLines() は空行をフィルタ済みのため、元ページの行構造と不一致になりうる
+  - 結果: region, repeatPurchaseRate が隣接行から誤取得されるケースがある
+
+5.4 detailImages/packagingInfo のカテゴリ依存（重要度: 中）
+  - 商品カテゴリによりHTML構造が大きく異なるため、取得率にばらつきがある
+  - findDetailImages() のFallback 1/2（HTMLの正規表現マッチ）は
+    20,000文字制限のため巨大ページで途中打ち切りになる
+
+5.5 webp限定フィルタの副作用（重要度: 低〜中）
+  - 画像は .webp のみ採用（content-script.js L273）
+  - 1688が webpを提供しないページでは images[] が空になる
+  - 元々webpフィルタはノイズ画像除去のためだが、過度にアグレッシブ
+
+5.6 新規ウィンドウ方式の副作用（重要度: 中）
+  - runExtractionOnActiveTab() は chrome.windows.create() で新規ウィンドウを作成
+  - ユーザーにとって画面がちらつく（focused: false だがOSによっては前面表示）
+  - ページ読み込み完了後に content-script が注入されない場合がある
+    （manifest.json の content_scripts に run_at: "document_idle" があるが、
+     新規ウィンドウで確実に実行される保証がない）
+
+5.7 reviews 構造の不整合（重要度: 低）
+  - content-script.js の findReviews() は { reviewCount, summary, metrics } を返す
+  - storage.js の compactExtractionEntry() は reviews を配列として処理（L332-338）
+  - 構造の不整合により、reviews データが意図通り圧縮されない
+
+5.8 APIキーの利用経路が不明確（重要度: 低）
+  - Replicate/OpenRouter APIキーは暗号化保存されるが、
+    実際の API 呼び出し（ApiClient.submitJob）ではキーが使用されていない
+  - submitJob() は password（toolPassword）のみを送信
+  - APIキーの復号（decryptApiKeys）は管理画面から呼べるが、具体的な利用フローが未定義
+
+================================================================================
+6. 未実装だがプロジェクトに有用な新機能提案（短期実装可能）
+================================================================================
+
+6.1 ローカルLLM実行モード（Replicate API直接呼び出し）  [推定工数: 2-3日]
+  概要: Cloudflare Workerを経由せず、拡張内から直接 Replicate API を呼び出す
+  理由: 現在のWorkerは画像生成プロキシであり、テキスト生成のジョブ管理API（/v1/jobs）
+        が未実装。復号したAPIキーを使って拡張内から直接LLMを呼べば、
+        Worker側の追加開発なしに商品ページ生成が即座に利用可能になる。
+  実装: background.js に Replicate/OpenRouter の直接呼び出し関数を追加。
+        decryptApiKeys() で取得したキーを使用。
+        ApiClient に replicate/openrouter を直接叩くメソッドを追加。
+
+6.2 抽出結果のCSVエクスポート  [推定工数: 0.5日]
+  概要: 抽出履歴をCSVファイルとしてダウンロード
+  理由: 複数商品の比較分析やスプレッドシートでの管理が可能になる。
+        仕入れ判断の迅速化に直結。
+  実装: manager.js に「CSVエクスポート」ボタンを追加。
+        extractionHistory から主要フィールドをCSV変換して Blob ダウンロード。
+
+6.3 抽出結果のプレビュー強化（構造化ビュー）  [推定工数: 1-2日]
+  概要: JSON生テキストではなく、構造化されたHTML表示で抽出結果を閲覧
+  理由: 現在のpre要素でのJSON表示は可読性が低い。特に画像URL一覧は
+        サムネイル表示のほうが視覚的に確認しやすい。
+  実装: renderExtractionDetail() を拡張。
+        images[]: サムネイル画像をグリッド表示
+        attributes[]: Key-Valueテーブル表示
+        priceTiers[]: 段階別テーブル表示
+        missingFields[]: タグ（バッジ）表示
+
+6.4 抽出品質の自動改善（セカンドパス抽出）  [推定工数: 1日]
+  概要: missingFields が多い場合に、追加のDOMクエリを実行する2ndパス
+  理由: 1回目の6パターン抽出で取れなかった項目に特化した追加クエリを
+        実行することで取得率を向上させる。
+  実装: extractProductDataWithRetry() の後に missingFields をチェック。
+        不足項目ごとに専用の追加抽出ロジックを実行（例: SKU一覧がないなら
+        click-sku-optionsを追加実行）。
+
+6.5 ジョブ結果のクリップボードコピー / Markdown変換  [推定工数: 0.5日]
+  概要: LLMが生成した商品ページテキストをワンクリックでコピー、
+        またはMarkdown/HTMLとしてフォーマット変換
+  理由: 生成結果をAmazon Seller Centralに貼り付ける際、フォーマット済みの
+        テキストが直接使えると作業効率が大幅に向上する。
+  実装: ジョブ詳細画面に「結果をコピー」「HTML変換」ボタンを追加。
+        result フィールドのJSON内テキストを整形して出力。
+
+6.6 多サイト対応の基盤作成（Taobao / AliExpressへの拡張準備）  [推定工数: 2-3日]
+  概要: content-script.js の抽出ロジックをサイト別モジュールに分離
+  理由: 現在のコードは1688に特化しているが、Taobao/AliExpress等も類似構造。
+        抽出ロジックをプラグイン化すれば横展開が容易になる。
+  実装: content-script.js から extractors/1688.js を切り出し。
+        manifest.json の content_scripts.matches にサイトを追加。
+        サイト判定ロジックを追加。
+
+6.7 価格比較・利益計算機能  [推定工数: 1日]
+  概要: 1688仕入れ価格とAmazon想定販売価格から粗利を自動計算
+  理由: 仕入れ判断に最も重要な指標。為替レートを含めた簡易利益計算を
+        抽出結果画面に表示すれば意思決定が迅速化する。
+  実装: manager.html に利益計算セクションを追加。
+        入力: 販売価格（円）、送料、手数料率
+        自動取得: 仕入れ価格（抽出結果のprice）、為替レート（外部API）
+
+================================================================================
+7. 総括
+================================================================================
+
+v1からの最大の進歩は、background.jsの制御フロー修正と機能拡張（抽出履歴、
+draft/improve、タブUI）により、ユーザー操作導線が大幅に改善されたことである。
+
+一方で、以下の構造的課題が残存している:
+
+1. API接続の不一致: 拡張側が期待するジョブAPIとWorkerのReplicate プロキシが
+   別系統として実装されており、テキスト生成のE2Eフローが成立していない。
+   → 最優先修正事項。6.1のローカルLLM実行モードで即座に解決可能。
+
+2. プロンプト構造の非最適: テンプレートのプレースホルダーとbuildPromptの出力が
+   乖離しており、LLMへの入力品質が最適でない。
+   → prompt-template.js のリファクタリングで対応。
+
+3. 統合テスト未実施: 個々のモジュールは堅牢だが、
+   新規ウィンドウ作成→抽出→ジョブ投入→結果取得のE2Eテストが未実施。
+
+次スプリントの推奨優先順位:
+  1位: LLM直接呼び出し機能の実装（6.1）→ E2Eフローの即時有効化
+  2位: prompt-template.jsの改善（5.2）→ 生成品質の向上
+  3位: 抽出結果の構造化ビュー（6.3）→ UX大幅改善
+  4位: CSVエクスポート（6.2）→ 実務利用の利便性向上

@@ -11,7 +11,12 @@ webtool-ec-performance-analysis-amazon/*.txt
 webtool-ec-calc-amazon/*.csv
 webtool-ec-calc-amazon/*.txt
 webtool-ec-order-cilel/*.xlsx
+webtool-ec-order-cilel/data/*
 webtool-bank-rsn/*.csv
+
+
+BrowserExtension-ec-ai/1688/*
+
 
 # OS generated files
 .DS_Store
