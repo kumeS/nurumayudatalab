@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="ng.js"></script>
+  <script src="split_keywords.js"></script>
   <style>
     :root {
       --primary: #ff7e5f;
@@ -532,6 +533,7 @@
       <div style="display: flex; gap: 0.5rem;">
         <button id="removeLongKeywords10Btn" style="margin: 0; font-size: 0.8rem; padding: 0.3rem 0.8rem; background: linear-gradient(135deg, #dc3545, #e4606d);">10文字以上削除</button>
         <button id="removeLongKeywords15Btn" style="margin: 0; font-size: 0.8rem; padding: 0.3rem 0.8rem; background: linear-gradient(135deg, #dc3545, #e4606d);">15文字以上削除</button>
+        <button id="splitKeywordsBtn" style="margin: 0; font-size: 0.8rem; padding: 0.3rem 0.8rem; background: linear-gradient(135deg, #28a745, #34ce57); border: none; color: white; border-radius: 4px; cursor: pointer; transition: all 0.3s ease;">文字列分割</button>
       </div>
     </h3>
     <div class="textarea-wrapper">
@@ -1062,6 +1064,69 @@
 
   document.getElementById('removeLongKeywords15Btn').addEventListener('click', function() {
     removeLongKeywords(15);
+  });
+
+  // ▼ 文字列分割機能
+  document.getElementById('splitKeywordsBtn').addEventListener('click', function() {
+    const kwInput = document.getElementById('kwInput');
+    const currentText = kwInput.value;
+    
+    if (!currentText.trim()) {
+      alert('キーワードを入力してください');
+      return;
+    }
+
+    try {
+      // split_keywords.js で定義された SPLIT_KEYWORDS を使用
+      const splitWords = [...SPLIT_KEYWORDS];
+      
+      // 文字数が長い順（降順）にソート
+      splitWords.sort((a, b) => b.length - a.length);
+
+      // 空白で単語ごとに分割
+      const words = currentText.split(/[\s　]+/);
+      const resultWords = [];
+      let isChanged = false;
+      
+      words.forEach(word => {
+        if (!word) return;
+        
+        let currentWord = word;
+        
+        // 文字数が長いものから順に、マッチしたらその後ろにスペースを追加していく
+        // （小さい側でも再度分割されるように、全てのキーワードを順番に判定する）
+        splitWords.forEach(sw => {
+          if (!sw) return;
+          const escapedSw = sw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`(${escapedSw})`, 'g');
+          
+          if (regex.test(currentWord)) {
+            // 文字列の前と後ろ両方に半角スペースを入れる
+            const newWord = currentWord.replace(regex, ' $1 ');
+            if (newWord !== currentWord) {
+              currentWord = newWord;
+              isChanged = true;
+            }
+          }
+        });
+        
+        // 連続する空白を1つに置換し、前後の空白を削除
+        const finalWord = currentWord.replace(/[\s　]+/g, ' ').trim();
+        resultWords.push(finalWord);
+      });
+      
+      if (!isChanged) {
+        alert('分割できるキーワードは見つかりませんでした');
+      } else {
+        // 結果を結合してテキストエリアに反映
+        kwInput.value = resultWords.join(' ');
+        saveInputData();
+        alert('文字列の分割処理が完了しました');
+      }
+    } catch (error) {
+      alert('エラーが発生しました。');
+      console.error(error);
+    }
   });
 
   // ▼ 文字数分布表示機能

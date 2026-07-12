@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-F54LKE733T"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-F54LKE733T');
+  </script>
+  <title>Data Analysis Tools | NURUMAYU Data Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Powerful data analysis tools for marketing, business, and research. Simplify your data workflows with NURUMAYU Data Lab.">
+  <link rel="icon" type="image/svg+xml" href="favicon/nu-mono.svg">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #0a4d68;
+      --secondary: #088395;
+      --accent: #05bfdb;
+      --light-accent: #00ffca;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition-speed: 0.3s;
+    }
+    
+    body {
+      font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #f8f9fa 100%);
+      min-height: 100vh;
+    }
+    
+    .data-gradient {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .header-bg {
+      background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .tool-card {
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all var(--transition-speed) ease;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(0,0,0,0.05);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      font-size: 1.1em;
+    }
+    
+    .tool-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 15px 25px rgba(0,0,0,0.15);
+      border-color: rgba(5, 191, 219, 0.4);
+    }
+    
+    .card-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      padding: 1.5rem;
+      color: white;
+      font-weight: 700;
+      font-size: 1.2em;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--secondary), var(--accent));
+      color: white;
+      transition: all var(--transition-speed) ease;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      display: inline-block;
+      text-decoration: none;
+      box-shadow: 0 2px 4px rgba(5, 191, 219, 0.3);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(5, 191, 219, 0.4);
+    }
+    
+    .loading {
+      display: flex;
+      justify-content: center;
+      padding: 3rem 0;
+    }
+    
+    .loading-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: var(--accent);
+      margin: 0 6px;
+      animation: loading 1.4s infinite ease-in-out both;
+    }
+    
+    .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+    
+    @keyframes loading {
+      0%, 80%, 100% { 
+        transform: scale(0);
+        opacity: 0.5;
+      } 40% { 
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    
+    .wave-divider {
+      position: relative;
+      height: 60px;
+      width: 100%;
+    }
+    
+    .wave {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z' fill='%23ffffff' opacity='.25'%3E%3C/path%3E%3Cpath d='M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z' fill='%23ffffff' opacity='.5'%3E%3C/path%3E%3Cpath d='M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z' fill='%23ffffff'%3E%3C/path%3E%3C/svg%3E") center bottom no-repeat;
+      background-size: cover;
+      z-index: 10;
+    }
+    
+    /* Navbar styles */
+    .navbar {
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      background-color: rgba(255, 255, 255, 0.95);
+      transition: all var(--transition-speed) ease;
+    }
+    
+    .navbar.scrolled {
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* Mobile menu */
+    .mobile-menu {
+      transition: transform var(--transition-speed) ease;
+      transform: translateX(-100%);
+    }
+    
+    .mobile-menu.active {
+      transform: translateX(0);
+    }
+    
+    /* Search styles */
+    .search-container {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.5rem;
+      border-radius: 9999px;
+      border: 1px solid #e2e8f0;
+      transition: all var(--transition-speed) ease;
+      background-color: white;
+    }
+        
+    .search-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(5, 191, 219, 0.2);
+      border-color: var(--accent);
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #a0aec0;
+    }
+    
+    /* Hide scrollbar but allow scrolling */
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+    
+    /* Enhanced title styling */
+    .title-wrapper {
+      position: relative;
+      display: inline-block;
+      padding: 0 1rem;
+    }
+    
+    .title-highlight {
+      position: absolute;
+      height: 12px;
+      width: 100%;
+      bottom: 8px;
+      left: 0;
+      background-color: rgba(5, 191, 219, 0.3);
+      z-index: -1;
+      border-radius: 6px;
+    }
+    
+    .title-emoji {
+      display: inline-block;
+      margin-right: 0.5rem;
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    /* Stars Animation */
+    .stars {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    .stars .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle var(--duration) infinite;
+      animation-delay: var(--delay);
+    }
+    
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 1; }
+    }
+  </style>
+</head>
+<body class="antialiased">
+  <!-- Navigation Bar -->
+  <nav id="navbar" class="navbar fixed top-0 left-0 right-0 z-50 py-3 px-4 md:px-6">
+    <div class="container mx-auto flex items-center justify-between">
+      <div class="flex items-center">
+        <button id="menuToggle" class="md:hidden mr-4 text-gray-600 hover:text-gray-800 focus:outline-none">
+          <i class="fas fa-bars text-xl"></i>
+        </button>
+        <a href="index.html" class="flex items-center">
+          <span class="text-2xl font-bold data-gradient">NURUMAYU Data Lab</span>
+        </a>
+      </div>
+      
+      <div class="hidden md:flex space-x-6 mx-4">
+        <a href="index.html" class="text-gray-600 hover:text-gray-800 font-medium">Home</a>
+        <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium">Analysis Tools</a>
+        <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium">About</a>
+      </div>
+    </div>
+  </nav>
+  
+  <!-- Mobile Menu (Hidden by default) -->
+  <div id="mobileMenu" class="mobile-menu fixed top-0 left-0 bottom-0 z-40 w-64 bg-white shadow-lg pt-16 px-4 md:hidden">
+    <div class="flex flex-col space-y-4">
+      <a href="index.html" class="text-gray-600 hover:text-gray-800 font-medium py-2">Home</a>
+      <a href="#tools" class="text-gray-600 hover:text-gray-800 font-medium py-2">Analysis Tools</a>
+      <a href="#about" class="text-gray-600 hover:text-gray-800 font-medium py-2">About</a>
+    </div>
+  </div>
+  
+  <!-- Hero Section -->
+  <header class="header-bg pt-24 pb-12 px-4 text-white">
+    <div class="stars" id="stars"></div>
+    <div class="container mx-auto">
+      <div class="flex flex-col items-center text-center">
+        <h1 class="text-4xl md:text-6xl font-extrabold mb-6 relative">
+          <div class="title-wrapper">
+            <span class="text-white">Data Analysis Tools</span>
+          </div>
+        </h1>
+        <p class="text-lg md:text-xl text-gray-300 max-w-2xl mb-8">
+          Powerful analytics solutions to transform your data into actionable insights.
+          Discover patterns, visualize trends, and make data-driven decisions.
+        </p>
+                
+        <div class="flex flex-wrap justify-center gap-4 mb-8">
+          <a href="#tools" class="btn-primary">
+            <i class="fas fa-chart-line mr-2"></i>Explore Tools
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="wave-divider">
+      <div class="wave"></div>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <main class="py-8 md:py-12">
+    <section id="tools" class="container mx-auto px-4 mb-16">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+          <h2 class="text-2xl md:text-3xl font-bold mb-2">Our Analysis Toolkit</h2>
+          <p class="text-gray-600">Powerful tools to transform your data workflow.</p>
+        </div>
+        <div class="search-container mt-4 md:mt-0">
+          <i class="fas fa-search search-icon"></i>
+          <input id="toolSearch" type="text" placeholder="Search tools..." class="search-input">
+        </div>
+      </div>
+      
+      <!-- Loading Indicator -->
+      <div id="loadingIndicator" class="loading">
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+      </div>
+      
+      <!-- Tool Cards Container -->
+      <div id="toolGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 opacity-0 transition-opacity duration-500"></div>
+      
+      <!-- No Results Message -->
+      <div id="noResults" class="hidden py-16 text-center">
+        <i class="fas fa-search text-4xl text-gray-400 mb-4"></i>
+        <h3 class="text-xl font-bold mb-2">No matching tools found</h3>
+        <p class="text-gray-600">Try searching with different keywords.</p>
+      </div>
+    </section>
+    
+    <section id="about" class="container mx-auto px-4">
+      <div class="bg-white rounded-xl shadow-md p-6 md:p-8 max-w-4xl mx-auto">
+        <h2 class="text-2xl md:text-3xl font-bold mb-4">About Our Data Analysis Platform</h2>
+        <div class="text-gray-600 space-y-4">
+          <p>
+            Welcome to the NURUMAYU Data Lab Analysis platform. We provide powerful and intuitive tools for data analysis, 
+            visualization, and interpretation to help businesses and researchers make sense of complex data.
+          </p>
+          <p>
+            Our suite of analytical tools is designed with simplicity and effectiveness in mind, allowing users of all 
+            skill levels to extract meaningful insights without complicated setup or technical expertise.
+          </p>
+          <p>
+            We're continuously expanding our collection with new analytical capabilities. If you have suggestions for 
+            tools or features you'd like to see, please let us know.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+  
+  <!-- Footer -->
+  <footer class="bg-gray-100 py-8 mt-16">
+    <div class="container mx-auto px-4">
+      <div class="flex flex-col md:flex-row items-center justify-between">
+        <div class="mb-4 md:mb-0">
+          <span class="text-xl font-bold data-gradient">NURUMAYU Data Lab</span>
+        </div>
+      </div>
+      <div class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 text-sm">
+        © 2025 NURUMAYU Data Lab
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    //--------------------------------------------------------------
+    // Tools data
+    //--------------------------------------------------------------
+    const analysisTools = [
+      {
+        "title": "NEKO bot Demo",
+        "desc": "「吾輩は猫である」が詳しい猫ボットです。データ分析についてもお気軽にご質問ください。",
+        "url": "Analysis-Chat/index.html",
+        "icon": "fa-cat"
+      },
+      {
+        "title": "Optimal Transport Analyzer Demo",
+        "desc": "最適輸送理論を用いた状態遷移解析。A→B→C分岐パターンの可視化とワッサースタイン距離による定量評価",
+        "url": "Analysis-OT/index.html",
+        "icon": "fa-chart-line"
+      },
+      {
+        "title": "Under development",
+        "desc": "Under development",
+        "url": "#",
+        "icon": "fa-project-diagram"
+      }
+    ];
+
+    //--------------------------------------------------------------
+    // Page initialization
+    //--------------------------------------------------------------
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        renderTools(analysisTools);
+      }, 500); // Small delay for loading animation
+      
+      setupEventListeners();
+      createStars();
+    });
+
+    //--------------------------------------------------------------
+    // Render tool cards
+    //--------------------------------------------------------------
+    function renderTools(arr) {
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      const toolGrid = document.getElementById('toolGrid');
+      
+      toolGrid.innerHTML = '';
+      
+      arr.forEach((t) => {
+        const card = document.createElement('div');
+        card.className = 'tool-card';
+        card.innerHTML = `
+          <div class="card-header">
+            <i class="fas ${t.icon} mr-2"></i>
+            <span>${t.title}</span>
+          </div>
+          <div class="p-6 flex-1 bg-white">
+            <p class="text-gray-600 mb-6 text-lg">${t.desc}</p>
+            <a href="${t.url}" class="btn-primary text-lg px-5 py-2">
+              <i class="fas ${t.url === '#' ? 'fa-external-link-alt' : 'fa-arrow-right'} mr-2"></i> ${t.url === '#' ? 'Coming Soon' : '使ってみる'}
+            </a>
+          </div>
+        `;
+        card.dataset.title = t.title.toLowerCase();
+        card.dataset.description = t.desc.toLowerCase();
+        toolGrid.appendChild(card);
+      });
+      
+      // Hide loading indicator and show content
+      loadingIndicator.style.display = 'none';
+      toolGrid.classList.remove('opacity-0');
+    }
+
+    //--------------------------------------------------------------
+    // Setup event listeners
+    //--------------------------------------------------------------
+    function setupEventListeners() {
+      // Navbar scroll effect
+      const navbar = document.getElementById('navbar');
+      window.addEventListener('scroll', () => {
+        if (window.scrollY > 10) {
+          navbar.classList.add('scrolled');
+        } else {
+          navbar.classList.remove('scrolled');
+        }
+      });
+      
+      // Mobile menu toggle
+      const menuToggle = document.getElementById('menuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      
+      menuToggle.addEventListener('click', () => {
+        mobileMenu.classList.toggle('active');
+      });
+      
+      // Close mobile menu when clicking outside
+      document.addEventListener('click', (e) => {
+        if (mobileMenu.classList.contains('active') && 
+            !mobileMenu.contains(e.target) && 
+            e.target !== menuToggle) {
+          mobileMenu.classList.remove('active');
+        }
+      });
+            
+      // Search functionality
+      const toolSearch = document.getElementById('toolSearch');
+      const noResults = document.getElementById('noResults');
+      
+      toolSearch.addEventListener('input', () => {
+        const searchTerm = toolSearch.value.toLowerCase().trim();
+        const tools = document.querySelectorAll('#toolGrid .tool-card');
+        let matchFound = false;
+        
+        tools.forEach(tool => {
+          const title = tool.dataset.title;
+          const description = tool.dataset.description;
+          
+          if (title.includes(searchTerm) || description.includes(searchTerm) || searchTerm === '') {
+            tool.style.display = 'flex';
+            matchFound = true;
+          } else {
+            tool.style.display = 'none';
+          }
+        });
+        
+        if (matchFound) {
+          noResults.classList.add('hidden');
+        } else {
+          noResults.classList.remove('hidden');
+        }
+      });
+    }
+
+    //--------------------------------------------------------------
+    // Create stars in header background
+    //--------------------------------------------------------------
+    function createStars() {
+      const stars = document.getElementById('stars');
+      const starsCount = 100;
+      
+      for (let i = 0; i < starsCount; i++) {
+        const star = document.createElement('div');
+        star.classList.add('star');
+        
+        // Random position
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.top = `${Math.random() * 100}%`;
+        
+        // Random size
+        const size = Math.random() * 3 + 1;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        
+        // Random animation
+        const duration = 3 + Math.random() * 3;
+        const delay = Math.random() * 3;
+        
+        star.style.setProperty('--duration', `${duration}s`);
+        star.style.setProperty('--delay', `${delay}s`);
+        
+        stars.appendChild(star);
+      }
+    }
+  </script>
+</body>
+</html>
